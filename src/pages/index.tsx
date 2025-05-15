@@ -8,10 +8,8 @@ import { Product, ProductCategory } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
 import { collection, writeBatch, doc, onSnapshot } from "firebase/firestore";
-import AddProductModal from "@/components/AddProductModal";
 
 const Home = () => {
-  const [showModal, setShowModal] = useState(false);
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -200,14 +198,6 @@ const Home = () => {
           Clear
         </button>
 
-        <button
-          onClick={() => setShowModal(true)}
-          style={{ ...ACTION_BTN, background: "green", color: "white" }}
-          className="add-product-btn"
-        >
-          Add Product
-        </button>
-        {showModal && <AddProductModal onClose={() => setShowModal(false)} />}
         {/* hidden file input */}
         <input
           type="file"
@@ -223,7 +213,7 @@ const Home = () => {
           onClick={handleImportClick}
           style={{ ...ACTION_BTN, background: "#3182ce", color: "white" }}
         >
-          Import File
+          Import JSON
         </button>
 
         {isAuthenticated && (
@@ -261,11 +251,6 @@ const Home = () => {
       </div>
 
       <style jsx>{`
-        .add-product-btn:hover,
-        .add-product-btn:focus {
-          background: white;
-          color: green;
-        }
         .tabs-container {
           overflow-x: auto;
           margin-bottom: 0.25rem;
