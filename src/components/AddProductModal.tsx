@@ -20,34 +20,35 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>(""); // Initially empty
   const [flavor, setFlavor] = useState("");
   const [store, setStore] = useState("");
   const [home, setHome] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [naChecked, setNaChecked] = useState(false);
 
-  // 1) Load *all* category names from Firestore
+  // 1) Load *all* category names from the 'products' collection
   useEffect(() => {
-    const q = query(collection(db, "categories"), orderBy("name"));
+    const q = query(collection(db, "products"), orderBy("category"));
     const unsub = onSnapshot(q, (snap) => {
-      const cats = snap.docs.map((d) => d.data().name as string);
-      setAvailableCategories(cats);
+      const cats = snap.docs.map((d) => d.data().category as string);
+      const uniqueCats = [...new Set(cats)]; // Get unique categories
+      setAvailableCategories(uniqueCats);
 
       // When moving to step 2, ensure there is a default selected category
-      if (step === 2 && cats.length > 0 && !selectedCategory) {
-        setSelectedCategory(cats[0]);
+      if (step === 2 && uniqueCats.length > 0 && !selectedCategory) {
+        setSelectedCategory(uniqueCats[0]); // Set default category if none selected
       }
     });
     return () => unsub();
-  }, [step]);
+  }, [step, selectedCategory]);
 
-  // whenever you type a real date, clear the "no expiry" flag
+  // If you ever type a real date, clear the "no expiry" flag
   useEffect(() => {
     if (expiryDate) setNaChecked(false);
   }, [expiryDate]);
 
-  // reset on open
+  // Reset when modal is opened
   useEffect(() => {
     if (isOpen) {
       setStep(0);
@@ -57,7 +58,7 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setHome("");
       setExpiryDate("");
       setNaChecked(false);
-      setSelectedCategory(""); // Clear selectedCategory
+      setSelectedCategory(""); // Clear selectedCategory when modal opens
     }
   }, [isOpen]);
 
@@ -96,7 +97,7 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const handleStepChange = (newStep: 0 | 1 | 2) => {
     setStep(newStep);
     if (newStep === 2 && availableCategories.length > 0) {
-      setSelectedCategory(availableCategories[0]); // Set default category
+      setSelectedCategory(availableCategories[0]); // Set default category if no category is selected
     }
   };
 
@@ -145,11 +146,15 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
                   >
-                    {availableCategories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
+                    {availableCategories.length > 0 ? (
+                      availableCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))
+                    ) : (
+                      <option>No Categories Available</option>
+                    )}
                   </select>
                 </label>
               )}
