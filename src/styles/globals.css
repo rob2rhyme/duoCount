@@ -1,3 +1,12 @@
+:root {
+  --primary: #3182ce;
+  --primary-hover: #2763ac;
+  --border: #cbd5e0;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  --bg-modal: #fff;
+  --text: #2d3748;
+}
+
 * {
   box-sizing: border-box;
   padding: 0;

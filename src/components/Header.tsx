@@ -1,7 +1,8 @@
 // src/components/Header.tsx
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
+import AddProductModal from "../components/AddProductModal";
 import styles from "../styles/Header.module.css";
 
 const Header = () => {
