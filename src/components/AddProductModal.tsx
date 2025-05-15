@@ -27,18 +27,22 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [expiryDate, setExpiryDate] = useState("");
   const [naChecked, setNaChecked] = useState(false);
 
-  // load all categories once
+  // 1) Load *all* category names from Firestore
   useEffect(() => {
     const q = query(collection(db, "categories"), orderBy("name"));
     const unsub = onSnapshot(q, (snap) => {
       const cats = snap.docs.map((d) => d.data().name as string);
       setAvailableCategories(cats);
-      if (!selectedCategory && cats.length) setSelectedCategory(cats[0]);
+
+      // When moving to step 2, ensure there is a default selected category
+      if (step === 2 && cats.length > 0 && !selectedCategory) {
+        setSelectedCategory(cats[0]);
+      }
     });
     return () => unsub();
-  }, [selectedCategory]);
+  }, [step]);
 
-  // if you ever type a real date, clear the "no expiry" flag
+  // whenever you type a real date, clear the "no expiry" flag
   useEffect(() => {
     if (expiryDate) setNaChecked(false);
   }, [expiryDate]);
@@ -53,9 +57,9 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setHome("");
       setExpiryDate("");
       setNaChecked(false);
-      setSelectedCategory(availableCategories[0] || "");
+      setSelectedCategory(""); // Clear selectedCategory
     }
-  }, [isOpen, availableCategories]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -88,6 +92,14 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
     }
   };
 
+  // Step navigation handler
+  const handleStepChange = (newStep: 0 | 1 | 2) => {
+    setStep(newStep);
+    if (newStep === 2 && availableCategories.length > 0) {
+      setSelectedCategory(availableCategories[0]); // Set default category
+    }
+  };
+
   return (
     <div className={styles.backdrop} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -95,8 +107,10 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <>
             <h2>Add Product</h2>
             <div className={styles.options}>
-              <button onClick={() => setStep(1)}>Add New Category Vape</button>
-              <button onClick={() => setStep(2)}>
+              <button onClick={() => handleStepChange(1)}>
+                Add New Category Vape
+              </button>
+              <button onClick={() => handleStepChange(2)}>
                 Add Flavor to Existing Category
               </button>
             </div>
