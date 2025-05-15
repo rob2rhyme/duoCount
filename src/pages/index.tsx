@@ -1,5 +1,5 @@
 // src/pages/index.tsx
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, FormEvent } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
@@ -8,8 +8,10 @@ import { Product, ProductCategory } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
 import { collection, writeBatch, doc, onSnapshot } from "firebase/firestore";
+import AddProductModal from "@/components/AddProductModal";
 
 const Home = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,19 +51,17 @@ const Home = () => {
     fileInputRef.current?.click();
   };
 
-  // ─── Enhanced validation + duplication check ───────────────
+  // ─── JSON Import with Validation ─────────────────────────
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 1️⃣ Check file type/extension
     if (file.type !== "application/json" && !file.name.endsWith(".json")) {
       alert("Invalid file type. Please select a .json file.");
       e.target.value = "";
       return;
     }
 
-    // 2️⃣ Parse JSON
     let json: ProductCategory;
     try {
       const text = await file.text();
@@ -72,7 +72,6 @@ const Home = () => {
       return;
     }
 
-    // 3️⃣ Validate shape
     if (typeof json.name !== "string" || !Array.isArray(json.products)) {
       alert(
         "Invalid JSON shape. Expected:\n" +
@@ -82,22 +81,17 @@ const Home = () => {
       return;
     }
 
-    // 4️⃣ Duplication guard
     if (productsByCategory[json.name]) {
       alert(`Category "${json.name}" already exists.`);
       e.target.value = "";
       return;
     }
 
-    // 5️⃣ Batch-write to Firestore
     try {
       const batch = writeBatch(db);
-
-      // Category doc (optional; only if you use it elsewhere)
       const categoryRef = doc(db, "categories", json.name);
       batch.set(categoryRef, { name: json.name });
 
-      // Products
       const productsCol = collection(db, "products");
       json.products.forEach((p) => {
         const pRef = doc(productsCol);
@@ -115,7 +109,7 @@ const Home = () => {
   };
   // ────────────────────────────────────────────────────────────
 
-  // Real-time listener for products
+  // Firestore listener
   useEffect(() => {
     const productsCol = collection(db, "products");
     const unsubscribe = onSnapshot(productsCol, (snapshot) => {
@@ -125,7 +119,7 @@ const Home = () => {
         const cat = data.category || "Uncategorized";
         if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push({
-          id: d.id, // Assuming Firestore document ID is used as the product ID
+          id: d.id,
           category: cat,
           flavor: data.flavor,
           store: data.store,
@@ -160,6 +154,7 @@ const Home = () => {
           justifyContent: "space-between",
         }}
       >
+        {/* Search & Filter */}
         <input
           type="text"
           value={searchTerm}
@@ -173,7 +168,6 @@ const Home = () => {
             borderRadius: "5px",
           }}
         />
-
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -191,6 +185,7 @@ const Home = () => {
           <option>Expiring Soon</option>
         </select>
 
+        {/* Clear */}
         <button
           onClick={handleClear}
           style={{ ...ACTION_BTN, background: "red", color: "white" }}
@@ -198,7 +193,29 @@ const Home = () => {
           Clear
         </button>
 
-        {/* hidden file input */}
+        {/* Add Product */}
+        {isAuthenticated && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            style={{
+              ...ACTION_BTN,
+              background: "#38a169",
+              color: "white",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "white";
+              e.currentTarget.style.color = "#38a169";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#38a169";
+              e.currentTarget.style.color = "white";
+            }}
+          >
+            + Add Product
+          </button>
+        )}
+
+        {/* hidden JSON import */}
         <input
           type="file"
           accept=".json"
@@ -206,8 +223,7 @@ const Home = () => {
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
-
-        {/* only on desktop */}
+        {/* Import JSON */}
         <button
           className="import-btn"
           onClick={handleImportClick}
@@ -216,6 +232,7 @@ const Home = () => {
           Import JSON
         </button>
 
+        {/* Sign Out */}
         {isAuthenticated && (
           <button
             onClick={handleSignOut}
@@ -224,8 +241,17 @@ const Home = () => {
             Sign Out
           </button>
         )}
+
+        {/* Add Product Modal */}
+        {isAuthenticated && (
+          <AddProductModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+          />
+        )}
       </div>
 
+      {/* Tabs */}
       <div className="tabs-container">
         <div className="tabs-scroll">
           {categories.map((cat) => (
@@ -240,6 +266,7 @@ const Home = () => {
         </div>
       </div>
 
+      {/* Tab Content */}
       <div className="tab-content">
         {activeTab && productsByCategory[activeTab] && (
           <TabPanel
@@ -250,6 +277,7 @@ const Home = () => {
         )}
       </div>
 
+      {/* Component-specific styles */}
       <style jsx>{`
         .tabs-container {
           overflow-x: auto;
@@ -279,7 +307,6 @@ const Home = () => {
         .tab-content {
           margin-top: 0.25rem;
         }
-
         .import-btn {
           display: none;
         }
