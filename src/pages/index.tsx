@@ -26,12 +26,12 @@ const Home = () => {
 
   // Shared button style
   const ACTION_BTN: React.CSSProperties = {
-    flex: "0 1 120px",
-    padding: "0.5rem",
+    padding: "0.75rem",
     border: "none",
     borderRadius: "25px",
     cursor: "pointer",
-    fontWeight: 600,
+    fontWeight: 900,
+    textAlign: "center",
   };
 
   const handleSignOut = () => {
@@ -75,7 +75,7 @@ const Home = () => {
     if (typeof json.name !== "string" || !Array.isArray(json.products)) {
       alert(
         "Invalid JSON shape. Expected:\n" +
-          "{ name: string; products: Product[] }"
+        "{ name: string; products: Product[] }"
       );
       e.target.value = "";
       return;
@@ -185,35 +185,54 @@ const Home = () => {
           <option>Expiring Soon</option>
         </select>
 
-        {/* Clear */}
-        <button
-          onClick={handleClear}
-          style={{ ...ACTION_BTN, background: "red", color: "white" }}
-        >
-          Clear
-        </button>
-
-        {/* Add Product */}
-        {isAuthenticated && (
+        {/* Equal-width button row */}
+        <div className="buttonRow">
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={handleClear}
+            style={{ ...ACTION_BTN, background: "red", color: "white" }}
+          >
+            Clear
+          </button>
+
+          {isAuthenticated && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "white";
+                e.currentTarget.style.color = "#38a169";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#38a169";
+                e.currentTarget.style.color = "white";
+              }}
+            >
+              + Add Product
+            </button>
+          )}
+
+          {isAuthenticated && (
+            <button
+              onClick={handleSignOut}
+              style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
+            >
+              Sign Out
+            </button>
+          )}
+
+          {/* Import New Vape Data only on desktop */}
+          <button
+            className="import-btn"
+            onClick={handleImportClick}
             style={{
               ...ACTION_BTN,
-              background: "#38a169",
+              background: "#3182ce",
               color: "white",
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "white";
-              e.currentTarget.style.color = "#38a169";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#38a169";
-              e.currentTarget.style.color = "white";
-            }}
           >
-            + Add Product
+            Import New Vape Data
           </button>
-        )}
+        </div>
 
         {/* hidden JSON import */}
         <input
@@ -223,24 +242,6 @@ const Home = () => {
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
-        {/* Import JSON */}
-        <button
-          className="import-btn"
-          onClick={handleImportClick}
-          style={{ ...ACTION_BTN, background: "#3182ce", color: "white" }}
-        >
-          Import JSON
-        </button>
-
-        {/* Sign Out */}
-        {isAuthenticated && (
-          <button
-            onClick={handleSignOut}
-            style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
-          >
-            Sign Out
-          </button>
-        )}
 
         {/* Add Product Modal */}
         {isAuthenticated && (
@@ -277,7 +278,6 @@ const Home = () => {
         )}
       </div>
 
-      {/* Component-specific styles */}
       <style jsx>{`
         .tabs-container {
           overflow-x: auto;
@@ -285,37 +285,47 @@ const Home = () => {
         }
         .tabs-scroll {
           display: flex;
-          flex-wrap: nowrap;
           gap: 0.5rem;
         }
         .tabs-scroll button {
           white-space: nowrap;
           padding: 0.5rem 1rem;
-          background-color: #ccc;
+          background: #ccc;
           border: none;
           border-radius: 5px;
-          cursor: pointer;
           font-weight: 500;
+          cursor: pointer;
         }
         .tabs-scroll button:hover {
-          background-color: #bbb;
+          background: #bbb;
         }
         .tabs-scroll button.active-tab {
-          background-color: #3182ce;
+          background: #3182ce;
           color: white;
         }
         .tab-content {
           margin-top: 0.25rem;
         }
+
+        /* Import button hidden on mobile, shown on desktop */
         .import-btn {
           display: none;
         }
         @media (min-width: 768px) {
           .import-btn {
             display: inline-flex;
-            justify-content: center;
-            align-items: center;
           }
+        }
+
+        /* Equal-width, equal-height, evenly spaced */
+        .buttonRow {
+          display: flex;
+          gap: 0.5rem;
+          align-items: center;
+          width: 100%;
+        }
+        .buttonRow > button {
+          flex: 1 1 0;
         }
       `}</style>
     </Layout>
