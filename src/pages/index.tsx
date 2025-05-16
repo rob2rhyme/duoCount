@@ -1,5 +1,5 @@
 // src/pages/index.tsx
-import { useEffect, useState, useRef, FormEvent } from "react";
+import { useEffect, useState, useRef, FormEvent, CSSProperties } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
@@ -25,7 +25,7 @@ const Home = () => {
   const { isAuthenticated, signOut } = useAuth();
 
   // Shared button style
-  const ACTION_BTN: React.CSSProperties = {
+  const ACTION_BTN: CSSProperties = {
     padding: "0.75rem",
     border: "none",
     borderRadius: "25px",
@@ -154,46 +154,8 @@ const Home = () => {
           justifyContent: "space-between",
         }}
       >
-        {/* Search & Filter */}
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search flavor..."
-          style={{
-            flex: "1 1 200px",
-            minWidth: "0",
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "5px",
-          }}
-        />
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          style={{
-            flex: "0 1 150px",
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "5px",
-          }}
-        >
-          <option>All</option>
-          <option>Need to Order</option>
-          <option>Good</option>
-          <option>Expiry n/a</option>
-          <option>Expiring Soon</option>
-        </select>
-
-        {/* Equal-width button row */}
+        {/* Equal-width action buttons */}
         <div className="buttonRow">
-          <button
-            onClick={handleClear}
-            style={{ ...ACTION_BTN, background: "red", color: "white" }}
-          >
-            Clear
-          </button>
-
           {isAuthenticated && (
             <button
               onClick={() => setIsModalOpen(true)}
@@ -211,6 +173,14 @@ const Home = () => {
             </button>
           )}
 
+          {/* Import only on desktop */}
+          <button
+            className="import-btn"
+            onClick={handleImportClick}
+            style={{ ...ACTION_BTN, background: "#3182ce", color: "white" }}
+          >
+            Import New Vape Data
+          </button>
           {isAuthenticated && (
             <button
               onClick={handleSignOut}
@@ -219,20 +189,52 @@ const Home = () => {
               Sign Out
             </button>
           )}
-
-          {/* Import New Vape Data only on desktop */}
-          <button
-            className="import-btn"
-            onClick={handleImportClick}
+        </div>
+        {/* Search, Filter & Clear */}
+        <div className="searchRow">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search flavor..."
             style={{
-              ...ACTION_BTN,
-              background: "#3182ce",
-              color: "white",
+              flex: "1 1 70%",
+              minWidth: "0",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "5px",
+            }}
+          />
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            style={{
+              flex: "0 1 15%",
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "5px",
             }}
           >
-            Import New Vape Data
+            <option>All</option>
+            <option>Need to Order</option>
+            <option>Good</option>
+            <option>Expiry n/a</option>
+            <option>Expiring Soon</option>
+          </select>
+          <button
+            onClick={handleClear}
+            style={{
+              ...ACTION_BTN,
+              background: "red",
+              color: "white",
+              flex: "0 1 15%",
+            }}
+          >
+            Clear
           </button>
         </div>
+
+
 
         {/* hidden JSON import */}
         <input
@@ -260,6 +262,7 @@ const Home = () => {
               key={cat}
               onClick={() => setActiveTab(cat)}
               className={activeTab === cat ? "active-tab" : ""}
+              style={ACTION_BTN}
             >
               {cat}
             </button>
@@ -279,32 +282,21 @@ const Home = () => {
       </div>
 
       <style jsx>{`
-        .tabs-container {
-          overflow-x: auto;
-          margin-bottom: 0.25rem;
+        .searchRow {
+          display: flex;
+          flex-wrap: nowrap;
+          gap: 0.5rem;
+          width: 100%;
         }
-        .tabs-scroll {
+
+        .buttonRow {
           display: flex;
           gap: 0.5rem;
+          align-items: center;
+          width: 100%;
         }
-        .tabs-scroll button {
-          white-space: nowrap;
-          padding: 0.5rem 1rem;
-          background: #ccc;
-          border: none;
-          border-radius: 5px;
-          font-weight: 500;
-          cursor: pointer;
-        }
-        .tabs-scroll button:hover {
-          background: #bbb;
-        }
-        .tabs-scroll button.active-tab {
-          background: #3182ce;
-          color: white;
-        }
-        .tab-content {
-          margin-top: 0.25rem;
+        .buttonRow > button {
+          flex: 1 1 0;
         }
 
         /* Import button hidden on mobile, shown on desktop */
@@ -317,15 +309,33 @@ const Home = () => {
           }
         }
 
-        /* Equal-width, equal-height, evenly spaced */
-        .buttonRow {
+        .tabs-container {
+          overflow-x: auto;
+          margin-bottom: 0.25rem;
+        }
+        .tabs-scroll {
           display: flex;
           gap: 0.5rem;
-          align-items: center;
-          width: 100%;
         }
-        .buttonRow > button {
-          flex: 1 1 0;
+        .tabs-scroll button {
+          white-space: nowrap;
+          padding: 0.5rem 1rem;
+          background-color: #ccc;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          font-weight: 500;
+        }
+        .tabs-scroll button:hover {
+          background-color: #bbb;
+        }
+        .tabs-scroll button.active-tab {
+          background-color: #3182ce;
+          color: white;
+        }
+
+        .tab-content {
+          margin-top: 0.25rem;
         }
       `}</style>
     </Layout>

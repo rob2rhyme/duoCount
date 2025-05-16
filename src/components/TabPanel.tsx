@@ -1,3 +1,4 @@
+// src/components/TabPanel.tsx
 import React, { useState } from "react";
 import styles from "../styles/TabPanel.module.css";
 import { Product } from "../types";
@@ -154,15 +155,15 @@ const TabPanel: React.FC<TabPanelProps> = ({
                     product.expiryDate === "n/a"
                       ? styles.naExpiry
                       : isExpiringSoon
-                      ? styles.expiringSoon
-                      : styles.goodExpiry
+                        ? styles.expiringSoon
+                        : styles.goodExpiry
                   }
                 >
                   {product.expiryDate === "n/a"
                     ? "No Expiry Date"
                     : daysLeft > 0
-                    ? daysLeft
-                    : "Expired"}
+                      ? daysLeft
+                      : "Expired"}
                 </td>
               </tr>
             );
