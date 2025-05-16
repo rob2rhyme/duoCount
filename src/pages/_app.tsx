@@ -3,22 +3,22 @@ import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "react-hot-toast";
+import { Calistoga } from "next/font/google";
+
+const calistoga = Calistoga({ subsets: ["latin"], weight: "400" });
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
     <AuthProvider>
-      <Toaster
-        position="top-right"
-        toastOptions={
-          {
-            /* unchanged */
-          }
-        }
-      />
-
-      <RequireAuth>
-        <Component {...pageProps} />
-      </RequireAuth>
+      <div className={calistoga.className}>
+        <Toaster
+          position="top-right"
+          toastOptions={{ /* unchanged */ }}
+        />
+        <RequireAuth>
+          <Component {...pageProps} />
+        </RequireAuth>
+      </div>
     </AuthProvider>
   );
 }

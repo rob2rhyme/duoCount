@@ -1,117 +1,168 @@
+/* src/styles/AddProductModal.module.css */
+
+.modalContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 100%;
+  margin: auto;
+}
+
 .backdrop {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 1000;
-  }
-  
-  .modal {
-    background: white;
-    padding: 1.5rem;
-    border-radius: 8px;
-    width: 90%;
-    max-width: 400px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-    max-height: 90vh;
-    overflow-y: auto;
-  }
-  
-  .options {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  
-  .options button {
-    padding: 0.75rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    background: #3182ce;
-    color: white;
-  }
-  
-  .cancel {
-    margin-top: 1rem;
-    background: #e53e3e;
-    color: white;
-    width: 100%;
-    padding: 0.75rem;
-    border: none;
-    border-radius: 5px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  
-  .form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .form label {
-    display: flex;
-    flex-direction: column;
-    font-weight: 500;
-  }
-  
-  .form input,
-  .form select {
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-  }
-  
-  .expiryRow {
-    display: flex;
-    gap: 0.5rem;
-  }
-  
-  .expiryField,
-  .naField {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .naField button {
-    padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background: #edf2f7;
-    cursor: pointer;
-  }
-  
-  /* active state: green background + white text */
-  .naActive {
-    background: #38a169 !important;
-    color: white !important;
-  }
-  
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    margin-top: 1rem;
-  }
-  
-  .actions button {
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  
-  .actions button[type="submit"] {
-    background: #38a169;
-    color: white;
-  }
-  
-  .actions button[type="button"] {
-    background: #e2e8f0;
-  }
-  
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 2rem 1.5rem;
+  /* more breathing room */
+  border-radius: 1rem;
+  /* rounder corners */
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+}
+
+/* style any <h2> inside the modal as your title */
+.modal h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem;
+  text-align: center;
+}
+
+/* options wrapper */
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* pill-shaped blue buttons */
+.options button {
+  background: #3182ce;
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 9999px;
+  /* infinite pill */
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.options button:hover {
+  background: #2b6cb0;
+}
+
+
+/* pill-shaped red cancel, centered */
+.cancel {
+  background: #e53e3e;
+  color: #fff;
+  padding: 0.75rem 2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: block;
+  margin: 0 auto;
+  /* center it */
+  transition: background 0.2s;
+}
+
+.cancel:hover {
+  background: #c53030;
+}
+
+.options button,
+.cancel {
+  font-family: 'Calistoga', cursive;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+}
+
+.form input,
+.form select {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.expiryRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.expiryField,
+.naField {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.naField button {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #edf2f7;
+  cursor: pointer;
+}
+
+/* active state: green background + white text */
+.naActive {
+  background: #38a169 !important;
+  color: white !important;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.actions button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.actions button[type="submit"] {
+  background: #38a169;
+  color: white;
+}
+
+.actions button[type="button"] {
+  background: #e2e8f0;
+}
