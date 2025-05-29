@@ -173,9 +173,3 @@ body {
   border-bottom: 3px solid #3182ce;
   color: #3182ce;
 }
-
-/* styles/globals.css */
-
-#recaptcha-container {
-  display: none;
-}

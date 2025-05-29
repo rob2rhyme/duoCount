@@ -10,35 +10,38 @@ import {
   signInWithPhoneNumber,
   ConfirmationResult,
 } from "firebase/auth";
-import { useAuth } from "@/context/AuthContext";
+
+declare global {
+  interface Window {
+    recaptchaVerifier: RecaptchaVerifier;
+  }
+}
 
 export default function Login() {
   const [phones, setPhones] = useState<{ id: string; phone: string }[]>([]);
-  const [selectedId, setSelectedId] = useState<string>("");
   const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(
     null
   );
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
+  const [sending, setSending] = useState(false);
 
   const router = useRouter();
-  const { authenticate } = useAuth();
 
-  // 1) Fetch all pre-stored phone docs from Firestore
+  // 1) Load your pre-stored phone docs
   useEffect(() => {
     (async () => {
       try {
         const snap = await getDocs(collection(db, "phoneAuth"));
         const list: typeof phones = [];
         snap.forEach((doc) => {
-          const data = doc.data() as { phone: string };
-          list.push({ id: doc.id, phone: data.phone });
+          const data = doc.data() as { phone: string | number };
+          const phoneStr =
+            typeof data.phone === "number" ? data.phone.toString() : data.phone;
+          list.push({ id: doc.id, phone: phoneStr });
         });
         setPhones(list);
-        // as soon as we have a number, fire off the SMS
-        if (list.length) {
-          sendCode(list[0].phone);
-        }
+        if (list.length) setSelectedId(list[0].id);
       } catch (e) {
         console.error(e);
         setError("Failed to load phone options.");
@@ -50,15 +53,15 @@ export default function Login() {
   useEffect(() => {
     if (!confirmation) {
       window.recaptchaVerifier = new RecaptchaVerifier(
+        auth,
         "recaptcha-container",
-        { size: "invisible" },
-        auth
+        { size: "invisible" }
       );
       window.recaptchaVerifier.render().catch(console.error);
     }
   }, [confirmation]);
 
-  // 3) Send the SMS OTP
+  // 3) Send OTP (auto-prefix E.164)
   const sendCode = async () => {
     setError("");
     const sel = phones.find((p) => p.id === selectedId);
@@ -66,10 +69,16 @@ export default function Login() {
       setError("Please pick a phone number.");
       return;
     }
+
+    let phoneNumber = sel.phone.trim();
+    if (!phoneNumber.startsWith("+")) {
+      phoneNumber = "+" + phoneNumber;
+    }
+
     try {
       const result = await signInWithPhoneNumber(
         auth,
-        sel.phone,
+        phoneNumber,
         window.recaptchaVerifier
       );
       setConfirmation(result);
@@ -79,12 +88,12 @@ export default function Login() {
     }
   };
 
-  // 4) Verify the code the user entered
+  // 4) Verify OTP & redirect
   const verifyCode = async () => {
     if (!confirmation) return;
     try {
       await confirmation.confirm(code);
-      authenticate(); // hook into your existing AuthContext
+      // Firebase Auth is now signed in.
       const next = (router.query.next as string) || "/";
       router.push(next);
     } catch (e: any) {
@@ -135,7 +144,7 @@ export default function Login() {
           )}
 
           {error && <p className="error">{error}</p>}
-          {/* reCAPTCHA widget (hidden) */}
+
           <div id="recaptcha-container" />
         </div>
       </div>
