@@ -10,6 +10,7 @@ import {
   signInWithPhoneNumber,
   ConfirmationResult,
 } from "firebase/auth";
+import { useAuth } from "@/context/AuthContext";
 
 declare global {
   interface Window {
@@ -27,8 +28,9 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const router = useRouter();
+  const { authenticate } = useAuth();
 
-  // 1) Load your pre-stored phone docs
+  // 1) Load pre-stored phone numbers
   useEffect(() => {
     (async () => {
       try {
@@ -36,6 +38,7 @@ export default function Login() {
         const list: typeof phones = [];
         snap.forEach((doc) => {
           const data = doc.data() as { phone: string | number };
+          // normalize to string
           const phoneStr =
             typeof data.phone === "number" ? data.phone.toString() : data.phone;
           list.push({ id: doc.id, phone: phoneStr });
@@ -49,7 +52,7 @@ export default function Login() {
     })();
   }, []);
 
-  // 2) Initialize invisible reCAPTCHA once
+  // 2) Initialize invisible reCAPTCHA with correct arg order
   useEffect(() => {
     if (!confirmation) {
       window.recaptchaVerifier = new RecaptchaVerifier(
@@ -61,7 +64,7 @@ export default function Login() {
     }
   }, [confirmation]);
 
-  // 3) Send OTP (auto-prefix E.164)
+  // 3) Send OTP (with E.164 prefix)
   const sendCode = async () => {
     setError("");
     const sel = phones.find((p) => p.id === selectedId);
@@ -70,9 +73,10 @@ export default function Login() {
       return;
     }
 
+    // Quick Fix: ensure E.164 format
     let phoneNumber = sel.phone.trim();
     if (!phoneNumber.startsWith("+")) {
-      phoneNumber = "+" + phoneNumber;
+      phoneNumber = `+${phoneNumber}`;
     }
 
     try {
@@ -88,12 +92,12 @@ export default function Login() {
     }
   };
 
-  // 4) Verify OTP & redirect
+  // 4) Verify OTP
   const verifyCode = async () => {
     if (!confirmation) return;
     try {
       await confirmation.confirm(code);
-      // Firebase Auth is now signed in.
+      authenticate(); // your existing session hook
       const next = (router.query.next as string) || "/";
       router.push(next);
     } catch (e: any) {
@@ -145,6 +149,7 @@ export default function Login() {
 
           {error && <p className="error">{error}</p>}
 
+          {/* Invisible reCAPTCHA container */}
           <div id="recaptcha-container" />
         </div>
       </div>

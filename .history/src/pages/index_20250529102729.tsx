@@ -1,72 +1,30 @@
 // src/pages/index.tsx
-import { useEffect, useState, useRef, CSSProperties, ChangeEvent } from "react";
+import { useEffect, useState, useRef, FormEvent, CSSProperties } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
 import TabPanel from "@/components/TabPanel";
-import AddProductModal from "@/components/AddProductModal";
 import { Product, ProductCategory } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
-import {
-  collection,
-  writeBatch,
-  doc,
-  onSnapshot,
-  getDocs,
-} from "firebase/firestore";
+import { collection, writeBatch, doc, onSnapshot } from "firebase/firestore";
+import AddProductModal from "@/components/AddProductModal";
 
-export default function Home() {
-  const { isAuthenticated, loading, signOut } = useAuth();
+const Home = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 1) Wait for auth
-  if (loading) {
-    return <p style={{ textAlign: "center", padding: "2rem" }}>Loading…</p>;
-  }
-  // 2) If not signed in, redirect (RequireAuth in _app should handle this)
-  if (!isAuthenticated) {
-    router.replace("/login?next=/");
-    return null;
-  }
-
-  // 3) Local state
   const [productsByCategory, setProductsByCategory] = useState<
     Record<string, Product[]>
   >({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("All");
   const [activeTab, setActiveTab] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState("All");
 
-  // 4) Firestore listener
-  useEffect(() => {
-    const productsCol = collection(db, "products");
-    const unsubscribe = onSnapshot(productsCol, (snapshot) => {
-      const grouped: Record<string, Product[]> = {};
-      snapshot.docs.forEach((d) => {
-        const data = d.data() as Product & { category?: string };
-        const cat = data.category || "Uncategorized";
-        grouped[cat] = grouped[cat] || [];
-        grouped[cat].push({
-          id: d.id,
-          category: cat,
-          flavor: data.flavor,
-          store: data.store,
-          home: data.home,
-          expiryDate: data.expiryDate,
-        });
-      });
-      setProductsByCategory(grouped);
-      setActiveTab((prev) =>
-        prev && grouped[prev] ? prev : Object.keys(grouped)[0] || ""
-      );
-    });
-    return () => unsubscribe();
-  }, []);
+  const { isAuthenticated, signOut } = useAuth();
 
-  // 5) Handlers
+  // Shared button style
   const ACTION_BTN: CSSProperties = {
     padding: "0.75rem",
     border: "none",
@@ -93,7 +51,8 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+  // ─── JSON Import with Validation ─────────────────────────
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -116,7 +75,7 @@ export default function Home() {
     if (typeof json.name !== "string" || !Array.isArray(json.products)) {
       alert(
         "Invalid JSON shape. Expected:\n" +
-          "{ name: string; products: Product[] }"
+        "{ name: string; products: Product[] }"
       );
       e.target.value = "";
       return;
@@ -148,12 +107,38 @@ export default function Home() {
       e.target.value = "";
     }
   };
+  // ────────────────────────────────────────────────────────────
+
+  // Firestore listener
+  useEffect(() => {
+    const productsCol = collection(db, "products");
+    const unsubscribe = onSnapshot(productsCol, (snapshot) => {
+      const grouped: Record<string, Product[]> = {};
+      snapshot.docs.forEach((d) => {
+        const data = d.data() as Product & { category?: string };
+        const cat = data.category || "Uncategorized";
+        if (!grouped[cat]) grouped[cat] = [];
+        grouped[cat].push({
+          id: d.id,
+          category: cat,
+          flavor: data.flavor,
+          store: data.store,
+          home: data.home,
+          expiryDate: data.expiryDate,
+        });
+      });
+      setProductsByCategory(grouped);
+      setActiveTab((prev) =>
+        prev && grouped[prev] ? prev : Object.keys(grouped)[0] || ""
+      );
+    });
+    return () => unsubscribe();
+  }, []);
 
   const categories = Object.keys(productsByCategory).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" })
   );
 
-  // 6) Render
   return (
     <Layout>
       <Head>
@@ -169,22 +154,26 @@ export default function Home() {
           justifyContent: "space-between",
         }}
       >
+        {/* Equal-width action buttons */}
         <div className="buttonRow">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "white";
-              e.currentTarget.style.color = "#38a169";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#38a169";
-              e.currentTarget.style.color = "white";
-            }}
-          >
-            + Add Product
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "white";
+                e.currentTarget.style.color = "#38a169";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "#38a169";
+                e.currentTarget.style.color = "white";
+              }}
+            >
+              + Add Product
+            </button>
+          )}
 
+          {/* Import only on desktop */}
           <button
             className="import-btn"
             onClick={handleImportClick}
@@ -192,15 +181,16 @@ export default function Home() {
           >
             Import New Vape Data
           </button>
-
-          <button
-            onClick={handleSignOut}
-            style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
-          >
-            Sign Out
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={handleSignOut}
+              style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
+            >
+              Sign Out
+            </button>
+          )}
         </div>
-
+        {/* Search, Filter & Clear */}
         <div className="searchRow">
           <input
             type="text"
@@ -244,6 +234,9 @@ export default function Home() {
           </button>
         </div>
 
+
+
+        {/* hidden JSON import */}
         <input
           type="file"
           accept=".json"
@@ -252,12 +245,16 @@ export default function Home() {
           onChange={handleFileChange}
         />
 
-        <AddProductModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-        />
+        {/* Add Product Modal */}
+        {isAuthenticated && (
+          <AddProductModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+          />
+        )}
       </div>
 
+      {/* Tabs */}
       <div className="tabs-container">
         <div className="tabs-scroll">
           {categories.map((cat) => (
@@ -273,6 +270,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* Tab Content */}
       <div className="tab-content">
         {activeTab && productsByCategory[activeTab] && (
           <TabPanel
@@ -297,11 +295,11 @@ export default function Home() {
           align-items: center;
           width: 100%;
         }
-
         .buttonRow > button {
           flex: 1 1 0;
         }
 
+        /* Import button hidden on mobile, shown on desktop */
         .import-btn {
           display: none;
         }
@@ -342,4 +340,6 @@ export default function Home() {
       `}</style>
     </Layout>
   );
-}
+};
+
+export default Home;

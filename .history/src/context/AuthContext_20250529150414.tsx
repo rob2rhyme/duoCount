@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  loginWithPhoneCredential: (credential: any) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -23,6 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Subscribe to Firebase Auth state
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -32,12 +34,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signOut = () => firebaseSignOut(auth);
 
+  // We won’t actually use this, because signInWithPhoneNumber()
+  // attaches the user automatically. But we include it for completeness:
+  const loginWithPhoneCredential = async (credential: any) => {
+    await auth.signInWithCredential(credential as any);
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         isAuthenticated: !!user,
+        loginWithPhoneCredential,
         signOut,
       }}
     >

@@ -1,11 +1,10 @@
-// src/pages/index.tsx
-import { useEffect, useState, useRef, CSSProperties, ChangeEvent } from "react";
+// pages/index.tsx
+import { useEffect, useState, useRef, CSSProperties } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
 import TabPanel from "@/components/TabPanel";
-import AddProductModal from "@/components/AddProductModal";
-import { Product, ProductCategory } from "@/types";
+import { Product } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
 import {
@@ -15,58 +14,22 @@ import {
   onSnapshot,
   getDocs,
 } from "firebase/firestore";
+import AddProductModal from "@/components/AddProductModal";
 
 export default function Home() {
-  const { isAuthenticated, loading, signOut } = useAuth();
+  const { isAuthenticated, signOut } = useAuth();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 1) Wait for auth
-  if (loading) {
-    return <p style={{ textAlign: "center", padding: "2rem" }}>Loading…</p>;
-  }
-  // 2) If not signed in, redirect (RequireAuth in _app should handle this)
-  if (!isAuthenticated) {
-    router.replace("/login?next=/");
-    return null;
-  }
-
-  // 3) Local state
   const [productsByCategory, setProductsByCategory] = useState<
     Record<string, Product[]>
   >({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("All");
   const [activeTab, setActiveTab] = useState("");
+  const [filter, setFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 4) Firestore listener
-  useEffect(() => {
-    const productsCol = collection(db, "products");
-    const unsubscribe = onSnapshot(productsCol, (snapshot) => {
-      const grouped: Record<string, Product[]> = {};
-      snapshot.docs.forEach((d) => {
-        const data = d.data() as Product & { category?: string };
-        const cat = data.category || "Uncategorized";
-        grouped[cat] = grouped[cat] || [];
-        grouped[cat].push({
-          id: d.id,
-          category: cat,
-          flavor: data.flavor,
-          store: data.store,
-          home: data.home,
-          expiryDate: data.expiryDate,
-        });
-      });
-      setProductsByCategory(grouped);
-      setActiveTab((prev) =>
-        prev && grouped[prev] ? prev : Object.keys(grouped)[0] || ""
-      );
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // 5) Handlers
+  // Shared button style
   const ACTION_BTN: CSSProperties = {
     padding: "0.75rem",
     border: "none",
@@ -77,7 +40,10 @@ export default function Home() {
   };
 
   const handleSignOut = () => {
-    if (confirm("Confirm sign out?")) signOut();
+    if (confirm("Confirm sign out?")) {
+      signOut();
+      router.push("/login");
+    }
   };
 
   const handleClear = () => {
@@ -93,7 +59,8 @@ export default function Home() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+  // ─── JSON Import with Validation ─────────────────────────
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -103,10 +70,10 @@ export default function Home() {
       return;
     }
 
-    let json: ProductCategory;
+    let json: { name: string; products: Product[] };
     try {
       const text = await file.text();
-      json = JSON.parse(text) as ProductCategory;
+      json = JSON.parse(text);
     } catch {
       alert("Failed to parse JSON. Make sure the file is valid JSON.");
       e.target.value = "";
@@ -148,43 +115,54 @@ export default function Home() {
       e.target.value = "";
     }
   };
+  // ────────────────────────────────────────────────────────────
+
+  // Firestore listener
+  useEffect(() => {
+    const productsCol = collection(db, "products");
+    const unsub = onSnapshot(productsCol, (snap) => {
+      const grouped: Record<string, Product[]> = {};
+      snap.docs.forEach((d) => {
+        const data = d.data() as Product & { category?: string };
+        const cat = data.category || "Uncategorized";
+        grouped[cat] = grouped[cat] || [];
+        grouped[cat].push({
+          id: d.id,
+          category: cat,
+          flavor: data.flavor,
+          store: data.store,
+          home: data.home,
+          expiryDate: data.expiryDate,
+        });
+      });
+      setProductsByCategory(grouped);
+      setActiveTab((prev) =>
+        prev && grouped[prev] ? prev : Object.keys(grouped)[0] || ""
+      );
+    });
+    return () => unsub();
+  }, []);
 
   const categories = Object.keys(productsByCategory).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" })
   );
 
-  // 6) Render
   return (
     <Layout>
       <Head>
         <title>Smokers Haven Inventory</title>
       </Head>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "0.5rem",
-          marginBottom: "1rem",
-          justifyContent: "space-between",
-        }}
-      >
+      <div className="controls">
         <div className="buttonRow">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "white";
-              e.currentTarget.style.color = "#38a169";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#38a169";
-              e.currentTarget.style.color = "white";
-            }}
-          >
-            + Add Product
-          </button>
-
+          {isAuthenticated && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
+            >
+              + Add Product
+            </button>
+          )}
           <button
             className="import-btn"
             onClick={handleImportClick}
@@ -192,13 +170,14 @@ export default function Home() {
           >
             Import New Vape Data
           </button>
-
-          <button
-            onClick={handleSignOut}
-            style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
-          >
-            Sign Out
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={handleSignOut}
+              style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
+            >
+              Sign Out
+            </button>
+          )}
         </div>
 
         <div className="searchRow">
@@ -207,24 +186,8 @@ export default function Home() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search flavor..."
-            style={{
-              flex: "1 1 70%",
-              minWidth: "0",
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "5px",
-            }}
           />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            style={{
-              flex: "0 1 15%",
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "5px",
-            }}
-          >
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option>All</option>
             <option>Need to Order</option>
             <option>Good</option>
@@ -233,12 +196,7 @@ export default function Home() {
           </select>
           <button
             onClick={handleClear}
-            style={{
-              ...ACTION_BTN,
-              background: "red",
-              color: "white",
-              flex: "0 1 15%",
-            }}
+            style={{ ...ACTION_BTN, background: "red", color: "white" }}
           >
             Clear
           </button>
@@ -252,56 +210,51 @@ export default function Home() {
           onChange={handleFileChange}
         />
 
-        <AddProductModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-        />
-      </div>
-
-      <div className="tabs-container">
-        <div className="tabs-scroll">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveTab(cat)}
-              className={activeTab === cat ? "active-tab" : ""}
-              style={ACTION_BTN}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="tab-content">
-        {activeTab && productsByCategory[activeTab] && (
-          <TabPanel
-            products={productsByCategory[activeTab]}
-            searchTerm={searchTerm}
-            filterOption={filter}
+        {isAuthenticated && (
+          <AddProductModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
           />
         )}
       </div>
 
-      <style jsx>{`
-        .searchRow {
-          display: flex;
-          flex-wrap: nowrap;
-          gap: 0.5rem;
-          width: 100%;
-        }
+      <div className="tabs-container">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveTab(cat)}
+            className={activeTab === cat ? "active-tab" : ""}
+            style={ACTION_BTN}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
 
+      {activeTab && productsByCategory[activeTab] && (
+        <TabPanel
+          products={productsByCategory[activeTab]}
+          searchTerm={searchTerm}
+          filterOption={filter}
+        />
+      )}
+
+      <style jsx>{`
+        .controls {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+          justify-content: space-between;
+        }
         .buttonRow {
           display: flex;
           gap: 0.5rem;
-          align-items: center;
           width: 100%;
         }
-
         .buttonRow > button {
           flex: 1 1 0;
         }
-
         .import-btn {
           display: none;
         }
@@ -310,34 +263,28 @@ export default function Home() {
             display: inline-flex;
           }
         }
-
+        .searchRow {
+          display: flex;
+          gap: 0.5rem;
+          width: 100%;
+        }
         .tabs-container {
+          display: flex;
+          gap: 0.5rem;
           overflow-x: auto;
           margin-bottom: 0.25rem;
         }
-        .tabs-scroll {
-          display: flex;
-          gap: 0.5rem;
-        }
-        .tabs-scroll button {
+        .tabs-container button {
           white-space: nowrap;
           padding: 0.5rem 1rem;
-          background-color: #ccc;
           border: none;
           border-radius: 5px;
           cursor: pointer;
-          font-weight: 500;
+          background: #ccc;
         }
-        .tabs-scroll button:hover {
-          background-color: #bbb;
-        }
-        .tabs-scroll button.active-tab {
-          background-color: #3182ce;
+        .tabs-container button.active-tab {
+          background: #3182ce;
           color: white;
-        }
-
-        .tab-content {
-          margin-top: 0.25rem;
         }
       `}</style>
     </Layout>
