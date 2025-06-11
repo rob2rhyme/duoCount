@@ -1,7 +1,7 @@
 // src/utils/firebase.ts
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore }                   from "firebase/firestore";
-import { getAuth }                        from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -16,7 +16,7 @@ const app = getApps().length === 0
   ? initializeApp(firebaseConfig)
   : getApp();
 
-export const db   = getFirestore(app);
+export const db = getFirestore(app);
 export const auth = getAuth(app);
 
 // ⬇️ Disable app verification (recaptcha) when in dev
