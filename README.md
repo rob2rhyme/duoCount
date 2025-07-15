@@ -155,3 +155,9 @@ This project is open–sourced under the [MIT License](LICENSE).
 ```
 
 ```
+## Use Application Default Credentials
+ ```bash
+   gcloud auth application-default login
+   # And Then
+   npx tsx scripts/syncCategoryImages.ts
+   ```
