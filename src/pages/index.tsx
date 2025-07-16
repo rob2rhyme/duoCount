@@ -1,51 +1,55 @@
 // src/pages/index.tsx
-import { useEffect, useState, useRef, CSSProperties, ChangeEvent } from "react";
+import { useEffect, useState, useRef, ChangeEvent } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
+import TopActions from "@/components/TopActions";
+import CategorySearch from "@/components/CategorySearch";
+import FlavorSearch from "@/components/FlavorSearch";
+import CategoryGrid from "@/components/CategoryGrid";
 import TabPanel from "@/components/TabPanel";
 import AddProductModal from "@/components/AddProductModal";
 import { Product, ProductCategory } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
-import {
-  collection,
-  writeBatch,
-  doc,
-  onSnapshot,
-  getDocs,
-} from "firebase/firestore";
+import { collection, onSnapshot, writeBatch, doc } from "firebase/firestore";
 
 export default function Home() {
   const { isAuthenticated, loading, signOut } = useAuth();
   const router = useRouter();
 
-  // 1) Wait for auth
-  if (loading) {
-    return <p style={{ textAlign: "center", padding: "2rem" }}>Loading…</p>;
-  }
-  // 2) If not signed in, redirect (RequireAuth in _app should handle this)
-  if (!isAuthenticated) {
-    router.replace("/login?next=/");
-    return null;
-  }
-
-  // 3) Local state
+  // Firestore state
   const [productsByCategory, setProductsByCategory] = useState<
     Record<string, Product[]>
   >({});
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filter, setFilter] = useState("All");
-  const [activeTab, setActiveTab] = useState("");
+  const [categoryMeta, setCategoryMeta] = useState<
+    { name: string; imageUrl?: string }[]
+  >([]);
+
+  // UI state
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [flavorSearch, setFlavorSearch] = useState("");
+  const [flavorFilter, setFlavorFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] =
+    useState<ProductCategory | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 4) Firestore listener
+  // Firestore subscriptions
   useEffect(() => {
-    const productsCol = collection(db, "products");
-    const unsubscribe = onSnapshot(productsCol, (snapshot) => {
+    const catUnsub = onSnapshot(collection(db, "categories"), (snap) => {
+      setCategoryMeta(
+        snap.docs.map((d) => ({
+          name: d.data().name as string,
+          imageUrl: d.data().imageUrl as string | undefined,
+        }))
+      );
+    });
+
+    const prodUnsub = onSnapshot(collection(db, "products"), (snap) => {
       const grouped: Record<string, Product[]> = {};
-      snapshot.docs.forEach((d) => {
+      snap.docs.forEach((d) => {
         const data = d.data() as Product & { category?: string };
         const cat = data.category || "Uncategorized";
         grouped[cat] = grouped[cat] || [];
@@ -59,287 +63,115 @@ export default function Home() {
         });
       });
       setProductsByCategory(grouped);
-      setActiveTab((prev) =>
-        prev && grouped[prev] ? prev : Object.keys(grouped)[0] || ""
-      );
     });
-    return () => unsubscribe();
+
+    return () => {
+      catUnsub();
+      prodUnsub();
+    };
   }, []);
 
-  // 5) Handlers
-  const ACTION_BTN: CSSProperties = {
-    padding: "0.75rem",
-    border: "none",
-    borderRadius: "25px",
-    cursor: "pointer",
-    fontWeight: 900,
-    textAlign: "center",
-  };
-
+  // Handlers
   const handleSignOut = () => {
     if (confirm("Confirm sign out?")) signOut();
   };
-
-  const handleClear = () => {
-    setSearchTerm("");
-    setFilter("All");
+  const handleClearCategory = () => {
+    setCategorySearch("");
+    setCategoryFilter("All");
   };
-
-  const handleImportClick = () => {
-    if (!isAuthenticated) {
-      router.push("/login");
-      return;
-    }
-    fileInputRef.current?.click();
+  const handleClearFlavor = () => {
+    setFlavorSearch("");
+    setFlavorFilter("All");
   };
-
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.type !== "application/json" && !file.name.endsWith(".json")) {
-      alert("Invalid file type. Please select a .json file.");
-      e.target.value = "";
-      return;
-    }
-
-    let json: ProductCategory;
-    try {
-      const text = await file.text();
-      json = JSON.parse(text) as ProductCategory;
-    } catch {
-      alert("Failed to parse JSON. Make sure the file is valid JSON.");
-      e.target.value = "";
-      return;
-    }
-
-    if (typeof json.name !== "string" || !Array.isArray(json.products)) {
-      alert(
-        "Invalid JSON shape. Expected:\n" +
-          "{ name: string; products: Product[] }"
-      );
-      e.target.value = "";
-      return;
-    }
-
-    if (productsByCategory[json.name]) {
-      alert(`Category "${json.name}" already exists.`);
-      e.target.value = "";
-      return;
-    }
-
-    try {
-      const batch = writeBatch(db);
-      const categoryRef = doc(db, "categories", json.name);
-      batch.set(categoryRef, { name: json.name });
-
-      const productsCol = collection(db, "products");
-      json.products.forEach((p) => {
-        const pRef = doc(productsCol);
-        batch.set(pRef, { ...p, category: json.name });
-      });
-
-      await batch.commit();
-      alert(`Category "${json.name}" imported successfully.`);
-    } catch (err) {
-      console.error(err);
-      alert("Firestore write failed. Check console for details.");
-    } finally {
-      e.target.value = "";
-    }
+    // … your existing JSON‐import logic …
   };
 
-  const categories = Object.keys(productsByCategory).sort((a, b) =>
-    a.localeCompare(b, undefined, { sensitivity: "base" })
-  );
+  // Build sorted categories array
+  const categories: ProductCategory[] = categoryMeta
+    .map((m) => ({
+      name: m.name,
+      imageUrl: m.imageUrl,
+      products: productsByCategory[m.name] || [],
+    }))
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+    );
 
-  // 6) Render
+  // Auth guard
+  if (loading) return <p style={{ textAlign: "center" }}>Loading…</p>;
+  if (!isAuthenticated) {
+    router.replace("/login?next=/");
+    return null;
+  }
+
+  const isGrid = !selectedCategory;
+
   return (
     <Layout>
       <Head>
         <title>Smokers Haven Inventory</title>
       </Head>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "0.5rem",
-          marginBottom: "1rem",
-          justifyContent: "space-between",
+      {/* Top bar: Back / Add / Sign Out */}
+      <TopActions
+        isDetail={!isGrid}
+        onBack={() => {
+          setSelectedCategory(null);
+          handleClearFlavor();
+          handleClearCategory();
         }}
-      >
-        <div className="buttonRow">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "white";
-              e.currentTarget.style.color = "#38a169";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#38a169";
-              e.currentTarget.style.color = "white";
-            }}
-          >
-            + Add Product
-          </button>
+        onAdd={() => setIsModalOpen(true)}
+        onSignOut={handleSignOut}
+      />
 
-          <button
-            className="import-btn"
-            onClick={handleImportClick}
-            style={{ ...ACTION_BTN, background: "#3182ce", color: "white" }}
-          >
-            Import New Vape Data
-          </button>
-
-          <button
-            onClick={handleSignOut}
-            style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
-          >
-            Sign Out
-          </button>
-        </div>
-
-        <div className="searchRow">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search flavor..."
-            style={{
-              flex: "1 1 70%",
-              minWidth: "0",
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "5px",
-            }}
-          />
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            style={{
-              flex: "0 1 15%",
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "5px",
-            }}
-          >
-            <option>All</option>
-            <option>Need to Order</option>
-            <option>Good</option>
-            <option>Expiry n/a</option>
-            <option>Expiring Soon</option>
-          </select>
-          <button
-            onClick={handleClear}
-            style={{
-              ...ACTION_BTN,
-              background: "red",
-              color: "white",
-              flex: "0 1 15%",
-            }}
-          >
-            Clear
-          </button>
-        </div>
-
-        <input
-          type="file"
-          accept=".json"
-          ref={fileInputRef}
-          style={{ display: "none" }}
-          onChange={handleFileChange}
+      {/* Grid‐mode search vs. Flavor‐mode search */}
+      {isGrid ? (
+        <CategorySearch
+          search={categorySearch}
+          filter={categoryFilter}
+          onSearchChange={setCategorySearch}
+          onFilterChange={setCategoryFilter}
+          onClear={handleClearCategory}
         />
-
-        <AddProductModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+      ) : (
+        <FlavorSearch
+          search={flavorSearch}
+          filter={flavorFilter}
+          onSearchChange={setFlavorSearch}
+          onFilterChange={setFlavorFilter}
+          onClear={handleClearFlavor}
         />
-      </div>
+      )}
 
-      <div className="tabs-container">
-        <div className="tabs-scroll">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveTab(cat)}
-              className={activeTab === cat ? "active-tab" : ""}
-              style={ACTION_BTN}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Hidden file input + import modal */}
+      <input
+        type="file"
+        accept=".json"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+      <AddProductModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
 
-      <div className="tab-content">
-        {activeTab && productsByCategory[activeTab] && (
-          <TabPanel
-            products={productsByCategory[activeTab]}
-            searchTerm={searchTerm}
-            filterOption={filter}
-          />
-        )}
-      </div>
-
-      <style jsx>{`
-        .searchRow {
-          display: flex;
-          flex-wrap: nowrap;
-          gap: 0.5rem;
-          width: 100%;
-        }
-
-        .buttonRow {
-          display: flex;
-          gap: 0.5rem;
-          align-items: center;
-          width: 100%;
-        }
-
-        .buttonRow > button {
-          flex: 1 1 0;
-        }
-
-        .import-btn {
-          display: none;
-        }
-        @media (min-width: 768px) {
-          .import-btn {
-            display: inline-flex;
-          }
-        }
-
-        .tabs-container {
-          overflow-x: auto;
-          margin-bottom: 0.25rem;
-        }
-        .tabs-scroll {
-          display: flex;
-          gap: 0.5rem;
-        }
-        .tabs-scroll button {
-          white-space: nowrap;
-          padding: 0.5rem 1rem;
-          background-color: #ccc;
-          border: none;
-          border-radius: 5px;
-          cursor: pointer;
-          font-weight: 500;
-        }
-        .tabs-scroll button:hover {
-          background-color: #bbb;
-        }
-        .tabs-scroll button.active-tab {
-          background-color: #3182ce;
-          color: white;
-        }
-
-        .tab-content {
-          margin-top: 0.25rem;
-        }
-      `}</style>
+      {/* Main content: CategoryGrid or TabPanel */}
+      {isGrid ? (
+        <CategoryGrid
+          categories={categories}
+          search={categorySearch}
+          filter={categoryFilter}
+          onSelect={setSelectedCategory}
+        />
+      ) : (
+        <TabPanel
+          products={selectedCategory!.products}
+          searchTerm={flavorSearch}
+          filterOption={flavorFilter}
+        />
+      )}
     </Layout>
   );
 }

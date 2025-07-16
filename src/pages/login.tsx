@@ -1,10 +1,11 @@
 // pages/login.tsx
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 
 import { db, auth } from "@/utils/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
@@ -28,22 +29,21 @@ export default function Login() {
 
   const router = useRouter();
 
-  // 1) Load your pre-stored phone docs and immediately send SMS
+  // 1) Load single phoneAuth/store document
   useEffect(() => {
     (async () => {
       try {
-        const snap = await getDocs(collection(db, "phoneAuth"));
-        const list: typeof phones = [];
-        snap.forEach((doc) => {
-          const data = doc.data() as { phone: string | number };
+        const snap = await getDoc(doc(db, "phoneAuth", "store"));
+        const data = snap.data() as { phone: string | number };
+
+        if (data?.phone) {
           const phoneStr =
             typeof data.phone === "number" ? data.phone.toString() : data.phone;
-          list.push({ id: doc.id, phone: phoneStr });
-        });
-        setPhones(list);
-        if (list.length) {
-          // fire off OTP to first number
-          sendCode(list[0].phone);
+          const list = [{ id: "store", phone: phoneStr }];
+          setPhones(list);
+          sendCode(phoneStr);
+        } else {
+          throw new Error("Phone number not found.");
         }
       } catch (e) {
         console.error(e);
@@ -52,19 +52,23 @@ export default function Login() {
     })();
   }, []);
 
-  // 2) Initialize invisible reCAPTCHA once
+  // 2) Initialize reCAPTCHA
   useEffect(() => {
     if (!confirmation) {
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        "recaptcha-container",
-        { size: "invisible" }
-      );
-      window.recaptchaVerifier.render().catch(console.error);
+      try {
+        window.recaptchaVerifier = new RecaptchaVerifier(
+          auth,
+          "recaptcha-container",
+          { size: "invisible" }
+        );
+        window.recaptchaVerifier.render().catch(console.error);
+      } catch (e) {
+        console.error("reCAPTCHA init error", e);
+      }
     }
   }, [confirmation]);
 
-  // 3) Send OTP (auto-prefix E.164)
+  // 3) Send OTP
   const sendCode = async (rawPhone?: string) => {
     setError("");
     setSending(true);
@@ -96,15 +100,12 @@ export default function Login() {
     }
   };
 
-  // 4) Verify OTP & redirect
+  // 4) Confirm OTP and redirect
   const verifyCode = async () => {
     if (!confirmation) return;
     try {
       await confirmation.confirm(code);
-      // Firebase Auth is now signed in.
-      // stamp login time (for 30-minute expiry)
       localStorage.setItem("loginTimestamp", Date.now().toString());
-
       const next = (router.query.next as string) || "/";
       router.push(next);
     } catch (e: any) {
@@ -121,8 +122,6 @@ export default function Login() {
       <div className="overlay">
         <div className="modal">
           <img src="/logo.png" alt="Logo" className="logo" />
-          {/* <h2>Sign in with Phone</h2> */}
-
           {!confirmation ? (
             <>
               <p>
@@ -138,11 +137,11 @@ export default function Login() {
             <>
               <p>Enter the 6-digit code:</p>
               <input
-                type="text" // keep “text” so you can still control maxLength/etc.
-                inputMode="numeric" // hint for numeric keypad
-                pattern="[0-9]*" // enforce digits only
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/, ""))}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                 maxLength={6}
                 placeholder="••••••"
               />
@@ -151,7 +150,6 @@ export default function Login() {
           )}
 
           {error && <p className="error">{error}</p>}
-
           <div id="recaptcha-container" />
         </div>
       </div>
@@ -177,9 +175,6 @@ export default function Login() {
           max-width: 400px;
           text-align: center;
           box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-        h2 {
-          margin-bottom: 1rem;
         }
         input[type="text"] {
           width: 100%;
