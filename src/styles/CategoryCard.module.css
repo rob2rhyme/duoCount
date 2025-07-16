@@ -1,0 +1,39 @@
+/* src/styles/CategoryCard.module.css */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(2in, 1fr));
+  gap: 1rem;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(2in, 1fr));
+  }
+}
+
+.card {
+  width: 2in;
+  height: 3.5in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: white;
+  font-weight: bold;
+  font-size: 1.2rem;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+  /* use the inline style background-image */
+  background-size: cover;
+  background-position: center;
+}
+
+.title {
+  margin: 0;
+  padding: 0 0.5rem;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}

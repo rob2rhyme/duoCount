@@ -3,8 +3,8 @@ import React, { useState } from "react";
 import styles from "../styles/TabPanel.module.css";
 import { Product } from "../types";
 import { useAuth } from "@/context/AuthContext";
-import { db } from "@/utils/firebase";
 import { doc, updateDoc } from "firebase/firestore";
+import { db } from "@/utils/firebase";
 import { useRouter } from "next/router";
 import toast from "react-hot-toast";
 
@@ -19,80 +19,68 @@ const TabPanel: React.FC<TabPanelProps> = ({
   searchTerm,
   filterOption,
 }) => {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  // Editing state
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingField, setEditingField] = useState<"store" | "home" | null>(
     null
   );
   const [modalValue, setModalValue] = useState("");
-  const { isAuthenticated } = useAuth();
-  const router = useRouter();
 
-  const calculateDaysLeft = (expiryDate: string): number => {
+  // Calculate days left (Infinity for “n/a”)
+  const calculateDaysLeft = (expiryDate?: string): number => {
+    if (!expiryDate || expiryDate === "n/a") return Infinity;
     const today = new Date();
-    const expiry = new Date(expiryDate);
-    const diffTime = expiry.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const exp = new Date(expiryDate);
+    const diff = exp.getTime() - today.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  const filteredProducts = products.filter((product) => {
-    const flavorMatch = product.flavor
-      ?.toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    const total = Number(product.store || 0) + Number(product.home || 0);
-    const daysLeft = calculateDaysLeft(product.expiryDate || "");
+  // Filter by searchTerm + filterOption
+  const filtered = products
+    .filter((p) => p.flavor.toLowerCase().includes(searchTerm.toLowerCase()))
+    .filter((p) => {
+      const total = (Number(p.store) || 0) + (Number(p.home) || 0);
+      const daysLeft = calculateDaysLeft(p.expiryDate);
+      switch (filterOption) {
+        case "Need to Order":
+          return total <= 1;
+        case "Good":
+          return total > 1;
+        case "Expiry n/a":
+          return p.expiryDate === "n/a";
+        case "Expiring Soon":
+          return p.expiryDate !== "n/a" && daysLeft > 0 && daysLeft < 30;
+        default:
+          return true;
+      }
+    });
 
-    switch (filterOption) {
-      case "Need to Order":
-        return flavorMatch && total <= 1;
-      case "Good":
-        return flavorMatch && total > 1;
-      case "Expiry n/a":
-        return flavorMatch && product.expiryDate === "n/a";
-      case "Expiring Soon":
-        return (
-          flavorMatch &&
-          product.expiryDate !== "n/a" &&
-          daysLeft > 0 &&
-          daysLeft < 30
-        );
-      default:
-        return flavorMatch;
-    }
-  });
-
-  const handleCellClick = (field: "store" | "home", product: Product) => {
+  // Start editing flow
+  const handleCellClick = (field: "store" | "home", prod: Product) => {
     if (!isAuthenticated) {
       router.push(`/login?next=${router.pathname}`);
       return;
     }
-    setEditingProduct(product);
+    setEditingProduct(prod);
     setEditingField(field);
-    setModalValue(String(product[field] ?? "0"));
+    setModalValue(String(prod[field] ?? "0"));
   };
 
+  // Commit update
   const handleSave = async () => {
     if (!editingProduct || !editingField) return;
-
-    try {
-      const ref = doc(db, "products", editingProduct.id);
-      await toast.promise(
-        updateDoc(ref, { [editingField]: Number(modalValue) }),
-        {
-          loading: "Saving...",
-          success: "Quantity updated!",
-          error: "Save failed.",
-        }
-      );
-      editingProduct[editingField] = Number(modalValue);
-      setEditingProduct(null);
-      setEditingField(null);
-      setModalValue("");
-    } catch (error) {
-      console.error("Save failed:", error);
-    }
-  };
-
-  const handleCancel = () => {
+    const ref = doc(db, "products", editingProduct.id);
+    await toast.promise(
+      updateDoc(ref, { [editingField]: Number(modalValue) }),
+      {
+        loading: "Saving…",
+        success: "Saved!",
+        error: "Failed to save.",
+      }
+    );
     setEditingProduct(null);
     setEditingField(null);
     setModalValue("");
@@ -113,57 +101,43 @@ const TabPanel: React.FC<TabPanelProps> = ({
           </tr>
         </thead>
         <tbody>
-          {filteredProducts.map((product, rowIdx) => {
-            const total =
-              (Number(product.store) || 0) + (Number(product.home) || 0);
-            const daysLeft = calculateDaysLeft(product.expiryDate);
-            const isLowStock = total <= 1;
-            const isExpiringSoon = daysLeft < 30;
+          {filtered.map((p, i) => {
+            const total = (Number(p.store) || 0) + (Number(p.home) || 0);
+            const daysLeft = calculateDaysLeft(p.expiryDate);
 
             return (
-              <tr key={`${product.flavor}-${rowIdx}`}>
-                <td>{product.flavor}</td>
-
-                {["store", "home"].map((field) => {
-                  const value = product[field as keyof Product] ?? "0";
-
-                  return (
-                    <td
-                      key={field}
-                      onClick={() =>
-                        handleCellClick(field as "store" | "home", product)
+              <tr key={p.id + i}>
+                <td>{p.flavor}</td>
+                {(["store", "home"] as const).map((f) => (
+                  <td key={f} onClick={() => handleCellClick(f, p)}>
+                    <span
+                      className={
+                        f === "store" ? styles.storeCell : styles.homeCell
                       }
                     >
-                      <span
-                        className={
-                          field === "store" ? styles.storeCell : styles.homeCell
-                        }
-                      >
-                        {String(value)}
-                      </span>
-                    </td>
-                  );
-                })}
-
+                      {p[f] ?? "0"}
+                    </span>
+                  </td>
+                ))}
                 <td>{total}</td>
-                <td className={isLowStock ? styles.lowStock : styles.goodStock}>
-                  {isLowStock ? "Need to Order" : "GOOD"}
+                <td className={total <= 1 ? styles.lowStock : styles.goodStock}>
+                  {total <= 1 ? "Need to Order" : "GOOD"}
                 </td>
-                <td>{product.expiryDate}</td>
+                <td>{p.expiryDate}</td>
                 <td
                   className={
-                    product.expiryDate === "n/a"
+                    p.expiryDate === "n/a"
                       ? styles.naExpiry
-                      : isExpiringSoon
-                        ? styles.expiringSoon
-                        : styles.goodExpiry
+                      : daysLeft < 30
+                      ? styles.expiringSoon
+                      : styles.goodExpiry
                   }
                 >
-                  {product.expiryDate === "n/a"
-                    ? "No Expiry Date"
+                  {p.expiryDate === "n/a"
+                    ? "No Expiry"
                     : daysLeft > 0
-                      ? daysLeft
-                      : "Expired"}
+                    ? daysLeft
+                    : "Expired"}
                 </td>
               </tr>
             );
@@ -171,21 +145,20 @@ const TabPanel: React.FC<TabPanelProps> = ({
         </tbody>
       </table>
 
+      {/* Edit Modal */}
       {editingProduct && editingField && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
-            <h3>Edit {editingField.toUpperCase()} Quantity</h3>
+            <h3>Edit {editingField.toUpperCase()}</h3>
             <input
               type="number"
-              inputMode="numeric"
-              pattern="[0-9]*"
               value={modalValue}
               onChange={(e) => setModalValue(e.target.value)}
               autoFocus
             />
             <div className={styles.modalButtons}>
               <button onClick={handleSave}>Save</button>
-              <button onClick={handleCancel}>Cancel</button>
+              <button onClick={() => setEditingProduct(null)}>Cancel</button>
             </div>
           </div>
         </div>

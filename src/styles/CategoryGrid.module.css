@@ -1,0 +1,18 @@
+/* src/styles/CategoryGrid.module.css */
+
+.grid {
+  display: grid;
+  /* each column is at least 2in wide, but will stretch to fill remaining space */
+  grid-template-columns: repeat(auto-fit, minmax(2in, 1fr));
+  gap: 0.35rem;
+  /* center the grid when columns don’t fill the full width */
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    /* force exactly 2 columns of 2in each on mobile */
+    grid-template-columns: repeat(2, 2in);
+    justify-content: center;
+  }
+}
