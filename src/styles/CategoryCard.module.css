@@ -1,18 +1,4 @@
 /* src/styles/CategoryCard.module.css */
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(2in, 1fr));
-  gap: 1rem;
-  justify-content: center;
-}
-
-@media (max-width: 768px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(2in, 1fr));
-  }
-}
-
 .card {
   width: 2in;
   height: 3.5in;
@@ -21,19 +7,53 @@
   justify-content: center;
   border-radius: 12px;
   color: white;
-  font-weight: bold;
-  font-size: 1.2rem;
-  text-align: center;
+  font-size: 1rem;
+  text-align: left;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-
-  /* use the inline style background-image */
   background-size: cover;
   background-position: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .title {
-  margin: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0 0 4px 0;
   padding: 0 0.5rem;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  color: #08cff2;
+}
+
+.overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(10, 10, 10, 0.776);
+  color: white;
+  padding: 12px;
+  box-sizing: border-box;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.valueLabel {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 2px 0;
+}
+
+.valueGood {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.valueLow {
+  color: #ff5c5c;
+  font-weight: 600;
 }
