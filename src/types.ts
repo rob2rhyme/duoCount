@@ -12,5 +12,6 @@ export interface Product {
 export interface ProductCategory {
   name: string;
   products: Product[];
+  filterType: string;   // ← new
   imageUrl?: string;    // ← new optional field
 }

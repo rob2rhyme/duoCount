@@ -12,21 +12,21 @@ import AddProductModal from "@/components/AddProductModal";
 import { Product, ProductCategory } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
-import { collection, onSnapshot, writeBatch, doc } from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
 
 export default function Home() {
   const { isAuthenticated, loading, signOut } = useAuth();
   const router = useRouter();
 
-  // Firestore state
+  // 1) Firestore state
   const [productsByCategory, setProductsByCategory] = useState<
     Record<string, Product[]>
   >({});
   const [categoryMeta, setCategoryMeta] = useState<
-    { name: string; imageUrl?: string }[]
+    Array<{ name: string; imageUrl?: string; filterType: string }>
   >([]);
 
-  // UI state
+  // 2) UI state
   const [categorySearch, setCategorySearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [flavorSearch, setFlavorSearch] = useState("");
@@ -36,13 +36,14 @@ export default function Home() {
     useState<ProductCategory | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Firestore subscriptions
+  // 3) Subscribe to categories + products
   useEffect(() => {
     const catUnsub = onSnapshot(collection(db, "categories"), (snap) => {
       setCategoryMeta(
         snap.docs.map((d) => ({
           name: d.data().name as string,
           imageUrl: d.data().imageUrl as string | undefined,
+          filterType: d.data().filterType as string, // ← pull filterType
         }))
       );
     });
@@ -71,7 +72,7 @@ export default function Home() {
     };
   }, []);
 
-  // Handlers
+  // 4) Handlers
   const handleSignOut = () => {
     if (confirm("Confirm sign out?")) signOut();
   };
@@ -84,27 +85,37 @@ export default function Home() {
     setFlavorFilter("All");
   };
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    // … your existing JSON‐import logic …
+    // … your JSON‐import logic …
   };
 
-  // Build sorted categories array
+  // 5) Build full ProductCategory list
   const categories: ProductCategory[] = categoryMeta
     .map((m) => ({
       name: m.name,
       imageUrl: m.imageUrl,
+      filterType: m.filterType, // ← carry it forward
       products: productsByCategory[m.name] || [],
     }))
     .sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
     );
 
-  // Auth guard
+  // 6) Apply both search+filter
+  const visibleCategories = categories.filter((cat) => {
+    const matchesSearch = cat.name
+      .toLowerCase()
+      .includes(categorySearch.toLowerCase());
+    const matchesFilter =
+      categoryFilter === "All" ? true : cat.filterType === categoryFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  // 7) Auth guard
   if (loading) return <p style={{ textAlign: "center" }}>Loading…</p>;
   if (!isAuthenticated) {
     router.replace("/login?next=/");
     return null;
   }
-
   const isGrid = !selectedCategory;
 
   return (
@@ -125,7 +136,7 @@ export default function Home() {
         onSignOut={handleSignOut}
       />
 
-      {/* Grid‐mode search vs. Flavor‐mode search */}
+      {/* Search / Filter */}
       {isGrid ? (
         <CategorySearch
           search={categorySearch}
@@ -144,7 +155,7 @@ export default function Home() {
         />
       )}
 
-      {/* Hidden file input + import modal */}
+      {/* Import modal */}
       <input
         type="file"
         accept=".json"
@@ -157,10 +168,10 @@ export default function Home() {
         onClose={() => setIsModalOpen(false)}
       />
 
-      {/* Main content: CategoryGrid or TabPanel */}
+      {/* Main content */}
       {isGrid ? (
         <CategoryGrid
-          categories={categories}
+          categories={visibleCategories} // ← only show filtered list
           search={categorySearch}
           filter={categoryFilter}
           onSelect={setSelectedCategory}

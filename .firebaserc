@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "smokers-haven-inventory-dev",
+    "dev": "smokers-haven-inventory-dev",
+    "prod": "smokers-haven-inventory"
+  },
+  "targets": {},
+  "etags": {}
+}
