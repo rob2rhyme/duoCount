@@ -2,9 +2,26 @@
 
 .searchRow {
   display: flex;
+  position: sticky;
+  top: 0.1rem; /* Adjust to your header height */
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.35rem;
   width: 100%;
+  align-items: center;
+  padding: 12px 20px;
+  z-index: 5;
+
+  background: linear-gradient(
+    90deg,
+    navy 0%,
+    limegreen 30%,
+    hotpink 60%,
+    purple 100%
+  );
+
+  border-radius: 500px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: white;
 }
 
 .searchInput,
