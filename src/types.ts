@@ -4,14 +4,16 @@ export interface Product {
   id: string;
   category: string;
   flavor: string;
-  store?: string;
-  home?: string;
+  /** switched from string to number */
+  store?: number;
+  /** switched from string to number */
+  home?: number;
   expiryDate?: string;
 }
 
 export interface ProductCategory {
   name: string;
   products: Product[];
-  filterType: string;   // ← new
-  imageUrl?: string;    // ← new optional field
+  filterType: string;
+  imageUrl?: string;
 }
