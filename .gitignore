@@ -19,6 +19,10 @@
 
 # Local environment files
 .env.local
+.env*
+!.env.production.local.example
+.env.development.local
+.env.production.local
 serviceAccountKey.json
 
 
@@ -35,12 +39,20 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Dev Secrets
+/secrets/
+# ignore everything in /secrets…
+/secrets/*
+# …except this README
+!/secrets/README.md
+
+
+# Firebase service‐account JSONs
+secrets/*.json

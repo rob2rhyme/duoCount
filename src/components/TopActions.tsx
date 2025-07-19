@@ -30,7 +30,7 @@ export default function TopActions({
           style={{ ...ACTION_BTN, background: "#718096", color: "white" }}
           onClick={onBack}
         >
-          Back
+          く Back
         </button>
       )}
       <button

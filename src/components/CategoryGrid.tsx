@@ -1,5 +1,4 @@
 // src/components/CategoryGrid.tsx
-
 import React from "react";
 import CategoryCard from "./CategoryCard";
 import styles from "../styles/CategoryGrid.module.css";
@@ -18,14 +17,12 @@ const CategoryGrid: React.FC<Props> = ({
   filter,
   onSelect,
 }) => {
-  const matchFilter = (name: string) =>
-    filter === "All" || name.toLowerCase().includes(filter.toLowerCase());
-
-  const filtered = categories.filter(
-    (cat) =>
-      cat.name.toLowerCase().includes(search.toLowerCase()) &&
-      matchFilter(cat.name)
-  );
+  // filter for name‐search and filterType‐match
+  const filtered = categories.filter((cat) => {
+    const matchesSearch = cat.name.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === "All" || cat.filterType === filter;
+    return matchesSearch && matchesFilter;
+  });
 
   return (
     <div className={styles.grid}>
@@ -36,6 +33,7 @@ const CategoryGrid: React.FC<Props> = ({
           onClick={() => onSelect(cat)}
         />
       ))}
+
       {filtered.length === 0 && (
         <p style={{ gridColumn: "1/-1", textAlign: "center" }}>
           No categories match your search.
