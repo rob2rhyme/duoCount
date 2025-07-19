@@ -1,9 +1,17 @@
 // src/components/TabPanel.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "../styles/TabPanel.module.css";
 import { Product } from "../types";
 import { useAuth } from "@/context/AuthContext";
-import { doc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { db } from "@/utils/firebase";
 import { useRouter } from "next/router";
 import toast from "react-hot-toast";
@@ -22,14 +30,37 @@ const TabPanel: React.FC<TabPanelProps> = ({
   const { isAuthenticated } = useAuth();
   const router = useRouter();
 
-  // Editing state
+  const [liveProducts, setLiveProducts] = useState<Product[]>(products);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingField, setEditingField] = useState<"store" | "home" | null>(
     null
   );
   const [modalValue, setModalValue] = useState("");
 
-  // Calculate days left (Infinity for “n/a”)
+  // Real-time listener for products in this category
+  useEffect(() => {
+    const categoryName = products[0]?.category || null;
+    if (!categoryName) return;
+
+    const q = query(
+      collection(db, "products"),
+      where("category", "==", categoryName)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const updated = snap.docs.map((d) => ({
+        id: d.id,
+        category: d.data().category,
+        flavor: d.data().flavor,
+        store: d.data().store,
+        home: d.data().home,
+        expiryDate: d.data().expiryDate,
+      }));
+      setLiveProducts(updated);
+    });
+
+    return () => unsub();
+  }, [products]);
+
   const calculateDaysLeft = (expiryDate?: string): number => {
     if (!expiryDate || expiryDate === "n/a") return Infinity;
     const today = new Date();
@@ -38,8 +69,7 @@ const TabPanel: React.FC<TabPanelProps> = ({
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  // Filter by searchTerm + filterOption
-  const filtered = products
+  const filtered = liveProducts
     .filter((p) => p.flavor.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter((p) => {
       const total = (Number(p.store) || 0) + (Number(p.home) || 0);
@@ -58,7 +88,6 @@ const TabPanel: React.FC<TabPanelProps> = ({
       }
     });
 
-  // Start editing flow
   const handleCellClick = (field: "store" | "home", prod: Product) => {
     if (!isAuthenticated) {
       router.push(`/login?next=${router.pathname}`);
@@ -69,7 +98,6 @@ const TabPanel: React.FC<TabPanelProps> = ({
     setModalValue(String(prod[field] ?? "0"));
   };
 
-  // Commit update
   const handleSave = async () => {
     if (!editingProduct || !editingField) return;
     const ref = doc(db, "products", editingProduct.id);
@@ -145,7 +173,6 @@ const TabPanel: React.FC<TabPanelProps> = ({
         </tbody>
       </table>
 
-      {/* Edit Modal */}
       {editingProduct && editingField && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
