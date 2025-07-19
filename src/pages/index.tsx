@@ -1,4 +1,5 @@
 // src/pages/index.tsx
+
 import { useEffect, useState, useRef, ChangeEvent } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -12,13 +13,12 @@ import AddProductModal from "@/components/AddProductModal";
 import { Product, ProductCategory } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 
 export default function Home() {
   const { isAuthenticated, loading, signOut } = useAuth();
   const router = useRouter();
 
-  // 1) Firestore state
   const [productsByCategory, setProductsByCategory] = useState<
     Record<string, Product[]>
   >({});
@@ -26,7 +26,6 @@ export default function Home() {
     Array<{ name: string; imageUrl?: string; filterType: string }>
   >([]);
 
-  // 2) UI state
   const [categorySearch, setCategorySearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [flavorSearch, setFlavorSearch] = useState("");
@@ -36,14 +35,13 @@ export default function Home() {
     useState<ProductCategory | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 3) Subscribe to categories + products
   useEffect(() => {
     const catUnsub = onSnapshot(collection(db, "categories"), (snap) => {
       setCategoryMeta(
         snap.docs.map((d) => ({
           name: d.data().name as string,
           imageUrl: d.data().imageUrl as string | undefined,
-          filterType: d.data().filterType as string, // ← pull filterType
+          filterType: d.data().filterType as string,
         }))
       );
     });
@@ -51,16 +49,16 @@ export default function Home() {
     const prodUnsub = onSnapshot(collection(db, "products"), (snap) => {
       const grouped: Record<string, Product[]> = {};
       snap.docs.forEach((d) => {
-        const data = d.data() as Product & { category?: string };
+        const data = d.data();
         const cat = data.category || "Uncategorized";
-        grouped[cat] = grouped[cat] || [];
+        if (!grouped[cat]) grouped[cat] = [];
         grouped[cat].push({
           id: d.id,
           category: cat,
-          flavor: data.flavor,
-          store: data.store,
-          home: data.home,
-          expiryDate: data.expiryDate,
+          flavor: String(data.flavor || ""),
+          store: Number(data.store || 0),
+          home: Number(data.home || 0),
+          expiryDate: String(data.expiryDate || "n/a"),
         });
       });
       setProductsByCategory(grouped);
@@ -72,7 +70,6 @@ export default function Home() {
     };
   }, []);
 
-  // 4) Handlers
   const handleSignOut = () => {
     if (confirm("Confirm sign out?")) signOut();
   };
@@ -85,22 +82,20 @@ export default function Home() {
     setFlavorFilter("All");
   };
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    // … your JSON‐import logic …
+    // TODO: Implement import logic if needed
   };
 
-  // 5) Build full ProductCategory list
   const categories: ProductCategory[] = categoryMeta
-    .map((m) => ({
-      name: m.name,
-      imageUrl: m.imageUrl,
-      filterType: m.filterType, // ← carry it forward
-      products: productsByCategory[m.name] || [],
+    .map((meta) => ({
+      name: meta.name,
+      imageUrl: meta.imageUrl,
+      filterType: meta.filterType,
+      products: productsByCategory[meta.name] || [],
     }))
     .sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
     );
 
-  // 6) Apply both search+filter
   const visibleCategories = categories.filter((cat) => {
     const matchesSearch = cat.name
       .toLowerCase()
@@ -110,12 +105,12 @@ export default function Home() {
     return matchesSearch && matchesFilter;
   });
 
-  // 7) Auth guard
   if (loading) return <p style={{ textAlign: "center" }}>Loading…</p>;
   if (!isAuthenticated) {
     router.replace("/login?next=/");
     return null;
   }
+
   const isGrid = !selectedCategory;
 
   return (
@@ -124,7 +119,6 @@ export default function Home() {
         <title>Smokers Haven Inventory</title>
       </Head>
 
-      {/* Top bar: Back / Add / Sign Out */}
       <TopActions
         isDetail={!isGrid}
         onBack={() => {
@@ -136,7 +130,6 @@ export default function Home() {
         onSignOut={handleSignOut}
       />
 
-      {/* Search / Filter */}
       {isGrid ? (
         <CategorySearch
           search={categorySearch}
@@ -155,7 +148,6 @@ export default function Home() {
         />
       )}
 
-      {/* Import modal */}
       <input
         type="file"
         accept=".json"
@@ -168,10 +160,9 @@ export default function Home() {
         onClose={() => setIsModalOpen(false)}
       />
 
-      {/* Main content */}
       {isGrid ? (
         <CategoryGrid
-          categories={visibleCategories} // ← only show filtered list
+          categories={visibleCategories}
           search={categorySearch}
           filter={categoryFilter}
           onSelect={setSelectedCategory}

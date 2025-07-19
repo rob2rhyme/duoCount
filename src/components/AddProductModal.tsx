@@ -2,13 +2,7 @@
 import React, { useState, FormEvent, useEffect } from "react";
 import styles from "@/styles/AddProductModal.module.css";
 import { db } from "@/utils/firebase";
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  orderBy,
-} from "firebase/firestore";
+import { collection, addDoc, onSnapshot } from "firebase/firestore";
 
 interface Props {
   isOpen: boolean;
@@ -24,17 +18,18 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [expiryDate, setExpiryDate] = useState("");
   const [naChecked, setNaChecked] = useState(false);
 
-  // Load all category names from the 'products' collection
+  // Load all category names from the 'categories' collection (FIXED)
   useEffect(() => {
-    const q = query(collection(db, "products"), orderBy("category"));
-    const unsub = onSnapshot(q, (snap) => {
-      const cats = snap.docs.map((d) => d.data().category as string);
-      const unique = Array.from(new Set(cats));
-      setAvailableCategories(unique);
-      if (!selectedCategory && unique.length > 0) {
-        setSelectedCategory(unique[0]);
+    const unsub = onSnapshot(collection(db, "categories"), (snap) => {
+      const cats = snap.docs.map((doc) => doc.data().name as string);
+      setAvailableCategories(cats);
+
+      // Auto-select the first category if none selected yet
+      if (!selectedCategory && cats.length > 0) {
+        setSelectedCategory(cats[0]);
       }
     });
+
     return () => unsub();
   }, [selectedCategory]);
 
