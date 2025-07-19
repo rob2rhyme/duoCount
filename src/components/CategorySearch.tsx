@@ -27,6 +27,11 @@ export default function CategorySearch({
     "Vape Juice",
   ];
 
+  // Filter out unwanted categories
+  const visibleOptions = options.filter(
+    (o) => !["THC Disposables", "THC Cartridges", "Vape Juice"].includes(o)
+  );
+
   return (
     <div className={styles.searchRow}>
       <input
@@ -41,7 +46,7 @@ export default function CategorySearch({
         value={filter}
         onChange={(e) => onFilterChange(e.target.value)}
       >
-        {options.map((o) => (
+        {visibleOptions.map((o) => (
           <option key={o}>{o}</option>
         ))}
       </select>
