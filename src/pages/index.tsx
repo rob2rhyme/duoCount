@@ -1,5 +1,4 @@
 // src/pages/index.tsx
-
 import { useEffect, useState, useRef, ChangeEvent } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -125,6 +124,10 @@ export default function Home() {
           setSelectedCategory(null);
           handleClearFlavor();
           handleClearCategory();
+          router.replace(router.pathname, undefined, {
+            shallow: true,
+            scroll: true,
+          });
         }}
         onAdd={() => setIsModalOpen(true)}
         onSignOut={handleSignOut}
@@ -165,7 +168,14 @@ export default function Home() {
           categories={visibleCategories}
           search={categorySearch}
           filter={categoryFilter}
-          onSelect={setSelectedCategory}
+          onSelect={(cat) => {
+            setSelectedCategory(cat);
+            setTimeout(() => {
+              const HEADER_OFFSET = 70; // Change this if your header is taller/shorter
+              window.scrollTo({ top: 0, behavior: "auto" });
+              window.scrollBy({ top: -HEADER_OFFSET, behavior: "auto" });
+            }, 0);
+          }}
         />
       ) : (
         <TabPanel

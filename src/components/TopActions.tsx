@@ -50,7 +50,7 @@ export default function TopActions({
         .buttonRow {
           display: flex;
           gap: 0.5rem;
-          margin-bottom: 1rem;
+          margin-bottom: 0.5rem;
           width: 100%;
         }
         .buttonRow > button {
