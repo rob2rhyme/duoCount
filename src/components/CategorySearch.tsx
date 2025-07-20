@@ -25,7 +25,6 @@ export default function CategorySearch({
     "THC Cartridges",
     "Cigarettes",
     "Vape Juice",
-    "Cigarillos",
   ];
 
   // Filter out unwanted categories
