@@ -7,7 +7,7 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: auto;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: "Courier New", Courier, monospace;
 }
 
 .table th {
@@ -132,7 +132,6 @@
   background-color: #e2e8f0; /* slightly darker on hover */
 }
 
-
 .storeCell {
   background-color: #ffffff;
   border: 1px solid #dde411;
@@ -163,4 +162,10 @@
 
 .homeCell:hover {
   background-color: #bee3f8;
+}
+
+.breadcrumb {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #555;
 }

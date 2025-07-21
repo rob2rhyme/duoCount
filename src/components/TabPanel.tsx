@@ -1,4 +1,5 @@
 // src/components/TabPanel.tsx
+import Breadcrumb from "./Breadcrumb";
 import React, { useState, useEffect } from "react";
 import styles from "../styles/TabPanel.module.css";
 import { Product } from "../types";
@@ -116,6 +117,9 @@ const TabPanel: React.FC<TabPanelProps> = ({
 
   return (
     <div className={styles.tabPanel}>
+      <Breadcrumb
+        path={["Home", products[0]?.category || "Unknown Category"]}
+      />
       <table className={styles.table}>
         <thead>
           <tr>
