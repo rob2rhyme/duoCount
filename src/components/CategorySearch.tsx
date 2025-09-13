@@ -23,13 +23,14 @@ export default function CategorySearch({
     "0% Nic",
     "THC Disposables",
     "THC Cartridges",
+    "THC Pre-Rolls",
     "Cigarettes",
     "Vape Juice",
   ];
 
   // Filter out unwanted categories
   const visibleOptions = options.filter(
-    (o) => !["THC Disposables", "THC Cartridges", "Vape Juice"].includes(o)
+    (o) => !["Vape Juice"].includes(o)
   );
 
   return (
