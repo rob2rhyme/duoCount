@@ -5,9 +5,9 @@ export interface Product {
   category: string
   flavor: string
   /** switched from string to number */
-  store?: number
+  front?: number
   /** switched from string to number */
-  home?: number
+  back?: number
   expiryDate?: string
 }
 

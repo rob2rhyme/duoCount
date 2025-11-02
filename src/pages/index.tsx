@@ -55,8 +55,8 @@ export default function Home() {
           id: d.id,
           category: cat,
           flavor: String(data.flavor || ""),
-          store: Number(data.store || 0),
-          home: Number(data.home || 0),
+          front: Number(data.front || 0),
+          back: Number(data.back || 0),
           expiryDate: String(data.expiryDate || "n/a"),
         });
       });
