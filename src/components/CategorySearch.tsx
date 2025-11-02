@@ -17,21 +17,10 @@ export default function CategorySearch({
   onFilterChange,
   onClear,
 }: Props) {
-  const options = [
-    "All",
-    "5% Nic",
-    "0% Nic",
-    "THC Disposables",
-    "THC Cartridges",
-    "THC Pre-Rolls",
-    "Cigarettes",
-    "Vape Juice",
-  ];
+  const options = ["All", "5% Nic", "0% Nic", "Cigarettes", "Vape Juice"];
 
   // Filter out unwanted categories
-  const visibleOptions = options.filter(
-    (o) => !["Vape Juice"].includes(o)
-  );
+  const visibleOptions = options.filter((o) => !["Vape Juice"].includes(o));
 
   return (
     <div className={styles.searchRow}>

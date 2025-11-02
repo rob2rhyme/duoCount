@@ -20,7 +20,9 @@ declare global {
 
 export default function Login() {
   const [phones, setPhones] = useState<{ id: string; phone: string }[]>([]);
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
+  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(
+    null
+  );
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
