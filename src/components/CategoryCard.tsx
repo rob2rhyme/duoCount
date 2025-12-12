@@ -13,7 +13,7 @@ const CategoryCard: React.FC<Props> = ({ category, onClick }) => {
 
   const totalFlavors = category.products.length;
   const needToOrder = category.products.filter((p) => {
-    const total = (Number(p.store) || 0) + (Number(p.home) || 0);
+    const total = (Number(p.front) || 0) + (Number(p.back) || 0);
     return total <= 1;
   }).length;
 

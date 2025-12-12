@@ -13,8 +13,8 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [flavor, setFlavor] = useState("");
-  const [store, setStore] = useState("");
-  const [home, setHome] = useState("");
+  const [front, setFront] = useState("");
+  const [back, setBack] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [naChecked, setNaChecked] = useState(false);
 
@@ -43,8 +43,8 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (isOpen) {
       setSelectedCategory("");
       setFlavor("");
-      setStore("");
-      setHome("");
+      setFront("");
+      setBack("");
       setExpiryDate("");
       setNaChecked(false);
     }
@@ -54,7 +54,7 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selectedCategory || !flavor.trim() || isNaN(+store) || isNaN(+home)) {
+    if (!selectedCategory || !flavor.trim() || isNaN(+front) || isNaN(+back)) {
       alert("Please fill in all required fields.");
       return;
     }
@@ -63,8 +63,8 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
       await addDoc(collection(db, "products"), {
         category: selectedCategory,
         flavor: flavor.trim(),
-        store: +store,
-        home: +home,
+        front: +front,
+        back: +back,
         expiryDate: naChecked ? "n/a" : expiryDate || "n/a",
       });
       alert("Product successfully added!");
@@ -109,24 +109,24 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </label>
 
           <label>
-            Home Qty
+            Back Qty
             <input
               required
               type="number"
               min="0"
-              value={home}
-              onChange={(e) => setHome(e.target.value)}
+              value={back}
+              onChange={(e) => setBack(e.target.value)}
             />
           </label>
 
           <label>
-            Store Qty
+            Front Qty
             <input
               required
               type="number"
               min="0"
-              value={store}
-              onChange={(e) => setStore(e.target.value)}
+              value={front}
+              onChange={(e) => setFront(e.target.value)}
             />
           </label>
 

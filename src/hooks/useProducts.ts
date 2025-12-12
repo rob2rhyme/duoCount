@@ -13,8 +13,8 @@ export function useProducts(): Product[] {
         snap.docs.map((doc) => ({
           id: doc.id,
           flavor: doc.data().flavor || "",
-          store: Number(doc.data().store || 0),
-          home: Number(doc.data().home || 0),
+          front: Number(doc.data().front || 0),
+          back: Number(doc.data().back || 0),
           expiryDate: doc.data().expiryDate || "n/a",
           category: doc.data().category || "Uncategorized",
         }))

@@ -15,12 +15,12 @@ async function cloneInventoryToProducts() {
   const batch = db.batch();
 
   invSnap.docs.forEach(doc => {
-    const { store } = doc.data();
+    const { front } = doc.data();
     batch.set(
       db.collection("products").doc(doc.id),
       {
         category: doc.id,  // ensures every product has a category
-        store,             // your stock count
+        front,             // your stock count
       },
       { merge: true }
     );

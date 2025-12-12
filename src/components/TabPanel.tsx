@@ -33,7 +33,7 @@ const TabPanel: React.FC<TabPanelProps> = ({
 
   const [liveProducts, setLiveProducts] = useState<Product[]>(products);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editingField, setEditingField] = useState<"store" | "home" | null>(
+  const [editingField, setEditingField] = useState<"front" | "back" | null>(
     null
   );
   const [modalValue, setModalValue] = useState("");
@@ -52,8 +52,9 @@ const TabPanel: React.FC<TabPanelProps> = ({
         id: d.id,
         category: d.data().category,
         flavor: d.data().flavor,
-        store: d.data().store,
-        home: d.data().home,
+        // strictly read only the new fields; never consume legacy fields
+        front: Number(d.data().front || 0),
+        back: Number(d.data().back || 0),
         expiryDate: d.data().expiryDate,
       }));
       setLiveProducts(updated);
@@ -73,7 +74,7 @@ const TabPanel: React.FC<TabPanelProps> = ({
   const filtered = liveProducts
     .filter((p) => p.flavor.toLowerCase().includes(searchTerm.toLowerCase()))
     .filter((p) => {
-      const total = (Number(p.store) || 0) + (Number(p.home) || 0);
+      const total = (Number(p.front) || 0) + (Number(p.back) || 0);
       const daysLeft = calculateDaysLeft(p.expiryDate);
       switch (filterOption) {
         case "Need to Order":
@@ -89,7 +90,7 @@ const TabPanel: React.FC<TabPanelProps> = ({
       }
     });
 
-  const handleCellClick = (field: "store" | "home", prod: Product) => {
+  const handleCellClick = (field: "front" | "back", prod: Product) => {
     if (!isAuthenticated) {
       router.push(`/login?next=${router.pathname}`);
       return;
@@ -124,8 +125,8 @@ const TabPanel: React.FC<TabPanelProps> = ({
         <thead>
           <tr>
             <th>Flavor</th>
-            <th>ST</th>
-            <th>HM</th>
+            <th>FR</th>
+            <th>BK</th>
             <th>Total</th>
             <th>Status</th>
             <th>Expiry Date</th>
@@ -134,17 +135,17 @@ const TabPanel: React.FC<TabPanelProps> = ({
         </thead>
         <tbody>
           {filtered.map((p, i) => {
-            const total = (Number(p.store) || 0) + (Number(p.home) || 0);
+            const total = (Number(p.front) || 0) + (Number(p.back) || 0);
             const daysLeft = calculateDaysLeft(p.expiryDate);
 
             return (
               <tr key={p.id + i}>
                 <td>{p.flavor}</td>
-                {(["store", "home"] as const).map((f) => (
+                {(["front", "back"] as const).map((f) => (
                   <td key={f} onClick={() => handleCellClick(f, p)}>
                     <span
                       className={
-                        f === "store" ? styles.storeCell : styles.homeCell
+                        f === "front" ? styles.storeCell : styles.homeCell
                       }
                     >
                       {p[f] ?? "0"}
