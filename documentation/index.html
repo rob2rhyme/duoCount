@@ -165,6 +165,7 @@
     <a href="#importexport">Import &amp; export</a>
     <a href="#barcode">Barcode scanning</a>
     <a href="#activity">Activity log</a>
+    <a href="#suppliers">Suppliers &amp; reorder</a>
     <a href="#settings">Settings &amp; users</a>
     <a href="#features">Feature overview</a>
     <a href="#faq">FAQ &amp; troubleshooting</a>
@@ -324,6 +325,7 @@ firebase deploy --only firestore:rules</code></pre>
       <tr><td>Edit stock quantities</td><td>✅</td><td>✅</td><td>—</td></tr>
       <tr><td>Add products</td><td>✅</td><td>✅</td><td>—</td></tr>
       <tr><td>Delete products</td><td>✅</td><td>—</td><td>—</td></tr>
+      <tr><td>Manage suppliers</td><td>✅</td><td>✅</td><td>—</td></tr>
       <tr><td>Manage users</td><td>✅</td><td>—</td><td>—</td></tr>
     </table>
     <p>A user's role is shown as a badge in the header. Viewers get a read-only experience — the "Add" button and inline editing are hidden; only admins see the delete control.</p>
@@ -433,10 +435,10 @@ npm start   # serves on port 3000 by default</code></pre>
     <p>Use <strong>Export</strong> on the main screen to download the entire inventory as a CSV, or <strong>Export CSV</strong> inside a category to download just the rows you're viewing (respecting the current search &amp; filter). Opens in Excel, Google Sheets or Numbers.</p>
     <h3>Import</h3>
     <p>Editors (admin/staff) get an <strong>Import</strong> button that accepts a CSV file, shows a preview with row count and any warnings, then bulk-adds the products. Categories referenced in the file that don't exist yet are created automatically.</p>
-    <p>The CSV needs a header row. Required columns: <code>category</code>, <code>flavor</code>. Optional: <code>barcode</code>, <code>front</code>, <code>back</code>, <code>expiryDate</code> (column order doesn't matter):</p>
-    <pre><code>category,flavor,barcode,front,back,expiryDate
-Beverages,Cola 330ml,5449000000996,4,12,2026-09-15
-Snacks,Salted Pretzels,,10,20,n/a</code></pre>
+    <p>The CSV needs a header row. Required columns: <code>category</code>, <code>flavor</code>. Optional: <code>barcode</code>, <code>supplier</code>, <code>front</code>, <code>back</code>, <code>expiryDate</code> (column order doesn't matter; a <code>total</code> column in an export is ignored on import):</p>
+    <pre><code>category,flavor,barcode,supplier,front,back,expiryDate
+Beverages,Cola 330ml,5449000000996,Acme Distribution,4,12,2026-09-15
+Snacks,Salted Pretzels,,Acme Distribution,10,20,n/a</code></pre>
     <div class="callout tip">💡 Exporting first is the easiest way to see the exact format before importing.</div>
   </section>
 
@@ -450,6 +452,24 @@ Snacks,Salted Pretzels,,10,20,n/a</code></pre>
     </ul>
     <p>Scanning uses the open-source <a href="https://github.com/zxing-js/browser" target="_blank" rel="noopener">ZXing</a> library, loaded only in the browser (it never touches the server bundle). It supports common 1D/2D formats (EAN, UPC, Code-128, QR, etc.).</p>
     <div class="callout warn">⚠️ Camera access requires <strong>HTTPS</strong> (or <code>localhost</code>) and the user granting camera permission — a browser security requirement, not a limitation of the app.</div>
+  </section>
+
+  <section id="suppliers">
+    <h2>Suppliers &amp; reorder</h2>
+    <p>Track who you buy from and turn low stock into a purchase order in a couple of clicks.</p>
+    <h3>Suppliers</h3>
+    <ul>
+      <li>The <strong>Suppliers</strong> page (admin/staff) manages a directory of suppliers — name, contact person, email and phone.</li>
+      <li>When adding a product you can pick an existing supplier or type a new name; supplier is also a column in CSV import/export.</li>
+      <li>Only admins can delete a supplier; deleting one leaves the supplier name on existing products.</li>
+    </ul>
+    <h3>Reorder report</h3>
+    <ul>
+      <li>The <strong>Reorder</strong> page lists every item at or below the low-stock threshold across all categories, <strong>grouped by supplier</strong>.</li>
+      <li><strong>Export purchase order</strong> downloads the whole list as a CSV you can send to suppliers.</li>
+      <li>If a supplier has an email on file, an <strong>Email order</strong> link opens a pre-filled message with that supplier's items.</li>
+    </ul>
+    <div class="callout tip">💡 The low-stock threshold is <code>thresholds.lowStock</code> in <code>app.config.ts</code> — the same value that drives the "Need to Order" flags everywhere else.</div>
   </section>
 
   <section id="settings">
@@ -484,6 +504,7 @@ Snacks,Salted Pretzels,,10,20,n/a</code></pre>
       <div class="feature"><div class="ico">🌙</div><h4>Light &amp; dark mode</h4><p>Token-based theming with a header toggle.</p></div>
       <div class="feature"><div class="ico">🔀</div><h4>CSV import/export</h4><p>Bulk in and out, with an import preview.</p></div>
       <div class="feature"><div class="ico">📷</div><h4>Barcode scanning</h4><p>Camera scan to find or add products.</p></div>
+      <div class="feature"><div class="ico">🚚</div><h4>Suppliers &amp; reorder</h4><p>Supplier directory + purchase-order export.</p></div>
       <div class="feature"><div class="ico">⚙️</div><h4>Settings &amp; users</h4><p>Manage roles in-app; per-user theme.</p></div>
       <div class="feature"><div class="ico">↕️</div><h4>Sortable table &amp; search</h4><p>Sort any column; search by name.</p></div>
       <div class="feature"><div class="ico">📝</div><h4>Activity log</h4><p>Who changed what, when — admin view.</p></div>
@@ -511,6 +532,7 @@ Snacks,Salted Pretzels,,10,20,n/a</code></pre>
     <h2>Changelog</h2>
     <table>
       <tr><th>Version</th><th>Notes</th></tr>
+      <tr><td><strong>1.4.0</strong></td><td>Added <strong>supplier management</strong> (directory, product links, CSV supplier column) and a <strong>Reorder</strong> report — low-stock items grouped by supplier with purchase-order CSV export and pre-filled email orders. New <code>manageSuppliers</code> role permission.</td></tr>
       <tr><td><strong>1.3.0</strong></td><td>Added <strong>barcode scanning</strong> (camera scan-to-find and scan-to-add, barcode in CSV) and a <strong>Settings</strong> page with in-app <strong>user management</strong> (admins assign/change/remove roles, enforced by security rules and logged). Per-user theme selector.</td></tr>
       <tr><td><strong>1.2.0</strong></td><td>Premium redesign with a full <strong>light/dark theme</strong> (token-based, header toggle). Added <strong>CSV import &amp; export</strong>, <strong>sortable table columns</strong>, an <strong>activity log</strong>, and <strong>PWA install + offline</strong> support (service worker + Firestore persistence). Toasts replace native alerts throughout.</td></tr>
       <tr><td><strong>1.1.0</strong></td><td>Added an analytics <strong>Dashboard</strong> (KPI cards, stock &amp; expiry donuts, units-by-category bars, needs-attention list) and <strong>role-based access control</strong> (Admin / Staff / Viewer) enforced in the UI and Firestore rules. New global header nav, admin-only product delete, and role seeding via <code>ADMIN_UID</code>.</td></tr>
@@ -533,7 +555,7 @@ Snacks,Salted Pretzels,,10,20,n/a</code></pre>
 </main>
 
 <footer>
-  Inventory Management System — Next.js &amp; Firebase · Documentation v1.3.0
+  Inventory Management System — Next.js &amp; Firebase · Documentation v1.4.0
 </footer>
 
 <script>

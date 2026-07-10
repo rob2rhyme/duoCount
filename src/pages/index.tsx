@@ -63,6 +63,7 @@ export default function Home() {
           category: cat,
           flavor: String(data.flavor || ""),
           barcode: data.barcode ? String(data.barcode) : undefined,
+          supplier: data.supplier ? String(data.supplier) : undefined,
           front: Number(data.front || 0),
           back: Number(data.back || 0),
           expiryDate: String(data.expiryDate || "n/a"),

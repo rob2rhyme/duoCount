@@ -23,29 +23,41 @@ const AddProductModal: React.FC<Props> = ({
 }) => {
   const { user, role } = useAuth();
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [availableSuppliers, setAvailableSuppliers] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [flavor, setFlavor] = useState("");
   const [barcode, setBarcode] = useState("");
+  const [supplier, setSupplier] = useState("");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [naChecked, setNaChecked] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
 
-  // Load all category names from the 'categories' collection (FIXED)
+  // Subscribe to category names once (a stable listener for the modal's life).
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "categories"), (snap) => {
-      const cats = snap.docs.map((doc) => doc.data().name as string);
-      setAvailableCategories(cats);
-
-      // Auto-select the first category if none selected yet
-      if (!selectedCategory && cats.length > 0) {
-        setSelectedCategory(cats[0]);
-      }
+      setAvailableCategories(snap.docs.map((doc) => doc.data().name as string));
     });
-
     return () => unsub();
-  }, [selectedCategory]);
+  }, []);
+
+  // Auto-select the first category when the modal is open and none is chosen.
+  useEffect(() => {
+    if (isOpen && !selectedCategory && availableCategories.length > 0) {
+      setSelectedCategory(availableCategories[0]);
+    }
+  }, [isOpen, selectedCategory, availableCategories]);
+
+  // Load supplier names for the optional supplier picker.
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "suppliers"), (snap) => {
+      setAvailableSuppliers(
+        snap.docs.map((doc) => doc.data().name as string).filter(Boolean).sort()
+      );
+    });
+    return () => unsub();
+  }, []);
 
   // Clear expiry-NA if they type a real date
   useEffect(() => {
@@ -58,6 +70,7 @@ const AddProductModal: React.FC<Props> = ({
       setSelectedCategory("");
       setFlavor("");
       setBarcode(prefillBarcode ?? "");
+      setSupplier("");
       setFront("");
       setBack("");
       setExpiryDate("");
@@ -80,6 +93,7 @@ const AddProductModal: React.FC<Props> = ({
         category: selectedCategory,
         flavor: name,
         barcode: barcode.trim() || null,
+        supplier: supplier.trim() || null,
         front: +front,
         back: +back,
         expiryDate: naChecked ? "n/a" : expiryDate || "n/a",
@@ -149,6 +163,21 @@ const AddProductModal: React.FC<Props> = ({
                 📷 Scan
               </button>
             </div>
+          </label>
+
+          <label>
+            Supplier (optional)
+            <input
+              list="supplier-options"
+              value={supplier}
+              onChange={(e) => setSupplier(e.target.value)}
+              placeholder="Pick or type a supplier"
+            />
+            <datalist id="supplier-options">
+              {availableSuppliers.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
           </label>
 
           <label>

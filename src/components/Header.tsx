@@ -54,6 +54,24 @@ const Header = () => {
                 Dashboard
               </Link>
             )}
+            <Link
+              href="/reorder"
+              className={`${styles.navLink} ${
+                isActive("/reorder") ? styles.navLinkActive : ""
+              }`}
+            >
+              Reorder
+            </Link>
+            {can("manageSuppliers") && (
+              <Link
+                href="/suppliers"
+                className={`${styles.navLink} ${
+                  isActive("/suppliers") ? styles.navLinkActive : ""
+                }`}
+              >
+                Suppliers
+              </Link>
+            )}
             {can("manageUsers") && (
               <Link
                 href="/activity"

@@ -18,6 +18,7 @@ config file.
 - **Role-based access control** — Admin / Staff / Viewer roles enforced in both the UI and Firestore security rules (viewers are read-only; only admins can delete).
 - **CSV import & export** — export all or a filtered view; import from CSV with a preview (auto-creates missing categories); barcode column included.
 - **Barcode scanning** — scan with the device camera to find a product or fill its barcode when adding (ZXing, browser-only).
+- **Suppliers & reorder** — supplier directory, product-to-supplier links, and a Reorder report that groups low-stock items by supplier with purchase-order CSV export and pre-filled email orders.
 - **Settings & in-app user management** — theme preference, copy your UID, and (admins) assign/change/remove roles from a Settings page.
 - **Sortable table & search** — click any column to sort; search products by name; quick status filters.
 - **Activity log** — append-only record of adds/edits/deletes/imports with actor and timestamp; admin-only viewer page.
@@ -101,7 +102,7 @@ Change these values (and drop your logo in `/public`) to rebrand the entire app
 │   │   └── app.config.ts         # ⭐ white-label configuration
 │   ├── context/                  # AuthContext (roles) + ThemeContext (dark mode)
 │   ├── hooks/                    # useProducts / useCategories
-│   ├── pages/                    # index, dashboard, activity, settings, login, _app, _document
+│   ├── pages/                    # index, dashboard, reorder, suppliers, activity, settings, login, _app, _document
 │   ├── styles/                   # CSS Modules + globals.css (design tokens)
 │   ├── types.ts                  # shared TypeScript types
 │   └── utils/                    # firebase, permissions, csv, activity

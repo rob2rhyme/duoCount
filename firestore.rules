@@ -74,6 +74,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /suppliers/{supplierId} {
+      allow read: if isSignedIn();
+      allow create, update: if canEdit(); // admin + staff
+      allow delete: if isAdmin(); // admin only
+    }
+
     // Append-only activity log: a signed-in user may record actions ONLY under
     // their own uid (so entries can't be forged onto someone else), with a
     // known action and shape. Only admins can read; entries are immutable.

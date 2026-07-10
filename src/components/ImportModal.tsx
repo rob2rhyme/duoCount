@@ -83,6 +83,7 @@ const ImportModal: React.FC<Props> = ({ isOpen, onClose }) => {
             category: r.category,
             flavor: r.flavor,
             barcode: r.barcode || null,
+            supplier: r.supplier || null,
             front: r.front,
             back: r.back,
             expiryDate: r.expiryDate,
@@ -116,8 +117,9 @@ const ImportModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <h2>Import {appConfig.labels.itemPlural} from CSV</h2>
         <p className={styles.hint}>
           Required columns: <code>category</code>, <code>flavor</code>. Optional:{" "}
-          <code>barcode</code>, <code>front</code>, <code>back</code>,{" "}
-          <code>expiryDate</code>. Tip: export first to see the exact format.
+          <code>barcode</code>, <code>supplier</code>, <code>front</code>,{" "}
+          <code>back</code>, <code>expiryDate</code>. Tip: export first to see the
+          exact format.
         </p>
 
         <input

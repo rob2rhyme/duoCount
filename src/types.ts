@@ -11,6 +11,16 @@ export interface Product {
   expiryDate?: string
   /** optional barcode / SKU used by the scanner */
   barcode?: string
+  /** optional supplier name (denormalised, matches Supplier.name) */
+  supplier?: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  contact?: string
+  email?: string
+  phone?: string
 }
 
 export interface ProductCategory {

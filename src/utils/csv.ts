@@ -6,6 +6,7 @@ const HEADERS = [
   "category",
   "flavor",
   "barcode",
+  "supplier",
   "front",
   "back",
   "total",
@@ -25,6 +26,7 @@ export function productsToCSV(products: Product[]): string {
       p.category,
       p.flavor,
       p.barcode ?? "",
+      p.supplier ?? "",
       p.front ?? 0,
       p.back ?? 0,
       total,
@@ -32,6 +34,27 @@ export function productsToCSV(products: Product[]): string {
     ];
   });
   return [HEADERS, ...rows].map((r) => r.map(escapeCell).join(",")).join("\r\n");
+}
+
+export interface ReorderItem {
+  supplier: string;
+  category: string;
+  flavor: string;
+  barcode?: string;
+  current: number;
+}
+
+/** Serialise a reorder / purchase-order list to CSV. */
+export function reorderToCSV(items: ReorderItem[]): string {
+  const headers = ["supplier", "category", "item", "barcode", "currentQty"];
+  const rows = items.map((i) => [
+    i.supplier,
+    i.category,
+    i.flavor,
+    i.barcode ?? "",
+    i.current,
+  ]);
+  return [headers, ...rows].map((r) => r.map(escapeCell).join(",")).join("\r\n");
 }
 
 /** Trigger a browser download of a CSV string. */
@@ -93,6 +116,7 @@ export interface ParsedProduct {
   category: string;
   flavor: string;
   barcode: string;
+  supplier: string;
   front: number;
   back: number;
   expiryDate: string;
@@ -120,6 +144,7 @@ export function parseInventoryCSV(text: string): ImportResult {
   const iCat = idx("category");
   const iFlavor = idx("flavor");
   const iBarcode = idx("barcode");
+  const iSupplier = idx("supplier");
   const iFront = idx("front");
   const iBack = idx("back");
   const iExp = idx("expirydate");
@@ -147,10 +172,12 @@ export function parseInventoryCSV(text: string): ImportResult {
     };
     const expiryRaw = iExp === -1 ? "" : (cells[iExp] || "").trim();
     const barcode = iBarcode === -1 ? "" : (cells[iBarcode] || "").trim();
+    const supplier = iSupplier === -1 ? "" : (cells[iSupplier] || "").trim();
     rows.push({
       category,
       flavor,
       barcode,
+      supplier,
       front: num(iFront),
       back: num(iBack),
       expiryDate: expiryRaw || "n/a",
