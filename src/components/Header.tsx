@@ -8,6 +8,7 @@ import styles from "../styles/Header.module.css";
 import { appConfig } from "@/config/app.config";
 import { useAuth } from "@/context/AuthContext";
 import { ROLE_LABELS } from "@/utils/permissions";
+import ThemeToggle from "./ThemeToggle";
 
 const Header = () => {
   const router = useRouter();
@@ -53,6 +54,42 @@ const Header = () => {
                 Dashboard
               </Link>
             )}
+            <Link
+              href="/reorder"
+              className={`${styles.navLink} ${
+                isActive("/reorder") ? styles.navLinkActive : ""
+              }`}
+            >
+              Reorder
+            </Link>
+            {can("manageSuppliers") && (
+              <Link
+                href="/suppliers"
+                className={`${styles.navLink} ${
+                  isActive("/suppliers") ? styles.navLinkActive : ""
+                }`}
+              >
+                Suppliers
+              </Link>
+            )}
+            {can("manageUsers") && (
+              <Link
+                href="/activity"
+                className={`${styles.navLink} ${
+                  isActive("/activity") ? styles.navLinkActive : ""
+                }`}
+              >
+                Activity
+              </Link>
+            )}
+            <Link
+              href="/settings"
+              className={`${styles.navLink} ${
+                isActive("/settings") ? styles.navLinkActive : ""
+              }`}
+            >
+              Settings
+            </Link>
           </nav>
         )}
 
@@ -63,6 +100,7 @@ const Header = () => {
                 {ROLE_LABELS[role]}
               </span>
             )}
+            <ThemeToggle />
             <button className={styles.signOut} onClick={handleSignOut}>
               Sign Out
             </button>

@@ -12,6 +12,7 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@zxing/browser": "^0.2.1",
     "firebase": "^11.9.1",
     "next": "^16.2.10",
     "react": "^19.2.3",

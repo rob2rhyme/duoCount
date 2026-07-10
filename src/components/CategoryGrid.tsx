@@ -35,9 +35,7 @@ const CategoryGrid: React.FC<Props> = ({
       ))}
 
       {filtered.length === 0 && (
-        <p style={{ gridColumn: "1/-1", textAlign: "center" }}>
-          No categories match your search.
-        </p>
+        <p className={styles.empty}>No categories match your search.</p>
       )}
     </div>
   );

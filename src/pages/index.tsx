@@ -1,5 +1,5 @@
 // src/pages/index.tsx
-import { useEffect, useState, useRef, ChangeEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
@@ -9,11 +9,15 @@ import FlavorSearch from "@/components/FlavorSearch";
 import CategoryGrid from "@/components/CategoryGrid";
 import TabPanel from "@/components/TabPanel";
 import AddProductModal from "@/components/AddProductModal";
+import ImportModal from "@/components/ImportModal";
+import BarcodeScanner from "@/components/BarcodeScanner";
 import { Product, ProductCategory } from "@/types";
 import { appConfig } from "@/config/app.config";
+import { productsToCSV, downloadCSV } from "@/utils/csv";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import toast from "react-hot-toast";
 
 export default function Home() {
   const { isAuthenticated, loading, can } = useAuth();
@@ -31,9 +35,11 @@ export default function Home() {
   const [flavorSearch, setFlavorSearch] = useState("");
   const [flavorFilter, setFlavorFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isScanOpen, setIsScanOpen] = useState(false);
+  const [scanPrefill, setScanPrefill] = useState<string | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] =
     useState<ProductCategory | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const catUnsub = onSnapshot(collection(db, "categories"), (snap) => {
@@ -56,6 +62,8 @@ export default function Home() {
           id: d.id,
           category: cat,
           flavor: String(data.flavor || ""),
+          barcode: data.barcode ? String(data.barcode) : undefined,
+          supplier: data.supplier ? String(data.supplier) : undefined,
           front: Number(data.front || 0),
           back: Number(data.back || 0),
           expiryDate: String(data.expiryDate || "n/a"),
@@ -78,8 +86,19 @@ export default function Home() {
     setFlavorSearch("");
     setFlavorFilter("All");
   };
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    // TODO: Implement import logic if needed
+
+  const allProducts = useMemo(
+    () => Object.values(productsByCategory).flat(),
+    [productsByCategory]
+  );
+
+  const handleExportAll = () => {
+    if (allProducts.length === 0) {
+      toast.error("Nothing to export yet.");
+      return;
+    }
+    downloadCSV("inventory-export.csv", productsToCSV(allProducts));
+    toast.success(`Exported ${allProducts.length} rows`);
   };
 
   const categories: ProductCategory[] = categoryMeta
@@ -102,7 +121,32 @@ export default function Home() {
     return matchesSearch && matchesFilter;
   });
 
-  if (loading) return <p style={{ textAlign: "center" }}>Loading…</p>;
+  const handleScanDetected = (code: string) => {
+    setIsScanOpen(false);
+    const match = allProducts.find((p) => p.barcode && p.barcode === code);
+    if (match) {
+      // Fall back to a synthetic category if the product's category has no
+      // category document, so navigation still opens its table.
+      const cat: ProductCategory =
+        categories.find((c) => c.name === match.category) || {
+          name: match.category,
+          filterType: "All",
+          products: productsByCategory[match.category] || [],
+        };
+      setSelectedCategory(cat);
+      setFlavorSearch(match.flavor);
+      setFlavorFilter("All");
+      toast.success(`Found: ${match.flavor}`);
+    } else if (can("addProduct")) {
+      setScanPrefill(code);
+      setIsModalOpen(true);
+      toast(`No match for ${code} — add it?`);
+    } else {
+      toast.error(`No product with barcode ${code}`);
+    }
+  };
+
+  if (loading) return <p className="loading">Loading…</p>;
   if (!isAuthenticated) {
     router.replace("/login?next=/");
     return null;
@@ -128,7 +172,13 @@ export default function Home() {
             scroll: true,
           });
         }}
-        onAdd={() => setIsModalOpen(true)}
+        onAdd={() => {
+          setScanPrefill(undefined);
+          setIsModalOpen(true);
+        }}
+        onImport={() => setIsImportOpen(true)}
+        onExportAll={handleExportAll}
+        onScan={() => setIsScanOpen(true)}
       />
 
       {isGrid ? (
@@ -149,16 +199,20 @@ export default function Home() {
         />
       )}
 
-      <input
-        type="file"
-        accept=".json"
-        ref={fileInputRef}
-        style={{ display: "none" }}
-        onChange={handleFileChange}
-      />
       <AddProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        prefillBarcode={scanPrefill}
+      />
+      <ImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+      />
+      <BarcodeScanner
+        isOpen={isScanOpen}
+        onClose={() => setIsScanOpen(false)}
+        onDetected={handleScanDetected}
+        title="Scan to find a product"
       />
 
       {isGrid ? (

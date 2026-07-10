@@ -9,6 +9,18 @@ export interface Product {
   /** switched from string to number */
   back?: number
   expiryDate?: string
+  /** optional barcode / SKU used by the scanner */
+  barcode?: string
+  /** optional supplier name (denormalised, matches Supplier.name) */
+  supplier?: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  contact?: string
+  email?: string
+  phone?: string
 }
 
 export interface ProductCategory {

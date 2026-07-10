@@ -1,17 +1,14 @@
 /* src/styles/Dashboard.module.css */
 .dashboard {
-  /* Validated data-viz palette (light mode). See dataviz skill. */
-  --good: #0ca30c;
-  --warn: #fab219;
-  --crit: #d03b3b;
-  --series: #2a78d6;
-  --ink: #0b0b0b;
-  --secondary: #52514e;
-  --muted: #898781;
-  --grid: #e1e0d9;
-  --baseline: #c3c2b7;
-  --surface: #ffffff;
-  --border: rgba(11, 11, 11, 0.1);
+  /* Chart series colour follows the theme; chrome maps to the global tokens
+     so the dashboard adapts to light/dark automatically. Status hues are
+     passed as hex from the component (validated, colourblind-safe). */
+  --series: var(--primary);
+  --ink: var(--text);
+  --secondary: var(--text-secondary);
+  --muted: var(--text-muted);
+  --grid: var(--border-strong);
+  --baseline: var(--border-strong);
 
   width: 100%;
 }

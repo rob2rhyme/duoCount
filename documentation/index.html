@@ -152,14 +152,21 @@
     <div class="group">Configure</div>
     <a href="#firebase">Firebase setup</a>
     <a href="#config">Configuration &amp; branding</a>
+    <a href="#appearance">Appearance &amp; theme</a>
     <a href="#roles">Roles &amp; permissions</a>
     <a href="#seed">Seeding demo data</a>
     <a href="#rules">Security rules</a>
     <div class="group">Ship it</div>
     <a href="#run">Running locally</a>
     <a href="#deploy">Deployment</a>
+    <a href="#offline">Install &amp; offline (PWA)</a>
     <div class="group">Reference</div>
     <a href="#dashboard">Dashboard</a>
+    <a href="#importexport">Import &amp; export</a>
+    <a href="#barcode">Barcode scanning</a>
+    <a href="#activity">Activity log</a>
+    <a href="#suppliers">Suppliers &amp; reorder</a>
+    <a href="#settings">Settings &amp; users</a>
     <a href="#features">Feature overview</a>
     <a href="#faq">FAQ &amp; troubleshooting</a>
     <a href="#changelog">Changelog</a>
@@ -177,7 +184,7 @@
   <section id="intro">
     <h2>Introduction</h2>
     <p>This is a production-ready inventory management app for small retail businesses. It tracks stock across two locations per item (for example front-of-store and back stockroom), monitors expiry dates, raises low-stock and expiring-soon flags, and keeps everything behind a secure phone one-time-password (OTP) login.</p>
-    <p>Data is stored in <strong>Cloud Firestore</strong> and syncs in real time — edit a quantity on one device and every other device updates instantly. It ships with an analytics <strong>dashboard</strong> and <strong>role-based access</strong> (Admin / Staff / Viewer). The whole app is <strong>white-label</strong>: you rebrand it from a single configuration file, no component code required.</p>
+    <p>Data is stored in <strong>Cloud Firestore</strong> and syncs in real time — edit a quantity on one device and every other device updates instantly. It ships with a light/dark <strong>theme</strong>, an analytics <strong>dashboard</strong>, <strong>role-based access</strong> (Admin / Staff / Viewer), <strong>CSV import/export</strong>, an <strong>activity log</strong>, and <strong>PWA offline</strong> support. The whole app is <strong>white-label</strong>: you rebrand it from a single configuration file, no component code required.</p>
     <div class="callout tip">💡 <strong>New here?</strong> Follow the sections in order: Requirements → Installation → Firebase setup → Configuration. You'll have a running app in about 15 minutes.</div>
   </section>
 
@@ -292,6 +299,21 @@ firebase deploy --only firestore:rules</code></pre>
     <div class="callout tip">💡 The two "stock locations" are generic. Rename them to whatever fits — Warehouse/Shop, Aisle/Backroom, Online/In-store — via <code>labels.front</code> and <code>labels.back</code>.</div>
   </section>
 
+  <section id="appearance">
+    <h2>Appearance &amp; theme</h2>
+    <p>The app ships with a full <strong>light + dark theme</strong>. A toggle in the header (and on the login screen) cycles <em>System → Light → Dark</em>; the choice is remembered per browser, and "System" follows the device setting. There is no flash of the wrong theme on load.</p>
+    <h3>Changing the colours</h3>
+    <p>All colours, spacing, radius and shadows are <strong>design tokens</strong> (CSS custom properties) defined once in <code>src/styles/globals.css</code>. To rebrand the palette, edit the tokens under <code>:root</code> (light) and <code>:root[data-theme="dark"]</code> (dark). The most common one:</p>
+    <pre><code>:root {
+  --primary: #3b6df6;        /* your brand colour   */
+  --primary-hover: #2f5ae0;
+  --header-bg: #141b2d;      /* top bar gradient    */
+  /* …surfaces, text, radius, shadows… */
+}</code></pre>
+    <p>Every component reads these tokens, so one edit re-themes the whole app in both light and dark. Status colours (in-stock / low / expiring) come from a validated, colourblind-safe palette and are best left as-is.</p>
+    <div class="callout tip">💡 The heading/brand font is loaded as the <code>--font-display</code> CSS variable in <code>_app.tsx</code> — swap <code>Calistoga</code> for any <code>next/font</code> family to change it.</div>
+  </section>
+
   <section id="roles">
     <h2>Roles &amp; permissions</h2>
     <p>Every signed-in user has a <strong>role</strong> that controls what they can do. Roles are stored in a <code>users</code> collection (one document per user, keyed by their Firebase Auth UID) and enforced both in the UI and in the Firestore security rules.</p>
@@ -303,15 +325,18 @@ firebase deploy --only firestore:rules</code></pre>
       <tr><td>Edit stock quantities</td><td>✅</td><td>✅</td><td>—</td></tr>
       <tr><td>Add products</td><td>✅</td><td>✅</td><td>—</td></tr>
       <tr><td>Delete products</td><td>✅</td><td>—</td><td>—</td></tr>
+      <tr><td>Manage suppliers</td><td>✅</td><td>✅</td><td>—</td></tr>
       <tr><td>Manage users</td><td>✅</td><td>—</td><td>—</td></tr>
     </table>
     <p>A user's role is shown as a badge in the header. Viewers get a read-only experience — the "Add" button and inline editing are hidden; only admins see the delete control.</p>
     <h3>Assigning a role to someone</h3>
+    <p>The easiest way is the built-in <strong>Settings → User management</strong> page (admins only): paste the person's UID, pick a role, and save — you can also change or remove roles there later. To do it manually instead:</p>
     <ol class="steps">
       <li>Have the person <strong>sign in once</strong> so Firebase creates their account.</li>
-      <li>In the Firebase console → <strong>Authentication → Users</strong>, copy their <strong>User UID</strong>.</li>
+      <li>In the Firebase console → <strong>Authentication → Users</strong>, copy their <strong>User UID</strong> (a signed-in user can copy their own from Settings → Account).</li>
       <li>In <strong>Firestore</strong>, create a document in the <code>users</code> collection with that UID as the document ID and a field <code>role</code> set to <code>admin</code>, <code>staff</code> or <code>viewer</code>. (The seed script can create your first admin — set <code>ADMIN_UID</code> and re-run <code>npm run seed</code>.)</li>
     </ol>
+    <div class="callout warn">⚠️ You need at least one admin to use the User-management UI, so create your <strong>first</strong> admin with the seed script or the console. An admin can't change or remove their own role in the UI (a safeguard against locking yourself out).</div>
     <h3>Default role &amp; customising</h3>
     <p>A signed-in user with no <code>users</code> document falls back to <code>auth.defaultRole</code> in <code>app.config.ts</code> (ships as <code>viewer</code>). For a single-operator shop where every login should have full access, set it to <code>admin</code>. To change what each role can do — or add new roles — edit <code>src/utils/permissions.ts</code>.</p>
     <div class="callout tip">💡 Roles are enforced in <code>firestore.rules</code> too, so a viewer can't write data even via the API — not just in the UI.</div>
@@ -379,6 +404,17 @@ npm start   # serves on port 3000 by default</code></pre>
     <p>In both cases, deploy your Firestore rules separately with the Firebase CLI (<code>firebase deploy --only firestore:rules</code>).</p>
   </section>
 
+  <section id="offline">
+    <h2>Install &amp; offline (PWA)</h2>
+    <p>The app is a <strong>Progressive Web App</strong>. On a deployed HTTPS site, browsers offer "Install app" / "Add to Home Screen", after which it launches in its own window like a native app. A service worker caches the app shell so it loads without a connection, and <strong>Firestore offline persistence</strong> keeps your inventory data readable offline — edits queue and sync automatically when the connection returns.</p>
+    <h3>Make it yours</h3>
+    <ul>
+      <li>Edit <code>public/manifest.json</code> — set <code>name</code>, <code>short_name</code>, <code>theme_color</code> and the install icon (replace <code>/logo.png</code> with a 512×512 PNG).</li>
+      <li>The service worker is <code>public/sw.js</code> (registered automatically in production only).</li>
+    </ul>
+    <div class="callout warn">⚠️ PWA install and the service worker require <strong>HTTPS</strong> (or <code>localhost</code>) and a <em>production</em> build — they're intentionally disabled in <code>npm run dev</code>.</div>
+  </section>
+
   <section id="dashboard">
     <h2>Dashboard</h2>
     <p>The <strong>Dashboard</strong> (linked in the header) gives an at-a-glance view of inventory health, computed live from your Firestore data. Every role can view it.</p>
@@ -393,6 +429,66 @@ npm start   # serves on port 3000 by default</code></pre>
     <p>The charts are lightweight, dependency-free SVG/CSS (no charting library to bloat your bundle) and use a colourblind-safe status palette with text labels on every series. The low-stock and "expiring soon" thresholds come straight from <code>thresholds</code> in <code>app.config.ts</code>, so the dashboard always matches your business rules.</p>
   </section>
 
+  <section id="importexport">
+    <h2>Import &amp; export</h2>
+    <h3>Export</h3>
+    <p>Use <strong>Export</strong> on the main screen to download the entire inventory as a CSV, or <strong>Export CSV</strong> inside a category to download just the rows you're viewing (respecting the current search &amp; filter). Opens in Excel, Google Sheets or Numbers.</p>
+    <h3>Import</h3>
+    <p>Editors (admin/staff) get an <strong>Import</strong> button that accepts a CSV file, shows a preview with row count and any warnings, then bulk-adds the products. Categories referenced in the file that don't exist yet are created automatically.</p>
+    <p>The CSV needs a header row. Required columns: <code>category</code>, <code>flavor</code>. Optional: <code>barcode</code>, <code>supplier</code>, <code>front</code>, <code>back</code>, <code>expiryDate</code> (column order doesn't matter; a <code>total</code> column in an export is ignored on import):</p>
+    <pre><code>category,flavor,barcode,supplier,front,back,expiryDate
+Beverages,Cola 330ml,5449000000996,Acme Distribution,4,12,2026-09-15
+Snacks,Salted Pretzels,,Acme Distribution,10,20,n/a</code></pre>
+    <div class="callout tip">💡 Exporting first is the easiest way to see the exact format before importing.</div>
+  </section>
+
+  <section id="barcode">
+    <h2>Barcode scanning</h2>
+    <p>Products can carry an optional <strong>barcode / SKU</strong>, and the app scans them with the device camera (no external hardware needed).</p>
+    <ul>
+      <li><strong>Scan to find</strong> — tap <em>Scan</em> on the main screen, point at a barcode, and the app jumps straight to the matching product. If nothing matches, editors are offered a pre-filled "add product" form.</li>
+      <li><strong>Scan to add</strong> — the Add-product form has a <em>Scan</em> button that fills the barcode field from the camera.</li>
+      <li>Barcodes are included in CSV import/export, so you can bulk-load them.</li>
+    </ul>
+    <p>Scanning uses the open-source <a href="https://github.com/zxing-js/browser" target="_blank" rel="noopener">ZXing</a> library, loaded only in the browser (it never touches the server bundle). It supports common 1D/2D formats (EAN, UPC, Code-128, QR, etc.).</p>
+    <div class="callout warn">⚠️ Camera access requires <strong>HTTPS</strong> (or <code>localhost</code>) and the user granting camera permission — a browser security requirement, not a limitation of the app.</div>
+  </section>
+
+  <section id="suppliers">
+    <h2>Suppliers &amp; reorder</h2>
+    <p>Track who you buy from and turn low stock into a purchase order in a couple of clicks.</p>
+    <h3>Suppliers</h3>
+    <ul>
+      <li>The <strong>Suppliers</strong> page (admin/staff) manages a directory of suppliers — name, contact person, email and phone.</li>
+      <li>When adding a product you can pick an existing supplier or type a new name; supplier is also a column in CSV import/export.</li>
+      <li>Only admins can delete a supplier; deleting one leaves the supplier name on existing products.</li>
+    </ul>
+    <h3>Reorder report</h3>
+    <ul>
+      <li>The <strong>Reorder</strong> page lists every item at or below the low-stock threshold across all categories, <strong>grouped by supplier</strong>.</li>
+      <li><strong>Export purchase order</strong> downloads the whole list as a CSV you can send to suppliers.</li>
+      <li>If a supplier has an email on file, an <strong>Email order</strong> link opens a pre-filled message with that supplier's items.</li>
+    </ul>
+    <div class="callout tip">💡 The low-stock threshold is <code>thresholds.lowStock</code> in <code>app.config.ts</code> — the same value that drives the "Need to Order" flags everywhere else.</div>
+  </section>
+
+  <section id="settings">
+    <h2>Settings &amp; user management</h2>
+    <p>The <strong>Settings</strong> page (in the header, available to everyone) has:</p>
+    <ul>
+      <li><strong>Appearance</strong> — choose System / Light / Dark theme.</li>
+      <li><strong>Account</strong> — your role and a one-click copy of your User ID (handy when an admin needs to grant you a role).</li>
+      <li><strong>User management</strong> (admins only) — list everyone in the <code>users</code> collection, change roles inline, remove users, or add a user by UID. Changes are enforced by the security rules, logged to the activity log, and you can't change or delete your own admin record.</li>
+      <li><strong>About</strong> — app name and version.</li>
+    </ul>
+  </section>
+
+  <section id="activity">
+    <h2>Activity log</h2>
+    <p>Every add, stock edit, delete and import is recorded to an append-only <code>activityLog</code> collection with the actor's role and a timestamp. Admins get an <strong>Activity</strong> page (linked in the header) showing the latest 100 changes — useful for accountability when several staff share the app.</p>
+    <p>Entries are immutable by security rule (no client can edit or delete them), and only admins can read the history. Logging is best-effort: if it ever fails it never blocks the underlying action.</p>
+  </section>
+
   <section id="features">
     <h2>Feature overview</h2>
     <div class="feature-grid">
@@ -405,6 +501,14 @@ npm start   # serves on port 3000 by default</code></pre>
       <div class="feature"><div class="ico">🔐</div><h4>OTP login</h4><p>Phone one-time-password auth with auto sign-out.</p></div>
       <div class="feature"><div class="ico">👥</div><h4>Role-based access</h4><p>Admin / Staff / Viewer, enforced in UI &amp; rules.</p></div>
       <div class="feature"><div class="ico">📊</div><h4>Analytics dashboard</h4><p>KPIs, donuts &amp; bar charts, no chart library.</p></div>
+      <div class="feature"><div class="ico">🌙</div><h4>Light &amp; dark mode</h4><p>Token-based theming with a header toggle.</p></div>
+      <div class="feature"><div class="ico">🔀</div><h4>CSV import/export</h4><p>Bulk in and out, with an import preview.</p></div>
+      <div class="feature"><div class="ico">📷</div><h4>Barcode scanning</h4><p>Camera scan to find or add products.</p></div>
+      <div class="feature"><div class="ico">🚚</div><h4>Suppliers &amp; reorder</h4><p>Supplier directory + purchase-order export.</p></div>
+      <div class="feature"><div class="ico">⚙️</div><h4>Settings &amp; users</h4><p>Manage roles in-app; per-user theme.</p></div>
+      <div class="feature"><div class="ico">↕️</div><h4>Sortable table &amp; search</h4><p>Sort any column; search by name.</p></div>
+      <div class="feature"><div class="ico">📝</div><h4>Activity log</h4><p>Who changed what, when — admin view.</p></div>
+      <div class="feature"><div class="ico">📲</div><h4>PWA &amp; offline</h4><p>Installable, works without a connection.</p></div>
       <div class="feature"><div class="ico">🎨</div><h4>White-label</h4><p>Rebrand everything from one config file.</p></div>
       <div class="feature"><div class="ico">📱</div><h4>Responsive</h4><p>Works on phone, tablet and desktop.</p></div>
     </div>
@@ -428,6 +532,9 @@ npm start   # serves on port 3000 by default</code></pre>
     <h2>Changelog</h2>
     <table>
       <tr><th>Version</th><th>Notes</th></tr>
+      <tr><td><strong>1.4.0</strong></td><td>Added <strong>supplier management</strong> (directory, product links, CSV supplier column) and a <strong>Reorder</strong> report — low-stock items grouped by supplier with purchase-order CSV export and pre-filled email orders. New <code>manageSuppliers</code> role permission.</td></tr>
+      <tr><td><strong>1.3.0</strong></td><td>Added <strong>barcode scanning</strong> (camera scan-to-find and scan-to-add, barcode in CSV) and a <strong>Settings</strong> page with in-app <strong>user management</strong> (admins assign/change/remove roles, enforced by security rules and logged). Per-user theme selector.</td></tr>
+      <tr><td><strong>1.2.0</strong></td><td>Premium redesign with a full <strong>light/dark theme</strong> (token-based, header toggle). Added <strong>CSV import &amp; export</strong>, <strong>sortable table columns</strong>, an <strong>activity log</strong>, and <strong>PWA install + offline</strong> support (service worker + Firestore persistence). Toasts replace native alerts throughout.</td></tr>
       <tr><td><strong>1.1.0</strong></td><td>Added an analytics <strong>Dashboard</strong> (KPI cards, stock &amp; expiry donuts, units-by-category bars, needs-attention list) and <strong>role-based access control</strong> (Admin / Staff / Viewer) enforced in the UI and Firestore rules. New global header nav, admin-only product delete, and role seeding via <code>ADMIN_UID</code>.</td></tr>
       <tr><td><strong>1.0.0</strong></td><td>Initial release — real-time inventory, two-location stock, expiry &amp; low-stock alerts, OTP login with configurable auto sign-out, white-label configuration, demo seeder.</td></tr>
     </table>
@@ -448,7 +555,7 @@ npm start   # serves on port 3000 by default</code></pre>
 </main>
 
 <footer>
-  Inventory Management System — Next.js &amp; Firebase · Documentation v1.1.0
+  Inventory Management System — Next.js &amp; Firebase · Documentation v1.4.0
 </footer>
 
 <script>

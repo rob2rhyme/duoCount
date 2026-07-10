@@ -1,0 +1,162 @@
+/* src/styles/Settings.module.css */
+.wrap {
+  width: 100%;
+  max-width: 780px;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem 1.4rem;
+  margin-bottom: 1.1rem;
+}
+
+.card h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.9rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  flex-wrap: wrap;
+}
+.row + .row {
+  border-top: 1px solid var(--border);
+}
+.label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  min-width: 120px;
+}
+.value {
+  font-weight: 600;
+  word-break: break-all;
+}
+.mono {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+/* Theme segmented control */
+.segment {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+.segment button {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: none;
+  padding: 0.45rem 1rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.segment button + button {
+  border-left: 1px solid var(--border-strong);
+}
+.segActive {
+  background: var(--primary) !important;
+  color: var(--primary-contrast) !important;
+}
+
+.copyBtn,
+.smallBtn {
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* User management */
+.userTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.userTable th,
+.userTable td {
+  text-align: left;
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.userTable th {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.userTable select {
+  padding: 0.35rem 0.5rem;
+}
+.you {
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-left: 0.35rem;
+}
+.removeBtn {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.removeBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.addForm {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.addForm .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1 1 130px;
+}
+.addForm label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.addBtn {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.note {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-top: 0.85rem;
+}

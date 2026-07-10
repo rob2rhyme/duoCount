@@ -15,6 +15,7 @@ export type Permission =
   | "editStock" // change front/back quantities
   | "addProduct" // add new products
   | "deleteProduct" // remove products
+  | "manageSuppliers" // create/edit suppliers
   | "manageUsers"; // administer other users' roles
 
 export const ROLES: Role[] = ["admin", "staff", "viewer"];
@@ -33,9 +34,16 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "editStock",
     "addProduct",
     "deleteProduct",
+    "manageSuppliers",
     "manageUsers",
   ],
-  staff: ["viewInventory", "viewDashboard", "editStock", "addProduct"],
+  staff: [
+    "viewInventory",
+    "viewDashboard",
+    "editStock",
+    "addProduct",
+    "manageSuppliers",
+  ],
   viewer: ["viewInventory", "viewDashboard"],
 };
 

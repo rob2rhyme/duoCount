@@ -6,6 +6,7 @@ import Head from "next/head";
 
 import { db, auth } from "@/utils/firebase";
 import { appConfig } from "@/config/app.config";
+import { useTheme } from "@/context/ThemeContext";
 import { doc, getDoc } from "firebase/firestore";
 import {
   RecaptchaVerifier,
@@ -29,6 +30,9 @@ export default function Login() {
   const [sending, setSending] = useState(false);
 
   const router = useRouter();
+  const { theme, cycle } = useTheme();
+  const themeIcon =
+    theme === "dark" ? "🌙" : theme === "light" ? "☀️" : "🖥️";
 
   // 1) Load single phoneAuth/store document
   useEffect(() => {
@@ -121,6 +125,9 @@ export default function Login() {
         <title>Sign in – {appConfig.appName}</title>
       </Head>
       <div className="overlay">
+        <button className="themeBtn" onClick={cycle} title="Change theme">
+          {themeIcon}
+        </button>
         <div className="modal">
           <img
             src={appConfig.logoSrc}
@@ -164,69 +171,94 @@ export default function Login() {
       <style jsx>{`
         .overlay {
           position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: rgba(0, 0, 0, 0.5);
+          inset: 0;
           display: flex;
           align-items: center;
           justify-content: center;
+          padding: 1.25rem;
+          background: radial-gradient(
+              1100px 520px at 50% -10%,
+              var(--primary-soft),
+              transparent 70%
+            ),
+            linear-gradient(160deg, var(--header-bg), var(--bg) 55%);
           z-index: 1000;
         }
+        .themeBtn {
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          border: 1px solid var(--border);
+          background: var(--surface);
+          color: var(--text);
+          font-size: 1.05rem;
+          cursor: pointer;
+          box-shadow: var(--shadow-sm);
+        }
         .modal {
-          background: #fff;
-          border-radius: 16px;
-          padding: 2rem;
-          width: 90%;
+          background: var(--surface);
+          color: var(--text);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: 2.25rem 2rem;
+          width: 100%;
           max-width: 400px;
           text-align: center;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          box-shadow: var(--shadow-lg);
         }
         input[type="text"] {
           width: 100%;
-          padding: 0.75rem;
-          font-size: 1.25rem;
+          padding: 0.8rem;
+          font-size: 1.4rem;
+          letter-spacing: 0.35em;
           text-align: center;
-          border: 1px solid #ccc;
-          border-radius: 8px;
           margin-bottom: 1rem;
         }
         button {
-          background: #3182ce;
-          color: white;
+          background: var(--primary);
+          color: var(--primary-contrast);
           border: none;
           padding: 0.75rem 1.5rem;
-          border-radius: 8px;
+          border-radius: var(--radius);
           cursor: pointer;
           font-size: 1rem;
+          font-weight: 600;
           margin-top: 0.5rem;
+          transition: filter var(--transition);
         }
         button[disabled] {
           opacity: 0.6;
           cursor: default;
         }
         button:hover:not([disabled]) {
-          background: #2563eb;
+          filter: brightness(1.06);
         }
         .error {
-          color: red;
+          color: var(--danger);
           margin-top: 1rem;
+          font-size: 0.9rem;
         }
         .logo {
-          max-width: 120px;
+          max-width: 96px;
           margin-bottom: 1rem;
-          border-radius: 8px;
+          border-radius: 12px;
         }
         .brand {
           margin: 0 0 0.25rem;
-          font-size: 1.4rem;
-          color: #1a202c;
+          font-size: 1.5rem;
+          font-family: var(--font-display, var(--font-sans));
+          color: var(--text);
         }
         .tagline {
-          margin: 0 0 1.25rem;
-          color: #718096;
+          margin: 0 0 1.5rem;
+          color: var(--text-muted);
           font-size: 0.95rem;
+        }
+        p {
+          color: var(--text-secondary);
         }
       `}</style>
     </>
