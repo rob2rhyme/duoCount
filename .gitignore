@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -17,14 +17,13 @@
 /.next/
 /out/
 
-# Local environment files
+# Local environment files (NEVER commit real values)
+.env
+.env.*
+!.env.example
 .env.local
-.env*
-!.env.production.local.example
 .env.development.local
 .env.production.local
-serviceAccountKey.json
-
 
 # production
 /build
@@ -46,13 +45,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Dev Secrets
+# ---------------------------------------------------------------------------
+# SECRETS — Firebase Admin service-account keys must never be committed.
+# Keep them outside the repo or in an ignored /secrets folder.
+# ---------------------------------------------------------------------------
 /secrets/
-# ignore everything in /secrets…
-/secrets/*
-# …except this README
-!/secrets/README.md
-
-
-# Firebase service‐account JSONs
-secrets/*.json
+*serviceAccount*.json
+*service-account*.json
+*_sa.b64
+prodServiceAccountKey.json

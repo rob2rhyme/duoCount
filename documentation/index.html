@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inventory Management System — Documentation</title>
+<style>
+  :root {
+    --bg: #f7f8fb;
+    --surface: #ffffff;
+    --text: #1f2733;
+    --muted: #5b6675;
+    --border: #e5e8ef;
+    --brand: #3b6df6;
+    --brand-soft: #eaf0ff;
+    --code-bg: #0f1729;
+    --code-text: #e6edf3;
+    --ok: #17915b;
+    --warn: #b7791f;
+    --warn-bg: #fff8e6;
+    --danger: #c0392b;
+    --danger-bg: #fdecea;
+    --sidebar-w: 280px;
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1117;
+      --surface: #161b22;
+      --text: #e6edf3;
+      --muted: #9aa4b2;
+      --border: #232a34;
+      --brand: #6a92ff;
+      --brand-soft: #1a2540;
+      --warn-bg: #2a2410;
+      --danger-bg: #2c1614;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Layout */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 1.5rem 1rem 3rem;
+  }
+  .sidebar .brand {
+    display: flex; align-items: center; gap: .6rem;
+    font-weight: 700; font-size: 1.05rem; margin: 0 .5rem 1.25rem;
+  }
+  .sidebar .brand .dot {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--brand), #8b5cf6);
+    display: grid; place-items: center; color: #fff; font-size: 1rem;
+  }
+  .sidebar nav a {
+    display: block; color: var(--muted); padding: .42rem .75rem;
+    border-radius: 8px; font-size: .92rem;
+  }
+  .sidebar nav a:hover { background: var(--brand-soft); color: var(--brand); text-decoration: none; }
+  .sidebar nav a.active { background: var(--brand-soft); color: var(--brand); font-weight: 600; }
+  .sidebar nav .group { margin: 1.1rem .75rem .3rem; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); opacity: .7; }
+
+  .content { margin-left: var(--sidebar-w); padding: 3rem clamp(1rem, 5vw, 4rem); max-width: 900px; }
+  section { scroll-margin-top: 1.5rem; margin-bottom: 3.25rem; }
+  h1 { font-size: 2rem; margin: 0 0 .4rem; }
+  h2 { font-size: 1.45rem; margin: 0 0 1rem; padding-bottom: .45rem; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.1rem; margin: 1.6rem 0 .5rem; }
+  p, li { color: var(--text); }
+  .lead { font-size: 1.1rem; color: var(--muted); }
+
+  /* Components */
+  .hero {
+    background: linear-gradient(135deg, var(--brand-soft), transparent);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem 2rem; margin-bottom: 2.5rem;
+  }
+  .pill { display:inline-block; background: var(--brand); color:#fff; font-size:.72rem; font-weight:600; padding:.2rem .6rem; border-radius:999px; letter-spacing:.03em; }
+  code { font-family: "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace; font-size: .875em; background: var(--brand-soft); color: var(--brand); padding: .12em .4em; border-radius: 5px; }
+  pre { background: var(--code-bg); color: var(--code-text); padding: 1rem 1.15rem; border-radius: 10px; overflow-x: auto; font-size: .85rem; line-height: 1.55; }
+  pre code { background: none; color: inherit; padding: 0; }
+  ol.steps { counter-reset: step; list-style: none; padding: 0; }
+  ol.steps > li { position: relative; padding: 0 0 1.25rem 2.75rem; margin: 0; }
+  ol.steps > li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 1.9rem; height: 1.9rem; border-radius: 50%;
+    background: var(--brand); color: #fff; font-weight: 700; font-size: .85rem;
+    display: grid; place-items: center;
+  }
+  ol.steps > li:not(:last-child)::after {
+    content: ""; position: absolute; left: .93rem; top: 2rem; bottom: .1rem;
+    width: 2px; background: var(--border);
+  }
+  .callout { border-radius: 10px; padding: .9rem 1.1rem; margin: 1rem 0; border: 1px solid var(--border); font-size: .95rem; }
+  .callout.tip { background: var(--brand-soft); border-color: transparent; }
+  .callout.warn { background: var(--warn-bg); border-color: transparent; }
+  .callout.warn strong { color: var(--warn); }
+  .callout.danger { background: var(--danger-bg); border-color: transparent; }
+  .callout.danger strong { color: var(--danger); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .9rem; }
+  th, td { text-align: left; padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  td code { white-space: nowrap; }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+  .feature { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.15rem; }
+  .feature .ico { font-size: 1.3rem; }
+  .feature h4 { margin: .4rem 0 .3rem; font-size: 1rem; }
+  .feature p { margin: 0; color: var(--muted); font-size: .88rem; }
+  footer { margin-left: var(--sidebar-w); padding: 2rem clamp(1rem,5vw,4rem) 3rem; color: var(--muted); border-top: 1px solid var(--border); font-size: .88rem; }
+
+  .menu-toggle { display:none; }
+  @media (max-width: 880px) {
+    .sidebar { transform: translateX(-100%); transition: transform .25s ease; z-index: 50; box-shadow: 0 0 40px rgba(0,0,0,.2); }
+    body.nav-open .sidebar { transform: translateX(0); }
+    .content, footer { margin-left: 0; }
+    .menu-toggle {
+      display: flex; align-items:center; gap:.5rem; position: fixed; top: 1rem; left: 1rem; z-index: 60;
+      background: var(--brand); color:#fff; border:none; padding:.55rem .9rem; border-radius: 8px; font-weight:600; cursor:pointer;
+    }
+    .content { padding-top: 4.5rem; }
+  }
+</style>
+</head>
+<body>
+<button class="menu-toggle" onclick="document.body.classList.toggle('nav-open')">☰ Menu</button>
+
+<aside class="sidebar">
+  <div class="brand"><span class="dot">📦</span> Inventory System</div>
+  <nav>
+    <div class="group">Getting started</div>
+    <a href="#intro">Introduction</a>
+    <a href="#requirements">Requirements</a>
+    <a href="#contents">Package contents</a>
+    <a href="#install">Installation</a>
+    <div class="group">Configure</div>
+    <a href="#firebase">Firebase setup</a>
+    <a href="#config">Configuration &amp; branding</a>
+    <a href="#roles">Roles &amp; permissions</a>
+    <a href="#seed">Seeding demo data</a>
+    <a href="#rules">Security rules</a>
+    <div class="group">Ship it</div>
+    <a href="#run">Running locally</a>
+    <a href="#deploy">Deployment</a>
+    <div class="group">Reference</div>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#features">Feature overview</a>
+    <a href="#faq">FAQ &amp; troubleshooting</a>
+    <a href="#changelog">Changelog</a>
+    <a href="#support">Support &amp; credits</a>
+  </nav>
+</aside>
+
+<main class="content">
+  <div class="hero">
+    <span class="pill">DOCUMENTATION</span>
+    <h1 style="margin-top:.6rem;">Inventory Management System</h1>
+    <p class="lead">A real-time inventory tracker built with Next.js &amp; Firebase. Thank you for your purchase! This guide walks you through setup, configuration, white-labeling and deployment.</p>
+  </div>
+
+  <section id="intro">
+    <h2>Introduction</h2>
+    <p>This is a production-ready inventory management app for small retail businesses. It tracks stock across two locations per item (for example front-of-store and back stockroom), monitors expiry dates, raises low-stock and expiring-soon flags, and keeps everything behind a secure phone one-time-password (OTP) login.</p>
+    <p>Data is stored in <strong>Cloud Firestore</strong> and syncs in real time — edit a quantity on one device and every other device updates instantly. It ships with an analytics <strong>dashboard</strong> and <strong>role-based access</strong> (Admin / Staff / Viewer). The whole app is <strong>white-label</strong>: you rebrand it from a single configuration file, no component code required.</p>
+    <div class="callout tip">💡 <strong>New here?</strong> Follow the sections in order: Requirements → Installation → Firebase setup → Configuration. You'll have a running app in about 15 minutes.</div>
+  </section>
+
+  <section id="requirements">
+    <h2>Requirements</h2>
+    <table>
+      <tr><th>What</th><th>Version / notes</th></tr>
+      <tr><td><strong>Node.js</strong></td><td>18.18 or newer (20 LTS recommended)</td></tr>
+      <tr><td><strong>npm</strong></td><td>9+ (ships with Node)</td></tr>
+      <tr><td><strong>Firebase account</strong></td><td>Free "Spark" plan is enough to start</td></tr>
+      <tr><td><strong>Code editor</strong></td><td>VS Code recommended</td></tr>
+      <tr><td><strong>Basic skills</strong></td><td>Running terminal commands; no coding needed for basic branding</td></tr>
+    </table>
+  </section>
+
+  <section id="contents">
+    <h2>Package contents</h2>
+    <pre><code>├── data/sample-inventory.json   Demo catalogue for the seed script
+├── documentation/index.html     This guide
+├── public/                      Logo &amp; favicon (replace with yours)
+├── scripts/seed.ts              One-command demo-data seeder
+├── src/
+│   ├── components/              UI components
+│   │   └── dashboard/          Charts &amp; KPI cards
+│   ├── config/app.config.ts     ⭐ White-label configuration
+│   ├── context/                 Auth + roles + session handling
+│   ├── hooks/                   Data hooks
+│   ├── pages/                   Next.js routes (index, dashboard, login)
+│   ├── styles/                  CSS Modules
+│   └── utils/
+│       ├── firebase.ts         Firebase client
+│       └── permissions.ts      Roles &amp; permission matrix
+├── .env.example                 Environment variable template
+├── firestore.rules              Firestore security rules
+└── package.json</code></pre>
+  </section>
+
+  <section id="install">
+    <h2>Installation</h2>
+    <ol class="steps">
+      <li>
+        <strong>Unzip &amp; open the folder</strong> in your terminal.
+        <pre><code>cd inventory-management-nextjs-firebase</code></pre>
+      </li>
+      <li>
+        <strong>Install dependencies.</strong>
+        <pre><code>npm install</code></pre>
+      </li>
+      <li>
+        <strong>Create your environment file</strong> from the template. You'll fill in the values in the next section.
+        <pre><code>cp .env.example .env.local</code></pre>
+      </li>
+      <li>
+        <strong>Set up Firebase</strong> (next section), then start the app:
+        <pre><code>npm run dev</code></pre>
+        Open <a href="http://localhost:3000">http://localhost:3000</a>.
+      </li>
+    </ol>
+  </section>
+
+  <section id="firebase">
+    <h2>Firebase setup</h2>
+    <p>The app needs a Firebase project with <strong>Phone Authentication</strong> and <strong>Cloud Firestore</strong> enabled.</p>
+    <ol class="steps">
+      <li><strong>Create a project</strong> at <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a> → "Add project".</li>
+      <li><strong>Enable Phone auth:</strong> Build → Authentication → Get started → Sign-in method → enable <em>Phone</em>. While testing, add a test phone number + code under "Phone numbers for testing".</li>
+      <li><strong>Create Firestore:</strong> Build → Firestore Database → Create database → start in <em>production mode</em> (the included rules replace the defaults).</li>
+      <li>
+        <strong>Register a Web app:</strong> Project settings (⚙️) → "Your apps" → Web (<code>&lt;/&gt;</code>). Copy the config values into <code>.env.local</code>:
+        <pre><code>NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...</code></pre>
+      </li>
+      <li>
+        <strong>Deploy the security rules</strong> shipped in <code>firestore.rules</code>:
+        <pre><code>npm install -g firebase-tools
+firebase login
+firebase use your_project_id
+firebase deploy --only firestore:rules</code></pre>
+      </li>
+      <li>
+        <strong>Add the login phone number.</strong> In Firestore, create collection <code>phoneAuth</code> with a document ID <code>store</code> and one field <code>phone</code> (string, E.164 format, e.g. <code>+15551234567</code>). This is the number the login screen texts the code to. The seed script can create it for you (see below).
+      </li>
+    </ol>
+    <div class="callout warn">⚠️ <strong>Note on the API key:</strong> the <code>NEXT_PUBLIC_*</code> Firebase keys are meant to be public — they ship in every Firebase web app. Your data is protected by <em>security rules</em>, not by hiding these keys. Never commit a <strong>service-account</strong> key, though (see Seeding).</div>
+  </section>
+
+  <section id="config">
+    <h2>Configuration &amp; branding</h2>
+    <p>Everything brand- and business-specific lives in one file: <code>src/config/app.config.ts</code>. Edit it to rebrand the entire app — no other code to touch.</p>
+    <table>
+      <tr><th>Setting</th><th>What it controls</th></tr>
+      <tr><td><code>appName</code></td><td>Product name in the header &amp; browser tab</td></tr>
+      <tr><td><code>shortName</code></td><td>Short name used in the footer</td></tr>
+      <tr><td><code>tagline</code></td><td>Subtitle on the login screen</td></tr>
+      <tr><td><code>logoSrc</code></td><td>Path to your logo in <code>/public</code></td></tr>
+      <tr><td><code>author</code></td><td>Name &amp; link shown in the footer</td></tr>
+      <tr><td><code>sessionTimeoutMinutes</code></td><td>Auto sign-out after this many idle minutes</td></tr>
+      <tr><td><code>auth.defaultRole</code></td><td>Role given to a signed-in user with no <code>users/{uid}</code> document (<code>admin</code> / <code>staff</code> / <code>viewer</code>)</td></tr>
+      <tr><td><code>labels.item / itemPlural</code></td><td>What you call a stocked item (Product, Flavor, SKU, Book…)</td></tr>
+      <tr><td><code>labels.category</code></td><td>What you call a group (Category, Brand, Aisle…)</td></tr>
+      <tr><td><code>labels.front / back</code></td><td>Names + short codes for the two stock locations</td></tr>
+      <tr><td><code>thresholds.lowStock</code></td><td>Total qty at or below this flags "Need to Order"</td></tr>
+      <tr><td><code>thresholds.expiringSoonDays</code></td><td>Items expiring within N days flag "Expiring Soon"</td></tr>
+      <tr><td><code>categoryFilters</code></td><td>Options in the category filter dropdown (must match your categories' <code>filterType</code>)</td></tr>
+    </table>
+    <h3>Replace the logo</h3>
+    <p>Drop your own <code>logo.png</code> and <code>favicon.ico</code> into the <code>/public</code> folder (keep the filenames, or update <code>logoSrc</code>). A square PNG around 512×512 looks best.</p>
+    <div class="callout tip">💡 The two "stock locations" are generic. Rename them to whatever fits — Warehouse/Shop, Aisle/Backroom, Online/In-store — via <code>labels.front</code> and <code>labels.back</code>.</div>
+  </section>
+
+  <section id="roles">
+    <h2>Roles &amp; permissions</h2>
+    <p>Every signed-in user has a <strong>role</strong> that controls what they can do. Roles are stored in a <code>users</code> collection (one document per user, keyed by their Firebase Auth UID) and enforced both in the UI and in the Firestore security rules.</p>
+    <h3>The three built-in roles</h3>
+    <table>
+      <tr><th>Capability</th><th>Admin</th><th>Staff</th><th>Viewer</th></tr>
+      <tr><td>View inventory</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>View dashboard</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Edit stock quantities</td><td>✅</td><td>✅</td><td>—</td></tr>
+      <tr><td>Add products</td><td>✅</td><td>✅</td><td>—</td></tr>
+      <tr><td>Delete products</td><td>✅</td><td>—</td><td>—</td></tr>
+      <tr><td>Manage users</td><td>✅</td><td>—</td><td>—</td></tr>
+    </table>
+    <p>A user's role is shown as a badge in the header. Viewers get a read-only experience — the "Add" button and inline editing are hidden; only admins see the delete control.</p>
+    <h3>Assigning a role to someone</h3>
+    <ol class="steps">
+      <li>Have the person <strong>sign in once</strong> so Firebase creates their account.</li>
+      <li>In the Firebase console → <strong>Authentication → Users</strong>, copy their <strong>User UID</strong>.</li>
+      <li>In <strong>Firestore</strong>, create a document in the <code>users</code> collection with that UID as the document ID and a field <code>role</code> set to <code>admin</code>, <code>staff</code> or <code>viewer</code>. (The seed script can create your first admin — set <code>ADMIN_UID</code> and re-run <code>npm run seed</code>.)</li>
+    </ol>
+    <h3>Default role &amp; customising</h3>
+    <p>A signed-in user with no <code>users</code> document falls back to <code>auth.defaultRole</code> in <code>app.config.ts</code> (ships as <code>viewer</code>). For a single-operator shop where every login should have full access, set it to <code>admin</code>. To change what each role can do — or add new roles — edit <code>src/utils/permissions.ts</code>.</p>
+    <div class="callout tip">💡 Roles are enforced in <code>firestore.rules</code> too, so a viewer can't write data even via the API — not just in the UI.</div>
+  </section>
+
+  <section id="seed">
+    <h2>Seeding demo data</h2>
+    <p>To populate a fresh project with the sample catalogue so you can explore the app immediately:</p>
+    <ol class="steps">
+      <li><strong>Generate a service-account key:</strong> Firebase console → Project settings → Service accounts → "Generate new private key".</li>
+      <li><strong>Save it outside the repo</strong> — e.g. <code>./secrets/service-account.json</code>. The <code>/secrets</code> folder is git-ignored.
+        <div class="callout danger">🚫 <strong>Never commit a service-account key.</strong> It grants full admin access to your database and bypasses all security rules. Keep it out of version control.</div>
+      </li>
+      <li><strong>Point the app at it</strong> in <code>.env.local</code>:
+        <pre><code>GOOGLE_APPLICATION_CREDENTIALS=./secrets/service-account.json
+# optional: also seed the login number
+LOGIN_PHONE=+15551234567
+# optional: grant admin to a UID (after signing in once)
+ADMIN_UID=your_firebase_auth_uid</code></pre>
+      </li>
+      <li><strong>Run the seeder.</strong>
+        <pre><code>npm run seed</code></pre>
+        It writes the demo categories and products (and the login phone, if provided) to Firestore.
+      </li>
+    </ol>
+  </section>
+
+  <section id="rules">
+    <h2>Security rules</h2>
+    <p>The included <code>firestore.rules</code> enforce sensible, role-aware defaults:</p>
+    <ul>
+      <li><code>phoneAuth</code> — publicly <em>readable</em> (the login screen needs the number before sign-in) but never client-writable.</li>
+      <li><code>users</code> — a user can read their own role document; roles are assigned from the console or an admin script, never from the client.</li>
+      <li><code>products</code> &amp; <code>categories</code> — readable by any signed-in user; <em>writable</em> only by admin/staff, and <em>deletable</em> only by admins. The rules read the caller's role from their <code>users</code> document, so the role model is enforced server-side, not just in the UI.</li>
+      <li>Everything else is denied by default.</li>
+    </ul>
+    <p>Tighten further (per-user ownership, Firebase custom claims instead of a <code>users</code> collection, etc.) by editing <code>firestore.rules</code> and redeploying with <code>firebase deploy --only firestore:rules</code>.</p>
+  </section>
+
+  <section id="run">
+    <h2>Running locally</h2>
+    <table>
+      <tr><th>Command</th><th>Does</th></tr>
+      <tr><td><code>npm run dev</code></td><td>Start the dev server at localhost:3000</td></tr>
+      <tr><td><code>npm run build</code></td><td>Production build</td></tr>
+      <tr><td><code>npm start</code></td><td>Serve the production build</td></tr>
+      <tr><td><code>npm run typecheck</code></td><td>TypeScript check (no emit)</td></tr>
+      <tr><td><code>npm run lint</code></td><td>Lint the project</td></tr>
+      <tr><td><code>npm run seed</code></td><td>Seed demo data (see above)</td></tr>
+    </table>
+  </section>
+
+  <section id="deploy">
+    <h2>Deployment</h2>
+    <h3>Option A — Vercel (recommended)</h3>
+    <ol class="steps">
+      <li>Push the project to a GitHub/GitLab repo (make sure <code>.env.local</code> and any keys stay ignored).</li>
+      <li>Import the repo at <a href="https://vercel.com" target="_blank" rel="noopener">vercel.com</a> — it auto-detects Next.js.</li>
+      <li>Add the <code>NEXT_PUBLIC_FIREBASE_*</code> variables under Project → Settings → Environment Variables.</li>
+      <li>Deploy. Add your production domain to Firebase → Authentication → Settings → <em>Authorized domains</em>.</li>
+    </ol>
+    <h3>Option B — any Node host</h3>
+    <pre><code>npm run build
+npm start   # serves on port 3000 by default</code></pre>
+    <p>In both cases, deploy your Firestore rules separately with the Firebase CLI (<code>firebase deploy --only firestore:rules</code>).</p>
+  </section>
+
+  <section id="dashboard">
+    <h2>Dashboard</h2>
+    <p>The <strong>Dashboard</strong> (linked in the header) gives an at-a-glance view of inventory health, computed live from your Firestore data. Every role can view it.</p>
+    <h3>What it shows</h3>
+    <ul>
+      <li><strong>KPI cards</strong> — total items, categories, units in stock, "need to order", expiring soon and expired counts.</li>
+      <li><strong>Stock status donut</strong> — In stock / Low / Out breakdown.</li>
+      <li><strong>Expiry status donut</strong> — OK / Expiring soon / Expired / No expiry.</li>
+      <li><strong>Units by category</strong> — a ranked bar chart of stock volume per category.</li>
+      <li><strong>Needs attention</strong> — a prioritised list of the items that are low, out, expiring or expired.</li>
+    </ul>
+    <p>The charts are lightweight, dependency-free SVG/CSS (no charting library to bloat your bundle) and use a colourblind-safe status palette with text labels on every series. The low-stock and "expiring soon" thresholds come straight from <code>thresholds</code> in <code>app.config.ts</code>, so the dashboard always matches your business rules.</p>
+  </section>
+
+  <section id="features">
+    <h2>Feature overview</h2>
+    <div class="feature-grid">
+      <div class="feature"><div class="ico">⚡</div><h4>Real-time sync</h4><p>Firestore listeners update every device instantly.</p></div>
+      <div class="feature"><div class="ico">📦</div><h4>Two-location stock</h4><p>Track quantities in two places with a live total.</p></div>
+      <div class="feature"><div class="ico">🚦</div><h4>Status flags</h4><p>Automatic "Need to Order" &amp; "Good" colour coding.</p></div>
+      <div class="feature"><div class="ico">⏳</div><h4>Expiry alerts</h4><p>Days-left countdown and "Expiring Soon" highlighting.</p></div>
+      <div class="feature"><div class="ico">🔍</div><h4>Search &amp; filter</h4><p>Filter categories by type, items by status.</p></div>
+      <div class="feature"><div class="ico">✏️</div><h4>Inline editing</h4><p>Tap a quantity to edit; saves with toast feedback.</p></div>
+      <div class="feature"><div class="ico">🔐</div><h4>OTP login</h4><p>Phone one-time-password auth with auto sign-out.</p></div>
+      <div class="feature"><div class="ico">👥</div><h4>Role-based access</h4><p>Admin / Staff / Viewer, enforced in UI &amp; rules.</p></div>
+      <div class="feature"><div class="ico">📊</div><h4>Analytics dashboard</h4><p>KPIs, donuts &amp; bar charts, no chart library.</p></div>
+      <div class="feature"><div class="ico">🎨</div><h4>White-label</h4><p>Rebrand everything from one config file.</p></div>
+      <div class="feature"><div class="ico">📱</div><h4>Responsive</h4><p>Works on phone, tablet and desktop.</p></div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <h2>FAQ &amp; troubleshooting</h2>
+    <h3>The login code never arrives</h3>
+    <p>Check that Phone sign-in is enabled, the number in <code>phoneAuth/store</code> is in E.164 format (<code>+</code> and country code), and — while testing — that you've added a test number under Authentication → Sign-in method. Real SMS on the free plan has daily quotas.</p>
+    <h3>"Missing or insufficient permissions" in the console</h3>
+    <p>Your Firestore rules aren't deployed, or you're not signed in. Deploy <code>firestore.rules</code> and confirm you completed the OTP login.</p>
+    <h3>The app builds but shows no data</h3>
+    <p>The project is empty — run <code>npm run seed</code>, or add a category and product from the UI.</p>
+    <h3>reCAPTCHA errors on login</h3>
+    <p>Add your domain (including <code>localhost</code>) to Firebase → Authentication → Settings → Authorized domains.</p>
+    <h3>Can I change "Flavor" / "Front" / "Back" wording?</h3>
+    <p>Yes — set <code>labels.item</code>, <code>labels.front</code> and <code>labels.back</code> in <code>app.config.ts</code>.</p>
+  </section>
+
+  <section id="changelog">
+    <h2>Changelog</h2>
+    <table>
+      <tr><th>Version</th><th>Notes</th></tr>
+      <tr><td><strong>1.1.0</strong></td><td>Added an analytics <strong>Dashboard</strong> (KPI cards, stock &amp; expiry donuts, units-by-category bars, needs-attention list) and <strong>role-based access control</strong> (Admin / Staff / Viewer) enforced in the UI and Firestore rules. New global header nav, admin-only product delete, and role seeding via <code>ADMIN_UID</code>.</td></tr>
+      <tr><td><strong>1.0.0</strong></td><td>Initial release — real-time inventory, two-location stock, expiry &amp; low-stock alerts, OTP login with configurable auto sign-out, white-label configuration, demo seeder.</td></tr>
+    </table>
+    <div class="callout tip">💡 Planned enhancements you can add: CSV/Excel import-export, barcode scanning, an audit log, email/push alerts, and PWA/offline mode.</div>
+  </section>
+
+  <section id="support">
+    <h2>Support &amp; credits</h2>
+    <p>Thank you for purchasing! If you need help, please reach out through your item's support channel on CodeCanyon. When reporting an issue, include your Node version, browser, and any console error messages so we can help faster.</p>
+    <h3>Built with</h3>
+    <ul>
+      <li><a href="https://nextjs.org" target="_blank" rel="noopener">Next.js</a> &amp; <a href="https://react.dev" target="_blank" rel="noopener">React</a></li>
+      <li><a href="https://firebase.google.com" target="_blank" rel="noopener">Firebase</a> (Authentication &amp; Firestore)</li>
+      <li><a href="https://react-hot-toast.com" target="_blank" rel="noopener">react-hot-toast</a></li>
+    </ul>
+    <p>If you enjoy the item, a rating on CodeCanyon is hugely appreciated. 🙏</p>
+  </section>
+</main>
+
+<footer>
+  Inventory Management System — Next.js &amp; Firebase · Documentation v1.1.0
+</footer>
+
+<script>
+  // Highlight the current section in the sidebar as you scroll.
+  const links = Array.from(document.querySelectorAll('.sidebar nav a'));
+  const map = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const link = map.get(e.target.id);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  document.querySelectorAll('main section').forEach(s => observer.observe(s));
+
+  // Close the mobile drawer after tapping a link.
+  links.forEach(a => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
+</script>
+</body>
+</html>

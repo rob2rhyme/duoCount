@@ -169,3 +169,21 @@
   font-size: 0.9rem;
   color: #555;
 }
+
+.deleteBtn {
+  background: transparent;
+  border: 1px solid #d03b3b;
+  color: #d03b3b;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.deleteBtn:hover {
+  background-color: #d03b3b;
+  color: #fff;
+}

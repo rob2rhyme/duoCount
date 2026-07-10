@@ -2,20 +2,72 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/router";
 import styles from "../styles/Header.module.css";
+import { appConfig } from "@/config/app.config";
+import { useAuth } from "@/context/AuthContext";
+import { ROLE_LABELS } from "@/utils/permissions";
 
 const Header = () => {
+  const router = useRouter();
+  const { isAuthenticated, role, can, signOut } = useAuth();
+
+  const handleSignOut = () => {
+    if (confirm("Confirm sign out?")) signOut();
+  };
+
+  const isActive = (path: string) => router.pathname === path;
+
   return (
     <header className={styles.header}>
       <div className={styles.container}>
-        <Image
-          src="/logo.png"
-          alt="Smokers Haven Logo"
-          width={40}
-          height={40}
-          className={styles.logo}
-        />
-        <h1 className={styles.title}>Smokers Haven Inventory Tracker</h1>
+        <Link href="/" className={styles.brand}>
+          <Image
+            src={appConfig.logoSrc}
+            alt={`${appConfig.appName} logo`}
+            width={36}
+            height={36}
+            className={styles.logo}
+          />
+          <span className={styles.title}>{appConfig.appName}</span>
+        </Link>
+
+        {isAuthenticated && (
+          <nav className={styles.nav}>
+            <Link
+              href="/"
+              className={`${styles.navLink} ${
+                isActive("/") ? styles.navLinkActive : ""
+              }`}
+            >
+              Inventory
+            </Link>
+            {can("viewDashboard") && (
+              <Link
+                href="/dashboard"
+                className={`${styles.navLink} ${
+                  isActive("/dashboard") ? styles.navLinkActive : ""
+                }`}
+              >
+                Dashboard
+              </Link>
+            )}
+          </nav>
+        )}
+
+        {isAuthenticated && (
+          <div className={styles.right}>
+            {role && (
+              <span className={styles.roleBadge} title="Your access level">
+                {ROLE_LABELS[role]}
+              </span>
+            )}
+            <button className={styles.signOut} onClick={handleSignOut}>
+              Sign Out
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );

@@ -1,0 +1,26 @@
+{
+  "categories": [
+    { "name": "Beverages", "filterType": "Standard", "imageUrl": "" },
+    { "name": "Snacks", "filterType": "Standard", "imageUrl": "" },
+    { "name": "Electronics Accessories", "filterType": "Premium", "imageUrl": "" },
+    { "name": "Household", "filterType": "Standard", "imageUrl": "" }
+  ],
+  "products": [
+    { "category": "Beverages", "flavor": "Sparkling Water 500ml", "front": 8, "back": 24, "expiryDate": "2027-03-01" },
+    { "category": "Beverages", "flavor": "Cola 330ml", "front": 1, "back": 0, "expiryDate": "2026-09-15" },
+    { "category": "Beverages", "flavor": "Orange Juice 1L", "front": 5, "back": 12, "expiryDate": "2026-08-20" },
+    { "category": "Beverages", "flavor": "Cold Brew Coffee", "front": 0, "back": 6, "expiryDate": "2026-07-30" },
+
+    { "category": "Snacks", "flavor": "Salted Pretzels", "front": 10, "back": 20, "expiryDate": "2026-12-01" },
+    { "category": "Snacks", "flavor": "Dark Chocolate Bar", "front": 2, "back": 0, "expiryDate": "2026-10-10" },
+    { "category": "Snacks", "flavor": "Mixed Nuts 200g", "front": 6, "back": 14, "expiryDate": "n/a" },
+
+    { "category": "Electronics Accessories", "flavor": "USB-C Cable 1m", "front": 15, "back": 40, "expiryDate": "n/a" },
+    { "category": "Electronics Accessories", "flavor": "Wireless Mouse", "front": 1, "back": 3, "expiryDate": "n/a" },
+    { "category": "Electronics Accessories", "flavor": "Phone Stand", "front": 0, "back": 0, "expiryDate": "n/a" },
+
+    { "category": "Household", "flavor": "Dish Soap 500ml", "front": 7, "back": 18, "expiryDate": "2028-01-01" },
+    { "category": "Household", "flavor": "Paper Towels 2pk", "front": 4, "back": 9, "expiryDate": "n/a" },
+    { "category": "Household", "flavor": "Laundry Pods 20ct", "front": 1, "back": 2, "expiryDate": "2027-05-05" }
+  ]
+}

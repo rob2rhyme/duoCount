@@ -6,16 +6,19 @@ import { Product } from "../types";
 import { useAuth } from "@/context/AuthContext";
 import {
   collection,
+  deleteDoc,
   doc,
-  getDocs,
   onSnapshot,
   query,
   updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "@/utils/firebase";
+import { appConfig } from "@/config/app.config";
 import { useRouter } from "next/router";
 import toast from "react-hot-toast";
+
+const { lowStock, expiringSoonDays } = appConfig.thresholds;
 
 interface TabPanelProps {
   products: Product[];
@@ -28,8 +31,10 @@ const TabPanel: React.FC<TabPanelProps> = ({
   searchTerm,
   filterOption,
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, can } = useAuth();
   const router = useRouter();
+  const canEdit = can("editStock");
+  const canDelete = can("deleteProduct");
 
   const [liveProducts, setLiveProducts] = useState<Product[]>(products);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -78,13 +83,15 @@ const TabPanel: React.FC<TabPanelProps> = ({
       const daysLeft = calculateDaysLeft(p.expiryDate);
       switch (filterOption) {
         case "Need to Order":
-          return total <= 1;
+          return total <= lowStock;
         case "Good":
-          return total > 1;
+          return total > lowStock;
         case "Expiry n/a":
           return p.expiryDate === "n/a";
         case "Expiring Soon":
-          return p.expiryDate !== "n/a" && daysLeft > 0 && daysLeft < 30;
+          return (
+            p.expiryDate !== "n/a" && daysLeft > 0 && daysLeft < expiringSoonDays
+          );
         default:
           return true;
       }
@@ -95,9 +102,21 @@ const TabPanel: React.FC<TabPanelProps> = ({
       router.push(`/login?next=${router.pathname}`);
       return;
     }
+    // Read-only roles can view but not edit quantities.
+    if (!canEdit) return;
     setEditingProduct(prod);
     setEditingField(field);
     setModalValue(String(prod[field] ?? "0"));
+  };
+
+  const handleDelete = async (prod: Product) => {
+    if (!canDelete) return;
+    if (!confirm(`Delete "${prod.flavor}"? This cannot be undone.`)) return;
+    await toast.promise(deleteDoc(doc(db, "products", prod.id)), {
+      loading: "Deleting…",
+      success: "Deleted",
+      error: "Failed to delete.",
+    });
   };
 
   const handleSave = async () => {
@@ -124,13 +143,16 @@ const TabPanel: React.FC<TabPanelProps> = ({
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Flavor</th>
-            <th>FR</th>
-            <th>BK</th>
+            <th>{appConfig.labels.item}</th>
+            <th title={appConfig.labels.front}>
+              {appConfig.labels.frontShort}
+            </th>
+            <th title={appConfig.labels.back}>{appConfig.labels.backShort}</th>
             <th>Total</th>
             <th>Status</th>
             <th>Expiry Date</th>
             <th>Days Left</th>
+            {canDelete && <th></th>}
           </tr>
         </thead>
         <tbody>
@@ -142,7 +164,12 @@ const TabPanel: React.FC<TabPanelProps> = ({
               <tr key={p.id + i}>
                 <td>{p.flavor}</td>
                 {(["front", "back"] as const).map((f) => (
-                  <td key={f} onClick={() => handleCellClick(f, p)}>
+                  <td
+                    key={f}
+                    onClick={() => handleCellClick(f, p)}
+                    style={{ cursor: canEdit ? "pointer" : "default" }}
+                    title={canEdit ? "Click to edit" : undefined}
+                  >
                     <span
                       className={
                         f === "front" ? styles.storeCell : styles.homeCell
@@ -153,15 +180,19 @@ const TabPanel: React.FC<TabPanelProps> = ({
                   </td>
                 ))}
                 <td>{total}</td>
-                <td className={total <= 1 ? styles.lowStock : styles.goodStock}>
-                  {total <= 1 ? "Need to Order" : "GOOD"}
+                <td
+                  className={
+                    total <= lowStock ? styles.lowStock : styles.goodStock
+                  }
+                >
+                  {total <= lowStock ? "Need to Order" : "GOOD"}
                 </td>
                 <td>{p.expiryDate}</td>
                 <td
                   className={
                     p.expiryDate === "n/a"
                       ? styles.naExpiry
-                      : daysLeft < 30
+                      : daysLeft < expiringSoonDays
                       ? styles.expiringSoon
                       : styles.goodExpiry
                   }
@@ -172,6 +203,18 @@ const TabPanel: React.FC<TabPanelProps> = ({
                     ? daysLeft
                     : "Expired"}
                 </td>
+                {canDelete && (
+                  <td>
+                    <button
+                      className={styles.deleteBtn}
+                      onClick={() => handleDelete(p)}
+                      title={`Delete ${p.flavor}`}
+                      aria-label={`Delete ${p.flavor}`}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

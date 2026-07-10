@@ -10,12 +10,13 @@ import CategoryGrid from "@/components/CategoryGrid";
 import TabPanel from "@/components/TabPanel";
 import AddProductModal from "@/components/AddProductModal";
 import { Product, ProductCategory } from "@/types";
+import { appConfig } from "@/config/app.config";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 
 export default function Home() {
-  const { isAuthenticated, loading, signOut } = useAuth();
+  const { isAuthenticated, loading, can } = useAuth();
   const router = useRouter();
 
   const [productsByCategory, setProductsByCategory] = useState<
@@ -69,9 +70,6 @@ export default function Home() {
     };
   }, []);
 
-  const handleSignOut = () => {
-    if (confirm("Confirm sign out?")) signOut();
-  };
   const handleClearCategory = () => {
     setCategorySearch("");
     setCategoryFilter("All");
@@ -115,11 +113,12 @@ export default function Home() {
   return (
     <Layout>
       <Head>
-        <title>Smokers Haven Inventory</title>
+        <title>{appConfig.appName}</title>
       </Head>
 
       <TopActions
         isDetail={!isGrid}
+        canAdd={can("addProduct")}
         onBack={() => {
           setSelectedCategory(null);
           handleClearFlavor();
@@ -130,7 +129,6 @@ export default function Home() {
           });
         }}
         onAdd={() => setIsModalOpen(true)}
-        onSignOut={handleSignOut}
       />
 
       {isGrid ? (

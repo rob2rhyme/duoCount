@@ -1,6 +1,7 @@
 // src/components/CategorySearch.tsx
 import React from "react";
 import styles from "../styles/CategorySearch.module.css";
+import { appConfig } from "@/config/app.config";
 
 interface Props {
   search: string;
@@ -17,17 +18,14 @@ export default function CategorySearch({
   onFilterChange,
   onClear,
 }: Props) {
-  const options = ["All", "5% Nic", "0% Nic", "Cigarettes", "Vape Juice"];
-
-  // Filter out unwanted categories
-  const visibleOptions = options.filter((o) => !["Vape Juice"].includes(o));
+  const visibleOptions = appConfig.categoryFilters;
 
   return (
     <div className={styles.searchRow}>
       <input
         className={styles.searchInput}
         type="text"
-        placeholder="Search Vape Category"
+        placeholder={`Search ${appConfig.labels.category}`}
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
       />
