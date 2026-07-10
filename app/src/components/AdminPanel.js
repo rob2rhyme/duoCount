@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   watchStaff, apiCreateStaff, apiUpdateStaff,
   addLocation, updateLocation, addDrawer, updateDrawer,
-  addItem, updateItem, updateVendorSettings,
+  addItem, updateItem, updateVendorSettings, apiTestDigest,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 
@@ -72,13 +72,44 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
   }
 
   /* ---- settings ---- */
-  const [settings, setSettings] = useState({ name: vendor.name, logoUrl: vendor.logoUrl || "", sharingMode: vendor.sharingMode });
+  const [settings, setSettings] = useState({
+    name: vendor.name, logoUrl: vendor.logoUrl || "", sharingMode: vendor.sharingMode,
+    blindCounts: vendor.blindCounts === true,
+    varianceThreshold: vendor.varianceThreshold ?? 5,
+    digestEnabled: vendor.digest?.enabled === true,
+    digestRecipients: (vendor.digest?.recipients || []).join(", "),
+    digestTz: vendor.digest?.tz || "America/New_York",
+  });
+  const [testing, setTesting] = useState(false);
   async function saveSettings() {
+    // Parse + validate digest recipients (cap 10, basic format check).
+    const recipients = settings.digestRecipients.split(/[\s,;]+/).filter(Boolean);
+    if (recipients.length > 10) return onToast?.("Max 10 digest recipients");
+    if (recipients.some((r) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r)))
+      return onToast?.("Check the digest email addresses");
+    const threshold = Number(settings.varianceThreshold);
+    if (!(threshold >= 0)) return onToast?.("Variance threshold must be a number");
+    const patch = {
+      name: settings.name, logoUrl: settings.logoUrl.trim() || null,
+      sharingMode: settings.sharingMode,
+      blindCounts: settings.blindCounts,
+      varianceThreshold: threshold,
+      digest: {
+        enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
+        lastSentDate: vendor.digest?.lastSentDate ?? null, // preserved; cron owns it
+      },
+    };
     try {
-      await updateVendorSettings(vendor.id, { ...settings, logoUrl: settings.logoUrl.trim() || null });
-      setVendor({ ...vendor, ...settings, logoUrl: settings.logoUrl.trim() || null });
+      await updateVendorSettings(vendor.id, patch);
+      setVendor({ ...vendor, ...patch });
       onToast?.("Settings saved");
     } catch (e) { onToast?.("Only the owner can change settings"); }
+  }
+  async function sendTestDigest() {
+    setTesting(true);
+    try { const r = await apiTestDigest(); onToast?.(r.message || "Test digest sent"); }
+    catch (e) { onToast?.(e.message); }
+    setTesting(false);
   }
 
   const locName = (id) => locations.find((l) => l.id === id)?.name || "All locations";
@@ -275,6 +306,63 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
               Managers and owners always see every location. Staff already signed in will pick up a sharing change the next time they sign in.
             </p>
           </div>
+
+          <div className="flex items-start gap-3">
+            <input id="blindCounts" type="checkbox" className="mt-1" checked={settings.blindCounts}
+              disabled={!isOwner}
+              onChange={(e) => setSettings({ ...settings, blindCounts: e.target.checked })} />
+            <label htmlFor="blindCounts" className="min-w-0">
+              <span className="font-medium text-[14px]">Blind counts</span>
+              <p className="text-xs text-neutral-500 leading-relaxed">Counters can't see the expected total until after they commit the count. Applies to everyone, managers included.</p>
+            </label>
+          </div>
+
+          <div>
+            <label className="label">Variance threshold ($)</label>
+            <input type="number" inputMode="decimal" min="0" step="0.5" className="input"
+              value={settings.varianceThreshold} disabled={!isOwner}
+              onChange={(e) => setSettings({ ...settings, varianceThreshold: e.target.value })} />
+            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">Counts off by this much or more get flagged for review. Changing it only affects new entries.</p>
+          </div>
+
+          <div className="border border-[#dcd8cc] rounded-xl p-3.5 space-y-3 bg-[#faf8f2]">
+            <div className="flex items-start gap-3">
+              <input id="digestEnabled" type="checkbox" className="mt-1" checked={settings.digestEnabled}
+                disabled={!isOwner}
+                onChange={(e) => setSettings({ ...settings, digestEnabled: e.target.checked })} />
+              <label htmlFor="digestEnabled" className="min-w-0">
+                <span className="font-medium text-[14px]">Daily email digest</span>
+                <p className="text-xs text-neutral-500 leading-relaxed">One email each morning summarizing yesterday's counts, variances, and disputes.</p>
+              </label>
+            </div>
+            <div>
+              <label className="label">Recipients (comma-separated, max 10)</label>
+              <input className="input" value={settings.digestRecipients} disabled={!isOwner}
+                placeholder="owner@store.com, manager@store.com"
+                onChange={(e) => setSettings({ ...settings, digestRecipients: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Timezone</label>
+              <select className="input" value={settings.digestTz} disabled={!isOwner}
+                onChange={(e) => setSettings({ ...settings, digestTz: e.target.value })}>
+                {["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix",
+                  "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu", "UTC"].map((tz) => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className="text-xs text-neutral-500">
+                Last sent: <b className="font-mono">{vendor.digest?.lastSentDate || "never"}</b>
+              </span>
+              {isOwner && (
+                <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={testing} onClick={sendTestDigest}>
+                  {testing ? "Sending…" : "Send test digest now"}
+                </button>
+              )}
+            </div>
+          </div>
+
           {isOwner
             ? <button className="btn-primary" onClick={saveSettings}>Save settings</button>
             : <p className="text-[13px] text-neutral-400 italic">Only the owner can change these settings.</p>}
