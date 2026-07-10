@@ -63,6 +63,7 @@ const TabPanel: React.FC<TabPanelProps> = ({
         id: d.id,
         category: d.data().category,
         flavor: d.data().flavor,
+        barcode: d.data().barcode ? String(d.data().barcode) : undefined,
         front: Number(d.data().front || 0),
         back: Number(d.data().back || 0),
         expiryDate: d.data().expiryDate,

@@ -46,8 +46,20 @@ service cloud.firestore {
     match /users/{userId} {
       // Users can read their own role; only admins can read the whole roster.
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      // Assign/change roles from the console or an admin script, not the client.
-      allow write: if false;
+      // Admins create user records with a valid role and only the known fields.
+      allow create: if isAdmin()
+        && request.resource.data.role in ['admin', 'staff', 'viewer']
+        && request.resource.data.keys().hasOnly(['role', 'displayName', 'phone']);
+      // On update, only role/displayName/phone may change (diff() tolerates any
+      // extra pre-existing fields written by the console/admin scripts), and an
+      // admin may not lower their OWN role — preventing self-lockout.
+      allow update: if isAdmin()
+        && request.resource.data.role in ['admin', 'staff', 'viewer']
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['role', 'displayName', 'phone'])
+        && (request.auth.uid != userId || request.resource.data.role == 'admin');
+      // An admin cannot delete their own record (prevents self-lockout).
+      allow delete: if isAdmin() && request.auth.uid != userId;
     }
 
     match /products/{productId} {
@@ -62,11 +74,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Append-only activity log: any signed-in user records their own actions;
-    // only admins can read the history; entries are immutable.
+    // Append-only activity log: a signed-in user may record actions ONLY under
+    // their own uid (so entries can't be forged onto someone else), with a
+    // known action and shape. Only admins can read; entries are immutable.
     match /activityLog/{entryId} {
       allow read: if isAdmin();
-      allow create: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.action in ['add', 'edit', 'delete', 'import']
+        && request.resource.data.keys().hasOnly(
+             ['action', 'item', 'category', 'detail', 'actorUid', 'actorRole', 'at']
+           );
       allow update, delete: if false;
     }
 

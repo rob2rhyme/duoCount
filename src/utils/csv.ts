@@ -2,7 +2,15 @@
 // Dependency-free CSV helpers for inventory export/import.
 import { Product } from "@/types";
 
-const HEADERS = ["category", "flavor", "front", "back", "total", "expiryDate"];
+const HEADERS = [
+  "category",
+  "flavor",
+  "barcode",
+  "front",
+  "back",
+  "total",
+  "expiryDate",
+];
 
 function escapeCell(value: unknown): string {
   const s = String(value ?? "");
@@ -13,7 +21,15 @@ function escapeCell(value: unknown): string {
 export function productsToCSV(products: Product[]): string {
   const rows = products.map((p) => {
     const total = (Number(p.front) || 0) + (Number(p.back) || 0);
-    return [p.category, p.flavor, p.front ?? 0, p.back ?? 0, total, p.expiryDate ?? "n/a"];
+    return [
+      p.category,
+      p.flavor,
+      p.barcode ?? "",
+      p.front ?? 0,
+      p.back ?? 0,
+      total,
+      p.expiryDate ?? "n/a",
+    ];
   });
   return [HEADERS, ...rows].map((r) => r.map(escapeCell).join(",")).join("\r\n");
 }
@@ -76,6 +92,7 @@ function parseCSV(text: string): string[][] {
 export interface ParsedProduct {
   category: string;
   flavor: string;
+  barcode: string;
   front: number;
   back: number;
   expiryDate: string;
@@ -102,6 +119,7 @@ export function parseInventoryCSV(text: string): ImportResult {
   const idx = (name: string) => header.indexOf(name);
   const iCat = idx("category");
   const iFlavor = idx("flavor");
+  const iBarcode = idx("barcode");
   const iFront = idx("front");
   const iBack = idx("back");
   const iExp = idx("expirydate");
@@ -128,9 +146,11 @@ export function parseInventoryCSV(text: string): ImportResult {
       return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
     };
     const expiryRaw = iExp === -1 ? "" : (cells[iExp] || "").trim();
+    const barcode = iBarcode === -1 ? "" : (cells[iBarcode] || "").trim();
     rows.push({
       category,
       flavor,
+      barcode,
       front: num(iFront),
       back: num(iBack),
       expiryDate: expiryRaw || "n/a",

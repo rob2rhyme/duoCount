@@ -16,7 +16,9 @@ config file.
 - **Analytics dashboard** — KPI cards, stock- & expiry-status donut charts, units-by-category bars, and a prioritised "needs attention" list. Dependency-free SVG/CSS charts with a colourblind-safe palette.
 - **Light & dark theme** — token-based theming with a header toggle (System / Light / Dark), remembered per browser, no flash on load.
 - **Role-based access control** — Admin / Staff / Viewer roles enforced in both the UI and Firestore security rules (viewers are read-only; only admins can delete).
-- **CSV import & export** — export all or a filtered view; import from CSV with a preview (auto-creates missing categories).
+- **CSV import & export** — export all or a filtered view; import from CSV with a preview (auto-creates missing categories); barcode column included.
+- **Barcode scanning** — scan with the device camera to find a product or fill its barcode when adding (ZXing, browser-only).
+- **Settings & in-app user management** — theme preference, copy your UID, and (admins) assign/change/remove roles from a Settings page.
 - **Sortable table & search** — click any column to sort; search products by name; quick status filters.
 - **Activity log** — append-only record of adds/edits/deletes/imports with actor and timestamp; admin-only viewer page.
 - **PWA & offline** — installable to home screen; service worker + Firestore offline persistence keep it working without a connection.
@@ -99,7 +101,7 @@ Change these values (and drop your logo in `/public`) to rebrand the entire app
 │   │   └── app.config.ts         # ⭐ white-label configuration
 │   ├── context/                  # AuthContext (roles) + ThemeContext (dark mode)
 │   ├── hooks/                    # useProducts / useCategories
-│   ├── pages/                    # index, dashboard, activity, login, _app, _document
+│   ├── pages/                    # index, dashboard, activity, settings, login, _app, _document
 │   ├── styles/                   # CSS Modules + globals.css (design tokens)
 │   ├── types.ts                  # shared TypeScript types
 │   └── utils/                    # firebase, permissions, csv, activity

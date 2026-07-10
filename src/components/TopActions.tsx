@@ -10,6 +10,7 @@ interface Props {
   onAdd: () => void;
   onImport: () => void;
   onExportAll: () => void;
+  onScan: () => void;
 }
 
 export default function TopActions({
@@ -19,12 +20,23 @@ export default function TopActions({
   onAdd,
   onImport,
   onExportAll,
+  onScan,
 }: Props) {
   return (
     <div className={styles.row}>
       {isDetail && (
         <button className={`${styles.btn} ${styles.back}`} onClick={onBack}>
           ‹ Back
+        </button>
+      )}
+
+      {!isDetail && (
+        <button
+          className={`${styles.btn} ${styles.neutral}`}
+          onClick={onScan}
+          title="Scan a barcode to find a product"
+        >
+          📷 Scan
         </button>
       )}
 

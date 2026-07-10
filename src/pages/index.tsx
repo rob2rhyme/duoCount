@@ -10,6 +10,7 @@ import CategoryGrid from "@/components/CategoryGrid";
 import TabPanel from "@/components/TabPanel";
 import AddProductModal from "@/components/AddProductModal";
 import ImportModal from "@/components/ImportModal";
+import BarcodeScanner from "@/components/BarcodeScanner";
 import { Product, ProductCategory } from "@/types";
 import { appConfig } from "@/config/app.config";
 import { productsToCSV, downloadCSV } from "@/utils/csv";
@@ -35,6 +36,8 @@ export default function Home() {
   const [flavorFilter, setFlavorFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isScanOpen, setIsScanOpen] = useState(false);
+  const [scanPrefill, setScanPrefill] = useState<string | undefined>(undefined);
   const [selectedCategory, setSelectedCategory] =
     useState<ProductCategory | null>(null);
 
@@ -59,6 +62,7 @@ export default function Home() {
           id: d.id,
           category: cat,
           flavor: String(data.flavor || ""),
+          barcode: data.barcode ? String(data.barcode) : undefined,
           front: Number(data.front || 0),
           back: Number(data.back || 0),
           expiryDate: String(data.expiryDate || "n/a"),
@@ -116,6 +120,31 @@ export default function Home() {
     return matchesSearch && matchesFilter;
   });
 
+  const handleScanDetected = (code: string) => {
+    setIsScanOpen(false);
+    const match = allProducts.find((p) => p.barcode && p.barcode === code);
+    if (match) {
+      // Fall back to a synthetic category if the product's category has no
+      // category document, so navigation still opens its table.
+      const cat: ProductCategory =
+        categories.find((c) => c.name === match.category) || {
+          name: match.category,
+          filterType: "All",
+          products: productsByCategory[match.category] || [],
+        };
+      setSelectedCategory(cat);
+      setFlavorSearch(match.flavor);
+      setFlavorFilter("All");
+      toast.success(`Found: ${match.flavor}`);
+    } else if (can("addProduct")) {
+      setScanPrefill(code);
+      setIsModalOpen(true);
+      toast(`No match for ${code} — add it?`);
+    } else {
+      toast.error(`No product with barcode ${code}`);
+    }
+  };
+
   if (loading) return <p className="loading">Loading…</p>;
   if (!isAuthenticated) {
     router.replace("/login?next=/");
@@ -142,9 +171,13 @@ export default function Home() {
             scroll: true,
           });
         }}
-        onAdd={() => setIsModalOpen(true)}
+        onAdd={() => {
+          setScanPrefill(undefined);
+          setIsModalOpen(true);
+        }}
         onImport={() => setIsImportOpen(true)}
         onExportAll={handleExportAll}
+        onScan={() => setIsScanOpen(true)}
       />
 
       {isGrid ? (
@@ -168,10 +201,17 @@ export default function Home() {
       <AddProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        prefillBarcode={scanPrefill}
       />
       <ImportModal
         isOpen={isImportOpen}
         onClose={() => setIsImportOpen(false)}
+      />
+      <BarcodeScanner
+        isOpen={isScanOpen}
+        onClose={() => setIsScanOpen(false)}
+        onDetected={handleScanDetected}
+        title="Scan to find a product"
       />
 
       {isGrid ? (

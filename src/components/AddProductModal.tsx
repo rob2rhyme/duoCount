@@ -5,23 +5,32 @@ import { db } from "@/utils/firebase";
 import { appConfig } from "@/config/app.config";
 import { useAuth } from "@/context/AuthContext";
 import { logActivity } from "@/utils/activity";
+import BarcodeScanner from "./BarcodeScanner";
 import toast from "react-hot-toast";
 import { collection, addDoc, onSnapshot } from "firebase/firestore";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  /** Optional barcode to pre-fill (used by scan-to-add). */
+  prefillBarcode?: string;
 }
 
-const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
+const AddProductModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  prefillBarcode,
+}) => {
   const { user, role } = useAuth();
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [flavor, setFlavor] = useState("");
+  const [barcode, setBarcode] = useState("");
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [naChecked, setNaChecked] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   // Load all category names from the 'categories' collection (FIXED)
   useEffect(() => {
@@ -48,12 +57,13 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
     if (isOpen) {
       setSelectedCategory("");
       setFlavor("");
+      setBarcode(prefillBarcode ?? "");
       setFront("");
       setBack("");
       setExpiryDate("");
       setNaChecked(false);
     }
-  }, [isOpen]);
+  }, [isOpen, prefillBarcode]);
 
   if (!isOpen) return null;
 
@@ -69,6 +79,7 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
       await addDoc(collection(db, "products"), {
         category: selectedCategory,
         flavor: name,
+        barcode: barcode.trim() || null,
         front: +front,
         back: +back,
         expiryDate: naChecked ? "n/a" : expiryDate || "n/a",
@@ -86,9 +97,10 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className={styles.backdrop} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2>
+    <>
+      <div className={styles.backdrop} onClick={onClose}>
+        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <h2>
           Add {appConfig.labels.item} to Existing {appConfig.labels.category}
         </h2>
         <form onSubmit={handleAdd} className={styles.form}>
@@ -118,6 +130,25 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
               value={flavor}
               onChange={(e) => setFlavor(e.target.value)}
             />
+          </label>
+
+          <label>
+            Barcode / SKU (optional)
+            <div className={styles.barcodeRow}>
+              <input
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                placeholder="Scan or type a code"
+              />
+              <button
+                type="button"
+                className={styles.scanBtn}
+                onClick={() => setScanOpen(true)}
+                title="Scan with camera"
+              >
+                📷 Scan
+              </button>
+            </div>
           </label>
 
           <label>
@@ -176,9 +207,20 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
             </button>
             <button type="submit">Add</button>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
+
+      <BarcodeScanner
+        isOpen={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onDetected={(code) => {
+          setBarcode(code);
+          setScanOpen(false);
+          toast.success(`Scanned ${code}`);
+        }}
+      />
+    </>
   );
 };
 

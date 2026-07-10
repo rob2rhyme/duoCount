@@ -47,6 +47,32 @@
   color: var(--text-secondary);
 }
 
+.barcodeRow {
+  display: flex;
+  gap: 0.5rem;
+}
+.barcodeRow input {
+  flex: 1;
+  min-width: 0;
+}
+.scanBtn {
+  flex: 0 0 auto;
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition);
+}
+.scanBtn:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
 .expiryRow {
   display: flex;
   gap: 0.5rem;

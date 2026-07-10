@@ -64,6 +64,14 @@ const Header = () => {
                 Activity
               </Link>
             )}
+            <Link
+              href="/settings"
+              className={`${styles.navLink} ${
+                isActive("/settings") ? styles.navLinkActive : ""
+              }`}
+            >
+              Settings
+            </Link>
           </nav>
         )}
 

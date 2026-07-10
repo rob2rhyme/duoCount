@@ -163,7 +163,9 @@
     <div class="group">Reference</div>
     <a href="#dashboard">Dashboard</a>
     <a href="#importexport">Import &amp; export</a>
+    <a href="#barcode">Barcode scanning</a>
     <a href="#activity">Activity log</a>
+    <a href="#settings">Settings &amp; users</a>
     <a href="#features">Feature overview</a>
     <a href="#faq">FAQ &amp; troubleshooting</a>
     <a href="#changelog">Changelog</a>
@@ -326,11 +328,13 @@ firebase deploy --only firestore:rules</code></pre>
     </table>
     <p>A user's role is shown as a badge in the header. Viewers get a read-only experience — the "Add" button and inline editing are hidden; only admins see the delete control.</p>
     <h3>Assigning a role to someone</h3>
+    <p>The easiest way is the built-in <strong>Settings → User management</strong> page (admins only): paste the person's UID, pick a role, and save — you can also change or remove roles there later. To do it manually instead:</p>
     <ol class="steps">
       <li>Have the person <strong>sign in once</strong> so Firebase creates their account.</li>
-      <li>In the Firebase console → <strong>Authentication → Users</strong>, copy their <strong>User UID</strong>.</li>
+      <li>In the Firebase console → <strong>Authentication → Users</strong>, copy their <strong>User UID</strong> (a signed-in user can copy their own from Settings → Account).</li>
       <li>In <strong>Firestore</strong>, create a document in the <code>users</code> collection with that UID as the document ID and a field <code>role</code> set to <code>admin</code>, <code>staff</code> or <code>viewer</code>. (The seed script can create your first admin — set <code>ADMIN_UID</code> and re-run <code>npm run seed</code>.)</li>
     </ol>
+    <div class="callout warn">⚠️ You need at least one admin to use the User-management UI, so create your <strong>first</strong> admin with the seed script or the console. An admin can't change or remove their own role in the UI (a safeguard against locking yourself out).</div>
     <h3>Default role &amp; customising</h3>
     <p>A signed-in user with no <code>users</code> document falls back to <code>auth.defaultRole</code> in <code>app.config.ts</code> (ships as <code>viewer</code>). For a single-operator shop where every login should have full access, set it to <code>admin</code>. To change what each role can do — or add new roles — edit <code>src/utils/permissions.ts</code>.</p>
     <div class="callout tip">💡 Roles are enforced in <code>firestore.rules</code> too, so a viewer can't write data even via the API — not just in the UI.</div>
@@ -429,11 +433,34 @@ npm start   # serves on port 3000 by default</code></pre>
     <p>Use <strong>Export</strong> on the main screen to download the entire inventory as a CSV, or <strong>Export CSV</strong> inside a category to download just the rows you're viewing (respecting the current search &amp; filter). Opens in Excel, Google Sheets or Numbers.</p>
     <h3>Import</h3>
     <p>Editors (admin/staff) get an <strong>Import</strong> button that accepts a CSV file, shows a preview with row count and any warnings, then bulk-adds the products. Categories referenced in the file that don't exist yet are created automatically.</p>
-    <p>The CSV needs a header row. Required columns: <code>category</code>, <code>flavor</code>. Optional: <code>front</code>, <code>back</code>, <code>expiryDate</code> (column order doesn't matter):</p>
-    <pre><code>category,flavor,front,back,expiryDate
-Beverages,Cola 330ml,4,12,2026-09-15
-Snacks,Salted Pretzels,10,20,n/a</code></pre>
+    <p>The CSV needs a header row. Required columns: <code>category</code>, <code>flavor</code>. Optional: <code>barcode</code>, <code>front</code>, <code>back</code>, <code>expiryDate</code> (column order doesn't matter):</p>
+    <pre><code>category,flavor,barcode,front,back,expiryDate
+Beverages,Cola 330ml,5449000000996,4,12,2026-09-15
+Snacks,Salted Pretzels,,10,20,n/a</code></pre>
     <div class="callout tip">💡 Exporting first is the easiest way to see the exact format before importing.</div>
+  </section>
+
+  <section id="barcode">
+    <h2>Barcode scanning</h2>
+    <p>Products can carry an optional <strong>barcode / SKU</strong>, and the app scans them with the device camera (no external hardware needed).</p>
+    <ul>
+      <li><strong>Scan to find</strong> — tap <em>Scan</em> on the main screen, point at a barcode, and the app jumps straight to the matching product. If nothing matches, editors are offered a pre-filled "add product" form.</li>
+      <li><strong>Scan to add</strong> — the Add-product form has a <em>Scan</em> button that fills the barcode field from the camera.</li>
+      <li>Barcodes are included in CSV import/export, so you can bulk-load them.</li>
+    </ul>
+    <p>Scanning uses the open-source <a href="https://github.com/zxing-js/browser" target="_blank" rel="noopener">ZXing</a> library, loaded only in the browser (it never touches the server bundle). It supports common 1D/2D formats (EAN, UPC, Code-128, QR, etc.).</p>
+    <div class="callout warn">⚠️ Camera access requires <strong>HTTPS</strong> (or <code>localhost</code>) and the user granting camera permission — a browser security requirement, not a limitation of the app.</div>
+  </section>
+
+  <section id="settings">
+    <h2>Settings &amp; user management</h2>
+    <p>The <strong>Settings</strong> page (in the header, available to everyone) has:</p>
+    <ul>
+      <li><strong>Appearance</strong> — choose System / Light / Dark theme.</li>
+      <li><strong>Account</strong> — your role and a one-click copy of your User ID (handy when an admin needs to grant you a role).</li>
+      <li><strong>User management</strong> (admins only) — list everyone in the <code>users</code> collection, change roles inline, remove users, or add a user by UID. Changes are enforced by the security rules, logged to the activity log, and you can't change or delete your own admin record.</li>
+      <li><strong>About</strong> — app name and version.</li>
+    </ul>
   </section>
 
   <section id="activity">
@@ -456,6 +483,8 @@ Snacks,Salted Pretzels,10,20,n/a</code></pre>
       <div class="feature"><div class="ico">📊</div><h4>Analytics dashboard</h4><p>KPIs, donuts &amp; bar charts, no chart library.</p></div>
       <div class="feature"><div class="ico">🌙</div><h4>Light &amp; dark mode</h4><p>Token-based theming with a header toggle.</p></div>
       <div class="feature"><div class="ico">🔀</div><h4>CSV import/export</h4><p>Bulk in and out, with an import preview.</p></div>
+      <div class="feature"><div class="ico">📷</div><h4>Barcode scanning</h4><p>Camera scan to find or add products.</p></div>
+      <div class="feature"><div class="ico">⚙️</div><h4>Settings &amp; users</h4><p>Manage roles in-app; per-user theme.</p></div>
       <div class="feature"><div class="ico">↕️</div><h4>Sortable table &amp; search</h4><p>Sort any column; search by name.</p></div>
       <div class="feature"><div class="ico">📝</div><h4>Activity log</h4><p>Who changed what, when — admin view.</p></div>
       <div class="feature"><div class="ico">📲</div><h4>PWA &amp; offline</h4><p>Installable, works without a connection.</p></div>
@@ -482,6 +511,7 @@ Snacks,Salted Pretzels,10,20,n/a</code></pre>
     <h2>Changelog</h2>
     <table>
       <tr><th>Version</th><th>Notes</th></tr>
+      <tr><td><strong>1.3.0</strong></td><td>Added <strong>barcode scanning</strong> (camera scan-to-find and scan-to-add, barcode in CSV) and a <strong>Settings</strong> page with in-app <strong>user management</strong> (admins assign/change/remove roles, enforced by security rules and logged). Per-user theme selector.</td></tr>
       <tr><td><strong>1.2.0</strong></td><td>Premium redesign with a full <strong>light/dark theme</strong> (token-based, header toggle). Added <strong>CSV import &amp; export</strong>, <strong>sortable table columns</strong>, an <strong>activity log</strong>, and <strong>PWA install + offline</strong> support (service worker + Firestore persistence). Toasts replace native alerts throughout.</td></tr>
       <tr><td><strong>1.1.0</strong></td><td>Added an analytics <strong>Dashboard</strong> (KPI cards, stock &amp; expiry donuts, units-by-category bars, needs-attention list) and <strong>role-based access control</strong> (Admin / Staff / Viewer) enforced in the UI and Firestore rules. New global header nav, admin-only product delete, and role seeding via <code>ADMIN_UID</code>.</td></tr>
       <tr><td><strong>1.0.0</strong></td><td>Initial release — real-time inventory, two-location stock, expiry &amp; low-stock alerts, OTP login with configurable auto sign-out, white-label configuration, demo seeder.</td></tr>
@@ -503,7 +533,7 @@ Snacks,Salted Pretzels,10,20,n/a</code></pre>
 </main>
 
 <footer>
-  Inventory Management System — Next.js &amp; Firebase · Documentation v1.2.0
+  Inventory Management System — Next.js &amp; Firebase · Documentation v1.3.0
 </footer>
 
 <script>

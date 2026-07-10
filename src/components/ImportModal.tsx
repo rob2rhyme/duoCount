@@ -82,6 +82,7 @@ const ImportModal: React.FC<Props> = ({ isOpen, onClose }) => {
           batch.set(doc(collection(db, "products")), {
             category: r.category,
             flavor: r.flavor,
+            barcode: r.barcode || null,
             front: r.front,
             back: r.back,
             expiryDate: r.expiryDate,
@@ -115,8 +116,8 @@ const ImportModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <h2>Import {appConfig.labels.itemPlural} from CSV</h2>
         <p className={styles.hint}>
           Required columns: <code>category</code>, <code>flavor</code>. Optional:{" "}
-          <code>front</code>, <code>back</code>, <code>expiryDate</code>. Tip:
-          export first to see the exact format.
+          <code>barcode</code>, <code>front</code>, <code>back</code>,{" "}
+          <code>expiryDate</code>. Tip: export first to see the exact format.
         </p>
 
         <input
@@ -148,6 +149,7 @@ const ImportModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 <tr>
                   <th>{appConfig.labels.category}</th>
                   <th>{appConfig.labels.item}</th>
+                  <th>Barcode</th>
                   <th>{appConfig.labels.frontShort}</th>
                   <th>{appConfig.labels.backShort}</th>
                   <th>Expiry</th>
@@ -158,6 +160,7 @@ const ImportModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   <tr key={i}>
                     <td>{r.category}</td>
                     <td>{r.flavor}</td>
+                    <td>{r.barcode || "—"}</td>
                     <td>{r.front}</td>
                     <td>{r.back}</td>
                     <td>{r.expiryDate}</td>

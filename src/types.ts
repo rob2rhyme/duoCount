@@ -9,6 +9,8 @@ export interface Product {
   /** switched from string to number */
   back?: number
   expiryDate?: string
+  /** optional barcode / SKU used by the scanner */
+  barcode?: string
 }
 
 export interface ProductCategory {
