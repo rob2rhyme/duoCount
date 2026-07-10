@@ -112,7 +112,10 @@ export default function AppShell() {
         )}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
-        {tab === "dashboard" && <Dashboard entries={visibleEntries} />}
+        {tab === "dashboard" && (
+          <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName}
+            onOpenLog={() => setTab("log")} onToast={ping} />
+        )}
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} />}
       </main>
 

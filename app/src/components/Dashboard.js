@@ -1,10 +1,12 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, CartesianGrid, Cell,
 } from "recharts";
 import { money, toDate } from "@/lib/utils";
+import { useSession } from "./SessionProvider";
+import ReportModal from "./ReportModal";
 
 function Stat({ label, value, tone }) {
   const color = tone === "neg" ? "text-red-600" : tone === "pos" ? "text-green-700" : "text-ink";
@@ -16,7 +18,9 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", onOpenLog, onToast }) {
+  const { isManager } = useSession();
+  const [reportOpen, setReportOpen] = useState(false);
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
     const scratch = entries.filter((e) => e.kind === "scratch");
@@ -28,6 +32,23 @@ export default function Dashboard({ entries }) {
     const scratchDollars = scratch.reduce((s, e) => s + (e.dollars || 0), 0);
     const cashSales = cash.reduce((s, e) => s + (e.sales || 0), 0);
     const missingUnits = inv.reduce((s, e) => s + (e.diff < 0 ? -e.diff : 0), 0);
+
+    // tier one: attention counters + top-10 needs-attention list
+    const openVariances = entries.filter((e) => e.varianceStatus === "open").length;
+    const openDisputes = entries.filter((e) => e.disputeStatus === "open").length;
+    const unverified = entries.filter((e) => !e.verifiedBy).length;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const attention = entries
+      .map((e) => {
+        const why =
+          e.varianceStatus === "open" ? "Variance open"
+          : e.disputeStatus === "open" ? "Dispute open"
+          : !e.verifiedBy && toDate(e.ts) && Date.now() - toDate(e.ts).getTime() > dayMs ? "Unverified > 24h"
+          : null;
+        return why ? { e, why } : null;
+      })
+      .filter(Boolean)
+      .slice(0, 10);
     const verified = entries.filter((e) => e.verifiedBy).length;
     const verifyRate = entries.length ? Math.round((verified / entries.length) * 100) : 0;
 
@@ -85,21 +106,64 @@ export default function Dashboard({ entries }) {
     const gameRows = Object.entries(byGame).map(([name, v]) => ({ name, dollars: Math.round(v * 100) / 100 }))
       .sort((x, y) => y.dollars - x.dollars).slice(0, 6);
 
-    return { count: entries.length, netDiff, shorts, overs, scratchDollars, cashSales, verifyRate, missingUnits, invCount: inv.length, dayRows, empRows, gameRows, drawerRows, itemRows };
+    return { count: entries.length, netDiff, shorts, overs, scratchDollars, cashSales, verifyRate, missingUnits, invCount: inv.length, openVariances, openDisputes, unverified, attention, dayRows, empRows, gameRows, drawerRows, itemRows };
   }, [entries]);
 
+  const reportButton = isManager && (
+    <div className="flex justify-end">
+      <button className="btn-ghost text-[13px] px-3.5 py-2" onClick={() => setReportOpen(true)}>📄 End-of-day report</button>
+    </div>
+  );
+  const reportModal = reportOpen && (
+    <ReportModal entries={entries} locations={locations} locName={locName}
+      onClose={() => setReportOpen(false)} onToast={onToast} />
+  );
+
   if (!entries.length) {
-    return <div className="card text-center py-14 text-neutral-500">No activity yet. Once counts are logged, analytics appear here.</div>;
+    return (
+      <div className="space-y-4">
+        {reportButton}
+        <div className="card text-center py-14 text-neutral-500">No activity yet. Once counts are logged, analytics appear here.</div>
+        {reportModal}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
+      {reportButton}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total entries" value={a.count} />
         <Stat label="Net over/short" value={`${a.netDiff >= 0 ? "+" : ""}${money(a.netDiff)}`} tone={a.netDiff < -0.005 ? "neg" : a.netDiff > 0.005 ? "pos" : null} />
         <Stat label="Short counts" value={a.shorts} tone={a.shorts ? "neg" : null} />
         <Stat label="Verified" value={`${a.verifyRate}%`} />
       </div>
+      <div className="grid grid-cols-3 gap-3">
+        <Stat label="Open variances" value={a.openVariances} tone={a.openVariances ? "neg" : null} />
+        <Stat label="Open disputes" value={a.openDisputes} tone={a.openDisputes ? "neg" : null} />
+        <Stat label="Unverified" value={a.unverified} tone={null} />
+      </div>
+
+      {a.attention.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-[#dcd8cc] flex items-center justify-between">
+            <h3 className="font-semibold text-[15px]">Needs attention</h3>
+            {onOpenLog && <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={onOpenLog}>Open the Log →</button>}
+          </div>
+          {a.attention.map(({ e, why }) => {
+            const t = toDate(e.ts);
+            const label = e.kind === "cash" ? (e.drawerName || "Drawer") : e.kind === "inventory" ? (e.itemName || "Item") : e.game;
+            return (
+              <div key={e.id} className="px-4 py-2.5 border-b border-[#dcd8cc] last:border-0 flex items-center gap-3 cursor-pointer hover:bg-[#faf8f2]"
+                onClick={onOpenLog}>
+                <span className={`pill flex-shrink-0 ${why === "Unverified > 24h" ? "bg-neutral-200 text-neutral-600" : "bg-red-100 text-red-600"}`}>{why}</span>
+                <span className="font-medium text-sm truncate">{label}</span>
+                <span className="text-[12px] text-neutral-500 font-mono ml-auto whitespace-nowrap">{e.by} · {t ? t.toLocaleDateString() : ""}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Cash sales logged" value={money(a.cashSales)} />
         <Stat label="Scratch-off sales" value={money(a.scratchDollars)} />
