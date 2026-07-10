@@ -13,8 +13,7 @@
   },
   "dependencies": {
     "firebase": "^11.9.1",
-    "firebase-admin": "^13.4.0",
-    "next": "^16.1.5",
+    "next": "^16.2.10",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-hot-toast": "^2.5.2"
@@ -24,11 +23,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "depcheck": "^1.4.7",
+    "firebase-admin": "^14.1.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   },
   "overrides": {
-    "minimatch": "^10.2.2"
+    "minimatch": "^10.2.2",
+    "uuid": "^11.1.1",
+    "postcss": "^8.5.10"
   }
 }
