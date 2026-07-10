@@ -11,6 +11,7 @@ inventory tracking for retail teams.
   - `app-summary-spec.md` — plain-English overview of the whole product
   - `tier-one-build-spec.md` — spec for the tier-one trust features (now built)
   - `inventory-tracker-spec.md` — spec for the inventory feature (now built)
+  - `barcode-scanning-spec.md` — spec for camera scanning (now built)
   - `positioning-one-pager.md` — market positioning, competitors, pricing
 - `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
   branded for Smokers Haven, useful as backup or during onboarding.
@@ -23,7 +24,8 @@ dashboard, CSV export, countersigned inventory counts per
 `docs/inventory-tracker-spec.md`, and the tier-one trust features per
 `docs/tier-one-build-spec.md`: blind counts, variance flags with cause codes,
 dispute threads, shift notes, an end-of-day PDF report, and a daily email
-digest (Vercel cron + Resend).
+digest (Vercel cron + Resend). Camera barcode scanning (items and
+scratch packs, with last-count prefill) per `docs/barcode-scanning-spec.md`.
 
 The full-catalog inventory application that previously lived in this repo
 (products, expiry dates, suppliers, barcode scanning) is preserved in git

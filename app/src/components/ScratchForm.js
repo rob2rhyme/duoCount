@@ -3,10 +3,11 @@ import { useEffect, useState } from "react";
 import { addEntry } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ScratchForm({ onSaved, locations, drawers, locName }) {
+export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [] }) {
   const { profile, vendor, isManager } = useSession();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
@@ -14,12 +15,34 @@ export default function ScratchForm({ onSaved, locations, drawers, locName }) {
     game: "", pack: "", price: "", startno: "", endno: "",
   });
   const [busy, setBusy] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   useEffect(() => {
     if (!f.locationId && (lockedLoc || locations[0]))
       setF((p) => ({ ...p, locationId: lockedLoc || locations[0].id }));
   }, [locations, lockedLoc]); // eslint-disable-line
+
+  // Last-count prefill: when the pack (scanned or typed) matches an earlier
+  // scratch entry at this location, prefill the game and price, and chain
+  // start # from that entry's end # — yesterday's closing number is today's
+  // opening number. Fires only on pack/location change, so it never clobbers
+  // the counter's later edits; entries arrive newest-first, so find() = latest.
+  useEffect(() => {
+    const pack = f.pack.trim();
+    if (!pack) return;
+    const prev = entries.find((e) =>
+      e.kind === "scratch" && e.locationId === f.locationId && (e.pack || "") === pack);
+    if (prev) {
+      setF((p) => ({
+        ...p,
+        game: prev.game || p.game,
+        price: prev.price != null ? String(prev.price) : p.price,
+        startno: prev.endno != null ? String(prev.endno) : p.startno,
+      }));
+      onSaved?.(`Pack recognized — start # carried from last count`);
+    }
+  }, [f.pack, f.locationId]); // eslint-disable-line
 
   const locDrawers = drawers.filter((d) => d.active !== false && d.locationId === f.locationId);
   // default drawer: prefer one named like "Lottery"
@@ -79,7 +102,12 @@ export default function ScratchForm({ onSaved, locations, drawers, locName }) {
         </div>
         <div className="grid grid-cols-2 gap-3.5">
           <div><label className="label">Game name</label><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></div>
-          <div><label className="label">Pack / book #</label><input className="input" value={f.pack} onChange={set("pack")} placeholder="0000000" /></div>
+          <div><label className="label">Pack / book #</label>
+            <div className="flex gap-2">
+              <input className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
+              <button type="button" className="btn-ghost px-2.5 flex-shrink-0" title="Scan pack barcode"
+                onClick={() => setScanOpen(true)}>📷</button>
+            </div></div>
         </div>
         <div><label className="label">Ticket price</label><input type="number" inputMode="decimal" className="input" value={f.price} onChange={set("price")} placeholder="0.00" /></div>
         <div className="grid grid-cols-2 gap-3.5">
@@ -101,6 +129,14 @@ export default function ScratchForm({ onSaved, locations, drawers, locName }) {
         <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
         <p className="text-xs text-neutral-500 leading-relaxed">End # − start # = tickets sold. That × price must match the drawer — this makes the log self-auditing.</p>
       </div>
+
+      <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
+        title="Scan pack barcode"
+        onDetected={(code) => {
+          setScanOpen(false);
+          setF((p) => ({ ...p, pack: code }));
+          onSaved?.("Pack scanned");
+        }} />
     </div>
   );
 }

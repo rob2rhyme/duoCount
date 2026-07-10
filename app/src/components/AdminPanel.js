@@ -6,6 +6,7 @@ import {
   addItem, updateItem, updateVendorSettings, apiTestDigest,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
+import BarcodeScanner from "./BarcodeScanner";
 
 export default function AdminPanel({ onToast, locations, drawers, items = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
@@ -49,14 +50,15 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
   }
 
   /* ---- inventory items ---- */
-  const [ni, setNi] = useState({ name: "", category: "", unit: "unit", locationId: "" });
+  const [ni, setNi] = useState({ name: "", category: "", unit: "unit", locationId: "", barcode: "" });
+  const [scanOpen, setScanOpen] = useState(false);
   async function createItem() {
     const loc = ni.locationId || locations.find((l) => l.active !== false)?.id;
     if (ni.name.trim().length < 2) return onToast?.("Enter an item name");
     if (!loc) return onToast?.("Add a location first");
     try {
       await addItem(vendor.id, { ...ni, locationId: loc });
-      setNi({ name: "", category: "", unit: "unit", locationId: "" });
+      setNi({ name: "", category: "", unit: "unit", locationId: "", barcode: "" });
       onToast?.("Item added");
     } catch (e) { onToast?.("Failed — managers only"); }
   }
@@ -65,8 +67,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
     if (name === null) return;
     const category = prompt("Category (blank for none):", it.category || "");
     if (category === null) return;
+    const barcode = prompt("Barcode (blank for none):", it.barcode || "");
+    if (barcode === null) return;
     try {
-      await updateItem(vendor.id, it.id, { name: name.trim() || it.name, category: category.trim() || null });
+      await updateItem(vendor.id, it.id, {
+        name: name.trim() || it.name,
+        category: category.trim() || null,
+        barcode: barcode.trim() || null,
+      });
       onToast?.("Item updated");
     } catch (e) { onToast?.("Failed — managers only"); }
   }
@@ -262,6 +270,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
                 {locations.filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select></div>
           </div>
+          <div className="mb-3">
+            <label className="label">Barcode (optional)</label>
+            <div className="flex gap-2">
+              <input className="input font-mono" value={ni.barcode} placeholder="Scan or type"
+                onChange={(e) => setNi({ ...ni, barcode: e.target.value })} />
+              <button type="button" className="btn-ghost whitespace-nowrap px-3" onClick={() => setScanOpen(true)}>📷 Scan</button>
+            </div>
+          </div>
           <button className="btn-ghost w-full" onClick={createItem}>Add item</button>
         </div>
         {items.map((it) => (
@@ -272,7 +288,10 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
                 {it.category && <span className="pill bg-[#eceae2] text-neutral-600">{it.category}</span>}
                 {it.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
               </div>
-              <div className="text-[13px] text-neutral-500">{locName(it.locationId)} · counted in {it.unit || "unit"}s</div>
+              <div className="text-[13px] text-neutral-500">
+                {locName(it.locationId)} · counted in {it.unit || "unit"}s
+                {it.barcode && <span className="font-mono"> · ▮▯ {it.barcode}</span>}
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => editItem(it)}>Edit</button>
@@ -368,6 +387,10 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
             : <p className="text-[13px] text-neutral-400 italic">Only the owner can change these settings.</p>}
         </div>
       </div>
+
+      <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
+        title="Scan item barcode"
+        onDetected={(code) => { setNi((p) => ({ ...p, barcode: code })); setScanOpen(false); onToast?.("Scanned"); }} />
     </div>
   );
 }

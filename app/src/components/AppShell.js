@@ -105,7 +105,7 @@ export default function AppShell() {
           <CashForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
         )}
         {tab === "scratch" && (
-          <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
+          <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} />
         )}
         {tab === "inventory" && (
           <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />

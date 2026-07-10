@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { addEntry } from "@/lib/data";
 import { expectedStock } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -15,6 +16,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   });
   const [busy, setBusy] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   // default location: locked one, else first active
@@ -87,12 +89,16 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select></div>
           <div><label className="label">Item</label>
-            <select className="input" value={f.itemId} onChange={set("itemId")}>
-              {locItems.length === 0 && <option value="">No items — add in Admin</option>}
-              {shownItems.map((i) => (
-                <option key={i.id} value={i.id}>{i.name}{i.category ? ` · ${i.category}` : ""}</option>
-              ))}
-            </select></div>
+            <div className="flex gap-2">
+              <select className="input min-w-0" value={f.itemId} onChange={set("itemId")}>
+                {locItems.length === 0 && <option value="">No items — add in Admin</option>}
+                {shownItems.map((i) => (
+                  <option key={i.id} value={i.id}>{i.name}{i.category ? ` · ${i.category}` : ""}</option>
+                ))}
+              </select>
+              <button type="button" className="btn-ghost px-2.5 flex-shrink-0" title="Scan item barcode"
+                onClick={() => setScanOpen(true)}>📷</button>
+            </div></div>
         </div>
         {searchable && (
           <input className="input" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)}
@@ -129,6 +135,19 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
         <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
         <p className="text-xs text-neutral-500 leading-relaxed">Expected = start + received − sold − removed. Negative over/short means missing stock. Your name, item, location, and time stamp attach automatically.</p>
       </div>
+
+      <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
+        title="Scan to select item"
+        onDetected={(code) => {
+          setScanOpen(false);
+          const match = locItems.find((i) => i.barcode && i.barcode === code);
+          if (match) {
+            setF((p) => ({ ...p, itemId: match.id }));
+            onSaved?.(`Selected ${match.name}`);
+          } else {
+            onSaved?.("No item with this barcode here — add it in Admin");
+          }
+        }} />
     </div>
   );
 }

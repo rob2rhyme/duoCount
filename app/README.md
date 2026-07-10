@@ -98,6 +98,19 @@ Standard Next.js — Vercel works out of the box. Add all the env vars from
   Requires env vars: `RESEND_API_KEY`, `DIGEST_FROM`, `CRON_SECRET`
   (and optional `APP_URL`) — see `.env.local.example`.
 
+## Barcode scanning
+
+The phone camera the app already runs on doubles as the scanner (see
+`../docs/barcode-scanning-spec.md`). Items can carry a barcode (set in
+Admin → Inventory items, itself scan-fillable); the Inventory form's 📷 button
+scans to select the matching item at the current location. On the Scratch
+form, 📷 fills the pack number — and whenever the pack matches an earlier
+count at that location (scanned or typed), the form prefills the game, price,
+and start # from that entry's end #, so a recount is one scan plus one number.
+Scanning is an input accelerator only: nothing saves until "Save & sign
+entry". The zxing decoder is dynamically imported and never ships in the
+initial bundle. Camera use requires HTTPS (or localhost) plus permission.
+
 ## Security notes
 
 - PINs: salted scrypt hashes under `users/{id}/private/creds`, which no client
@@ -120,7 +133,7 @@ Standard Next.js — Vercel works out of the box. Add all the env vars from
 vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
   locations/{id}              name, active
   drawers/{id}                name, locationId, active
-  items/{id}                  name, category, unit, locationId, active
+  items/{id}                  name, category, unit, barcode, locationId, active
   users/{id}                  name, role, locationId, active
     private/creds             pinHash (server-only)
   entries/{id}                cash, scratch, or inventory entry — locationId,

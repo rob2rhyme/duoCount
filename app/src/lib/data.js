@@ -48,10 +48,11 @@ export function watchItems(vendorId, cb) {
   return onSnapshot(query(vcol(vendorId, "items"), orderBy("createdAt", "asc")),
     (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
-export async function addItem(vendorId, { name, category, unit, locationId }) {
+export async function addItem(vendorId, { name, category, unit, locationId, barcode }) {
   await addDoc(vcol(vendorId, "items"), {
     name: name.trim(), category: (category || "").trim() || null,
-    unit: (unit || "unit").trim(), locationId, active: true, createdAt: new Date(),
+    unit: (unit || "unit").trim(), barcode: (barcode || "").trim() || null,
+    locationId, active: true, createdAt: new Date(),
   });
 }
 export async function updateItem(vendorId, id, patch) {
