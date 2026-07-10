@@ -1,20 +1,22 @@
 .footer {
-    background-color: #1a3e72;
-    color: white;
-    padding: 1rem;
-    margin-top: auto;
-    font-family:'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
-  }
-  
-  .footerContent {
-    text-align: center;
-  }
-  
-  .link {
-    color: white;
-    text-decoration: underline;
-  }
-  
-  .link:hover {
-    color: #a0aec0;
-  }
+  background: var(--surface);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding: 1.1rem 1rem;
+  margin-top: auto;
+  font-size: 0.85rem;
+}
+
+.footerContent {
+  text-align: center;
+}
+
+.link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

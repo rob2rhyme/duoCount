@@ -1,50 +1,47 @@
 /* src/styles/FlavorSearch.module.css */
-
 .searchRow {
   display: flex;
-  position: sticky;
-  top: 0.1rem; /* Adjust to your header height */
   gap: 0.5rem;
-  margin-bottom: 0.35rem;
   width: 100%;
   align-items: center;
-  padding: 12px 20px;
-  z-index: 5;
-
-  background: linear-gradient(
-    90deg,
-    navy 0%,
-    limegreen 30%,
-    hotpink 60%,
-    purple 100%
-  );
-
-  border-radius: 500px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  color: white;
+  padding: 0.55rem 0.6rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
 }
 
 .searchInput,
-.filterSelect,
-.clearButton {
+.filterSelect {
   flex: 1 1 auto;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+  min-width: 0;
+}
+
+.filterSelect {
+  flex: 0 1 auto;
 }
 
 .clearButton {
-  background: #e53e3e;
-  color: white;
-  border: none;
+  flex: 0 0 auto;
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.9rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+.clearButton:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
-/* Mobile override for exact proportions */
 @media (max-width: 768px) {
   .searchRow {
     display: grid;
-    grid-template-columns: 50% 25% 20%;
-    gap: 0.5rem;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.4rem;
   }
 }

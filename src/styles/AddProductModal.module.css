@@ -1,120 +1,50 @@
 /* src/styles/AddProductModal.module.css */
 
-.modalContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  max-width: 400px;
-  width: 100%;
-  margin: auto;
-}
-
 .backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(8, 12, 20, 0.55);
+  backdrop-filter: blur(2px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 1rem;
 }
 
 .modal {
-  background: white;
-  padding: 2rem 1.5rem;
-  /* more breathing room */
-  border-radius: 1rem;
-  /* rounder corners */
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 1.75rem;
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
   overflow-y: auto;
+  max-height: 90vh;
 }
 
-/* style any <h2> inside the modal as your title */
 .modal h2 {
-  font-size: 2rem;
+  font-size: 1.4rem;
   font-weight: 700;
-  margin: 0 0 1.5rem;
+  margin: 0 0 1.25rem;
   text-align: center;
-}
-
-/* options wrapper */
-.options {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-/* pill-shaped blue buttons */
-.options button {
-  background: #3182ce;
-  color: #fff;
-  padding: 0.75rem 1.5rem;
-  font-size: 1.2rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 9999px;
-  /* infinite pill */
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.options button:hover {
-  background: #2b6cb0;
-}
-
-
-/* pill-shaped red cancel, centered */
-.cancel {
-  background: #e53e3e;
-  color: #fff;
-  padding: 0.75rem 2rem;
-  font-size: 1.5rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 9999px;
-  cursor: pointer;
-  display: block;
-  margin: 0 auto;
-  /* center it */
-  transition: background 0.2s;
-}
-
-.cancel:hover {
-  background: #c53030;
-}
-
-.options button,
-.cancel {
-  font-family: 'Calistoga', cursive;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.8rem;
 }
 
 .form label {
   display: flex;
   flex-direction: column;
-  font-weight: 500;
-}
-
-.form input,
-.form select {
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
 }
 
 .expiryRow {
@@ -127,42 +57,54 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 0.3rem;
 }
 
 .naField button {
-  padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: #edf2f7;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
   cursor: pointer;
+  font-weight: 600;
+  transition: background-color var(--transition);
+}
+.naField button:hover {
+  background: var(--surface-3);
 }
 
-/* active state: green background + white text */
 .naActive {
-  background: #38a169 !important;
-  color: white !important;
+  background: var(--success) !important;
+  color: #fff !important;
+  border-color: var(--success) !important;
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
 }
 
 .actions button {
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;
+  transition: filter var(--transition);
+}
+.actions button:hover {
+  filter: brightness(1.05);
 }
 
 .actions button[type="submit"] {
-  background: #38a169;
-  color: white;
+  background: var(--primary);
+  color: var(--primary-contrast);
 }
 
 .actions button[type="button"] {
-  background: #e2e8f0;
+  background: var(--surface-3);
+  color: var(--text);
 }

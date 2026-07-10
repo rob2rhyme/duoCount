@@ -1,5 +1,5 @@
 // src/pages/index.tsx
-import { useEffect, useState, useRef, ChangeEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
@@ -9,11 +9,14 @@ import FlavorSearch from "@/components/FlavorSearch";
 import CategoryGrid from "@/components/CategoryGrid";
 import TabPanel from "@/components/TabPanel";
 import AddProductModal from "@/components/AddProductModal";
+import ImportModal from "@/components/ImportModal";
 import { Product, ProductCategory } from "@/types";
 import { appConfig } from "@/config/app.config";
+import { productsToCSV, downloadCSV } from "@/utils/csv";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import toast from "react-hot-toast";
 
 export default function Home() {
   const { isAuthenticated, loading, can } = useAuth();
@@ -31,9 +34,9 @@ export default function Home() {
   const [flavorSearch, setFlavorSearch] = useState("");
   const [flavorFilter, setFlavorFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] =
     useState<ProductCategory | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const catUnsub = onSnapshot(collection(db, "categories"), (snap) => {
@@ -78,8 +81,19 @@ export default function Home() {
     setFlavorSearch("");
     setFlavorFilter("All");
   };
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    // TODO: Implement import logic if needed
+
+  const allProducts = useMemo(
+    () => Object.values(productsByCategory).flat(),
+    [productsByCategory]
+  );
+
+  const handleExportAll = () => {
+    if (allProducts.length === 0) {
+      toast.error("Nothing to export yet.");
+      return;
+    }
+    downloadCSV("inventory-export.csv", productsToCSV(allProducts));
+    toast.success(`Exported ${allProducts.length} rows`);
   };
 
   const categories: ProductCategory[] = categoryMeta
@@ -102,7 +116,7 @@ export default function Home() {
     return matchesSearch && matchesFilter;
   });
 
-  if (loading) return <p style={{ textAlign: "center" }}>Loading…</p>;
+  if (loading) return <p className="loading">Loading…</p>;
   if (!isAuthenticated) {
     router.replace("/login?next=/");
     return null;
@@ -129,6 +143,8 @@ export default function Home() {
           });
         }}
         onAdd={() => setIsModalOpen(true)}
+        onImport={() => setIsImportOpen(true)}
+        onExportAll={handleExportAll}
       />
 
       {isGrid ? (
@@ -149,16 +165,13 @@ export default function Home() {
         />
       )}
 
-      <input
-        type="file"
-        accept=".json"
-        ref={fileInputRef}
-        style={{ display: "none" }}
-        onChange={handleFileChange}
-      />
       <AddProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+      <ImportModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
       />
 
       {isGrid ? (

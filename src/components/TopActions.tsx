@@ -1,5 +1,6 @@
 // src/components/TopActions.tsx
-import React, { CSSProperties } from "react";
+import React from "react";
+import styles from "@/styles/TopActions.module.css";
 import { appConfig } from "@/config/app.config";
 
 interface Props {
@@ -7,48 +8,51 @@ interface Props {
   canAdd: boolean;
   onBack: () => void;
   onAdd: () => void;
+  onImport: () => void;
+  onExportAll: () => void;
 }
 
-const ACTION_BTN: CSSProperties = {
-  padding: "0.75rem",
-  border: "none",
-  borderRadius: "25px",
-  cursor: "pointer",
-  fontWeight: 900,
-  textAlign: "center",
-};
-
-export default function TopActions({ isDetail, canAdd, onBack, onAdd }: Props) {
+export default function TopActions({
+  isDetail,
+  canAdd,
+  onBack,
+  onAdd,
+  onImport,
+  onExportAll,
+}: Props) {
   return (
-    <div className="buttonRow">
+    <div className={styles.row}>
       {isDetail && (
-        <button
-          style={{ ...ACTION_BTN, background: "#718096", color: "white" }}
-          onClick={onBack}
-        >
-          く Back
+        <button className={`${styles.btn} ${styles.back}`} onClick={onBack}>
+          ‹ Back
         </button>
       )}
-      {canAdd && (
+
+      {!isDetail && (
         <button
-          style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
-          onClick={onAdd}
+          className={`${styles.btn} ${styles.neutral}`}
+          onClick={onExportAll}
+          title="Export all inventory to CSV"
         >
+          ⬇ Export
+        </button>
+      )}
+
+      {!isDetail && canAdd && (
+        <button
+          className={`${styles.btn} ${styles.neutral}`}
+          onClick={onImport}
+          title="Import from a CSV file"
+        >
+          ⬆ Import
+        </button>
+      )}
+
+      {canAdd && (
+        <button className={`${styles.btn} ${styles.primary}`} onClick={onAdd}>
           + Add {appConfig.labels.item}
         </button>
       )}
-
-      <style jsx>{`
-        .buttonRow {
-          display: flex;
-          gap: 0.5rem;
-          margin-bottom: 0.5rem;
-          width: 100%;
-        }
-        .buttonRow > button {
-          flex: 1 1 auto;
-        }
-      `}</style>
     </div>
   );
 }

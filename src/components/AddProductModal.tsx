@@ -3,6 +3,9 @@ import React, { useState, FormEvent, useEffect } from "react";
 import styles from "@/styles/AddProductModal.module.css";
 import { db } from "@/utils/firebase";
 import { appConfig } from "@/config/app.config";
+import { useAuth } from "@/context/AuthContext";
+import { logActivity } from "@/utils/activity";
+import toast from "react-hot-toast";
 import { collection, addDoc, onSnapshot } from "firebase/firestore";
 
 interface Props {
@@ -11,6 +14,7 @@ interface Props {
 }
 
 const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
+  const { user, role } = useAuth();
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [flavor, setFlavor] = useState("");
@@ -56,23 +60,28 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedCategory || !flavor.trim() || isNaN(+front) || isNaN(+back)) {
-      alert("Please fill in all required fields.");
+      toast.error("Please fill in all required fields.");
       return;
     }
 
+    const name = flavor.trim();
     try {
       await addDoc(collection(db, "products"), {
         category: selectedCategory,
-        flavor: flavor.trim(),
+        flavor: name,
         front: +front,
         back: +back,
         expiryDate: naChecked ? "n/a" : expiryDate || "n/a",
       });
-      alert("Product successfully added!");
+      toast.success(`Added “${name}”`);
+      logActivity(
+        { action: "add", item: name, category: selectedCategory },
+        { uid: user?.uid ?? null, role }
+      );
       onClose();
     } catch (err) {
       console.error(err);
-      alert("Error writing to Firestore.");
+      toast.error("Error saving to the database.");
     }
   };
 

@@ -1,179 +1,152 @@
 .tabPanel {
-  padding: 0 1rem 0.5rem 1rem;
+  padding: 0;
   overflow-x: auto;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-left: auto;
+}
+
+.exportBtn {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+    border-color var(--transition);
+}
+.exportBtn:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.tableWrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: auto;
-  font-family: "Courier New", Courier, monospace;
+  font-size: 0.9rem;
 }
 
 .table th {
-  background-color: #3182ce;
-  color: white;
-  padding: 0.75rem;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  padding: 0.7rem 0.85rem;
   text-align: left;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.sortable:hover {
+  color: var(--primary);
+}
+.sortArrow {
+  opacity: 0.9;
+  margin-left: 0.2rem;
 }
 
 .table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
 }
 
-.table tr:nth-child(even) {
-  background-color: #c2ced6;
+.table tbody tr:last-child td {
+  border-bottom: none;
 }
 
-.table tr:hover {
-  background-color: #ebf8ff;
+.table tbody tr:hover {
+  background: var(--surface-2);
 }
 
 .lowStock,
 .expiringSoon {
-  color: #e53e3e;
-  font-weight: bold;
+  color: var(--danger);
+  font-weight: 700;
 }
 
 .goodStock,
 .goodExpiry {
-  color: #38a169;
-  font-weight: bold;
+  color: var(--success);
+  font-weight: 700;
+}
+
+.naExpiry {
+  color: var(--text-muted);
+}
+
+.emptyRow {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem 1rem !important;
 }
 
 @media (max-width: 768px) {
-  .table tbody tr {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
+  .table th,
   .table td {
-    padding-top: 4px;
-    padding-bottom: 4px;
-  }
-
-  .tabPanel {
-    margin: 0 !important;
-    padding: 0 !important;
+    padding: 0.5rem 0.5rem;
   }
 }
 
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  text-align: center;
-}
-
-.modal input {
-  width: 100%;
-  font-size: 1.25rem;
-  padding: 0.5rem;
-  margin-top: 1rem;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-}
-
-.modalButtons {
-  margin-top: 1rem;
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.modalButtons button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 8px;
+/* Quantity pills (front / back) ------------------------------------------- */
+.storeCell,
+.homeCell {
+  display: inline-block;
+  min-width: 2.4rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-pill);
+  padding: 0.2rem 0.7rem;
   font-weight: 600;
-  cursor: pointer;
-}
-
-.modalButtons button:first-child {
-  background: #3182ce;
-  color: white;
-}
-
-.modalButtons button:last-child {
-  background: #ccc;
-  color: black;
-}
-
-.quantityCell {
-  background-color: #edf2f7; /* light gray-blue */
-  border: 1px solid #cbd5e0; /* slightly darker border */
-  border-radius: 20px;
-  padding: 0.25rem 0.75rem;
   text-align: center;
-  font-weight: 500;
-  color: #2d3748;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.quantityCell:hover {
-  background-color: #e2e8f0; /* slightly darker on hover */
+  transition: background-color var(--transition), box-shadow var(--transition);
 }
 
 .storeCell {
-  background-color: #ffffff;
-  border: 1px solid #dde411;
-  border-radius: 20px;
-  padding: 0.25rem 0.75rem;
-  color: #2c7a7b;
-  font-weight: 500;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+  border: 1px solid color-mix(in srgb, var(--success) 45%, var(--border));
+  color: var(--success);
 }
-
-.storeCell:hover {
-  background-color: #b2f5ea;
-}
-
 .homeCell {
-  background-color: #ffffff;
-  border: 1px solid #ca0ce7;
-  border-radius: 20px;
-  padding: 0.25rem 0.75rem;
-  color: #2b6cb0;
-  font-weight: 500;
-  text-align: center;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, var(--border));
+  color: var(--primary);
 }
-
+.storeCell:hover,
 .homeCell:hover {
-  background-color: #bee3f8;
-}
-
-.breadcrumb {
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: #555;
+  box-shadow: var(--ring);
 }
 
 .deleteBtn {
   background: transparent;
-  border: 1px solid #d03b3b;
-  color: #d03b3b;
+  border: 1px solid var(--danger);
+  color: var(--danger);
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -182,8 +155,80 @@
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
-
 .deleteBtn:hover {
-  background-color: #d03b3b;
+  background-color: var(--danger);
   color: #fff;
+}
+
+.breadcrumb {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.breadcrumb a {
+  color: var(--text-secondary);
+}
+
+/* Edit modal --------------------------------------------------------------- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 12, 20, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.modal h3 {
+  margin-bottom: 0.5rem;
+}
+
+.modal input {
+  width: 100%;
+  font-size: 1.25rem;
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.modalButtons {
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.modalButtons button {
+  padding: 0.55rem 1.3rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter var(--transition);
+}
+.modalButtons button:hover {
+  filter: brightness(1.05);
+}
+
+.modalButtons button:first-child {
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.modalButtons button:last-child {
+  background: var(--surface-3);
+  color: var(--text);
 }
