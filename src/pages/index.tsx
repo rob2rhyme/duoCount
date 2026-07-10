@@ -16,7 +16,7 @@ import { db } from "@/utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 
 export default function Home() {
-  const { isAuthenticated, loading, signOut } = useAuth();
+  const { isAuthenticated, loading, can } = useAuth();
   const router = useRouter();
 
   const [productsByCategory, setProductsByCategory] = useState<
@@ -70,9 +70,6 @@ export default function Home() {
     };
   }, []);
 
-  const handleSignOut = () => {
-    if (confirm("Confirm sign out?")) signOut();
-  };
   const handleClearCategory = () => {
     setCategorySearch("");
     setCategoryFilter("All");
@@ -121,6 +118,7 @@ export default function Home() {
 
       <TopActions
         isDetail={!isGrid}
+        canAdd={can("addProduct")}
         onBack={() => {
           setSelectedCategory(null);
           handleClearFlavor();
@@ -131,7 +129,6 @@ export default function Home() {
           });
         }}
         onAdd={() => setIsModalOpen(true)}
-        onSignOut={handleSignOut}
       />
 
       {isGrid ? (

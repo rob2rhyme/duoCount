@@ -1,11 +1,12 @@
 // src/components/TopActions.tsx
 import React, { CSSProperties } from "react";
+import { appConfig } from "@/config/app.config";
 
 interface Props {
   isDetail: boolean;
+  canAdd: boolean;
   onBack: () => void;
   onAdd: () => void;
-  onSignOut: () => void;
 }
 
 const ACTION_BTN: CSSProperties = {
@@ -17,12 +18,7 @@ const ACTION_BTN: CSSProperties = {
   textAlign: "center",
 };
 
-export default function TopActions({
-  isDetail,
-  onBack,
-  onAdd,
-  onSignOut,
-}: Props) {
+export default function TopActions({ isDetail, canAdd, onBack, onAdd }: Props) {
   return (
     <div className="buttonRow">
       {isDetail && (
@@ -33,18 +29,14 @@ export default function TopActions({
           く Back
         </button>
       )}
-      <button
-        style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
-        onClick={onAdd}
-      >
-        + Add Product
-      </button>
-      <button
-        style={{ ...ACTION_BTN, background: "#4a5568", color: "white" }}
-        onClick={onSignOut}
-      >
-        Sign Out
-      </button>
+      {canAdd && (
+        <button
+          style={{ ...ACTION_BTN, background: "#38a169", color: "white" }}
+          onClick={onAdd}
+        >
+          + Add {appConfig.labels.item}
+        </button>
+      )}
 
       <style jsx>{`
         .buttonRow {

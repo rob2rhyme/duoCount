@@ -5,13 +5,24 @@ import {
   signOut as firebaseSignOut,
   User,
 } from "firebase/auth";
-import { auth } from "@/utils/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/utils/firebase";
 import { appConfig } from "@/config/app.config";
+import {
+  Permission,
+  Role,
+  hasPermission,
+  isRole,
+} from "@/utils/permissions";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  /** Current user's role, or null when signed out. */
+  role: Role | null;
+  /** True if the current role is allowed to perform `permission`. */
+  can: (permission: Permission) => boolean;
   signOut: () => Promise<void>;
 }
 
@@ -25,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
 
   const signOut = async () => {
@@ -33,8 +45,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setUser(u);
+
+      if (u) {
+        // Look up the user's role. Fall back to the configured default role
+        // when no `users/{uid}` document exists yet.
+        try {
+          const snap = await getDoc(doc(db, "users", u.uid));
+          const stored = snap.exists() ? snap.data().role : null;
+          setRole(isRole(stored) ? stored : appConfig.auth.defaultRole);
+        } catch {
+          setRole(appConfig.auth.defaultRole);
+        }
+      } else {
+        setRole(null);
+      }
+
       setLoading(false);
     });
     return unsubscribe;
@@ -61,12 +88,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []);
 
+  const can = (permission: Permission) => hasPermission(role, permission);
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         isAuthenticated: !!user,
+        role,
+        can,
         signOut,
       }}
     >

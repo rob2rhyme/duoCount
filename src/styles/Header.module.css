@@ -1,24 +1,113 @@
 .header {
-    background-color: #1a3e72;
-    padding: 0.75rem 1.5rem;
-    border-bottom: 2px solid #444;
+  background-color: #1a3e72;
+  padding: 0.6rem 1.5rem;
+  border-bottom: 2px solid #12305c;
+}
+
+.container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+
+.logo {
+  border-radius: 6px;
+}
+
+.title {
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  gap: 0.35rem;
+  margin-left: 0.75rem;
+}
+
+.navLink {
+  color: #cbd8ef;
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.navLink:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.navLinkActive {
+  background-color: #fff;
+  color: #1a3e72;
+}
+
+.right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.roleBadge {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.signOut {
+  background-color: #4a5568;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.signOut:hover {
+  background-color: #2d3748;
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0.55rem 0.9rem;
   }
-  
   .container {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    max-width: 960px;
-    margin: 0 auto;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
   }
-  
-  .logo {
-    border-radius: 4px;
-  }
-  
   .title {
-    color: white;
-    font-size: 1.5rem;
-    font-weight: 600;
+    font-size: 1rem;
   }
-  
+  .nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+  }
+  .right {
+    margin-left: auto;
+  }
+}

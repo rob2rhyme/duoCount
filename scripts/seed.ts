@@ -11,8 +11,11 @@
 //   2. Point GOOGLE_APPLICATION_CREDENTIALS at it (see .env.example), then run:
 //        npm run seed
 //
-// Optional: set LOGIN_PHONE to a phone number you own (E.164, e.g. +15551234567)
-// to also seed the phoneAuth/store document used by the OTP login screen.
+// Optional env vars:
+//   LOGIN_PHONE  – phone number you own (E.164, e.g. +15551234567) to seed the
+//                  phoneAuth/store document used by the OTP login screen.
+//   ADMIN_UID    – a Firebase Auth uid to grant the "admin" role. Find it under
+//                  Authentication → Users AFTER signing in once, then re-run.
 // ---------------------------------------------------------------------------
 import { initializeApp, applicationDefault, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
@@ -81,6 +84,19 @@ async function seed() {
   } else {
     console.log(
       "Skipped phoneAuth/store (set LOGIN_PHONE=+15551234567 to seed it)."
+    );
+  }
+
+  const adminUid = process.env.ADMIN_UID;
+  if (adminUid) {
+    await db
+      .collection("users")
+      .doc(adminUid)
+      .set({ role: "admin", displayName: "Administrator" }, { merge: true });
+    console.log(`Granted admin role to uid: ${adminUid}`);
+  } else {
+    console.log(
+      "Skipped users/{uid} (sign in once, then set ADMIN_UID=<your uid> to grant admin)."
     );
   }
 

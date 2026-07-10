@@ -152,12 +152,14 @@
     <div class="group">Configure</div>
     <a href="#firebase">Firebase setup</a>
     <a href="#config">Configuration &amp; branding</a>
+    <a href="#roles">Roles &amp; permissions</a>
     <a href="#seed">Seeding demo data</a>
     <a href="#rules">Security rules</a>
     <div class="group">Ship it</div>
     <a href="#run">Running locally</a>
     <a href="#deploy">Deployment</a>
     <div class="group">Reference</div>
+    <a href="#dashboard">Dashboard</a>
     <a href="#features">Feature overview</a>
     <a href="#faq">FAQ &amp; troubleshooting</a>
     <a href="#changelog">Changelog</a>
@@ -175,7 +177,7 @@
   <section id="intro">
     <h2>Introduction</h2>
     <p>This is a production-ready inventory management app for small retail businesses. It tracks stock across two locations per item (for example front-of-store and back stockroom), monitors expiry dates, raises low-stock and expiring-soon flags, and keeps everything behind a secure phone one-time-password (OTP) login.</p>
-    <p>Data is stored in <strong>Cloud Firestore</strong> and syncs in real time — edit a quantity on one device and every other device updates instantly. The whole app is <strong>white-label</strong>: you rebrand it from a single configuration file, no component code required.</p>
+    <p>Data is stored in <strong>Cloud Firestore</strong> and syncs in real time — edit a quantity on one device and every other device updates instantly. It ships with an analytics <strong>dashboard</strong> and <strong>role-based access</strong> (Admin / Staff / Viewer). The whole app is <strong>white-label</strong>: you rebrand it from a single configuration file, no component code required.</p>
     <div class="callout tip">💡 <strong>New here?</strong> Follow the sections in order: Requirements → Installation → Firebase setup → Configuration. You'll have a running app in about 15 minutes.</div>
   </section>
 
@@ -199,12 +201,15 @@
 ├── scripts/seed.ts              One-command demo-data seeder
 ├── src/
 │   ├── components/              UI components
+│   │   └── dashboard/          Charts &amp; KPI cards
 │   ├── config/app.config.ts     ⭐ White-label configuration
-│   ├── context/                 Auth + session handling
+│   ├── context/                 Auth + roles + session handling
 │   ├── hooks/                   Data hooks
-│   ├── pages/                   Next.js routes (index, login)
+│   ├── pages/                   Next.js routes (index, dashboard, login)
 │   ├── styles/                  CSS Modules
-│   └── utils/firebase.ts        Firebase client
+│   └── utils/
+│       ├── firebase.ts         Firebase client
+│       └── permissions.ts      Roles &amp; permission matrix
 ├── .env.example                 Environment variable template
 ├── firestore.rules              Firestore security rules
 └── package.json</code></pre>
@@ -274,6 +279,7 @@ firebase deploy --only firestore:rules</code></pre>
       <tr><td><code>logoSrc</code></td><td>Path to your logo in <code>/public</code></td></tr>
       <tr><td><code>author</code></td><td>Name &amp; link shown in the footer</td></tr>
       <tr><td><code>sessionTimeoutMinutes</code></td><td>Auto sign-out after this many idle minutes</td></tr>
+      <tr><td><code>auth.defaultRole</code></td><td>Role given to a signed-in user with no <code>users/{uid}</code> document (<code>admin</code> / <code>staff</code> / <code>viewer</code>)</td></tr>
       <tr><td><code>labels.item / itemPlural</code></td><td>What you call a stocked item (Product, Flavor, SKU, Book…)</td></tr>
       <tr><td><code>labels.category</code></td><td>What you call a group (Category, Brand, Aisle…)</td></tr>
       <tr><td><code>labels.front / back</code></td><td>Names + short codes for the two stock locations</td></tr>
@@ -284,6 +290,31 @@ firebase deploy --only firestore:rules</code></pre>
     <h3>Replace the logo</h3>
     <p>Drop your own <code>logo.png</code> and <code>favicon.ico</code> into the <code>/public</code> folder (keep the filenames, or update <code>logoSrc</code>). A square PNG around 512×512 looks best.</p>
     <div class="callout tip">💡 The two "stock locations" are generic. Rename them to whatever fits — Warehouse/Shop, Aisle/Backroom, Online/In-store — via <code>labels.front</code> and <code>labels.back</code>.</div>
+  </section>
+
+  <section id="roles">
+    <h2>Roles &amp; permissions</h2>
+    <p>Every signed-in user has a <strong>role</strong> that controls what they can do. Roles are stored in a <code>users</code> collection (one document per user, keyed by their Firebase Auth UID) and enforced both in the UI and in the Firestore security rules.</p>
+    <h3>The three built-in roles</h3>
+    <table>
+      <tr><th>Capability</th><th>Admin</th><th>Staff</th><th>Viewer</th></tr>
+      <tr><td>View inventory</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>View dashboard</td><td>✅</td><td>✅</td><td>✅</td></tr>
+      <tr><td>Edit stock quantities</td><td>✅</td><td>✅</td><td>—</td></tr>
+      <tr><td>Add products</td><td>✅</td><td>✅</td><td>—</td></tr>
+      <tr><td>Delete products</td><td>✅</td><td>—</td><td>—</td></tr>
+      <tr><td>Manage users</td><td>✅</td><td>—</td><td>—</td></tr>
+    </table>
+    <p>A user's role is shown as a badge in the header. Viewers get a read-only experience — the "Add" button and inline editing are hidden; only admins see the delete control.</p>
+    <h3>Assigning a role to someone</h3>
+    <ol class="steps">
+      <li>Have the person <strong>sign in once</strong> so Firebase creates their account.</li>
+      <li>In the Firebase console → <strong>Authentication → Users</strong>, copy their <strong>User UID</strong>.</li>
+      <li>In <strong>Firestore</strong>, create a document in the <code>users</code> collection with that UID as the document ID and a field <code>role</code> set to <code>admin</code>, <code>staff</code> or <code>viewer</code>. (The seed script can create your first admin — set <code>ADMIN_UID</code> and re-run <code>npm run seed</code>.)</li>
+    </ol>
+    <h3>Default role &amp; customising</h3>
+    <p>A signed-in user with no <code>users</code> document falls back to <code>auth.defaultRole</code> in <code>app.config.ts</code> (ships as <code>viewer</code>). For a single-operator shop where every login should have full access, set it to <code>admin</code>. To change what each role can do — or add new roles — edit <code>src/utils/permissions.ts</code>.</p>
+    <div class="callout tip">💡 Roles are enforced in <code>firestore.rules</code> too, so a viewer can't write data even via the API — not just in the UI.</div>
   </section>
 
   <section id="seed">
@@ -297,7 +328,9 @@ firebase deploy --only firestore:rules</code></pre>
       <li><strong>Point the app at it</strong> in <code>.env.local</code>:
         <pre><code>GOOGLE_APPLICATION_CREDENTIALS=./secrets/service-account.json
 # optional: also seed the login number
-LOGIN_PHONE=+15551234567</code></pre>
+LOGIN_PHONE=+15551234567
+# optional: grant admin to a UID (after signing in once)
+ADMIN_UID=your_firebase_auth_uid</code></pre>
       </li>
       <li><strong>Run the seeder.</strong>
         <pre><code>npm run seed</code></pre>
@@ -308,13 +341,14 @@ LOGIN_PHONE=+15551234567</code></pre>
 
   <section id="rules">
     <h2>Security rules</h2>
-    <p>The included <code>firestore.rules</code> enforce sensible defaults:</p>
+    <p>The included <code>firestore.rules</code> enforce sensible, role-aware defaults:</p>
     <ul>
       <li><code>phoneAuth</code> — publicly <em>readable</em> (the login screen needs the number before sign-in) but never client-writable.</li>
-      <li><code>products</code> &amp; <code>categories</code> — read/write only for signed-in users.</li>
+      <li><code>users</code> — a user can read their own role document; roles are assigned from the console or an admin script, never from the client.</li>
+      <li><code>products</code> &amp; <code>categories</code> — readable by any signed-in user; <em>writable</em> only by admin/staff, and <em>deletable</em> only by admins. The rules read the caller's role from their <code>users</code> document, so the role model is enforced server-side, not just in the UI.</li>
       <li>Everything else is denied by default.</li>
     </ul>
-    <p>To lock things down further (per-user ownership, admin-only writes via custom claims, read-only staff accounts), edit <code>firestore.rules</code> and redeploy with <code>firebase deploy --only firestore:rules</code>.</p>
+    <p>Tighten further (per-user ownership, Firebase custom claims instead of a <code>users</code> collection, etc.) by editing <code>firestore.rules</code> and redeploying with <code>firebase deploy --only firestore:rules</code>.</p>
   </section>
 
   <section id="run">
@@ -345,6 +379,20 @@ npm start   # serves on port 3000 by default</code></pre>
     <p>In both cases, deploy your Firestore rules separately with the Firebase CLI (<code>firebase deploy --only firestore:rules</code>).</p>
   </section>
 
+  <section id="dashboard">
+    <h2>Dashboard</h2>
+    <p>The <strong>Dashboard</strong> (linked in the header) gives an at-a-glance view of inventory health, computed live from your Firestore data. Every role can view it.</p>
+    <h3>What it shows</h3>
+    <ul>
+      <li><strong>KPI cards</strong> — total items, categories, units in stock, "need to order", expiring soon and expired counts.</li>
+      <li><strong>Stock status donut</strong> — In stock / Low / Out breakdown.</li>
+      <li><strong>Expiry status donut</strong> — OK / Expiring soon / Expired / No expiry.</li>
+      <li><strong>Units by category</strong> — a ranked bar chart of stock volume per category.</li>
+      <li><strong>Needs attention</strong> — a prioritised list of the items that are low, out, expiring or expired.</li>
+    </ul>
+    <p>The charts are lightweight, dependency-free SVG/CSS (no charting library to bloat your bundle) and use a colourblind-safe status palette with text labels on every series. The low-stock and "expiring soon" thresholds come straight from <code>thresholds</code> in <code>app.config.ts</code>, so the dashboard always matches your business rules.</p>
+  </section>
+
   <section id="features">
     <h2>Feature overview</h2>
     <div class="feature-grid">
@@ -355,6 +403,8 @@ npm start   # serves on port 3000 by default</code></pre>
       <div class="feature"><div class="ico">🔍</div><h4>Search &amp; filter</h4><p>Filter categories by type, items by status.</p></div>
       <div class="feature"><div class="ico">✏️</div><h4>Inline editing</h4><p>Tap a quantity to edit; saves with toast feedback.</p></div>
       <div class="feature"><div class="ico">🔐</div><h4>OTP login</h4><p>Phone one-time-password auth with auto sign-out.</p></div>
+      <div class="feature"><div class="ico">👥</div><h4>Role-based access</h4><p>Admin / Staff / Viewer, enforced in UI &amp; rules.</p></div>
+      <div class="feature"><div class="ico">📊</div><h4>Analytics dashboard</h4><p>KPIs, donuts &amp; bar charts, no chart library.</p></div>
       <div class="feature"><div class="ico">🎨</div><h4>White-label</h4><p>Rebrand everything from one config file.</p></div>
       <div class="feature"><div class="ico">📱</div><h4>Responsive</h4><p>Works on phone, tablet and desktop.</p></div>
     </div>
@@ -378,9 +428,10 @@ npm start   # serves on port 3000 by default</code></pre>
     <h2>Changelog</h2>
     <table>
       <tr><th>Version</th><th>Notes</th></tr>
+      <tr><td><strong>1.1.0</strong></td><td>Added an analytics <strong>Dashboard</strong> (KPI cards, stock &amp; expiry donuts, units-by-category bars, needs-attention list) and <strong>role-based access control</strong> (Admin / Staff / Viewer) enforced in the UI and Firestore rules. New global header nav, admin-only product delete, and role seeding via <code>ADMIN_UID</code>.</td></tr>
       <tr><td><strong>1.0.0</strong></td><td>Initial release — real-time inventory, two-location stock, expiry &amp; low-stock alerts, OTP login with configurable auto sign-out, white-label configuration, demo seeder.</td></tr>
     </table>
-    <div class="callout tip">💡 Planned enhancements you can add: a KPI dashboard with charts, multi-user roles, CSV/Excel import-export, barcode scanning, audit log, and PWA/offline mode.</div>
+    <div class="callout tip">💡 Planned enhancements you can add: CSV/Excel import-export, barcode scanning, an audit log, email/push alerts, and PWA/offline mode.</div>
   </section>
 
   <section id="support">
@@ -397,7 +448,7 @@ npm start   # serves on port 3000 by default</code></pre>
 </main>
 
 <footer>
-  Inventory Management System — Next.js &amp; Firebase · Documentation v1.0.0
+  Inventory Management System — Next.js &amp; Firebase · Documentation v1.1.0
 </footer>
 
 <script>

@@ -6,6 +6,8 @@
 // no need to touch any component code.
 // ---------------------------------------------------------------------------
 
+import type { Role } from "@/utils/permissions";
+
 export interface AppConfig {
   /** Full product name shown in the header and browser tab. */
   appName: string;
@@ -22,6 +24,15 @@ export interface AppConfig {
   };
   /** How long a session stays valid before auto sign-out (minutes). */
   sessionTimeoutMinutes: number;
+  /** Access-control defaults. */
+  auth: {
+    /**
+     * Role given to a signed-in user who has no `users/{uid}` document yet.
+     * Set to "viewer" for read-only by default, or "admin" for single-operator
+     * setups where every login should have full access.
+     */
+    defaultRole: Role;
+  };
   /** Terminology — rename these to match your industry. */
   labels: {
     /** A single stocked item (e.g. "Product", "Flavor", "SKU", "Book"). */
@@ -62,6 +73,9 @@ export const appConfig: AppConfig = {
     url: "https://example.com",
   },
   sessionTimeoutMinutes: 15,
+  auth: {
+    defaultRole: "viewer",
+  },
   labels: {
     item: "Product",
     itemPlural: "Products",

@@ -17,3 +17,12 @@ export interface ProductCategory {
   filterType: string
   imageUrl?: string
 }
+
+import type { Role } from "@/utils/permissions"
+
+/** A row in the `users` collection (document id = Firebase Auth uid). */
+export interface UserProfile {
+  role: Role
+  displayName?: string
+  phone?: string
+}

@@ -6,8 +6,8 @@ import { Product } from "../types";
 import { useAuth } from "@/context/AuthContext";
 import {
   collection,
+  deleteDoc,
   doc,
-  getDocs,
   onSnapshot,
   query,
   updateDoc,
@@ -31,8 +31,10 @@ const TabPanel: React.FC<TabPanelProps> = ({
   searchTerm,
   filterOption,
 }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, can } = useAuth();
   const router = useRouter();
+  const canEdit = can("editStock");
+  const canDelete = can("deleteProduct");
 
   const [liveProducts, setLiveProducts] = useState<Product[]>(products);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -100,9 +102,21 @@ const TabPanel: React.FC<TabPanelProps> = ({
       router.push(`/login?next=${router.pathname}`);
       return;
     }
+    // Read-only roles can view but not edit quantities.
+    if (!canEdit) return;
     setEditingProduct(prod);
     setEditingField(field);
     setModalValue(String(prod[field] ?? "0"));
+  };
+
+  const handleDelete = async (prod: Product) => {
+    if (!canDelete) return;
+    if (!confirm(`Delete "${prod.flavor}"? This cannot be undone.`)) return;
+    await toast.promise(deleteDoc(doc(db, "products", prod.id)), {
+      loading: "Deleting…",
+      success: "Deleted",
+      error: "Failed to delete.",
+    });
   };
 
   const handleSave = async () => {
@@ -138,6 +152,7 @@ const TabPanel: React.FC<TabPanelProps> = ({
             <th>Status</th>
             <th>Expiry Date</th>
             <th>Days Left</th>
+            {canDelete && <th></th>}
           </tr>
         </thead>
         <tbody>
@@ -149,7 +164,12 @@ const TabPanel: React.FC<TabPanelProps> = ({
               <tr key={p.id + i}>
                 <td>{p.flavor}</td>
                 {(["front", "back"] as const).map((f) => (
-                  <td key={f} onClick={() => handleCellClick(f, p)}>
+                  <td
+                    key={f}
+                    onClick={() => handleCellClick(f, p)}
+                    style={{ cursor: canEdit ? "pointer" : "default" }}
+                    title={canEdit ? "Click to edit" : undefined}
+                  >
                     <span
                       className={
                         f === "front" ? styles.storeCell : styles.homeCell
@@ -183,6 +203,18 @@ const TabPanel: React.FC<TabPanelProps> = ({
                     ? daysLeft
                     : "Expired"}
                 </td>
+                {canDelete && (
+                  <td>
+                    <button
+                      className={styles.deleteBtn}
+                      onClick={() => handleDelete(p)}
+                      title={`Delete ${p.flavor}`}
+                      aria-label={`Delete ${p.flavor}`}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

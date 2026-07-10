@@ -6,26 +6,60 @@ rules_version = '2';
 //   phoneAuth  – holds the store phone number the login screen sends the OTP
 //                to. Readable by anyone (needed BEFORE sign-in); never writable
 //                from the client. Manage it from the Firebase console.
-//   products   – inventory items. Read/write only for signed-in users.
-//   categories – product groupings.  Read/write only for signed-in users.
+//   users      – one document per user (id = auth uid) holding their { role }.
+//                A user may read their OWN document; roles are assigned from
+//                the Firebase console or a trusted admin script, never from the
+//                client.
+//   products   – inventory items. Read for any signed-in user; writes for
+//                editor roles (admin/staff).
+//   categories – product groupings. Same access as products.
 //
-// Tighten these further (per-user ownership, role claims, etc.) as your
-// deployment requires — see documentation/index.html → "Security rules".
+// See documentation/index.html → "Roles & permissions" and "Security rules".
 // ---------------------------------------------------------------------------
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- helpers -----------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    // The signed-in user's role, or "viewer" if they have no users/{uid} doc.
+    function userRole() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : 'viewer';
+    }
+    function canEdit() {
+      return isSignedIn() && userRole() in ['admin', 'staff'];
+    }
+    function isAdmin() {
+      return isSignedIn() && userRole() == 'admin';
+    }
+
+    // --- collections -------------------------------------------------------
     match /phoneAuth/{docId} {
       allow read: if true;
       allow write: if false;
     }
 
+    match /users/{userId} {
+      // Users can read their own role; only admins can read the whole roster.
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Assign/change roles from the console or an admin script, not the client.
+      allow write: if false;
+    }
+
     match /products/{productId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow create, update: if canEdit(); // admin + staff
+      allow delete: if isAdmin(); // admin only
     }
 
     match /categories/{categoryId} {
-      allow read, write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow create, update: if canEdit();
+      allow delete: if isAdmin();
     }
 
     // Deny everything else by default.

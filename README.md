@@ -13,11 +13,13 @@ config file.
 
 - **Real-time sync** — inventory updates instantly across all devices via Firestore.
 - **Two-location stock** — track quantities in two places per item, with a live total.
+- **Analytics dashboard** — KPI cards, stock- & expiry-status donut charts, units-by-category bars, and a prioritised "needs attention" list. Dependency-free SVG/CSS charts with a colourblind-safe palette.
+- **Role-based access control** — Admin / Staff / Viewer roles enforced in both the UI and Firestore security rules (viewers are read-only; only admins can delete).
 - **Status & expiry alerts** — automatic "Need to Order" and "Expiring Soon" flags with colour coding.
 - **Category grid** — visual, image-backed category cards with per-category stock summaries.
 - **Search & filter** — filter categories by type and items by status; search by name.
 - **Inline editing** — tap a quantity to edit it; changes save to Firestore with toast feedback.
-- **Add products** — add items to any category from an in-app modal.
+- **Add & delete products** — manage items from an in-app modal (gated by role).
 - **Secure OTP login** — Firebase phone authentication with a configurable auto sign-out timeout.
 - **White-label** — app name, logo, author, terminology, filters and thresholds all come from one config file.
 - **Responsive** — works on phones, tablets and desktop.
@@ -66,6 +68,7 @@ Everything brand- and business-specific lives in **`src/config/app.config.ts`**:
 ```ts
 appName, shortName, tagline, logoSrc, author,
 sessionTimeoutMinutes,
+auth: { defaultRole },
 labels: { item, itemPlural, category, front, back, ... },
 thresholds: { lowStock, expiringSoonDays },
 categoryFilters: [...]
@@ -86,14 +89,15 @@ Change these values (and drop your logo in `/public`) to rebrand the entire app
 │   └── seed.ts                   # one-command demo-data seeder
 ├── src/
 │   ├── components/               # UI components (grid, table, modals, search…)
+│   │   └── dashboard/            # KPI cards + SVG donut/bar charts
 │   ├── config/
 │   │   └── app.config.ts         # ⭐ white-label configuration
-│   ├── context/                  # AuthContext (session + auto sign-out)
+│   ├── context/                  # AuthContext (roles + session + auto sign-out)
 │   ├── hooks/                    # useProducts / useCategories
-│   ├── pages/                    # Next.js routes (index, login, _app)
+│   ├── pages/                    # Next.js routes (index, dashboard, login, _app)
 │   ├── styles/                   # CSS Modules + globals
 │   ├── types.ts                  # shared TypeScript types
-│   └── utils/                    # Firebase client + helpers
+│   └── utils/                    # firebase.ts + permissions.ts (roles)
 ├── .env.example
 ├── firestore.rules
 └── firebase.json
