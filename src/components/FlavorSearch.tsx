@@ -1,6 +1,7 @@
 // src/components/FlavorSearch.tsx
 import React from "react";
 import styles from "../styles/FlavorSearch.module.css";
+import { appConfig } from "@/config/app.config";
 
 interface Props {
   search: string;
@@ -30,7 +31,7 @@ export default function FlavorSearch({
       <input
         className={styles.searchInput}
         type="text"
-        placeholder="Search Flavors"
+        placeholder={`Search ${appConfig.labels.itemPlural}`}
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
       />

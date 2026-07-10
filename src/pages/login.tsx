@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 
 import { db, auth } from "@/utils/firebase";
+import { appConfig } from "@/config/app.config";
 import { doc, getDoc } from "firebase/firestore";
 import {
   RecaptchaVerifier,
@@ -117,11 +118,17 @@ export default function Login() {
   return (
     <>
       <Head>
-        <title>Login – Smokers Haven</title>
+        <title>Sign in – {appConfig.appName}</title>
       </Head>
       <div className="overlay">
         <div className="modal">
-          <img src="/logo.png" alt="Logo" className="logo" />
+          <img
+            src={appConfig.logoSrc}
+            alt={`${appConfig.appName} logo`}
+            className="logo"
+          />
+          <h2 className="brand">{appConfig.appName}</h2>
+          <p className="tagline">{appConfig.tagline}</p>
           {!confirmation ? (
             <>
               <p>
@@ -210,6 +217,16 @@ export default function Login() {
           max-width: 120px;
           margin-bottom: 1rem;
           border-radius: 8px;
+        }
+        .brand {
+          margin: 0 0 0.25rem;
+          font-size: 1.4rem;
+          color: #1a202c;
+        }
+        .tagline {
+          margin: 0 0 1.25rem;
+          color: #718096;
+          font-size: 0.95rem;
         }
       `}</style>
     </>

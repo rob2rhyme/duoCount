@@ -1,165 +1,111 @@
-````markdown
-# Smokers Haven Inventory
+# Inventory Management System — Next.js + Firebase
 
-A responsive inventory management system tailored for **Smokers Haven**, designed to streamline product tracking, monitor expiry dates, provide stock level alerts, and enforce secure access via PIN-based authentication.
+A responsive, real-time inventory tracker for small retail businesses. Track
+stock across two locations (e.g. front-of-store and back stockroom), monitor
+expiry dates, get low-stock alerts, and manage everything behind a secure
+phone-OTP login. Fully **white-label** — rebrand the whole app from a single
+config file.
 
-## Live Demo
-
-[sh-stock-tracking.vercel.app](https://sh-stock-tracking.vercel.app)
+> 📘 **Buyers:** open [`documentation/index.html`](documentation/index.html) in
+> your browser for the complete, step-by-step setup guide.
 
 ## Features
 
-- **Secure Authentication**
-  - 6-digit PIN-based login screen on app start
-  - Session lasts for 15 minutes, with automatic sign-out on expiry
-- **Product Tracking**  
-  Maintain detailed records of products (flavor, store & home quantities).
-- **Expiry Date Monitoring**  
-  Automatically calculate days left until expiry and flag items that have expired or are expiring soon.
-- **Stock Level Alerts**  
-  Highlight products with low stock (“Need to Order”) versus those in good standing.
-- **Search & Filter**  
-  Quickly find products by flavor using the search bar.
-- **Debounced Updates & Notifications**  
-  Editing a quantity sends debounced writes to Firestore and shows toast feedback.
+- **Real-time sync** — inventory updates instantly across all devices via Firestore.
+- **Two-location stock** — track quantities in two places per item, with a live total.
+- **Status & expiry alerts** — automatic "Need to Order" and "Expiring Soon" flags with colour coding.
+- **Category grid** — visual, image-backed category cards with per-category stock summaries.
+- **Search & filter** — filter categories by type and items by status; search by name.
+- **Inline editing** — tap a quantity to edit it; changes save to Firestore with toast feedback.
+- **Add products** — add items to any category from an in-app modal.
+- **Secure OTP login** — Firebase phone authentication with a configurable auto sign-out timeout.
+- **White-label** — app name, logo, author, terminology, filters and thresholds all come from one config file.
+- **Responsive** — works on phones, tablets and desktop.
 
-## Technologies
+## Tech stack
 
-- **Next.js** (React framework for SSR & SSG)
-- **TypeScript** (for type safety)
-- **React** (UI components)
-- **Firebase**
-  - **Authentication** for PIN login & session management
-  - **Firestore** for real-time product data
-- **CSS Modules** (component-scoped styling)
-- **react-hot-toast** for in-app notifications
+- **Next.js** (Pages Router) + **React 19** + **TypeScript**
+- **Firebase** — Authentication (phone OTP) & Cloud Firestore
+- **CSS Modules** for component-scoped styling
+- **react-hot-toast** for notifications
 
-## Getting Started
+## Quick start
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/rob2rhyme/sh-stock-tracking.git
-   cd sh-stock-tracking
-   ```
-````
+```bash
+# 1. Install dependencies
+npm install
 
-2. **Install dependencies**
+# 2. Configure Firebase
+cp .env.example .env.local
+#   → fill in your Firebase web config (Console → Project settings → Your apps)
 
-   ```bash
-   npm install
-   # or
-   yarn
-   ```
+# 3. (Optional) seed demo data — see scripts/seed.ts for credential setup
+npm run seed
 
-3. **Configure Firebase**
+# 4. Run the dev server
+npm run dev
+```
 
-   - Create a Firebase project with **Authentication** and **Firestore** enabled.
-   - In your project root, create a `.env.local` with:
+Visit [http://localhost:3000](http://localhost:3000). You'll be asked to sign
+in with a one-time code before you can access the inventory.
 
-     ```env
-     NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-     NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-     NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-     ```
+### Firebase setup (summary)
 
-   - In Firestore, under `pinAuth/userPin`, store:
+1. Create a Firebase project; enable **Authentication → Phone** and **Cloud Firestore**.
+2. Add a **Web app** and copy its config into `.env.local` (see `.env.example`).
+3. Deploy the included security rules: `firebase deploy --only firestore:rules`.
+4. In Firestore, create `phoneAuth/store` with a `phone` field (E.164, e.g. `+15551234567`) — the number the login screen sends the code to. `npm run seed` can do this for you via the `LOGIN_PHONE` env var.
 
-     ```json
-     {
-       "pin": "123456",
-       "isValid": true
-     }
-     ```
+Full instructions, including screenshots-ready steps and troubleshooting, are in
+[`documentation/index.html`](documentation/index.html).
 
-4. **Run the development server**
+## White-labeling
 
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
+Everything brand- and business-specific lives in **`src/config/app.config.ts`**:
 
-   Visit [http://localhost:3000](http://localhost:3000). You’ll be prompted to enter your 6-digit PIN before accessing any page.
+```ts
+appName, shortName, tagline, logoSrc, author,
+sessionTimeoutMinutes,
+labels: { item, itemPlural, category, front, back, ... },
+thresholds: { lowStock, expiringSoonDays },
+categoryFilters: [...]
+```
 
-5. **Build for production**
+Change these values (and drop your logo in `/public`) to rebrand the entire app
+— no component code to touch.
 
-   ```bash
-   npm run build
-   npm start
-   # or
-   yarn build && yarn start
-   ```
-
-## Project Structure
+## Project structure
 
 ```
-sh-stock-tracking/
-├── public/
+├── data/
+│   └── sample-inventory.json     # demo catalogue used by the seed script
+├── documentation/
+│   └── index.html                # full buyer documentation
+├── public/                       # logo, favicon
+├── scripts/
+│   └── seed.ts                   # one-command demo-data seeder
 ├── src/
-│   ├── components/         # Reusable React components (e.g. TabPanel, Footer)
-│   ├── context/            # AuthContext for session management
-│   ├── pages/              # Next.js page routes (including login.tsx)
-│   ├── styles/             # CSS Modules (e.g. TabPanel.module.css, Footer.module.css)
-│   ├── types.ts            # TypeScript types (e.g. Product)
-│   └── utils/              # Firebase client & helpers
-├── .env.local              # Firebase configuration (not committed)
-├── .gitignore
-├── next.config.js
-├── tsconfig.json
-├── package.json
-├── package-lock.json
-├── README.md
-└── vercel.json
+│   ├── components/               # UI components (grid, table, modals, search…)
+│   ├── config/
+│   │   └── app.config.ts         # ⭐ white-label configuration
+│   ├── context/                  # AuthContext (session + auto sign-out)
+│   ├── hooks/                    # useProducts / useCategories
+│   ├── pages/                    # Next.js routes (index, login, _app)
+│   ├── styles/                   # CSS Modules + globals
+│   ├── types.ts                  # shared TypeScript types
+│   └── utils/                    # Firebase client + helpers
+├── .env.example
+├── firestore.rules
+└── firebase.json
 ```
 
-## Key Components
+## Deployment
 
-- **AuthContext** (`src/context/AuthContext.tsx`)
-  Manages 15-minute session, auto-logout on expiry, and exposes `isAuthenticated`, `authenticate()`, and `signOut()`.
-- **Login Page** (`src/pages/login.tsx`)
-  PIN entry modal that redirects back to the requested page after successful login.
-- **TabPanel** (`src/components/TabPanel.tsx`)
-  Displays inventory tables with inline editing (protected by authentication) and debounced Firestore writes.
-- **Footer** (`src/components/Footer.tsx`)
-  Shows dynamic copyright.
-
-## Configuration
-
-- **`next.config.js`**
-
-  - React strict mode enabled
-  - Image domains whitelisted (e.g. Firebase Storage)
-
-- **`tsconfig.json`**
-  TypeScript compiler options (paths, strictness).
-- **`vercel.json`**
-  Vercel deployment settings.
-
-## Contributing
-
-Contributions are welcome! Please fork the repo and open a pull request:
-
-1. Fork →
-2. Create feature branch (`git checkout -b feature/YourFeature`) →
-3. Commit changes (`git commit -m "Add YourFeature"`) →
-4. Push to branch (`git push origin feature/YourFeature`) →
-5. Open a Pull Request
+Deploy the Next.js app to **Vercel** (recommended) or any Node host, and deploy
+Firestore rules with the Firebase CLI. Step-by-step instructions for both are in
+the documentation.
 
 ## License
 
-This project is open–sourced under the [MIT License](LICENSE).
-
-```
-
-```
-
-## Use Application Default Credentials
-
-```bash
-  gcloud auth application-default login
-  # And Then
-  npx tsx scripts/syncCategoryImages.ts
-```
+Commercial license — see [`LICENSE`](LICENSE). Distributed via CodeCanyon under
+the Envato Market licenses.

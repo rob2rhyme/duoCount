@@ -14,8 +14,11 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/utils/firebase";
+import { appConfig } from "@/config/app.config";
 import { useRouter } from "next/router";
 import toast from "react-hot-toast";
+
+const { lowStock, expiringSoonDays } = appConfig.thresholds;
 
 interface TabPanelProps {
   products: Product[];
@@ -78,13 +81,15 @@ const TabPanel: React.FC<TabPanelProps> = ({
       const daysLeft = calculateDaysLeft(p.expiryDate);
       switch (filterOption) {
         case "Need to Order":
-          return total <= 1;
+          return total <= lowStock;
         case "Good":
-          return total > 1;
+          return total > lowStock;
         case "Expiry n/a":
           return p.expiryDate === "n/a";
         case "Expiring Soon":
-          return p.expiryDate !== "n/a" && daysLeft > 0 && daysLeft < 30;
+          return (
+            p.expiryDate !== "n/a" && daysLeft > 0 && daysLeft < expiringSoonDays
+          );
         default:
           return true;
       }
@@ -124,9 +129,11 @@ const TabPanel: React.FC<TabPanelProps> = ({
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>Flavor</th>
-            <th>FR</th>
-            <th>BK</th>
+            <th>{appConfig.labels.item}</th>
+            <th title={appConfig.labels.front}>
+              {appConfig.labels.frontShort}
+            </th>
+            <th title={appConfig.labels.back}>{appConfig.labels.backShort}</th>
             <th>Total</th>
             <th>Status</th>
             <th>Expiry Date</th>
@@ -153,15 +160,19 @@ const TabPanel: React.FC<TabPanelProps> = ({
                   </td>
                 ))}
                 <td>{total}</td>
-                <td className={total <= 1 ? styles.lowStock : styles.goodStock}>
-                  {total <= 1 ? "Need to Order" : "GOOD"}
+                <td
+                  className={
+                    total <= lowStock ? styles.lowStock : styles.goodStock
+                  }
+                >
+                  {total <= lowStock ? "Need to Order" : "GOOD"}
                 </td>
                 <td>{p.expiryDate}</td>
                 <td
                   className={
                     p.expiryDate === "n/a"
                       ? styles.naExpiry
-                      : daysLeft < 30
+                      : daysLeft < expiringSoonDays
                       ? styles.expiringSoon
                       : styles.goodExpiry
                   }

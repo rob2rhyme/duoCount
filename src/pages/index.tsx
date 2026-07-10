@@ -10,6 +10,7 @@ import CategoryGrid from "@/components/CategoryGrid";
 import TabPanel from "@/components/TabPanel";
 import AddProductModal from "@/components/AddProductModal";
 import { Product, ProductCategory } from "@/types";
+import { appConfig } from "@/config/app.config";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/utils/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
@@ -115,7 +116,7 @@ export default function Home() {
   return (
     <Layout>
       <Head>
-        <title>Smokers Haven Inventory</title>
+        <title>{appConfig.appName}</title>
       </Head>
 
       <TopActions

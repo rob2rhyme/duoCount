@@ -1,8 +1,6 @@
 {
   "projects": {
-    "default": "smokers-haven-inventory-dev",
-    "dev": "smokers-haven-inventory-dev",
-    "prod": "smokers-haven-inventory"
+    "default": "your-firebase-project-id"
   },
   "targets": {},
   "etags": {}

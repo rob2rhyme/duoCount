@@ -2,6 +2,7 @@
 import React, { useState, FormEvent, useEffect } from "react";
 import styles from "@/styles/AddProductModal.module.css";
 import { db } from "@/utils/firebase";
+import { appConfig } from "@/config/app.config";
 import { collection, addDoc, onSnapshot } from "firebase/firestore";
 
 interface Props {
@@ -78,10 +79,12 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
   return (
     <div className={styles.backdrop} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <h2>Add Flavor to Existing Category</h2>
+        <h2>
+          Add {appConfig.labels.item} to Existing {appConfig.labels.category}
+        </h2>
         <form onSubmit={handleAdd} className={styles.form}>
           <label>
-            Select Existing Vape Category
+            Select Existing {appConfig.labels.category}
             <select
               required
               value={selectedCategory}
@@ -100,7 +103,7 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </label>
 
           <label>
-            Flavor Name
+            {appConfig.labels.item} Name
             <input
               required
               value={flavor}
@@ -109,7 +112,7 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </label>
 
           <label>
-            Back Qty
+            {appConfig.labels.back} Qty
             <input
               required
               type="number"
@@ -120,7 +123,7 @@ const AddProductModal: React.FC<Props> = ({ isOpen, onClose }) => {
           </label>
 
           <label>
-            Front Qty
+            {appConfig.labels.front} Qty
             <input
               required
               type="number"

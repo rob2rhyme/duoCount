@@ -2,6 +2,7 @@
 import React from "react";
 import { ProductCategory } from "../types";
 import styles from "../styles/CategoryCard.module.css";
+import { appConfig } from "@/config/app.config";
 
 interface Props {
   category: ProductCategory;
@@ -14,7 +15,7 @@ const CategoryCard: React.FC<Props> = ({ category, onClick }) => {
   const totalFlavors = category.products.length;
   const needToOrder = category.products.filter((p) => {
     const total = (Number(p.front) || 0) + (Number(p.back) || 0);
-    return total <= 1;
+    return total <= appConfig.thresholds.lowStock;
   }).length;
 
   const good = totalFlavors - needToOrder;
