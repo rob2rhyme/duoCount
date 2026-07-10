@@ -67,14 +67,50 @@ and two starter drawers: POS Cash Drawer and Lottery Cash Drawer.
 Standard Next.js — Vercel works out of the box. Add all the env vars from
 `.env.local` (including `FIREBASE_SERVICE_ACCOUNT_KEY`) to the project settings.
 
+## Tier one: trust features
+
+- **Blind counts** (owner toggle): the cash form hides expected/over-short for
+  everyone — managers included — until the count is committed; the result is
+  revealed on the post-save toast and in the log (entries get a Blind pill).
+  *Honest limitation:* expected/diff are computed client-side at save (there
+  is no server write path for entries), so blind mode is a UI-level control —
+  a determined employee with dev tools could compute the expected total. The
+  mitigation is the same as everywhere else in DuoCount: manager verification
+  and the append-only history.
+- **Variance flags + cause codes** (owner-set dollar threshold, default $5):
+  cash counts off by the threshold or more are flagged at save time and work
+  through open → under-review → resolved with a required cause code
+  (human error, training gap, equipment fault, register error, suspected
+  theft, other). Threshold changes never rewrite history.
+- **Dispute threads**: every entry carries an append-only comment thread; the
+  author can open a dispute (with a required explanation), managers advance
+  and close it. Comment counts bump in the same batch as each comment.
+- **Shift notes**: a Notes tab — the counter notebook, digitized. Post-only
+  text, location-scoped like entries, manager pin/archive.
+- **End-of-day report**: manager button on the dashboard; client-generated
+  PDF (cash/scratch/inventory tables, flagged & disputed items, verification
+  summary, signature lines) plus a print-friendly fallback.
+- **Daily email digest**: owner-configured recipients/timezone in Admin;
+  a Vercel cron (`vercel.json`, 10:00 UTC) hits `/api/cron/digest`, which
+  summarizes each vendor's local "yesterday" and sends via Resend.
+  Idempotent per day (`digest.lastSentDate`); the Admin "Send test digest"
+  button sends immediately without consuming the daily guard.
+  Requires env vars: `RESEND_API_KEY`, `DIGEST_FROM`, `CRON_SECRET`
+  (and optional `APP_URL`) — see `.env.local.example`.
+
 ## Security notes
 
 - PINs: salted scrypt hashes under `users/{id}/private/creds`, which no client
   can read (rules deny; only the Admin SDK in API routes touches them).
-- Entries are append-only; the only permitted edit is a manager verification,
-  and the rules block verifying your own entry.
+- Entries are append-only; the only permitted edits are the five whitelisted
+  transitions (manager verification — never your own entry — variance
+  investigation, author dispute-open, manager dispute moves, and the comment
+  counter bump), each constrained to its exact fields by the rules.
+- Comments and notes are immutable once posted; notes can only be pinned or
+  archived, never edited or deleted.
 - Role or location changes take effect at the target user's next sign-in,
   because rules read the auth token's claims (issued at login).
+- The digest cron route rejects requests without `Bearer ${CRON_SECRET}`.
 - Rate limiting login attempts is a sensible next step before wide rollout
   (e.g. by IP or store code in the login route).
 

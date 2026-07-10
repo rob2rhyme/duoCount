@@ -1,0 +1,154 @@
+// Server-only digest composer shared by the cron route and the owner test
+// route. Summarizes a vendor's "yesterday" (in the vendor's timezone) and
+// sends it via the Resend HTTP API — no email SDK needed.
+
+const money = (n) => {
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/** YYYY-MM-DD of `now` in an IANA timezone. */
+export function dateInTz(tz, now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(now);
+}
+
+/** The vendor's local "yesterday" as YYYY-MM-DD (their business date). */
+export function yesterdayInTz(tz, now = new Date()) {
+  const today = dateInTz(tz, now);
+  let probe = new Date(now.getTime() - 24 * 3600 * 1000);
+  let y = dateInTz(tz, probe);
+  if (y === today) { // 25-hour DST day edge: step back a little further
+    probe = new Date(now.getTime() - 26 * 3600 * 1000);
+    y = dateInTz(tz, probe);
+  }
+  return y;
+}
+
+/** Aggregates for the digest body. Entries = docs whose `date` == yesterday. */
+export function summarizeEntries(entries) {
+  const byLoc = {};
+  for (const e of entries) {
+    const key = e.locationName || "(no location)";
+    byLoc[key] = byLoc[key] || { name: key, count: 0, cashSales: 0, netDiff: 0, shorts: 0, scratchDollars: 0 };
+    const l = byLoc[key];
+    l.count++;
+    if (e.kind === "cash") {
+      l.cashSales += e.sales || 0;
+      l.netDiff += e.diff || 0;
+      if ((e.diff || 0) < -0.005) l.shorts++;
+    }
+    if (e.kind === "scratch") l.scratchDollars += e.dollars || 0;
+  }
+  return {
+    locations: Object.values(byLoc).sort((a, b) => a.name.localeCompare(b.name)),
+    total: entries.length,
+    openVariances: entries.filter((e) => e.varianceStatus === "open").length,
+    openDisputes: entries.filter((e) => e.disputeStatus === "open").length,
+    unverified: entries.filter((e) => !e.verifiedBy).length,
+  };
+}
+
+export function composeEmail(vendor, dateStr, s, appUrl) {
+  const subject = `DuoCount digest — ${vendor.name} — ${dateStr}`;
+
+  const locLinesText = s.locations.map((l) =>
+    `  ${l.name}: ${l.count} entries · cash sales ${money(l.cashSales)} · net ${l.netDiff >= 0 ? "+" : ""}${money(l.netDiff)} · ${l.shorts} short · scratch ${money(l.scratchDollars)}`
+  ).join("\n") || "  No counts were logged.";
+
+  const text = [
+    `${vendor.name} — daily count digest for ${dateStr}`,
+    "",
+    locLinesText,
+    "",
+    `Open variances: ${s.openVariances}`,
+    `Open disputes:  ${s.openDisputes}`,
+    `Unverified:     ${s.unverified}`,
+    "",
+    appUrl ? `Review in DuoCount: ${appUrl}` : "",
+  ].join("\n");
+
+  const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const locRows = s.locations.map((l) => `
+    <tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e2d9">${esc(l.name)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e2d9;text-align:right">${l.count}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e2d9;text-align:right">${money(l.cashSales)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e2d9;text-align:right;color:${l.netDiff < -0.005 ? "#b03a3a" : l.netDiff > 0.005 ? "#2f7d5b" : "#1a1c2e"}">${l.netDiff >= 0 ? "+" : ""}${money(l.netDiff)}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e2d9;text-align:right">${l.shorts}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #e5e2d9;text-align:right">${money(l.scratchDollars)}</td>
+    </tr>`).join("");
+
+  const html = `
+  <div style="font-family:Helvetica,Arial,sans-serif;color:#1a1c2e;max-width:640px">
+    <h2 style="margin:0 0 2px">${esc(vendor.name)} — daily digest</h2>
+    <p style="margin:0 0 14px;color:#666">${dateStr}</p>
+    ${s.locations.length ? `
+    <table style="border-collapse:collapse;width:100%;font-size:14px">
+      <tr style="text-align:left">
+        <th style="padding:6px 10px;border-bottom:2px solid #1a1c2e">Location</th>
+        <th style="padding:6px 10px;border-bottom:2px solid #1a1c2e;text-align:right">Entries</th>
+        <th style="padding:6px 10px;border-bottom:2px solid #1a1c2e;text-align:right">Cash sales</th>
+        <th style="padding:6px 10px;border-bottom:2px solid #1a1c2e;text-align:right">Net +/−</th>
+        <th style="padding:6px 10px;border-bottom:2px solid #1a1c2e;text-align:right">Shorts</th>
+        <th style="padding:6px 10px;border-bottom:2px solid #1a1c2e;text-align:right">Scratch $</th>
+      </tr>${locRows}
+    </table>` : `<p style="color:#666">No counts were logged.</p>`}
+    <p style="font-size:14px;margin-top:14px">
+      Open variances: <b>${s.openVariances}</b> ·
+      Open disputes: <b>${s.openDisputes}</b> ·
+      Unverified: <b>${s.unverified}</b>
+    </p>
+    ${appUrl ? `<p style="font-size:13px"><a href="${esc(appUrl)}">Review in DuoCount →</a></p>` : ""}
+  </div>`;
+
+  return { subject, text, html };
+}
+
+/** Send via Resend's HTTP API. Throws on non-2xx. */
+export async function sendEmail({ to, subject, text, html }) {
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.DIGEST_FROM;
+  if (!key || !from) throw new Error("RESEND_API_KEY / DIGEST_FROM not configured");
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to, subject, text, html }),
+  });
+  if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+/**
+ * Compose + send one vendor's digest. Returns "sent" | "skipped:<reason>".
+ * `force` (the owner test button) ignores the lastSentDate guard and does NOT
+ * update it, so a test never suppresses the real morning send.
+ */
+export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, now = new Date() } = {}) {
+  const vendor = { id: vendorSnap.id, ...vendorSnap.data() };
+  const digest = vendor.digest || {};
+  if (!force && digest.enabled !== true) return "skipped:disabled";
+  const recipients = (digest.recipients || []).filter(Boolean).slice(0, 10);
+  if (!recipients.length) return "skipped:no-recipients";
+
+  const tz = digest.tz || "America/New_York";
+  const today = dateInTz(tz, now);
+  if (!force && digest.lastSentDate === today) return "skipped:already-sent";
+
+  const yesterday = yesterdayInTz(tz, now);
+  const snap = await adminDb
+    .collection("vendors").doc(vendor.id)
+    .collection("entries").where("date", "==", yesterday).get();
+  const entries = snap.docs.map((d) => d.data());
+
+  const summary = summarizeEntries(entries);
+  const appUrl = process.env.APP_URL || "";
+  const { subject, text, html } = composeEmail(vendor, yesterday, summary, appUrl);
+  await sendEmail({ to: recipients, subject, text, html });
+
+  if (!force) {
+    await vendorSnap.ref.update({ "digest.lastSentDate": today });
+  }
+  return "sent";
+}

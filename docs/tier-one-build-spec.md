@@ -1,5 +1,7 @@
 # DuoCount — Tier One Build Spec
 
+**Status:** built — all five features shipped (blind counts, variance flags + cause codes, dispute threads, shift notes, EOD PDF + email digest). Digest delivery needs the Resend/CRON env vars configured at deploy time.
+
 **Scope.** Five features from the enhancement research, chosen for highest trust-per-effort on the existing stack (Next.js App Router + Firestore + custom-claim auth): blind count mode, variance thresholds with cause codes, dispute threads on entries, shift notes, and an end-of-day PDF report with a scheduled email digest.
 
 **Explicitly out of scope (tier 2/3):** incident/write-up module, lottery pack lifecycle, pattern-detection alerts, scheduling/time clock, payroll exports, video links.
