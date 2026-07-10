@@ -1,11 +1,25 @@
-# DuoCount — multi-vendor cash & scratch-off tracking
+# DuoCount — multi-vendor cash, scratch-off & inventory tracking
 
 A multi-tenant Next.js + Tailwind + Firebase app where any retail business can
-sign up, add its locations and named cash drawers (POS Cash Drawer, Lottery
-Cash Drawer, Safe, …), and give staff PIN sign-in. Employees log opening and
-closing counts; managers verify them; an analytics dashboard breaks activity
-down by day, employee, drawer, and location. Each business's data is isolated
-by Firestore security rules keyed on server-issued auth claims.
+sign up, add its locations, named cash drawers (POS Cash Drawer, Lottery
+Cash Drawer, Safe, …), and tracked inventory items, and give staff PIN
+sign-in. Employees log opening and closing counts — cash drawers, scratch-off
+packs, and shelf counts of high-shrink items; managers verify them; an
+analytics dashboard breaks activity down by day, employee, drawer, item, and
+location. Each business's data is isolated by Firestore security rules keyed
+on server-issued auth claims.
+
+## Inventory counts
+
+Inventory is a third entry kind in the same countersigned log (see
+`../docs/inventory-tracker-spec.md`). Managers define the tracked list in
+Admin → Inventory items (name, category, unit, location — start with the 5–15
+highest-shrink items). Staff count them on the Inventory tab:
+expected = start + received − sold − removed, so a negative over/short means
+missing stock. Start qty prefills from the item's last count at that location.
+Inventory entries inherit verification, the shared log, per-location
+visibility, CSV export, and the dashboard (missing-units stat + by-item table)
+with no special cases.
 
 ## How multi-tenancy works here
 
@@ -70,8 +84,11 @@ Standard Next.js — Vercel works out of the box. Add all the env vars from
 vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
   locations/{id}              name, active
   drawers/{id}                name, locationId, active
+  items/{id}                  name, category, unit, locationId, active
   users/{id}                  name, role, locationId, active
     private/creds             pinHash (server-only)
-  entries/{id}                cash or scratch entry, locationId, drawerId,
-                              drawerName, by, byId, verifiedBy, ts
+  entries/{id}                cash, scratch, or inventory entry — locationId,
+                              by, byId, verifiedBy, ts; cash/scratch carry
+                              drawerId/drawerName, inventory carries
+                              itemId/itemName/unit and the count fields
 ```

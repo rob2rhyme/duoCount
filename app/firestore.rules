@@ -26,7 +26,7 @@ service cloud.firestore {
       allow read: if member();
       allow update: if owner()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['name', 'logoUrl', 'sharingMode']);
+             .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold']);
       allow create, delete: if false; // vendors are created by the signup API
 
       match /locations/{locationId} {
@@ -36,6 +36,13 @@ service cloud.firestore {
       }
 
       match /drawers/{drawerId} {
+        allow read: if member();
+        allow create, update: if mgr();
+        allow delete: if false;
+      }
+
+      // Tracked inventory items — same lifecycle as drawers (soft-disable only).
+      match /items/{itemId} {
         allow read: if member();
         allow create, update: if mgr();
         allow delete: if false;
@@ -64,7 +71,7 @@ service cloud.firestore {
         allow create: if member()
           && request.resource.data.by == request.auth.token.name
           && request.resource.data.byId == request.auth.token.userId
-          && request.resource.data.kind in ['cash', 'scratch']
+          && request.resource.data.kind in ['cash', 'scratch', 'inventory']
           && request.resource.data.verifiedBy == null
           && (mgr() || request.resource.data.locationId == request.auth.token.locationId);
 

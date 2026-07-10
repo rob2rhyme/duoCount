@@ -42,6 +42,21 @@ export async function updateDrawer(vendorId, id, patch) {
   await updateDoc(doc(db, "vendors", vendorId, "drawers", id), patch);
 }
 
+/* ---------- tracked inventory items (managed like drawers) ---------- */
+export function watchItems(vendorId, cb) {
+  return onSnapshot(query(vcol(vendorId, "items"), orderBy("createdAt", "asc")),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addItem(vendorId, { name, category, unit, locationId }) {
+  await addDoc(vcol(vendorId, "items"), {
+    name: name.trim(), category: (category || "").trim() || null,
+    unit: (unit || "unit").trim(), locationId, active: true, createdAt: new Date(),
+  });
+}
+export async function updateItem(vendorId, id, patch) {
+  await updateDoc(doc(db, "vendors", vendorId, "items", id), patch);
+}
+
 /* ---------- staff (reads client-side; writes via /api/staff) ---------- */
 export function watchStaff(vendorId, cb) {
   return onSnapshot(query(vcol(vendorId, "users"), orderBy("createdAt", "asc")),

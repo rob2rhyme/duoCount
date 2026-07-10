@@ -12,6 +12,12 @@ export function ticketsSold(startno, endno) {
   return Math.max(0, (Number(endno) || 0) - (Number(startno) || 0));
 }
 
+// Inventory mirror of the cash formula: what should be on the shelf.
+export function expectedStock({ startQty, received, soldQty, removed }) {
+  return (Number(startQty) || 0) + (Number(received) || 0)
+    - (Number(soldQty) || 0) - (Number(removed) || 0);
+}
+
 export function toDate(ts) {
   if (!ts) return null;
   if (ts.toDate) return ts.toDate();
@@ -27,6 +33,8 @@ export function exportCSV(entries) {
     let r;
     if (e.kind === "cash")
       r = ["Cash", e.date, e.shift, e.by, e.byRole, e.reg, "", (e.expected||0).toFixed(2), (e.counted||0).toFixed(2), (e.diff||0).toFixed(2), e.verifiedBy||"", t?t.toISOString():""];
+    else if (e.kind === "inventory")
+      r = ["Inventory", e.date, e.shift, e.by, e.byRole, e.itemName, e.unit||"unit", e.expected||0, e.counted||0, e.diff||0, e.verifiedBy||"", t?t.toISOString():""];
     else
       r = ["Scratch", e.date, e.shift, e.by, e.byRole, e.game, "pack "+(e.pack||""), (e.price||0).toFixed(2), e.sold, (e.dollars||0).toFixed(2), e.verifiedBy||"", t?t.toISOString():""];
     lines.push(r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","));

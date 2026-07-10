@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
+import InventoryForm from "./InventoryForm";
 import LogList from "./LogList";
 import Dashboard from "./Dashboard";
 import AdminPanel from "./AdminPanel";
@@ -12,6 +13,7 @@ import Logo from "./Logo";
 const TABS = [
   { id: "cash", label: "Cash" },
   { id: "scratch", label: "Scratch-offs" },
+  { id: "inventory", label: "Inventory" },
   { id: "log", label: "Log" },
   { id: "dashboard", label: "Dashboard" },
   { id: "admin", label: "Admin", managerOnly: true },
@@ -23,6 +25,7 @@ export default function AppShell() {
   const [entries, setEntries] = useState([]);
   const [locations, setLocations] = useState([]);
   const [drawers, setDrawers] = useState([]);
+  const [items, setItems] = useState([]);
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
 
@@ -35,7 +38,8 @@ export default function AppShell() {
     const u1 = watchEntries(vendor.id, lockedLoc, setEntries);
     const u2 = watchLocations(vendor.id, setLocations);
     const u3 = watchDrawers(vendor.id, setDrawers);
-    return () => { u1(); u2(); u3(); };
+    const u4 = watchItems(vendor.id, setItems);
+    return () => { u1(); u2(); u3(); u4(); };
   }, [vendor.id, lockedLoc]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
@@ -99,9 +103,12 @@ export default function AppShell() {
         {tab === "scratch" && (
           <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
         )}
+        {tab === "inventory" && (
+          <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
+        )}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "dashboard" && <Dashboard entries={visibleEntries} />}
-        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} />}
+        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} />}
       </main>
 
       {toast && (

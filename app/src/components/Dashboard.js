@@ -20,12 +20,14 @@ export default function Dashboard({ entries }) {
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
     const scratch = entries.filter((e) => e.kind === "scratch");
+    const inv = entries.filter((e) => e.kind === "inventory");
 
     const netDiff = cash.reduce((s, e) => s + (e.diff || 0), 0);
     const shorts = cash.filter((e) => e.diff < -0.005).length;
     const overs = cash.filter((e) => e.diff > 0.005).length;
     const scratchDollars = scratch.reduce((s, e) => s + (e.dollars || 0), 0);
     const cashSales = cash.reduce((s, e) => s + (e.sales || 0), 0);
+    const missingUnits = inv.reduce((s, e) => s + (e.diff < 0 ? -e.diff : 0), 0);
     const verified = entries.filter((e) => e.verifiedBy).length;
     const verifyRate = entries.length ? Math.round((verified / entries.length) * 100) : 0;
 
@@ -52,9 +54,21 @@ export default function Dashboard({ entries }) {
       .map((r) => ({ ...r, diff: Math.round(r.diff * 100) / 100, scratch: Math.round(r.scratch * 100) / 100 }))
       .sort((x, y) => x.diff - y.diff);
 
-    // by drawer
+    // by item (inventory)
+    const byItem = {};
+    inv.forEach((e) => {
+      const key = e.itemName || "(item)";
+      byItem[key] = byItem[key] || { name: key, unit: e.unit || "unit", entries: 0, diff: 0, missing: 0 };
+      byItem[key].entries++;
+      byItem[key].diff += e.diff || 0;
+      if (e.diff < 0) byItem[key].missing++;
+    });
+    const itemRows = Object.values(byItem).sort((x, y) => x.diff - y.diff);
+
+    // by drawer (cash & scratch only — inventory has no drawer)
     const byDrawer = {};
     entries.forEach((e) => {
+      if (e.kind === "inventory") return;
       const key = e.drawerName || "(no drawer)";
       byDrawer[key] = byDrawer[key] || { name: key, entries: 0, diff: 0, cash: 0, scratch: 0 };
       byDrawer[key].entries++;
@@ -71,7 +85,7 @@ export default function Dashboard({ entries }) {
     const gameRows = Object.entries(byGame).map(([name, v]) => ({ name, dollars: Math.round(v * 100) / 100 }))
       .sort((x, y) => y.dollars - x.dollars).slice(0, 6);
 
-    return { count: entries.length, netDiff, shorts, overs, scratchDollars, cashSales, verifyRate, dayRows, empRows, gameRows, drawerRows };
+    return { count: entries.length, netDiff, shorts, overs, scratchDollars, cashSales, verifyRate, missingUnits, invCount: inv.length, dayRows, empRows, gameRows, drawerRows, itemRows };
   }, [entries]);
 
   if (!entries.length) {
@@ -92,6 +106,12 @@ export default function Dashboard({ entries }) {
         <Stat label="Over counts" value={a.overs} tone={a.overs ? "pos" : null} />
         <Stat label="Staff active" value={a.empRows.length} />
       </div>
+      {a.invCount > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Stat label="Inventory counts" value={a.invCount} />
+          <Stat label="Missing units" value={a.missingUnits} tone={a.missingUnits ? "neg" : null} />
+        </div>
+      )}
 
       <div className="card p-4">
         <h3 className="font-semibold text-[15px] mb-3">Daily over / short</h3>
@@ -161,6 +181,32 @@ export default function Dashboard({ entries }) {
           </table>
         </div>
       </div>
+
+      {a.itemRows.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-[#dcd8cc]"><h3 className="font-semibold text-[15px]">By item</h3></div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-[11px] uppercase tracking-wide text-neutral-500">
+                <th className="px-4 py-2 font-semibold">Item</th>
+                <th className="px-4 py-2 font-semibold text-right">Counts</th>
+                <th className="px-4 py-2 font-semibold text-right">Net units +/−</th>
+                <th className="px-4 py-2 font-semibold text-right">Short counts</th>
+              </tr></thead>
+              <tbody>
+                {a.itemRows.map((r) => (
+                  <tr key={r.name} className="border-t border-[#dcd8cc]">
+                    <td className="px-4 py-2.5 font-medium">{r.name} <span className="text-neutral-400 text-xs">({r.unit}s)</span></td>
+                    <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
+                    <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < 0 ? "text-red-600" : r.diff > 0 ? "text-green-700" : ""}`}>{r.diff >= 0 ? "+" : ""}{r.diff}</td>
+                    <td className={`px-4 py-2.5 text-right font-mono ${r.missing ? "text-red-600" : ""}`}>{r.missing}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-[#dcd8cc]"><h3 className="font-semibold text-[15px]">By employee</h3></div>

@@ -1,10 +1,22 @@
 {
   "name": "DuoCount",
   "short_name": "DuoCount",
-  "description": "DuoCount \u2014 cash drawer & scratch-off tracking for retail teams",
+  "description": "DuoCount — cash drawer, scratch-off & inventory tracking for retail teams",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f6f4ee",
   "theme_color": "#1a1c2e",
-  "icons": []
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }

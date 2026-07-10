@@ -2,11 +2,12 @@
 import { useEffect, useState } from "react";
 import {
   watchStaff, apiCreateStaff, apiUpdateStaff,
-  addLocation, updateLocation, addDrawer, updateDrawer, updateVendorSettings,
+  addLocation, updateLocation, addDrawer, updateDrawer,
+  addItem, updateItem, updateVendorSettings,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 
-export default function AdminPanel({ onToast, locations, drawers }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const [staff, setStaff] = useState([]);
 
@@ -45,6 +46,29 @@ export default function AdminPanel({ onToast, locations, drawers }) {
     if (!loc) return onToast?.("Add a location first");
     try { await addDrawer(vendor.id, nd.name, loc); setNd({ name: "", locationId: "" }); onToast?.("Drawer added"); }
     catch (e) { onToast?.("Failed — managers only"); }
+  }
+
+  /* ---- inventory items ---- */
+  const [ni, setNi] = useState({ name: "", category: "", unit: "unit", locationId: "" });
+  async function createItem() {
+    const loc = ni.locationId || locations.find((l) => l.active !== false)?.id;
+    if (ni.name.trim().length < 2) return onToast?.("Enter an item name");
+    if (!loc) return onToast?.("Add a location first");
+    try {
+      await addItem(vendor.id, { ...ni, locationId: loc });
+      setNi({ name: "", category: "", unit: "unit", locationId: "" });
+      onToast?.("Item added");
+    } catch (e) { onToast?.("Failed — managers only"); }
+  }
+  async function editItem(it) {
+    const name = prompt("Item name:", it.name);
+    if (name === null) return;
+    const category = prompt("Category (blank for none):", it.category || "");
+    if (category === null) return;
+    try {
+      await updateItem(vendor.id, it.id, { name: name.trim() || it.name, category: category.trim() || null });
+      onToast?.("Item updated");
+    } catch (e) { onToast?.("Failed — managers only"); }
   }
 
   /* ---- settings ---- */
@@ -178,6 +202,54 @@ export default function AdminPanel({ onToast, locations, drawers }) {
               onClick={() => updateDrawer(vendor.id, d.id, { active: !(d.active !== false) }).then(() => onToast?.("Updated")).catch(() => onToast?.("Failed"))}>
               {d.active !== false ? "Disable" : "Enable"}
             </button>
+          </div>
+        ))}
+      </div>
+
+      {/* ---------------- inventory items ---------------- */}
+      <div className="card overflow-hidden">
+        <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+          <h2 className="font-semibold text-[15px]">Inventory items</h2>
+          <p className="text-[13px] text-neutral-500 mt-0.5">The tracked list staff count each shift — start with your 5–15 highest-shrink items, not the whole store.</p>
+        </div>
+        <div className="p-4 border-b border-[#dcd8cc] bg-[#faf8f2]">
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div><label className="label">Item name</label><input className="input" value={ni.name} onChange={(e) => setNi({ ...ni, name: e.target.value })} placeholder="Marlboro Red carton" /></div>
+            <div><label className="label">Category (optional)</label><input className="input" value={ni.category} onChange={(e) => setNi({ ...ni, category: e.target.value })} placeholder="Cigarettes" /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div><label className="label">Unit</label>
+              <select className="input" value={ni.unit} onChange={(e) => setNi({ ...ni, unit: e.target.value })}>
+                <option value="unit">Unit</option>
+                <option value="carton">Carton</option>
+                <option value="pack">Pack</option>
+                <option value="box">Box</option>
+                <option value="case">Case</option>
+              </select></div>
+            <div><label className="label">Location</label>
+              <select className="input" value={ni.locationId} onChange={(e) => setNi({ ...ni, locationId: e.target.value })}>
+                {locations.filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select></div>
+          </div>
+          <button className="btn-ghost w-full" onClick={createItem}>Add item</button>
+        </div>
+        {items.map((it) => (
+          <div key={it.id} className="px-4 py-3 border-b border-[#dcd8cc] last:border-0 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-medium flex items-center gap-2">
+                {it.name}
+                {it.category && <span className="pill bg-[#eceae2] text-neutral-600">{it.category}</span>}
+                {it.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
+              </div>
+              <div className="text-[13px] text-neutral-500">{locName(it.locationId)} · counted in {it.unit || "unit"}s</div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => editItem(it)}>Edit</button>
+              <button className="btn-ghost text-[13px] px-3 py-1.5"
+                onClick={() => updateItem(vendor.id, it.id, { active: !(it.active !== false) }).then(() => onToast?.("Updated")).catch(() => onToast?.("Failed"))}>
+                {it.active !== false ? "Disable" : "Enable"}
+              </button>
+            </div>
           </div>
         ))}
       </div>

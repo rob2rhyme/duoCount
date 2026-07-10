@@ -1,6 +1,6 @@
 # DuoCount — Inventory Tracker Spec
 
-**Status:** specified, not yet built (build after tier one).
+**Status:** built — items catalog, Inventory tab, log/dashboard/CSV integration, and rules shipped. (Tier-one extras — flags, disputes, blind mode — apply to inventory entries automatically once tier one lands.)
 
 **Goal.** Extend DuoCount's countersigned-count mechanics to physical stock — cigarette cartons, vape products, and other high-shrink items — so shift counts of merchandise get the same treatment as cash and scratch-offs: signed, timestamped, verified, append-only, disputable.
 
