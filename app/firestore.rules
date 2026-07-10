@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // All auth goes through the app's API routes, which verify the store
+    // code + hashed PIN and mint a custom token whose claims carry
+    // vendorId / role / locationId. These rules enforce tenant isolation:
+    // a signed-in user can only ever touch documents under their own vendor.
+
+    match /vendors/{vendorId} {
+
+      function member() {
+        return request.auth != null && request.auth.token.vendorId == vendorId;
+      }
+      function mgr() {
+        return member() && request.auth.token.role in ['manager', 'owner'];
+      }
+      function owner() {
+        return member() && request.auth.token.role == 'owner';
+      }
+      function sharedAcrossLocations() {
+        return get(/databases/$(database)/documents/vendors/$(vendorId)).data.sharingMode == 'all-locations';
+      }
+
+      // Vendor doc: members read; only the owner may edit branding + sharing mode.
+      allow read: if member();
+      allow update: if owner()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'logoUrl', 'sharingMode']);
+      allow create, delete: if false; // vendors are created by the signup API
+
+      match /locations/{locationId} {
+        allow read: if member();
+        allow create, update: if mgr();
+        allow delete: if false; // disable instead, so history keeps its labels
+      }
+
+      match /drawers/{drawerId} {
+        allow read: if member();
+        allow create, update: if mgr();
+        allow delete: if false;
+      }
+
+      match /users/{userId} {
+        allow read: if member();       // names/roles power the admin panel
+        allow write: if false;         // created/updated only via the staff API
+        match /private/{docId} {
+          allow read, write: if false; // PIN hashes are never client-readable
+        }
+      }
+
+      match /entries/{entryId} {
+        // Managers/owners see everything. Employees see everything when the
+        // vendor shares across locations, otherwise only their own location.
+        allow read: if member() && (
+          mgr()
+          || sharedAcrossLocations()
+          || (request.auth.token.locationId != null
+              && resource.data.locationId == request.auth.token.locationId)
+        );
+
+        // Entries are signed: the author's name/id must match the token, and
+        // employees can only log for their assigned location.
+        allow create: if member()
+          && request.resource.data.by == request.auth.token.name
+          && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.kind in ['cash', 'scratch']
+          && request.resource.data.verifiedBy == null
+          && (mgr() || request.resource.data.locationId == request.auth.token.locationId);
+
+        // The only allowed edit is a manager verification, never self-verified.
+        allow update: if mgr()
+          && resource.data.byId != request.auth.token.userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['verifiedBy', 'verifiedAt'])
+          && request.resource.data.verifiedBy == request.auth.token.name;
+
+        allow delete: if false; // append-only, for trust
+      }
+    }
+  }
+}
