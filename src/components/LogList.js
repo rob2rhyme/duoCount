@@ -94,11 +94,11 @@ function EntryDetail({ e, onToast }) {
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-[#dcd8cc] space-y-3">
+    <div className="mt-3 pt-3 border-t border-line space-y-3">
       {/* resolution panel — managers, flagged entries */}
       {isManager && vStatus !== "none" && (
-        <div className="bg-[#faf8f2] border border-[#dcd8cc] rounded-xl p-3 space-y-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-neutral-500 font-semibold">Variance resolution</div>
+        <div className="bg-panel border border-line rounded-xl p-3 space-y-2.5">
+          <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Variance resolution</div>
           <div className="grid grid-cols-2 gap-2.5">
             <select className="input py-1.5 text-sm" value={res.status}
               onChange={(ev) => setRes({ ...res, status: ev.target.value })}>
@@ -115,7 +115,7 @@ function EntryDetail({ e, onToast }) {
           <input className="input py-1.5 text-sm" maxLength={500} placeholder="Note (required for 'Other')"
             value={res.causeNote} onChange={(ev) => setRes({ ...res, causeNote: ev.target.value })} />
           <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={busy} onClick={saveResolution}>Save resolution</button>
-          {e.resolvedBy && <span className="text-xs text-neutral-500 ml-2">Resolved by {e.resolvedBy}</span>}
+          {e.resolvedBy && <span className="text-xs text-muted ml-2">Resolved by {e.resolvedBy}</span>}
         </div>
       )}
 
@@ -133,7 +133,7 @@ function EntryDetail({ e, onToast }) {
         {isManager && dStatus === "under-review" && (
           <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={busy} onClick={() => moveDispute("resolved")}>Resolve dispute</button>
         )}
-        {dStatus === "resolved" && <span className="text-[13px] text-neutral-500">Dispute resolved</span>}
+        {dStatus === "resolved" && <span className="text-[13px] text-muted">Dispute resolved</span>}
       </div>
 
       {/* thread */}
@@ -142,12 +142,12 @@ function EntryDetail({ e, onToast }) {
           {comments.map((c) => {
             const t = toDate(c.ts);
             return c.kind === "status" ? (
-              <div key={c.id} className="text-xs text-neutral-400 italic">
+              <div key={c.id} className="text-xs text-faint italic">
                 — {c.text} · {t ? t.toLocaleDateString() : ""}
               </div>
             ) : (
-              <div key={c.id} className="bg-[#faf8f2] rounded-lg px-3 py-2">
-                <div className="text-[12px] text-neutral-500 font-mono">
+              <div key={c.id} className="bg-panel rounded-lg px-3 py-2">
+                <div className="text-[12px] text-muted font-mono">
                   {c.by} · {t ? `${t.toLocaleDateString()} ${t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "…"}
                 </div>
                 <div className="text-sm mt-0.5 whitespace-pre-wrap">{c.text}</div>
@@ -234,35 +234,35 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
 
       <div className="card overflow-hidden">
         {rows.length === 0 ? (
-          <div className="text-center py-12 px-5 text-neutral-500">No entries match. Saved counts show up here for your team.</div>
+          <div className="text-center py-12 px-5 text-muted">No entries match. Saved counts show up here for your team.</div>
         ) : rows.map((e) => {
           const t = toDate(e.ts);
           const stamp = `${e.by} · ${t ? t.toLocaleDateString() : "…"} ${t ? t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`;
           const locChip = showLocation && e.locationName
-            ? <span className="pill bg-[#eceae2] text-neutral-600">{e.locationName}</span> : null;
+            ? <span className="pill bg-subtle text-muted">{e.locationName}</span> : null;
           const drawerChip = e.drawerName
-            ? <span className="pill bg-[#fbf6ec] text-brass-dk border border-brass/30">{e.drawerName}</span> : null;
+            ? <span className="pill bg-highlight text-gold border border-brass/30">{e.drawerName}</span> : null;
           const statusChips = (
             <>
               {e.varianceStatus === "open" && <span className="pill bg-red-100 text-red-600 font-semibold">Needs review</span>}
               {e.varianceStatus === "under-review" && <span className="pill bg-amber-100 text-amber-700 font-semibold">Under review</span>}
-              {e.varianceStatus === "resolved" && e.causeCode && <span className="pill bg-neutral-200 text-neutral-600">Resolved · {causeLabel(e.causeCode)}</span>}
+              {e.varianceStatus === "resolved" && e.causeCode && <span className="pill bg-subtle text-muted">Resolved · {causeLabel(e.causeCode)}</span>}
               {["open", "under-review"].includes(e.disputeStatus) && <span className="pill bg-purple-100 text-purple-700 font-semibold">Disputed</span>}
-              {e.blind === true && <span className="pill border border-[#dcd8cc] text-neutral-500">Blind</span>}
+              {e.blind === true && <span className="pill border border-line text-muted">Blind</span>}
             </>
           );
           const expanded = expandedId === e.id;
           return (
-            <div key={e.id} className="px-4 py-3.5 border-b border-[#dcd8cc] last:border-0">
+            <div key={e.id} className="px-4 py-3.5 border-b border-line last:border-0">
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0">
                   {e.kind === "cash" ? (
                     <>
                       <div className="font-semibold text-[15px]">{e.drawerName || "Drawer"} — {e.shift === "open" ? "Opening" : "Closing"}</div>
-                      <div className="text-[13px] text-neutral-500 font-mono mt-0.5">{stamp}</div>
+                      <div className="text-[13px] text-muted font-mono mt-0.5">{stamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
                         {Math.abs(e.diff) < 0.005
-                          ? <span className="pill bg-neutral-200 text-neutral-600">Balanced</span>
+                          ? <span className="pill bg-subtle text-muted">Balanced</span>
                           : e.diff > 0
                             ? <span className="pill bg-green-100 text-green-700">Over {money(e.diff)}</span>
                             : <span className="pill bg-red-100 text-red-600">Short {money(Math.abs(e.diff))}</span>}
@@ -272,24 +272,24 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                   ) : e.kind === "inventory" ? (
                     <>
                       <div className="font-semibold text-[15px]">{e.itemName || "Item"} — {e.shift === "open" ? "Opening" : "Closing"}</div>
-                      <div className="text-[13px] text-neutral-500 font-mono mt-0.5">{stamp}</div>
+                      <div className="text-[13px] text-muted font-mono mt-0.5">{stamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
                         {e.diff === 0
-                          ? <span className="pill bg-neutral-200 text-neutral-600">Exact count</span>
+                          ? <span className="pill bg-subtle text-muted">Exact count</span>
                           : e.diff > 0
                             ? <span className="pill bg-green-100 text-green-700">Over {e.diff}</span>
                             : <span className="pill bg-red-100 text-red-600">Missing {Math.abs(e.diff)}</span>}
-                        <span className="pill bg-[#fbf6ec] text-brass-dk border border-brass/30">{e.unit || "unit"}s</span>
+                        <span className="pill bg-highlight text-gold border border-brass/30">{e.unit || "unit"}s</span>
                         {statusChips}{locChip}
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="font-semibold text-[15px]">{e.game} · ${e.price} tickets</div>
-                      <div className="text-[13px] text-neutral-500 font-mono mt-0.5">Pack {e.pack || "—"} · #{e.startno}→{e.endno}</div>
-                      <div className="text-[13px] text-neutral-500 font-mono">{stamp}</div>
+                      <div className="text-[13px] text-muted font-mono mt-0.5">Pack {e.pack || "—"} · #{e.startno}→{e.endno}</div>
+                      <div className="text-[13px] text-muted font-mono">{stamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
-                        <span className="pill bg-neutral-200 text-neutral-600">{e.sold} sold</span>
+                        <span className="pill bg-subtle text-muted">{e.sold} sold</span>
                         {statusChips}{drawerChip}{locChip}
                       </div>
                     </>
@@ -297,19 +297,19 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                 </div>
                 <div className="text-right font-mono font-bold whitespace-nowrap">
                   {e.kind === "cash" ? (
-                    <>{money(e.counted)}<br /><span className="text-xs text-neutral-500 font-normal">exp {money(e.expected)}</span></>
+                    <>{money(e.counted)}<br /><span className="text-xs text-muted font-normal">exp {money(e.expected)}</span></>
                   ) : e.kind === "inventory" ? (
-                    <>{e.counted}<br /><span className="text-xs text-neutral-500 font-normal">exp {e.expected}</span></>
+                    <>{e.counted}<br /><span className="text-xs text-muted font-normal">exp {e.expected}</span></>
                   ) : money(e.dollars)}
                 </div>
               </div>
-              <div className="mt-2.5 pt-2.5 border-t border-dashed border-[#dcd8cc] flex items-center gap-3 flex-wrap">
+              <div className="mt-2.5 pt-2.5 border-t border-dashed border-line flex items-center gap-3 flex-wrap">
                 {e.verifiedBy ? (
                   <span className="text-[13px] text-green-700 font-semibold">✓ Verified by {e.verifiedBy}</span>
                 ) : isManager && e.byId !== profile.id ? (
                   <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => doVerify(e)}>Verify count</button>
                 ) : (
-                  <span className="text-[13px] text-neutral-400 italic">Awaiting manager verification</span>
+                  <span className="text-[13px] text-faint italic">Awaiting manager verification</span>
                 )}
                 <button className="btn-ghost text-[13px] px-3 py-1.5 ml-auto"
                   onClick={() => setExpandedId(expanded ? null : e.id)}>

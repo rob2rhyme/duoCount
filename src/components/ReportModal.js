@@ -170,8 +170,8 @@ export default function ReportModal({ entries, locations, locName, onClose, onTo
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc] flex items-center justify-between">
+      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="px-4 py-3.5 border-b border-line flex items-center justify-between">
           <h2 className="font-semibold text-[15px]">End-of-day report</h2>
           <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose}>✕</button>
         </div>
@@ -186,8 +186,8 @@ export default function ReportModal({ entries, locations, locName, onClose, onTo
               </select></div>
           </div>
 
-          <div className="bg-[#faf8f2] border border-[#dcd8cc] rounded-xl p-3.5 text-sm space-y-1">
-            <div className="text-[11px] uppercase tracking-wide text-neutral-500 font-semibold mb-1.5">Will include</div>
+          <div className="bg-panel border border-line rounded-xl p-3.5 text-sm space-y-1">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">Will include</div>
             <div>{r.cash.length} cash counts · net {r.totals.diff >= 0 ? "+" : ""}{money(r.totals.diff)}</div>
             <div>{r.scratch.length} scratch-off counts · {money(r.totals.scratchDollars)}</div>
             <div>{r.inv.length} inventory counts</div>

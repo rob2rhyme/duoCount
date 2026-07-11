@@ -21,12 +21,12 @@ const SEVERITIES = [
 
 const sevPill = (s) =>
   s === "serious" ? "bg-red-100 text-red-600"
-  : s === "warning" ? "bg-[#fbf6ec] text-brass-dk border border-brass/30"
-  : "bg-[#eceae2] text-neutral-600";
+  : s === "warning" ? "bg-highlight text-gold border border-brass/30"
+  : "bg-subtle text-muted";
 const statusPill = (s) =>
   s === "open" ? "bg-red-100 text-red-600"
-  : s === "acknowledged" ? "bg-[#fbf6ec] text-brass-dk border border-brass/30"
-  : "bg-[#eceae2] text-neutral-600";
+  : s === "acknowledged" ? "bg-highlight text-gold border border-brass/30"
+  : "bg-subtle text-muted";
 
 const fmt = (ts) => {
   const t = toDate(ts);
@@ -108,9 +108,9 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
     <div className="space-y-4">
       {isManager ? (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+          <div className="px-4 py-3.5 border-b border-line">
             <h2 className="font-semibold text-[15px]">File an incident</h2>
-            <p className="text-[13px] text-neutral-500 mt-0.5">
+            <p className="text-[13px] text-muted mt-0.5">
               Signed, permanent, and shown to the person it concerns — they can acknowledge and add their side. Write-ups can't be edited after filing.
             </p>
           </div>
@@ -150,7 +150,7 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
           </div>
         </div>
       ) : (
-        <p className="text-[13px] text-neutral-500 px-1">
+        <p className="text-[13px] text-muted px-1">
           Write-ups that concern you appear here. Acknowledging means "I've seen this" — not "I agree" — and you can add your side to the permanent record.
         </p>
       )}
@@ -166,40 +166,40 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
 
       <div className="card overflow-hidden">
         {visible.length === 0 ? (
-          <div className="text-center py-12 px-5 text-neutral-500">
+          <div className="text-center py-12 px-5 text-muted">
             {isManager ? "No incidents on file." : "Nothing on file."}
           </div>
         ) : visible.map((inc) => (
-          <div key={inc.id} className="px-4 py-3.5 border-b border-[#dcd8cc] last:border-0">
+          <div key={inc.id} className="px-4 py-3.5 border-b border-line last:border-0">
             <div className="flex justify-between items-start gap-3">
               <div className="min-w-0">
                 <div className="font-medium text-sm">{inc.title}</div>
                 <div className="mt-1.5 flex gap-2 flex-wrap items-center">
                   <span className={`pill ${sevPill(inc.severity)}`}>{inc.severity}</span>
                   <span className={`pill ${statusPill(inc.status)}`}>{inc.status}</span>
-                  {inc.subjectName && <span className="pill bg-[#eceae2] text-neutral-600">re: {inc.subjectName}</span>}
-                  {inc.locationName && <span className="pill bg-[#eceae2] text-neutral-600">{inc.locationName}</span>}
+                  {inc.subjectName && <span className="pill bg-subtle text-muted">re: {inc.subjectName}</span>}
+                  {inc.locationName && <span className="pill bg-subtle text-muted">{inc.locationName}</span>}
                 </div>
                 <div className="mt-2 text-sm whitespace-pre-wrap">{inc.text}</div>
                 {(inc.links || []).length > 0 && (
                   <div className="mt-1.5 space-y-0.5">
                     {inc.links.map((u, i) => (
                       <a key={i} href={u} target="_blank" rel="noopener noreferrer"
-                        className="block text-[12px] font-mono text-brass-dk underline underline-offset-2 truncate">🔗 {u}</a>
+                        className="block text-[12px] font-mono text-gold underline underline-offset-2 truncate">🔗 {u}</a>
                     ))}
                   </div>
                 )}
-                <div className="mt-2 text-[12px] text-neutral-500 font-mono">
+                <div className="mt-2 text-[12px] text-muted font-mono">
                   Filed by {inc.by} · {fmt(inc.ts)}
                 </div>
                 {inc.ackAt && (
-                  <div className="mt-1.5 text-[13px] bg-[#faf8f2] border border-[#e6e2d8] rounded-lg px-3 py-2">
-                    <span className="text-neutral-500">Acknowledged {fmt(inc.ackAt)}</span>
+                  <div className="mt-1.5 text-[13px] bg-panel border border-line-soft rounded-lg px-3 py-2">
+                    <span className="text-muted">Acknowledged {fmt(inc.ackAt)}</span>
                     {inc.ackNote && <div className="mt-1 whitespace-pre-wrap">{inc.ackNote}</div>}
                   </div>
                 )}
                 {inc.closedBy && (
-                  <div className="mt-1.5 text-[12px] text-neutral-500 font-mono">Closed by {inc.closedBy} · {fmt(inc.closedAt)}</div>
+                  <div className="mt-1.5 text-[12px] text-muted font-mono">Closed by {inc.closedBy} · {fmt(inc.closedAt)}</div>
                 )}
               </div>
               {isManager && inc.status !== "closed" && (

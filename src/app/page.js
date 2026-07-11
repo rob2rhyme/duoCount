@@ -5,7 +5,7 @@ import AppShell from "@/components/AppShell";
 
 function Gate() {
   const { profile, vendor, ready } = useSession();
-  if (!ready) return <div className="min-h-screen grid place-items-center text-neutral-500">Loading…</div>;
+  if (!ready) return <div className="min-h-screen grid place-items-center text-muted">Loading…</div>;
   return profile && vendor ? <AppShell /> : <PinLogin />;
 }
 

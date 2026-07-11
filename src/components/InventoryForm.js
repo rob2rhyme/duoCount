@@ -55,7 +55,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const unit = item?.unit || "unit";
   const expected = expectedStock(f);
   const diff = (Number(f.counted) || 0) - expected;
-  const diffClass = diff === 0 ? "text-ink" : diff > 0 ? "text-green-700" : "text-red-600";
+  const diffClass = diff === 0 ? "text-fg" : diff > 0 ? "text-green-700" : "text-red-600";
 
   async function save() {
     if (!f.locationId) return onSaved?.("Pick a location first");
@@ -79,7 +79,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
 
   return (
     <div className="card overflow-hidden">
-      <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+      <div className="px-4 py-3.5 border-b border-line">
         <h2 className="font-semibold text-[15px]">Inventory count</h2>
       </div>
       <div className="p-4 space-y-3.5">
@@ -121,19 +121,19 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
         </div>
         <div><label className="label">Counted on hand</label><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></div>
 
-        <div className="grid grid-cols-2 gap-px bg-[#dcd8cc] rounded-xl overflow-hidden">
-          <div className="bg-[#faf8f2] px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-neutral-500 font-semibold">Expected on hand</div>
-            <div className="text-xl font-bold font-mono mt-0.5">{expected} <span className="text-sm font-normal text-neutral-500">{unit}s</span></div>
+        <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
+          <div className="bg-panel px-3.5 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Expected on hand</div>
+            <div className="text-xl font-bold font-mono mt-0.5">{expected} <span className="text-sm font-normal text-muted">{unit}s</span></div>
           </div>
-          <div className="bg-[#faf8f2] px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-neutral-500 font-semibold">Over / short</div>
-            <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>{diff >= 0 ? "+" : ""}{diff} <span className="text-sm font-normal text-neutral-500">{unit}s</span></div>
+          <div className="bg-panel px-3.5 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Over / short</div>
+            <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>{diff >= 0 ? "+" : ""}{diff} <span className="text-sm font-normal text-muted">{unit}s</span></div>
           </div>
         </div>
 
         <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
-        <p className="text-xs text-neutral-500 leading-relaxed">Expected = start + received − sold − removed. Negative over/short means missing stock. Your name, item, location, and time stamp attach automatically.</p>
+        <p className="text-xs text-muted leading-relaxed">Expected = start + received − sold − removed. Negative over/short means missing stock. Your name, item, location, and time stamp attach automatically.</p>
       </div>
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}

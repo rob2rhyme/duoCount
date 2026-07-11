@@ -13,7 +13,7 @@ No emails or passwords. Staff enter the store code (like `smokers-haven`) and th
 
 ## What the app does today
 
-**Cash drawer counts.** Staff pick a location and a named drawer (POS Cash Drawer, Lottery Cash Drawer, Safe — whatever the owner sets up) and enter their opening or closing count. The app does the math: expected cash = start + sales − paid out, and shows over/short in green or red.
+**Cash drawer counts.** Staff pick a location and a named drawer (POS Cash Drawer, Lottery Cash Drawer, Safe — whatever the owner sets up) and enter their opening or closing count. The app does the math: expected cash = start + sales − paid out, and shows over/short in green or red. Instead of adding up the till by hand, staff can flip on the **denomination counter** and just enter how many $100s, $50s, $20s, $10s, $5s, and $1s (plus loose coin) are in the drawer — the "counted" total adds itself up, live.
 
 **Scratch-off counts.** Because lottery tickets are numbered in order, end number minus start number = tickets sold, times the ticket price = dollars that must be in the drawer. The math audits itself.
 
@@ -26,6 +26,8 @@ No emails or passwords. Staff enter the store code (like `smokers-haven`) and th
 **Dashboard.** Totals and trends: net over/short, how many short counts, daily charts, cash sales trend, top scratch-off games, and breakdowns by employee and by drawer.
 
 **Admin & export.** Managers add staff, set roles, reset PINs, and manage locations and drawers. The owner sets the business name, logo, and sharing mode. Anyone can export the full log as a spreadsheet (CSV).
+
+**Comfortable on any phone.** A **light or dark theme** — tap the sun/moon to switch, and the app remembers your choice (it matches your phone's setting the first time). On long screens like the log or dashboard, a **scroll-to-top button** floats in the corner; its ring fills as you scroll to show how far down you are, and one tap brings you back to the top.
 
 ## The trust features (built)
 

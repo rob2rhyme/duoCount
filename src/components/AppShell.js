@@ -11,6 +11,7 @@ import IncidentsPanel from "./IncidentsPanel";
 import Dashboard from "./Dashboard";
 import AdminPanel from "./AdminPanel";
 import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 
 const TABS = [
   { id: "cash", label: "Cash" },
@@ -85,15 +86,16 @@ export default function AppShell() {
               {profile.role === "owner" ? "Own" : profile.role === "manager" ? "Mgr" : "Emp"}
             </span>
           </span>
+          <ThemeToggle variant="dark" />
           <button className="text-[#c9c6bd] underline underline-offset-2 text-[13px]" onClick={logout}>Sign out</button>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-4">
-        <div className="flex gap-1.5 bg-white border border-[#dcd8cc] rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
+        <div className="flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition ${tab === t.id ? "bg-ink text-paper" : "text-neutral-500"}`}>
+              className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition ${tab === t.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
               {t.label}
             </button>
           ))}
@@ -127,7 +129,7 @@ export default function AppShell() {
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
       </main>
 
-      <footer className="max-w-3xl mx-auto px-4 pt-2 text-center text-[12px] text-neutral-500">
+      <footer className="max-w-3xl mx-auto px-4 pt-2 text-center text-[12px] text-muted">
         <p className="mb-1.5">Paper backup forms — print a stack for the register in case a phone isn&apos;t handy:</p>
         <div className="flex justify-center gap-4 flex-wrap">
           <a href="/forms/cash-drawer-log.pdf" download

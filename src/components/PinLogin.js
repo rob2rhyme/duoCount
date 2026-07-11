@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSession } from "./SessionProvider";
 import { PRODUCT } from "@/lib/store";
 import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 
 export default function PinLogin() {
   const { login, signup } = useSession();
@@ -41,10 +42,11 @@ export default function PinLogin() {
       <div className="card w-full max-w-sm p-7">
         <div className="flex items-center gap-3 mb-6">
           <Logo size={40} />
-          <div>
+          <div className="min-w-0">
             <h1 className="text-lg font-semibold leading-tight">{PRODUCT.name}</h1>
-            <p className="text-xs text-neutral-500">{PRODUCT.tagline}</p>
+            <p className="text-xs text-muted">{PRODUCT.tagline}</p>
           </div>
+          <ThemeToggle className="ml-auto flex-shrink-0" />
         </div>
 
         {mode === "login" ? (
@@ -61,11 +63,11 @@ export default function PinLogin() {
             <button className="btn-primary mt-5" disabled={busy || pin.length < 4 || !storeCode.trim()} onClick={doLogin}>
               {busy ? "Checking…" : "Sign in"}
             </button>
-            <button className="w-full text-sm text-neutral-500 underline underline-offset-2 mt-4"
+            <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
               onClick={() => { setMode("signup"); setErr(""); }}>
               New business? Register your store
             </button>
-            <p className="text-xs text-neutral-400 mt-4 leading-relaxed">
+            <p className="text-xs text-faint mt-4 leading-relaxed">
               Your store code comes from whoever set up your business. Ask a manager if you don't have it.
             </p>
           </>
@@ -85,18 +87,18 @@ export default function PinLogin() {
             <button className="btn-primary mt-5" disabled={busy} onClick={doSignup}>
               {busy ? "Creating…" : "Create business & sign in"}
             </button>
-            <button className="w-full text-sm text-neutral-500 underline underline-offset-2 mt-4"
+            <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
               onClick={() => { setMode("login"); setErr(""); }}>
               Already registered? Sign in
             </button>
-            <p className="text-xs text-neutral-400 mt-4 leading-relaxed">
+            <p className="text-xs text-faint mt-4 leading-relaxed">
               You'll get a store code to share with staff. You'll be the owner and can add locations, drawers, and staff in Admin.
             </p>
           </>
         )}
 
         {createdSlug && (
-          <div className="mt-4 text-sm bg-[#fbf6ec] border border-brass/40 rounded-lg p-3">
+          <div className="mt-4 text-sm bg-highlight border border-brass/40 rounded-lg p-3">
             Store created. Your store code is <b className="font-mono">{createdSlug}</b> — share it with staff so they can sign in.
           </div>
         )}

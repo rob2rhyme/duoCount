@@ -78,7 +78,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
 
   return (
     <div className="card overflow-hidden">
-      <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+      <div className="px-4 py-3.5 border-b border-line">
         <h2 className="font-semibold text-[15px]">Scratch-off pack count</h2>
       </div>
       <div className="p-4 space-y-3.5">
@@ -129,19 +129,19 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           <div><label className="label">End ticket #</label><input type="number" inputMode="numeric" className="input" value={f.endno} onChange={set("endno")} placeholder="0" /></div>
         </div>
 
-        <div className="grid grid-cols-2 gap-px bg-[#dcd8cc] rounded-xl overflow-hidden">
-          <div className="bg-[#faf8f2] px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-neutral-500 font-semibold">Tickets sold</div>
-            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-green-700" : "text-ink"}`}>{sold}</div>
+        <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
+          <div className="bg-panel px-3.5 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Tickets sold</div>
+            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-green-700" : "text-fg"}`}>{sold}</div>
           </div>
-          <div className="bg-[#faf8f2] px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-neutral-500 font-semibold">Dollars sold</div>
-            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-green-700" : "text-ink"}`}>{money(dollars)}</div>
+          <div className="bg-panel px-3.5 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Dollars sold</div>
+            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-green-700" : "text-fg"}`}>{money(dollars)}</div>
           </div>
         </div>
 
         <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
-        <p className="text-xs text-neutral-500 leading-relaxed">End # − start # = tickets sold. That × price must match the drawer — this makes the log self-auditing.</p>
+        <p className="text-xs text-muted leading-relaxed">End # − start # = tickets sold. That × price must match the drawer — this makes the log self-auditing.</p>
       </div>
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}

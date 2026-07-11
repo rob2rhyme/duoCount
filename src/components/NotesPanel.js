@@ -54,9 +54,9 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
     <div className="space-y-4">
       {/* composer */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+        <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">Shift notes</h2>
-          <p className="text-[13px] text-neutral-500 mt-0.5">The counter notebook, digitized — printer jams, IOUs, till swaps. Notes can't be edited after posting.</p>
+          <p className="text-[13px] text-muted mt-0.5">The counter notebook, digitized — printer jams, IOUs, till swaps. Notes can't be edited after posting.</p>
         </div>
         <div className="p-4 space-y-3">
           <textarea className="input min-h-[76px]" maxLength={2000} value={text}
@@ -89,7 +89,7 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
             </select>
           )}
           {isManager && (
-            <label className="flex items-center gap-2 text-[13px] text-neutral-500">
+            <label className="flex items-center gap-2 text-[13px] text-muted">
               <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
               Show archived
             </label>
@@ -100,20 +100,20 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
       {/* feed */}
       <div className="card overflow-hidden">
         {visible.length === 0 ? (
-          <div className="text-center py-12 px-5 text-neutral-500">No notes yet. Anything the next shift should know goes here.</div>
+          <div className="text-center py-12 px-5 text-muted">No notes yet. Anything the next shift should know goes here.</div>
         ) : visible.map((n) => {
           const t = toDate(n.ts);
           return (
-            <div key={n.id} className={`px-4 py-3.5 border-b border-[#dcd8cc] last:border-0 ${n.active === false ? "opacity-50" : ""}`}>
+            <div key={n.id} className={`px-4 py-3.5 border-b border-line last:border-0 ${n.active === false ? "opacity-50" : ""}`}>
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0">
                   <div className="text-sm whitespace-pre-wrap">{n.pinned && <span title="Pinned">📌 </span>}{n.text}</div>
                   <div className="mt-2 flex gap-2 flex-wrap items-center">
-                    <span className="text-[12px] text-neutral-500 font-mono">
+                    <span className="text-[12px] text-muted font-mono">
                       {n.by} · {t ? `${t.toLocaleDateString()} ${t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "…"}
                     </span>
-                    {n.locationName && <span className="pill bg-[#eceae2] text-neutral-600">{n.locationName}</span>}
-                    {n.shift && <span className="pill bg-[#fbf6ec] text-brass-dk border border-brass/30">{n.shift === "open" ? "Opening" : "Closing"}</span>}
+                    {n.locationName && <span className="pill bg-subtle text-muted">{n.locationName}</span>}
+                    {n.shift && <span className="pill bg-highlight text-gold border border-brass/30">{n.shift === "open" ? "Opening" : "Closing"}</span>}
                     {n.active === false && <span className="pill bg-red-100 text-red-600">Archived</span>}
                   </div>
                 </div>

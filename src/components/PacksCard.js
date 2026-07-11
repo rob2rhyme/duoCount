@@ -6,9 +6,9 @@ import { useSession } from "./SessionProvider";
 import BarcodeScanner from "./BarcodeScanner";
 
 const STATUS_PILL = {
-  received: "bg-neutral-200 text-neutral-600",
+  received: "bg-subtle text-muted",
   active: "bg-green-100 text-green-700",
-  settled: "bg-[#eceae2] text-neutral-600",
+  settled: "bg-subtle text-muted",
   returned: "bg-amber-100 text-amber-700",
 };
 
@@ -94,13 +94,13 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
 
   return (
     <div className="card overflow-hidden">
-      <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+      <div className="px-4 py-3.5 border-b border-line">
         <h2 className="font-semibold text-[15px]">Scratch-off packs</h2>
-        <p className="text-[13px] text-neutral-500 mt-0.5">Track each book from the safe to the last ticket: receive → activate → settle or return. Settling freezes sold-vs-size — per-pack shrink, on the record.</p>
+        <p className="text-[13px] text-muted mt-0.5">Track each book from the safe to the last ticket: receive → activate → settle or return. Settling freezes sold-vs-size — per-pack shrink, on the record.</p>
       </div>
 
       {/* add form */}
-      <div className="p-4 border-b border-[#dcd8cc] bg-[#faf8f2]">
+      <div className="p-4 border-b border-line bg-panel">
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div><label className="label">Game</label><input className="input" value={np.game} onChange={(e) => setNp({ ...np, game: e.target.value })} placeholder="Lucky 7s" /></div>
           <div><label className="label">Pack / book #</label><input className="input font-mono" value={np.packNumber} onChange={(e) => setNp({ ...np, packNumber: e.target.value })} placeholder="0000000" /></div>
@@ -125,7 +125,7 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
       </div>
 
       {/* filter */}
-      <div className="px-4 py-2.5 border-b border-[#dcd8cc]">
+      <div className="px-4 py-2.5 border-b border-line">
         <select className="input w-auto py-1.5 text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="open">Received & active</option>
           <option value="settled">Settled</option>
@@ -136,20 +136,20 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
 
       {/* list */}
       {shown.length === 0 ? (
-        <div className="text-center py-10 px-5 text-neutral-500 text-sm">No packs here yet.</div>
+        <div className="text-center py-10 px-5 text-muted text-sm">No packs here yet.</div>
       ) : shown.map((p) => {
         const sold = soldFor(p, entries);
         const value = (p.price || 0) * (p.ticketCount || 0);
         return (
-          <div key={p.id} className="px-4 py-3 border-b border-[#dcd8cc] last:border-0">
+          <div key={p.id} className="px-4 py-3 border-b border-line last:border-0">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
                 <div className="font-medium flex items-center gap-2 flex-wrap">
-                  {p.game} <span className="font-mono text-[13px] text-neutral-500">#{p.packNumber}</span>
+                  {p.game} <span className="font-mono text-[13px] text-muted">#{p.packNumber}</span>
                   <span className={`pill ${STATUS_PILL[p.status] || ""}`}>{p.status}</span>
-                  {p.bin && <span className="pill bg-[#fbf6ec] text-brass-dk border border-brass/30">bin {p.bin}</span>}
+                  {p.bin && <span className="pill bg-highlight text-gold border border-brass/30">bin {p.bin}</span>}
                 </div>
-                <div className="text-[13px] text-neutral-500">
+                <div className="text-[13px] text-muted">
                   {p.locationName} · {money(p.price)} × {p.ticketCount} = {money(value)}
                   {p.status === "settled"
                     ? <> · settled by {p.settledBy}: {p.soldAtSettle}/{p.ticketCount} sold{p.shortAtSettle > 0 && <b className="text-red-600"> — {p.shortAtSettle} unaccounted</b>}</>
