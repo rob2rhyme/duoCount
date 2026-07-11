@@ -76,11 +76,11 @@ export default function AppShell() {
           <Logo src={vendor.logoUrl} alt={`${vendor.name} logo`} size={32} />
           <div className="min-w-0">
             <h1 className="text-base font-semibold truncate leading-tight">{vendor.name}</h1>
-            <p className="text-[11px] text-[#c9c6bd] font-mono leading-tight">code: {vendor.slug}</p>
+            <p className="text-[11px] text-[#c9c6bd] font-mono leading-tight truncate">code: {vendor.slug}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <span className="bg-white/10 px-2.5 py-1 rounded-full flex items-center gap-1.5 max-w-[150px]">
+          <span className="bg-white/10 px-2.5 py-1 rounded-full flex items-center gap-1.5 max-w-[112px] sm:max-w-[150px]">
             <b className="truncate">{profile.name}</b>
             <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${isManager ? "bg-[#c9a25a]" : "bg-brass"} text-ink font-bold`}>
               {profile.role === "owner" ? "Own" : profile.role === "manager" ? "Mgr" : "Emp"}

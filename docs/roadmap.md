@@ -13,6 +13,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | Barcode scanning; scratch-off pack lifecycle | `barcode-scanning-spec.md`, `lottery-pack-lifecycle-spec.md` | ✅ |
 | UI — denomination cash counter, scroll-to-top FAB, light/dark theme, Preferences menu | `ui-enhancements-spec.md` | ✅ |
 | **Configurable scroll-to-top FAB** (per-device toggle in Preferences) | `ui-enhancements-spec.md` §2.2, §4 | ✅ |
+| **Mobile layout audit + polish** (all 8 screens, both themes, 390px) | this file, §"Layout audit" | ✅ |
 
 ## Next up
 
@@ -47,12 +48,8 @@ Keep docs true to the code as features land.
   drift is fixed; this roadmap's "Shipped" table matches reality. Run at the end
   of each feature. (Partially done for the UI features this cycle.)
 
-### 4. Layout + feature-enhancement pass
-A focused polish sweep, informed by real use.
-- **Acceptance:** review spacing/hierarchy/responsive behavior on small screens;
-  fix any cramped or overflowing layouts; capture concrete enhancement ideas
-  (e.g. sticky table headers, empty-state polish, keyboard shortcuts) as their
-  own backlog entries rather than scope-creeping one PR.
+### 4. Layout + feature-enhancement pass — ✅ done (this cycle)
+See §"Layout audit" below for the result and the enhancement backlog it produced.
 
 ### 5. Distribution / versioning analysis
 Decide how DuoCount reaches more buyers beyond the hosted Next.js app.
@@ -72,6 +69,36 @@ Make the installable app feel native on a phone.
   orientation), maskable icons, iOS meta tags, an offline-friendly service
   worker (at least an app-shell/offline fallback), install prompt handling, and
   safe-area / touch-target polish. Verify with Lighthouse PWA + mobile audits.
+
+## Layout audit
+
+All eight screens (Cash, Scratch-offs, Inventory, Log, Notes, Incidents,
+Dashboard, Admin) rendered with representative data at **390 px** in **both
+themes** and checked for overflow, cramping, hierarchy, and contrast.
+
+**Result:** the app is already genuinely mobile-first — **zero horizontal
+overflow**, no broken layouts, and good contrast in light and dark everywhere.
+Tables scroll/wrap instead of overflowing; forms collapse cleanly; chips wrap.
+
+**Fixed this cycle:**
+- **Dashboard → "Needs attention":** the entity name was truncated to a single
+  letter (e.g. `P…`) because the `by · date` meta competed for the same row.
+  Meta now stacks beneath the name, so the full drawer/item/game name shows.
+- **App header (≤390 px):** the `code: {slug}` line wrapped to three lines,
+  inflating the header; it now truncates to one line. The store name gets width
+  priority over the user pill, so the brand shows more (`Smokers H…` vs
+  `Smoke…`).
+
+**Enhancement backlog (deferred, not blocking):**
+- **Header identity on tiny screens** — the user name still truncates hard;
+  consider first-name-only, or consolidating Sign out into the gear as an
+  account menu to reclaim width.
+- **Sticky headers** on the Dashboard by-drawer / by-item / by-employee tables
+  so column labels stay visible while scrolling long lists.
+- **Empty-state polish** — light illustrations / clearer CTAs on the empty Log,
+  Notes, Incidents, and Dashboard states.
+- **Bigger tap target** for the header "Sign out" text link.
+- **Keyboard shortcuts** for power users (tab switching, save).
 
 ## Deferred (tier 3)
 
