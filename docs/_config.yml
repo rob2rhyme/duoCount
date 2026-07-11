@@ -1,0 +1,5 @@
+title: DuoCount — docs
+description: Product & build documentation for DuoCount (cash, scratch-off & inventory tracking).
+theme: jekyll-theme-cayman
+# GitHub Pages enables jekyll-relative-links by default, so links between the
+# .md files in this folder resolve to their generated pages automatically.
