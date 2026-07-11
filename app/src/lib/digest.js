@@ -2,6 +2,8 @@
 // route. Summarizes a vendor's "yesterday" (in the vendor's timezone) and
 // sends it via the Resend HTTP API — no email SDK needed.
 
+import { detectPatterns, PATTERN_RULES } from "./patterns";
+
 const money = (n) => {
   const v = Math.round((Number(n) || 0) * 100) / 100;
   return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -64,7 +66,13 @@ export function composeEmail(vendor, dateStr, s, appUrl) {
     "",
     `Open variances: ${s.openVariances}`,
     `Open disputes:  ${s.openDisputes}`,
+    `Open incidents: ${s.openIncidents ?? 0}`,
     `Unverified:     ${s.unverified}`,
+    ...(s.patterns?.length ? [
+      "",
+      `Patterns (last ${PATTERN_RULES.windowDays} days — signals, not conclusions):`,
+      ...s.patterns.map((p) => `  [${p.severity === "high" ? "HIGH" : "watch"}] ${p.title} — ${p.detail}`),
+    ] : []),
     "",
     appUrl ? `Review in DuoCount: ${appUrl}` : "",
   ].join("\n");
@@ -98,8 +106,18 @@ export function composeEmail(vendor, dateStr, s, appUrl) {
     <p style="font-size:14px;margin-top:14px">
       Open variances: <b>${s.openVariances}</b> ·
       Open disputes: <b>${s.openDisputes}</b> ·
+      Open incidents: <b>${s.openIncidents ?? 0}</b> ·
       Unverified: <b>${s.unverified}</b>
     </p>
+    ${s.patterns?.length ? `
+    <div style="margin-top:10px;padding:10px 12px;background:#faf8f2;border:1px solid #e6e2d8;border-radius:8px">
+      <p style="margin:0 0 6px;font-size:13px;color:#666">Patterns (last ${PATTERN_RULES.windowDays} days) — signals worth a look, not conclusions:</p>
+      ${s.patterns.map((p) => `
+      <p style="margin:0 0 4px;font-size:14px">
+        <b style="color:${p.severity === "high" ? "#b03a3a" : "#8a6d2f"}">${p.severity === "high" ? "HIGH" : "Watch"}</b>
+        — ${esc(p.title)} <span style="color:#666">${esc(p.detail)}</span>
+      </p>`).join("")}
+    </div>` : ""}
     ${appUrl ? `<p style="font-size:13px"><a href="${esc(appUrl)}">Review in DuoCount →</a></p>` : ""}
   </div>`;
 
@@ -137,12 +155,22 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   if (!force && digest.lastSentDate === today) return "skipped:already-sent";
 
   const yesterday = yesterdayInTz(tz, now);
-  const snap = await adminDb
-    .collection("vendors").doc(vendor.id)
-    .collection("entries").where("date", "==", yesterday).get();
-  const entries = snap.docs.map((d) => d.data());
+  // One trailing-window query feeds both yesterday's summary and the
+  // pattern detectors (tier-two spec §2.2).
+  const windowStart = dateInTz(tz,
+    new Date(now.getTime() - PATTERN_RULES.windowDays * 24 * 3600 * 1000));
+  const vendorRef = adminDb.collection("vendors").doc(vendor.id);
+  const snap = await vendorRef
+    .collection("entries").where("date", ">=", windowStart).get();
+  const windowEntries = snap.docs.map((d) => d.data());
+  const entries = windowEntries.filter((e) => e.date === yesterday);
+
+  const incidentsSnap = await vendorRef
+    .collection("incidents").where("status", "==", "open").get();
 
   const summary = summarizeEntries(entries);
+  summary.patterns = detectPatterns(windowEntries, { now });
+  summary.openIncidents = incidentsSnap.size;
   const appUrl = process.env.APP_URL || "";
   const { subject, text, html } = composeEmail(vendor, yesterday, summary, appUrl);
   await sendEmail({ to: recipients, subject, text, html });

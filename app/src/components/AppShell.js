@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchPacks } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchPacks, watchIncidents } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
 import InventoryForm from "./InventoryForm";
 import LogList from "./LogList";
 import NotesPanel from "./NotesPanel";
+import IncidentsPanel from "./IncidentsPanel";
 import Dashboard from "./Dashboard";
 import AdminPanel from "./AdminPanel";
 import Logo from "./Logo";
@@ -17,6 +18,7 @@ const TABS = [
   { id: "inventory", label: "Inventory" },
   { id: "log", label: "Log" },
   { id: "notes", label: "Notes" },
+  { id: "incidents", label: "Incidents" },
   { id: "dashboard", label: "Dashboard" },
   { id: "admin", label: "Admin", managerOnly: true },
 ];
@@ -30,6 +32,7 @@ export default function AppShell() {
   const [items, setItems] = useState([]);
   const [packs, setPacks] = useState([]);
   const [notes, setNotes] = useState([]);
+  const [incidents, setIncidents] = useState([]);
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
 
@@ -45,8 +48,10 @@ export default function AppShell() {
     const u4 = watchItems(vendor.id, setItems);
     const u5 = watchNotes(vendor.id, lockedLoc, setNotes);
     const u6 = watchPacks(vendor.id, setPacks);
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
-  }, [vendor.id, lockedLoc]);
+    // Write-ups: employees may only query incidents where they're the subject.
+    const u7 = watchIncidents(vendor.id, isManager ? null : profile.id, setIncidents);
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
+  }, [vendor.id, lockedLoc, isManager, profile.id]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
   const canPickLocation = isManager || !perLocation;
@@ -114,6 +119,7 @@ export default function AppShell() {
         )}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
+        {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName}
             onOpenLog={() => setTab("log")} onToast={ping} />

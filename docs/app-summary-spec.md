@@ -27,7 +27,7 @@ No emails or passwords. Staff enter the store code (like `smokers-haven`) and th
 
 **Admin & export.** Managers add staff, set roles, reset PINs, and manage locations and drawers. The owner sets the business name, logo, and sharing mode. Anyone can export the full log as a spreadsheet (CSV).
 
-## What's planned next (already specced, not yet built)
+## The trust features (built)
 
 1. **Blind counts** — the counter can't see the "expected" number until after they save, so nobody can count *to* the target. Since entries can't be edited, the count is locked in before the answer is revealed.
 2. **Automatic flags with reasons** — any count off by more than a set amount (default $5) gets flagged for review. Managers close the flag by recording why: honest mistake, training gap, equipment fault, register error, suspected theft, or other.
@@ -35,6 +35,9 @@ No emails or passwords. Staff enter the store code (like `smokers-haven`) and th
 4. **Shift notes** — a digital logbook for handoff messages ("register 2 drawer is sticking," "lottery bin 4 running low"), pinned notes, per location.
 5. **End-of-day report** — one tap produces a PDF for any day and location: every count, totals, flags, verification status, and signature lines for employee and manager.
 6. **Daily email digest** — the owner automatically gets yesterday's summary each morning: totals, over/shorts, anything flagged, disputed, or still unverified.
+7. **Incident write-ups** — when something happens that isn't a number (a till left open, a safety issue, a no-show), a manager files a signed, permanent write-up, with links to camera footage if there is any. The employee it concerns sees it, acknowledges it ("I've seen this" — not "I agree"), and can add their side to the same permanent record. Coworkers never see each other's write-ups.
+8. **Pattern alerts** — the dashboard quietly watches for repeating signals: the same person short three times in two weeks, the same drawer short under different people (which points at the register, not a person), counts nobody has double-checked, an item that keeps going missing. Alerts are worded as conversation starters, never verdicts, and only managers see them.
+9. **Login protection** — repeated failed sign-in attempts are blocked for a cooldown period, so nobody can sit and guess PINs.
 
 ## The trust philosophy behind all of it
 Every number has a name and a timestamp. Nothing can be edited or deleted after the fact. Big discrepancies can't be quietly ignored — they get flagged and must be explained. Employees get a voice through disputes, and employers get a permanent, self-auditing record. The same log protects both sides.

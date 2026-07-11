@@ -35,6 +35,17 @@ const entry = (over = {}) => ({
   ...over,
 });
 
+const incident = (over = {}) => ({
+  title: "Till left open", text: "Drawer 2 was open and unattended during break.",
+  category: "till-procedure", severity: "warning",
+  subjectId: "u-empA", subjectName: "Eve", entryId: null, links: [],
+  locationId: "locA", locationName: "A",
+  by: "Mia", byId: "u-mgr", byRole: "manager",
+  status: "open", ackAt: null, ackNote: null, closedBy: null, closedAt: null,
+  ts: new Date(),
+  ...over,
+});
+
 before(async () => {
   const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080").split(":");
   env = await initializeTestEnvironment({
@@ -58,6 +69,8 @@ beforeEach(async () => {
     await setDoc(doc(f, `vendors/${V}/notes/nA`), { text: "note A", by: "Eve", byId: "u-empA", byRole: "employee", locationId: "locA", locationName: "A", shift: null, pinned: false, active: true, ts: new Date() });
     await setDoc(doc(f, `vendors/${V}/notes/nB`), { text: "note B", by: "Bob", byId: "u-empB", byRole: "employee", locationId: "locB", locationName: "B", shift: null, pinned: false, active: true, ts: new Date() });
     await setDoc(doc(f, `vendors/${V}/items/i1`), { name: "Marlboro Red carton", category: "Cigarettes", unit: "carton", barcode: "0123", locationId: "locA", active: true, createdAt: new Date() });
+    await setDoc(doc(f, `vendors/${V}/incidents/incA`), incident());
+    await setDoc(doc(f, `vendors/${V}/incidents/incGeneral`), incident({ subjectId: null, subjectName: null, title: "Back door found unlocked" }));
   });
 });
 
@@ -281,6 +294,57 @@ test("packs: no skipping received -> settled; metadata edits keep the status", a
     { status: "settled", settledAt: new Date(), settledBy: "Mia" }));
   await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p4`), { bin: "7" }));
   await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/packs/p4`), { bin: "9" }));
+});
+
+/* ---------- incidents (tier-two write-ups) ---------- */
+
+test("incidents: managers file them, employees cannot, and identity must match", async () => {
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/incidents/new1`), incident()));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/incidents/new2`),
+    incident({ by: "Eve", byId: "u-empA", byRole: "employee" })));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/incidents/new3`), incident({ byId: "u-empA" })));
+});
+
+test("incidents: must start clean — open, unacknowledged, links capped", async () => {
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/incidents/d1`), incident({ status: "acknowledged" })));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/incidents/d2`), incident({ ackNote: "pre-agreed" })));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/incidents/d3`), incident({ severity: "career-ending" })));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/incidents/d4`),
+    incident({ links: ["a", "b", "c", "d", "e", "f"] })));
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/incidents/d5`),
+    incident({ links: ["https://cam.example/clip1"] })));
+});
+
+test("incidents: subject reads their own; coworkers and outsiders never do", async () => {
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/incidents/incA`)));
+  await assertFails(getDoc(doc(db("empB"), `vendors/${V}/incidents/incA`)));
+  await assertFails(getDoc(doc(db("empA"), `vendors/${V}/incidents/incGeneral`)));
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/incidents/incGeneral`)));
+  await assertFails(getDoc(doc(db("outsider"), `vendors/${V}/incidents/incA`)));
+});
+
+test("incidents: only the subject acknowledges, once, ack fields alone", async () => {
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/incidents/incA`),
+    { status: "acknowledged", ackAt: new Date() }));
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/incidents/incA`),
+    { status: "acknowledged", ackAt: new Date(), text: "rewritten" })); // smuggled edit
+  await assertSucceeds(updateDoc(doc(db("empA"), `vendors/${V}/incidents/incA`),
+    { status: "acknowledged", ackAt: new Date(), ackNote: "The drawer lock was broken — I reported it that morning." }));
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/incidents/incA`),
+    { status: "acknowledged", ackAt: new Date() })); // no longer open
+});
+
+test("incidents: managers close (acknowledged or not); text immutable; no deletes", async () => {
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/incidents/incA`),
+    { status: "closed", closedBy: "Eve", closedAt: new Date() }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/incidents/incA`),
+    { status: "closed", closedBy: "Not Mia", closedAt: new Date() }));
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/incidents/incA`),
+    { status: "closed", closedBy: "Mia", closedAt: new Date() }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/incidents/incA`),
+    { status: "open" })); // forward-only
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/incidents/incGeneral`), { text: "edited" }));
+  await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/incidents/incGeneral`)));
 });
 
 test("items: managers manage, employees read, nobody deletes", async () => {
