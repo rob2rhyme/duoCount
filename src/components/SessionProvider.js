@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signInWithCustomToken, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { fetchJson } from "@/lib/api";
 
 const Ctx = createContext(null);
 export const useSession = () => useContext(Ctx);
@@ -40,23 +41,21 @@ export default function SessionProvider({ children }) {
   }, []);
 
   async function login(storeCode, pin) {
-    const res = await fetch("/api/auth/login", {
+    const j = await fetchJson("/api/auth/login", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ storeCode, pin }),
     });
-    const j = await res.json();
-    if (!res.ok) throw new Error(j.error || "Login failed");
+    if (!j.token) throw new Error("Sign-in failed — the server didn't return a session token. Please try again.");
     await signInWithCustomToken(auth, j.token);
     setVendor(j.vendor); setProfile(j.profile);
   }
 
   async function signup(payload) {
-    const res = await fetch("/api/auth/signup", {
+    const j = await fetchJson("/api/auth/signup", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const j = await res.json();
-    if (!res.ok) throw new Error(j.error || "Signup failed");
+    if (!j.token) throw new Error("Sign-up failed — the server didn't return a session token. Please try again.");
     await signInWithCustomToken(auth, j.token);
     setVendor(j.vendor); setProfile(j.profile);
     return j.vendor;

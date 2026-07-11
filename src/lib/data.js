@@ -1,4 +1,5 @@
 import { db, auth } from "./firebase";
+import { fetchJson } from "./api";
 import {
   collection, doc, addDoc, getDoc, updateDoc, writeBatch,
   query, where, orderBy, onSnapshot,
@@ -82,34 +83,25 @@ async function idToken() {
   return u.getIdToken();
 }
 export async function apiCreateStaff(payload) {
-  const res = await fetch("/api/staff", {
+  return fetchJson("/api/staff", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
     body: JSON.stringify(payload),
   });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j.error || "Failed");
-  return j;
 }
 export async function apiUpdateStaff(payload) {
-  const res = await fetch("/api/staff", {
+  return fetchJson("/api/staff", {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
     body: JSON.stringify(payload),
   });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j.error || "Failed");
-  return j;
 }
 // Owner-triggered test send of the daily digest (ignores lastSentDate).
 export async function apiTestDigest() {
-  const res = await fetch("/api/digest/test", {
+  return fetchJson("/api/digest/test", {
     method: "POST",
     headers: { Authorization: `Bearer ${await idToken()}` },
   });
-  const j = await res.json();
-  if (!res.ok) throw new Error(j.error || "Failed");
-  return j;
 }
 
 /* ---------- entries ---------- */
