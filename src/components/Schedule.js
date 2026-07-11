@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   watchSchedule, addScheduledShift, deleteScheduledShift, addScheduledShiftsBatch, watchStaff,
   watchAvailability, addUnavailable, deleteUnavailable, updateScheduledShift, watchSwapBoard,
-  watchTemplates, addTemplate, deleteTemplate,
+  watchTemplates, addTemplate, deleteTemplate, watchOpenShifts,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import {
@@ -39,6 +39,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const [staff, setStaff] = useState([]);
   const [avail, setAvail] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [openShifts, setOpenShifts] = useState([]);
   const [weekStart, setWeekStart] = useState(() => weekStartMonday(todayStr()));
   const [form, setForm] = useState({ userId: "", date: todayStr(), start: "09:00", end: "17:00", locationId: "" });
   const [newOff, setNewOff] = useState(todayStr());
@@ -52,6 +53,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   // Employees also watch the swap board (offered/claimed shifts) so they can pick
   // up coworkers' shifts; managers already see the whole roster in `shifts`.
   useEffect(() => { if (!isManager) return watchSwapBoard(vendor.id, setBoard); }, [vendor.id, isManager]);
+  useEffect(() => { if (!isManager) return watchOpenShifts(vendor.id, setOpenShifts); }, [vendor.id, isManager]);
 
   const actor = { userId: profile.id, name: profile.name, isManager };
   async function doSwap(shift, action) {
@@ -59,6 +61,12 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
     if (!patch) return onToast?.("That swap action isn't available");
     try { await updateScheduledShift(vendor.id, shift.id, patch); onToast?.(SWAP_TOAST[action] || "Updated"); }
     catch (e) { console.error(e); onToast?.("Couldn't update the swap"); }
+  }
+  async function claimOpen(shift) {
+    try {
+      await updateScheduledShift(vendor.id, shift.id, { userId: profile.id, userName: profile.name, open: false });
+      onToast?.("Shift claimed — it's yours");
+    } catch (e) { console.error(e); onToast?.("Couldn't claim the shift"); }
   }
   const swapButtons = (s) => {
     const acts = availableActions(s, actor);
@@ -103,21 +111,23 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const nameOf = (id) => staff.find((s) => s.id === id)?.name || id;
 
   async function addShift() {
-    const m = staff.find((s) => s.id === form.userId);
-    if (!m) return onToast?.("Pick an employee");
+    const isOpen = form.userId === "__open";
+    const m = isOpen ? null : staff.find((s) => s.id === form.userId);
+    if (!isOpen && !m) return onToast?.("Pick an employee (or post an open shift)");
     if (!form.date) return onToast?.("Pick a date");
     if (shiftMinutes(form.start, form.end) <= 0) return onToast?.("Check the start/end times");
     setBusy(true);
     try {
-      const loc = form.locationId || m.locationId || null;
+      const loc = form.locationId || m?.locationId || null;
       await addScheduledShift(vendor.id, {
-        userId: m.id, userName: m.name,
+        userId: isOpen ? null : m.id, userName: isOpen ? null : m.name,
         locationId: loc, locationName: loc ? locName(loc) : null,
         date: form.date, start: form.start, end: form.end,
         by: profile.name, byId: profile.id,
+        ...(isOpen ? { open: true } : {}),
       });
       setForm((f) => ({ ...f, userId: "" }));
-      onToast?.("Shift scheduled");
+      onToast?.(isOpen ? "Open shift posted" : "Shift scheduled");
     } catch (e) { console.error(e); onToast?.("Couldn't schedule — managers only"); }
     setBusy(false);
   }
@@ -177,6 +187,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
     const myOff = avail.filter((u) => u.date >= todayStr());
     const pickups = board.filter((s) => s.userId !== profile.id && swapStatusOf(s) === "offered");
     const myClaims = board.filter((s) => s.claimedById === profile.id);
+    const openToClaim = openShifts.filter((s) => s.date >= todayStr());
     return (
       <div className="space-y-4">
         <div className="card overflow-hidden">
@@ -200,11 +211,29 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
 
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Shifts up for grabs</h3></div>
-          {pickups.length === 0 && myClaims.length === 0 ? (
+          {pickups.length === 0 && myClaims.length === 0 && openToClaim.length === 0 ? (
             <EmptyState icon={<IconCalendar />} title="Nothing up for grabs"
-              subtitle="When a coworker offers a shift to swap, it appears here to claim — a manager approves the trade." />
+              subtitle="Open shifts a manager posts, and shifts coworkers offer to swap, appear here to claim." />
           ) : (
             <>
+              {openToClaim.map((s) => (
+                <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm text-gold">Open shift</div>
+                      <div className="text-[13px] text-muted">{dayLabel(s.date)}{s.locationName ? ` · ${s.locationName}` : ""}</div>
+                    </div>
+                    <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)}–{hhmm(s.end)}</div>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap mt-2">
+                    <button onClick={() => claimOpen(s)}
+                      className="text-[12px] font-semibold px-2.5 py-1 rounded-md border text-fg"
+                      style={{ borderColor: "var(--line)", background: "var(--subtle)" }}>
+                      Claim shift
+                    </button>
+                  </div>
+                </div>
+              ))}
               {myClaims.map((s) => (
                 <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
                   <div className="flex items-center justify-between gap-3">
@@ -280,6 +309,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
             <label className="label">Employee</label>
             <select className="input" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
               <option value="">Select…</option>
+              <option value="__open">🟡 Open shift (unassigned)</option>
               {activeStaff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
@@ -365,7 +395,9 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                         style={{ borderColor: isOv ? "var(--gold)" : isConf ? "var(--neg)" : "var(--line)" }}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <span className="font-medium text-sm">{s.userName}</span>
+                            {s.userName
+                              ? <span className="font-medium text-sm">{s.userName}</span>
+                              : <span className="font-medium text-sm text-gold">Open shift</span>}
                             {s.locationName && <span className="text-[13px] text-muted"> · {s.locationName}</span>}
                             {isOv && <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Overlap</span>}
                             {isConf && <span className="pill bg-red-100 text-red-700 ml-2">Unavailable</span>}
@@ -373,7 +405,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="font-mono text-[13px]">{hhmm(s.start)}–{hhmm(s.end)}</span>
-                            <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeShift(s.id)} aria-label={`Remove ${s.userName}'s shift`}>×</button>
+                            <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeShift(s.id)} aria-label={`Remove ${s.userName || "open"} shift`}>×</button>
                           </div>
                         </div>
                         {swapButtons(s)}

@@ -49,6 +49,7 @@ export function shiftMinutes(start, end) {
 export function scheduledHours(shifts = [], { from = null, to = null } = {}) {
   const byUser = new Map();
   for (const s of shifts) {
+    if (!s.userId) continue; // unassigned (open) shifts aren't anyone's hours
     if (from && s.date < from) continue;
     if (to && s.date > to) continue;
     const u = byUser.get(s.userId) || { userId: s.userId, userName: s.userName, mins: 0, shifts: 0 };
@@ -66,6 +67,7 @@ export function scheduledHours(shifts = [], { from = null, to = null } = {}) {
 export function findOverlaps(shifts = []) {
   const groups = new Map();
   for (const s of shifts) {
+    if (!s.userId) continue; // two open shifts on a day aren't a double-booking
     const k = `${s.userId}|${s.date}`;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(s);
@@ -184,7 +186,7 @@ export function groupByDate(shifts = []) {
 export function reconcile(scheduled = [], punches = [], { dates = [] } = {}) {
   const inRange = new Set(dates);
   const sched = new Map(); // `${userId}|${date}` -> {userId, userName, date}
-  for (const s of scheduled) if (inRange.has(s.date)) sched.set(`${s.userId}|${s.date}`, s);
+  for (const s of scheduled) if (s.userId && inRange.has(s.date)) sched.set(`${s.userId}|${s.date}`, s);
 
   const worked = new Set(); // `${userId}|${day}`
   for (const p of punches) if (p.userId && p.day) worked.add(`${p.userId}|${p.day}`);

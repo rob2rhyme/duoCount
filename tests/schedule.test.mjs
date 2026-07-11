@@ -128,6 +128,19 @@ test("copyShiftsToWeek skips shifts that already exist in the target week", () =
   assert.equal(out[0].date, "2026-07-14"); // only Tuesday gets copied
 });
 
+test("unassigned (open) shifts don't count as hours, overlaps, or no-shows", () => {
+  const open1 = { id: "o1", userId: null, userName: null, date: "2026-07-06", start: "09:00", end: "17:00" };
+  const open2 = { id: "o2", userId: null, userName: null, date: "2026-07-06", start: "12:00", end: "20:00" };
+  // two open shifts overlapping in time on the same day are NOT a double-booking
+  assert.equal(findOverlaps([open1, open2]).size, 0);
+  // open shifts contribute no scheduled hours
+  assert.deepEqual(scheduledHours([open1, open2]), []);
+  // an unclaimed open shift on an elapsed day is not a no-show
+  const r = reconcile([open1], [], { dates: ["2026-07-06"] });
+  assert.equal(r.scheduled, 0);
+  assert.equal(r.noShow.length, 0);
+});
+
 test("dayOffset gives the 0-6 weekday index within a week", () => {
   assert.equal(dayOffset("2026-07-06", "2026-07-06"), 0); // Monday
   assert.equal(dayOffset("2026-07-06", "2026-07-09"), 3); // Thursday

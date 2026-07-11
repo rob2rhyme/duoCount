@@ -245,16 +245,21 @@ service cloud.firestore {
       match /schedule/{shiftId} {
         allow read: if mgr()
           || (member() && resource.data.userId == request.auth.token.userId)
-          || (member() && resource.data.get('swapStatus', 'none') != 'none');
+          || (member() && resource.data.get('swapStatus', 'none') != 'none')
+          || (member() && resource.data.get('open', false) == true);
 
+        // A manager creates either an assigned shift (userId is a staff id) or an
+        // OPEN shift (userId null, open:true) for anyone to pick up.
         allow create: if mgr()
           && request.resource.data.by == request.auth.token.name
           && request.resource.data.byId == request.auth.token.userId
-          && request.resource.data.userId is string
-          && request.resource.data.userName is string
           && request.resource.data.date is string
           && request.resource.data.start is string
-          && request.resource.data.end is string;
+          && request.resource.data.end is string
+          && (
+            (request.resource.data.userId is string && request.resource.data.userName is string)
+            || (request.resource.data.userId == null && request.resource.data.get('open', false) == true)
+          );
 
         allow delete: if mgr();
 
@@ -292,11 +297,22 @@ service cloud.firestore {
             && request.resource.data.claimedById == null
             && request.resource.data.claimedByName == null;
         }
+        // An employee grabs an OPEN shift, assigning it to themselves. Direct —
+        // no approval — since the manager posted it wanting it covered.
+        function claimOpen() {
+          return member()
+            && resource.data.get('open', false) == true
+            && resource.data.userId == null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userId', 'userName', 'open'])
+            && request.resource.data.userId == request.auth.token.userId
+            && request.resource.data.userName == request.auth.token.name
+            && request.resource.data.open == false;
+        }
 
         // Managers may edit anything (incl. approve/reject: an approve reassigns
         // userId to the claimer). Employees may only drive the swap state machine
-        // on their own / an offered shift — see lib/swaps.js for the mirror.
-        allow update: if mgr() || swapOffer() || swapCancel() || swapClaim() || swapWithdraw();
+        // on their own / an offered shift, or grab an open shift — see lib/swaps.js.
+        allow update: if mgr() || swapOffer() || swapCancel() || swapClaim() || swapWithdraw() || claimOpen();
       }
 
       // Staff availability — employees mark dates they can't work so managers can

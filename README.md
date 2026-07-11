@@ -160,9 +160,10 @@ values are set.
   payroll CSV. **Schedule** — managers roster a weekly plan (editable, unlike
   punches) with double-booking warnings, scheduled hours, one-click
   **copy-last-week**, and reusable **week templates**; employees see their
-  upcoming shifts and mark the **days
-  they can't work** (managers get a conflict flag when they roster over one), and
-  **swap shifts** (offer → a coworker claims → a manager approves; the state
+  upcoming shifts, mark the **days
+  they can't work** (managers get a conflict flag when they roster over one),
+  **grab open shifts** a manager posts unassigned (direct claim, no approval),
+  and **swap shifts** (offer → a coworker claims → a manager approves; the state
   machine lives in `src/lib/swaps.js` and is mirrored by the Firestore rules);
   `src/lib/schedule.js` reconciles the roster against the actual punches by
   business day to surface no-shows.
@@ -291,7 +292,8 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
   schedule/{id}               manager-managed roster shift — userId/userName,
                               locationId/Name, date, start/end, by/byId; editable.
                               swapStatus (none|offered|claimed) + claimedBy* drive
-                              employee shift swaps (manager approves)
+                              employee shift swaps (manager approves); open:true
+                              with null userId is an unassigned shift to grab
   availability/{id}           employee-authored unavailable date — userId/userName,
                               date; self-managed, manager-visible, no edits
   templates/{id}              manager-only saved week pattern — name + shifts[]
