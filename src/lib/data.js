@@ -267,6 +267,18 @@ export async function deleteUnavailable(vendorId, id) {
   await deleteDoc(doc(db, "vendors", vendorId, "availability", id));
 }
 
+/* ---------- week templates (manager-managed roster patterns) ---------- */
+export function watchTemplates(vendorId, cb) {
+  return onSnapshot(query(vcol(vendorId, "templates"), orderBy("ts", "desc")),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addTemplate(vendorId, tpl) {
+  await addDoc(vcol(vendorId, "templates"), { ...tpl, ts: new Date() });
+}
+export async function deleteTemplate(vendorId, id) {
+  await deleteDoc(doc(db, "vendors", vendorId, "templates", id));
+}
+
 /* ---------- tier one: shift notes ---------- */
 export function watchNotes(vendorId, lockedLocationId, cb) {
   const base = vcol(vendorId, "notes");

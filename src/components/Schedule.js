@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import {
   watchSchedule, addScheduledShift, deleteScheduledShift, addScheduledShiftsBatch, watchStaff,
   watchAvailability, addUnavailable, deleteUnavailable, updateScheduledShift, watchSwapBoard,
+  watchTemplates, addTemplate, deleteTemplate,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import {
   weekStartMonday, weekDates, addDays, groupByDate, scheduledHours, findOverlaps, reconcile,
   shiftMinutes, copyShiftsToWeek, availabilityConflicts, isUnavailable,
+  weekShiftsToTemplate, templateToShifts,
 } from "@/lib/schedule";
 import { availableActions, applySwap, swapStatusOf, SWAP_ACTIONS } from "@/lib/swaps";
 import EmptyState, { IconCalendar } from "./EmptyState";
@@ -36,6 +38,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const [board, setBoard] = useState([]);
   const [staff, setStaff] = useState([]);
   const [avail, setAvail] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [weekStart, setWeekStart] = useState(() => weekStartMonday(todayStr()));
   const [form, setForm] = useState({ userId: "", date: todayStr(), start: "09:00", end: "17:00", locationId: "" });
   const [newOff, setNewOff] = useState(todayStr());
@@ -45,6 +48,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   useEffect(() => watchSchedule(vendor.id, isManager ? null : profile.id, setShifts), [vendor.id, isManager, profile.id]);
   useEffect(() => watchAvailability(vendor.id, isManager ? null : profile.id, setAvail), [vendor.id, isManager, profile.id]);
   useEffect(() => { if (isManager) return watchStaff(vendor.id, setStaff); }, [vendor.id, isManager]);
+  useEffect(() => { if (isManager) return watchTemplates(vendor.id, setTemplates); }, [vendor.id, isManager]);
   // Employees also watch the swap board (offered/claimed shifts) so they can pick
   // up coworkers' shifts; managers already see the whole roster in `shifts`.
   useEffect(() => { if (!isManager) return watchSwapBoard(vendor.id, setBoard); }, [vendor.id, isManager]);
@@ -132,6 +136,29 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
       onToast?.(`Copied ${n} shift${n === 1 ? "" : "s"} from last week`);
     } catch (e) { console.error(e); onToast?.("Copy failed — managers only"); }
     setCopying(false);
+  }
+  async function saveTemplate() {
+    const specs = weekShiftsToTemplate(weekShifts, weekStart);
+    if (!specs.length) return onToast?.("No shifts this week to save");
+    const name = prompt('Name this week template (e.g. "Standard week"):');
+    if (name == null || !name.trim()) return;
+    try {
+      await addTemplate(vendor.id, { name: name.trim().slice(0, 60), shifts: specs, by: profile.name, byId: profile.id });
+      onToast?.("Template saved");
+    } catch (e) { console.error(e); onToast?.("Couldn't save — managers only"); }
+  }
+  async function applyTemplate(t) {
+    const specs = templateToShifts(t.shifts || [], weekStart, { existing: weekShifts })
+      .map((s) => ({ ...s, by: profile.name, byId: profile.id }));
+    if (!specs.length) return onToast?.("This week already has those shifts");
+    try {
+      const n = await addScheduledShiftsBatch(vendor.id, specs);
+      onToast?.(`Added ${n} shift${n === 1 ? "" : "s"} from "${t.name}"`);
+    } catch (e) { console.error(e); onToast?.("Couldn't apply — managers only"); }
+  }
+  async function removeTemplate(id) {
+    try { await deleteTemplate(vendor.id, id); onToast?.("Template deleted"); }
+    catch (e) { console.error(e); onToast?.("Couldn't delete — managers only"); }
   }
   async function markUnavailable() {
     if (!newOff) return;
@@ -282,6 +309,32 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
           <p className="text-[13px] text-neg">⚠ {nameOf(form.userId)} marked this day unavailable — you can still schedule it.</p>
         )}
         <button className="btn-primary" disabled={busy} onClick={addShift}>{busy ? "Saving…" : "Add to schedule"}</button>
+      </div>
+
+      {/* week templates */}
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-semibold text-[15px]">Week templates</h3>
+          <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={!weekShifts.length} onClick={saveTemplate}>Save this week</button>
+        </div>
+        {templates.length === 0 ? (
+          <p className="text-[13px] text-muted">Save a typical week as a template, then stamp it onto any future week in one tap.</p>
+        ) : (
+          <div className="space-y-2">
+            {templates.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 bg-subtle border" style={{ borderColor: "var(--line)" }}>
+                <div className="min-w-0">
+                  <span className="font-medium text-sm">{t.name}</span>
+                  <span className="text-[13px] text-muted"> · {t.shifts?.length || 0} shift{(t.shifts?.length || 0) === 1 ? "" : "s"}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button className="text-[12px] font-semibold px-2.5 py-1 rounded-md border text-fg" style={{ borderColor: "var(--line)", background: "var(--surface)" }} onClick={() => applyTemplate(t)}>Apply to this week</button>
+                  <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeTemplate(t.id)} aria-label={`Delete ${t.name}`}>×</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* roster by day */}
