@@ -1,0 +1,37 @@
+// Sliding-window login throttle, as a pure decision so the route only does I/O.
+// The login route stores one counter doc per key — the client IP, and the store
+// slug — as { count, windowStart }. This decides whether a key is currently
+// blocked and what to write on a failure.
+//
+// Two independent limiters run together (block if EITHER trips):
+//   • per-IP    — stops one machine hammering PINs.
+//   • per-store — a backstop against a DISTRIBUTED attack on one store that
+//                 rotates IPs to slip under the per-IP cap.
+//
+// The window auto-expires: once `windowStart` is older than `windowMs` the count
+// resets, so a key is never locked permanently — a burst blocks only until the
+// window rolls (minutes), and any successful sign-in clears both counters. The
+// per-store cap is set well above what a busy store's honest typos could reach,
+// so real staff aren't locked out; it only bites during an actual attack.
+export const IP_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 10 };
+export const STORE_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 50 };
+
+export function throttleDecision(record, now, { windowMs, maxFails }) {
+  const inWindow =
+    !!record && Number.isFinite(record.windowStart) && now - record.windowStart < windowMs;
+  const count = inWindow ? Number(record.count) || 0 : 0;
+  return {
+    blocked: inWindow && count >= maxFails,
+    // What to persist when this attempt fails: increment within a live window,
+    // otherwise start a fresh window at `now`.
+    nextOnFail: inWindow
+      ? { count: count + 1, windowStart: record.windowStart }
+      : { count: 1, windowStart: now },
+  };
+}
+
+// Doc-id sanitizer for the loginAttempts collection (Firestore ids can't hold
+// arbitrary characters; keep it bounded too).
+export function attemptKey(raw) {
+  return String(raw ?? "").replace(/[^a-zA-Z0-9:._-]/g, "_").slice(0, 200) || "unknown";
+}

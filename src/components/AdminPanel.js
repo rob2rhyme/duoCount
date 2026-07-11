@@ -7,6 +7,7 @@ import {
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
+import { PIN_LENGTH, PIN_HELP, isValidNewPin } from "@/lib/pin";
 import BarcodeScanner from "./BarcodeScanner";
 import PacksCard from "./PacksCard";
 
@@ -20,6 +21,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
   const [ns, setNs] = useState({ name: "", pin: "", role: "employee", locationId: "" });
   const [busy, setBusy] = useState(false);
   async function createStaff() {
+    if (!ns.name.trim()) return onToast?.("Enter the staff member's name");
+    if (!isValidNewPin(ns.pin)) return onToast?.(`PIN must be ${PIN_HELP}`);
     setBusy(true);
     try {
       await apiCreateStaff({ ...ns, locationId: ns.locationId || locations.find((l) => l.active !== false)?.id });
@@ -163,7 +166,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
         <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div><label className="label">Name</label><input className="input" value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder="Sam K." /></div>
-            <div><label className="label">PIN (4–6 digits)</label><input className="input font-mono" inputMode="numeric" maxLength={6} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="4321" /></div>
+            <div><label className="label">PIN ({PIN_HELP})</label><input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="123456" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div><label className="label">Role</label>
@@ -211,7 +214,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                     {active ? "Disable" : "Enable"}
                   </button>
                   <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={isMe}
-                    onClick={() => { const p = prompt(`New PIN for ${u.name} (4–6 digits):`); if (p) patchStaff(u.id, { pin: p }, "PIN reset"); }}>
+                    onClick={() => {
+                      const p = prompt(`New PIN for ${u.name} (${PIN_HELP}):`);
+                      if (p == null) return;
+                      const v = p.trim();
+                      if (!isValidNewPin(v)) return onToast?.(`PIN must be ${PIN_HELP}`);
+                      patchStaff(u.id, { pin: v }, "PIN reset");
+                    }}>
                     Reset PIN
                   </button>
                 </div>

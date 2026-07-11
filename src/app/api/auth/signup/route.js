@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { hashPin } from "@/lib/hash";
+import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
 
 export const runtime = "nodejs";
 
@@ -15,8 +16,8 @@ export async function POST(req) {
       return NextResponse.json({ error: "Enter a business name." }, { status: 400 });
     if (!ownerName || ownerName.trim().length < 2)
       return NextResponse.json({ error: "Enter your name." }, { status: 400 });
-    if (!/^\d{4,6}$/.test(String(pin || "")))
-      return NextResponse.json({ error: "PIN must be 4–6 digits." }, { status: 400 });
+    if (!isValidNewPin(pin))
+      return NextResponse.json({ error: PIN_ERROR }, { status: 400 });
 
     const { adminDb, adminAuth } = await getAdmin();
 

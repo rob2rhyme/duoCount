@@ -149,12 +149,14 @@ values are set.
   drawer short under multiple hands (process, not person), a 48-hour
   verification backlog, an item that keeps counting short. Alerts appear on a
   manager-only Dashboard card and in the daily digest, framed as
-  "signals worth a look — not conclusions". Thresholds live in
-  `PATTERN_RULES`; there is no stored state and employees never see them.
-- **Login rate limiting**: the login route throttles failed attempts —
-  10 per 15 minutes per client IP — before any credential work runs, using a
-  top-level `loginAttempts` collection only the Admin SDK can touch. A
-  successful login clears the counter (staff share the shop Wi-Fi IP).
+  "signals worth a look — not conclusions". Thresholds default to
+  `PATTERN_RULES` but are tunable per vendor (Admin → Alert sensitivity); there
+  is no stored state and employees never see them.
+- **Login rate limiting**: the login route throttles failed attempts before any
+  credential work runs — **per IP (10 / 15 min) and per store (50 / 15 min)** —
+  using a top-level `loginAttempts` collection only the Admin SDK can touch.
+  Both windows auto-expire and any successful login clears them (staff share the
+  shop Wi-Fi IP). New/changed PINs must be **6 digits** (`lib/pin.js`).
   Optional cleanup: add a Firestore TTL policy on `windowStart`.
 
 ## Barcode scanning
@@ -243,9 +245,10 @@ UI with no schema impact:
 - Role or location changes take effect at the target user's next sign-in,
   because rules read the auth token's claims (issued at login).
 - The digest cron route rejects requests without `Bearer ${CRON_SECRET}`.
-- Login attempts are rate limited: 10 failures per 15 minutes per IP, checked
-  before any credential work. Deeper hardening (per-user lockout, 6-digit
-  PIN default) is a tier-3 option in `docs/tier-two-build-spec.md` §7.
+- Login attempts are rate limited before any credential work: 10 failures /
+  15 min per IP **and** 50 / 15 min per store (a distributed-attack backstop);
+  both auto-expire and clear on success. New/changed PINs are 6 digits. See
+  `docs/tier-two-build-spec.md` §3.
 - Incident write-ups are subject-visible only (plus managers); coworkers can
   never read each other's, in either sharing mode.
 
@@ -269,7 +272,7 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
                               severity, subjectId/subjectName (null = general),
                               evidence links, open -> acknowledged -> closed
                               with ack note; immutable text, no deletes
-loginAttempts/{ip}            server-only failed-login counters (rate limiting)
+loginAttempts/{ip_*|store_*} server-only failed-login counters (per-IP + per-store)
 ```
 
 ## Name note

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useSession } from "./SessionProvider";
 import { PRODUCT } from "@/lib/store";
+import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 
@@ -79,12 +80,12 @@ export default function PinLogin() {
             <input className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
             <label className="label">Your name (owner)</label>
             <input className="input mb-4" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Jordan P." />
-            <label className="label">Choose your PIN (4–6 digits)</label>
+            <label className="label">Choose your PIN ({PIN_LENGTH} digits)</label>
             <input className="input text-center text-xl tracking-[0.3em] font-mono"
-              inputMode="numeric" maxLength={6} value={newPin}
+              inputMode="numeric" maxLength={PIN_LENGTH} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
             {err && <p className="text-sm text-neg mt-3">{err}</p>}
-            <button className="btn-primary mt-5" disabled={busy} onClick={doSignup}>
+            <button className="btn-primary mt-5" disabled={busy || !isValidNewPin(newPin)} onClick={doSignup}>
               {busy ? "Creating…" : "Create business & sign in"}
             </button>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
