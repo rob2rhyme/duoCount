@@ -1,7 +1,8 @@
 # DuoCount — UI Enhancements Spec
 
-**Status:** built — denomination currency counter, app-wide progressive
-scroll-to-top FAB, and a full light/dark theme shipped.
+**Status:** built — denomination currency counter, progressive scroll-to-top
+FAB (toggleable per device), a full light/dark theme, and a header Preferences
+menu shipped.
 
 **Scope.** Three usability upgrades to the existing stack (Next.js App Router +
 Tailwind), chosen for high polish-per-effort and zero data-model impact:
@@ -77,6 +78,11 @@ convenience.
 - Clicking scrolls smoothly to the top, or jumps instantly when the user has
   **reduced-motion** enabled.
 - Sits at `z-40`, below modals (`z-50`), so it never covers a dialog's controls.
+- **Configurable per device.** Each user can turn the FAB off in the header
+  **Preferences** menu (§4); the choice persists in `localStorage`
+  (`duocount-fab`) and, while off, the component renders nothing and attaches no
+  scroll listeners. It's a personal preference, not a business setting — one
+  person hiding it never changes what a coworker sees.
 
 ---
 
@@ -99,9 +105,10 @@ brand colors (`ink`, `paper`, `brass`) stay constant; theme-aware tokens live in
   key `duocount-theme`) and wins over the OS from then on.
 - A tiny **no-flash boot script** (`THEME_BOOT_SCRIPT`) runs in `<head>` before
   first paint, so there is no light→dark flicker on load.
-- The **toggle** (sun/moon) lives in the app header and on the login card.
-  `ThemeProvider` also keeps `color-scheme` in sync so native controls (selects,
-  date pickers, scrollbars) match the theme.
+- The theme lives in the header **Preferences** menu (§4) inside the app, and
+  as a quick **sun/moon toggle** on the login card. `ThemeProvider` also keeps
+  `color-scheme` in sync so native controls (selects, date pickers, scrollbars)
+  match the theme.
 
 ### 3.3 What intentionally stays fixed
 
@@ -113,3 +120,20 @@ brand colors (`ink`, `paper`, `brass`) stay constant; theme-aware tokens live in
   color strings, so CSS variables aren't reliable there).
 - Semantic **status chips** (short/over/watch: red/green/amber) keep their hue
   in both themes.
+
+---
+
+## 4. Preferences menu
+
+A gear in the app header opens a small **Preferences** popover — the home for
+per-device display preferences (as opposed to Admin → Business settings, which
+are the owner's shared business policy):
+
+- **Appearance** — a Light / Dark segmented control (§3).
+- **Scroll-to-top button** — an on/off switch for the FAB (§2.2).
+
+Both preferences are personal and stored in `localStorage` (`PrefsProvider` for
+the FAB, `ThemeProvider` for the theme), so they never touch the vendor record,
+need no Firestore rules, and never change what another user sees. The popover
+closes on outside-click or `Escape`. It's the natural place to add future
+device-level preferences.

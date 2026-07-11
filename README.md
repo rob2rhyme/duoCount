@@ -22,7 +22,9 @@ security rules keyed on server-issued auth claims.
   - `barcode-scanning-spec.md` — spec for camera scanning (built)
   - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (built)
   - `ui-enhancements-spec.md` — spec for the denomination currency counter,
-    scroll-to-top FAB, and light/dark theme (built)
+    scroll-to-top FAB, light/dark theme, and Preferences menu (built)
+  - `roadmap.md` — what's shipped, what's next (demo seed, PWA, distribution
+    analysis, audits), and what's deferred
   - `positioning-one-pager.md` — market positioning, competitors, pricing
 - `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
   branded for Smokers Haven, useful as backup or during onboarding. The app
@@ -214,7 +216,11 @@ UI with no schema impact:
   digest, and Recharts colors intentionally stay fixed for their medium.
 - **Progressive scroll-to-top FAB.** Mounted app-wide by `AppChrome`; a ring
   fills with scroll depth, reveals past ~240px, respects reduced-motion, and
-  stays below modals and out of the tab order while hidden.
+  stays below modals and out of the tab order while hidden. Each user can turn
+  it off in the header **Preferences** menu.
+- **Preferences menu.** A gear in the app header opens a per-device Preferences
+  popover — theme (light/dark) and the scroll-to-top toggle — persisted in
+  `localStorage`, separate from the owner's Admin → Business settings.
 
 ## Security notes
 

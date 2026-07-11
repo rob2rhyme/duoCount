@@ -190,11 +190,13 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
             const t = toDate(e.ts);
             const label = e.kind === "cash" ? (e.drawerName || "Drawer") : e.kind === "inventory" ? (e.itemName || "Item") : e.game;
             return (
-              <div key={e.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-center gap-3 cursor-pointer hover:bg-panel"
+              <div key={e.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3 cursor-pointer hover:bg-panel"
                 onClick={onOpenLog}>
-                <span className={`pill flex-shrink-0 ${why === "Unverified > 24h" ? "bg-subtle text-muted" : "bg-red-100 text-red-600"}`}>{why}</span>
-                <span className="font-medium text-sm truncate">{label}</span>
-                <span className="text-[12px] text-muted font-mono ml-auto whitespace-nowrap">{e.by} · {t ? t.toLocaleDateString() : ""}</span>
+                <span className={`pill flex-shrink-0 mt-0.5 ${why === "Unverified > 24h" ? "bg-subtle text-muted" : "bg-red-100 text-red-600"}`}>{why}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-sm truncate">{label}</div>
+                  <div className="text-[12px] text-muted font-mono truncate">{e.by} · {t ? t.toLocaleDateString() : ""}</div>
+                </div>
               </div>
             );
           })}

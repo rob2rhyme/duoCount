@@ -1,19 +1,23 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { usePrefs } from "./PrefsProvider";
 
 // Progressive "scroll to top" floating action button. A ring around the arrow
 // fills to mirror how far down the page you are; the button fades in only once
 // you've scrolled past a threshold, and returns you to the top on click
-// (respecting reduced-motion). Mounted app-wide by AppChrome.
+// (respecting reduced-motion). Mounted app-wide by AppChrome; each user can
+// turn it off in Preferences.
 const RADIUS = 20;
 const CIRC = 2 * Math.PI * RADIUS;
 const REVEAL_AT = 240; // px scrolled before the button appears
 
 export default function ScrollTopFab() {
+  const { fabEnabled } = usePrefs();
   const [progress, setProgress] = useState(0); // 0..1 of scrollable height
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (!fabEnabled) return; // no listeners while the FAB is turned off
     let raf = 0;
     const measure = () => {
       raf = 0;
@@ -32,12 +36,14 @@ export default function ScrollTopFab() {
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [fabEnabled]);
 
   const toTop = useCallback(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
   }, []);
+
+  if (!fabEnabled) return null;
 
   return (
     <button
