@@ -18,7 +18,7 @@ export async function POST(req) {
     if (!/^\d{4,6}$/.test(String(pin || "")))
       return NextResponse.json({ error: "PIN must be 4–6 digits." }, { status: 400 });
 
-    const { adminDb, adminAuth } = getAdmin();
+    const { adminDb, adminAuth } = await getAdmin();
 
     // unique store code
     const base = slugify(businessName);

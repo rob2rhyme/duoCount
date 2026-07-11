@@ -14,18 +14,23 @@ export async function GET(req) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { adminDb } = getAdmin();
-  const vendors = await adminDb.collection("vendors").where("digest.enabled", "==", true).get();
+  try {
+    const { adminDb } = await getAdmin();
+    const vendors = await adminDb.collection("vendors").where("digest.enabled", "==", true).get();
 
-  let sent = 0, skipped = 0, failed = 0;
-  for (const v of vendors.docs) {
-    try {
-      const result = await sendDigestForVendor(adminDb, v);
-      if (result === "sent") sent++; else skipped++;
-    } catch (e) {
-      failed++;
-      console.error(`digest failed for vendor ${v.id}:`, e.message);
+    let sent = 0, skipped = 0, failed = 0;
+    for (const v of vendors.docs) {
+      try {
+        const result = await sendDigestForVendor(adminDb, v);
+        if (result === "sent") sent++; else skipped++;
+      } catch (e) {
+        failed++;
+        console.error(`digest failed for vendor ${v.id}:`, e.message);
+      }
     }
+    return NextResponse.json({ sent, skipped, failed, vendors: vendors.size });
+  } catch (e) {
+    console.error("cron digest error", e);
+    return NextResponse.json({ error: e.message || "Failed." }, { status: 500 });
   }
-  return NextResponse.json({ sent, skipped, failed, vendors: vendors.size });
 }

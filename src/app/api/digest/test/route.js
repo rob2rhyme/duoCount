@@ -12,7 +12,7 @@ export async function POST(req) {
     const idToken = authz.startsWith("Bearer ") ? authz.slice(7) : null;
     if (!idToken) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-    const { adminAuth, adminDb } = getAdmin();
+    const { adminAuth, adminDb } = await getAdmin();
     const claims = await adminAuth.verifyIdToken(idToken);
     if (!claims.vendorId || claims.role !== "owner")
       return NextResponse.json({ error: "Owners only." }, { status: 403 });

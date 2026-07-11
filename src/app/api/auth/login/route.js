@@ -23,7 +23,7 @@ export async function POST(req) {
     if (!storeCode || !pin)
       return NextResponse.json({ error: "Enter your store code and PIN." }, { status: 400 });
 
-    const { adminDb, adminAuth } = getAdmin();
+    const { adminDb, adminAuth } = await getAdmin();
 
     const limRef = limiterRef(adminDb, req);
     const lim = await limRef.get();
