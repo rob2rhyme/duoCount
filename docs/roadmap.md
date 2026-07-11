@@ -84,14 +84,15 @@ Tables scroll/wrap instead of overflowing; forms collapse cleanly; chips wrap.
   `Smoke…`).
 
 **Enhancement backlog (deferred, not blocking):**
+- ✅ **Header consolidation** — Sign out moved into the gear (a power-off row at
+  the bottom of the Settings menu), so the header is a single control with a
+  proper tap target; reclaims width on tiny screens. (`ui-enhancements-spec.md` §4)
 - **Header identity on tiny screens** — the user name still truncates hard;
-  consider first-name-only, or consolidating Sign out into the gear as an
-  account menu to reclaim width.
+  consider first-name-only for the pill.
 - **Sticky headers** on the Dashboard by-drawer / by-item / by-employee tables
   so column labels stay visible while scrolling long lists.
 - **Empty-state polish** — light illustrations / clearer CTAs on the empty Log,
   Notes, Incidents, and Dashboard states.
-- **Bigger tap target** for the header "Sign out" text link.
 - **Keyboard shortcuts** for power users (tab switching, save).
 
 ## Deferred (tier 3)

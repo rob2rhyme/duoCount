@@ -86,8 +86,7 @@ export default function AppShell() {
               {profile.role === "owner" ? "Own" : profile.role === "manager" ? "Mgr" : "Emp"}
             </span>
           </span>
-          <PreferencesMenu />
-          <button className="text-[#c9c6bd] underline underline-offset-2 text-[13px]" onClick={logout}>Sign out</button>
+          <PreferencesMenu onSignOut={logout} />
         </div>
       </header>
 

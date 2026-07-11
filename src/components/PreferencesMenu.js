@@ -14,10 +14,12 @@ function Switch({ on, onChange, label }) {
   );
 }
 
-// Header gear → per-device Preferences: theme and the scroll-to-top FAB. Kept
-// personal (localStorage via ThemeProvider/PrefsProvider), so one person's
-// choice never changes what a coworker sees.
-export default function PreferencesMenu() {
+// Header gear → the Settings menu: per-device preferences (theme + the
+// scroll-to-top FAB, kept personal via localStorage so one person's choice
+// never changes what a coworker sees), the install prompt, and — when
+// `onSignOut` is supplied — the account's Sign out action, so the header stays
+// a single control.
+export default function PreferencesMenu({ onSignOut }) {
   const { theme, setTheme } = useTheme();
   const { fabEnabled, setFabEnabled } = usePrefs();
   const { available: canInstall, promptInstall } = useInstallPrompt();
@@ -36,7 +38,7 @@ export default function PreferencesMenu() {
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((o) => !o)}
-        aria-label="Preferences" aria-haspopup="menu" aria-expanded={open}
+        aria-label="Settings" aria-haspopup="menu" aria-expanded={open}
         className="inline-grid place-items-center w-8 h-8 rounded-full text-paper/90 hover:text-paper hover:bg-white/10 border border-white/15 transition">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3" />
@@ -45,7 +47,7 @@ export default function PreferencesMenu() {
       </button>
 
       {open && (
-        <div role="menu" aria-label="Preferences"
+        <div role="menu" aria-label="Settings"
           className="card absolute right-0 mt-2 w-64 z-50 p-3 space-y-3.5 text-fg shadow-xl">
           <div>
             <div className="label mb-1.5">Appearance</div>
@@ -74,6 +76,19 @@ export default function PreferencesMenu() {
               </svg>
               Install app
             </button>
+          )}
+
+          {onSignOut && (
+            <div className="pt-2.5 border-t border-line">
+              <button type="button" role="menuitem" onClick={() => { setOpen(false); onSignOut(); }}
+                className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-red-600 hover:bg-subtle transition">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 2v10" />
+                  <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
+                </svg>
+                Sign out
+              </button>
+            </div>
           )}
         </div>
       )}

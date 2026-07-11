@@ -123,17 +123,23 @@ brand colors (`ink`, `paper`, `brass`) stay constant; theme-aware tokens live in
 
 ---
 
-## 4. Preferences menu
+## 4. Settings menu
 
-A gear in the app header opens a small **Preferences** popover — the home for
+A single gear in the app header opens the **Settings** popover — the home for
 per-device display preferences (as opposed to Admin → Business settings, which
-are the owner's shared business policy):
+are the owner's shared business policy), plus the account's Sign out:
 
 - **Appearance** — a Light / Dark segmented control (§3).
 - **Scroll-to-top button** — an on/off switch for the FAB (§2.2).
+- **Install app** — the PWA install prompt, shown only when the browser offers
+  it (see `pwa-spec.md`).
+- **Sign out** — a power-off action at the bottom of the menu (`onSignOut` prop,
+  supplied by `AppShell`). Consolidating it here means the header is one control,
+  not a gear plus a separate text link — cleaner on small screens, with a proper
+  tap target.
 
-Both preferences are personal and stored in `localStorage` (`PrefsProvider` for
-the FAB, `ThemeProvider` for the theme), so they never touch the vendor record,
-need no Firestore rules, and never change what another user sees. The popover
-closes on outside-click or `Escape`. It's the natural place to add future
-device-level preferences.
+The two display preferences are personal and stored in `localStorage`
+(`PrefsProvider` for the FAB, `ThemeProvider` for the theme), so they never touch
+the vendor record, need no Firestore rules, and never change what another user
+sees. The popover closes on outside-click or `Escape`. It's the natural place to
+add future device-level preferences.

@@ -22,7 +22,7 @@ security rules keyed on server-issued auth claims.
   - `barcode-scanning-spec.md` — spec for camera scanning (built)
   - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (built)
   - `ui-enhancements-spec.md` — spec for the denomination currency counter,
-    scroll-to-top FAB, light/dark theme, and Preferences menu (built)
+    scroll-to-top FAB, light/dark theme, and Settings menu (built)
   - `demo-data-spec.md` — owner-only Load/Clear sample data (server-side, so it
     respects the append-only trust rules)
   - `pwa-spec.md` — installable mobile-first PWA (offline app shell, safe-area,
@@ -223,10 +223,12 @@ UI with no schema impact:
 - **Progressive scroll-to-top FAB.** Mounted app-wide by `AppChrome`; a ring
   fills with scroll depth, reveals past ~240px, respects reduced-motion, and
   stays below modals and out of the tab order while hidden. Each user can turn
-  it off in the header **Preferences** menu.
-- **Preferences menu.** A gear in the app header opens a per-device Preferences
-  popover — theme (light/dark) and the scroll-to-top toggle — persisted in
-  `localStorage`, separate from the owner's Admin → Business settings.
+  it off in the header **Settings** menu.
+- **Settings menu.** A single gear in the app header opens a popover with the
+  per-device preferences — theme (light/dark) and the scroll-to-top toggle,
+  persisted in `localStorage`, separate from the owner's Admin → Business
+  settings — the PWA install prompt, and **Sign out** (a power-off row), so the
+  header stays one control.
 
 ## Security notes
 
