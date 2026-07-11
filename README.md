@@ -17,7 +17,8 @@ inventory tracking for retail teams.
   - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (now built)
   - `positioning-one-pager.md` — market positioning, competitors, pricing
 - `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
-  branded for Smokers Haven, useful as backup or during onboarding.
+  branded for Smokers Haven, useful as backup or during onboarding. The app
+  also serves them from its footer (`app/public/forms/`).
 
 ## Status
 
