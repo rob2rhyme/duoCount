@@ -116,22 +116,56 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
 
 **Security** —
 - `match /schedule/{shiftId}`: managers read/manage the whole roster; an
-  employee reads only their own. Create is manager-only and manager-signed
-  (`by`/`byId` == token); **update/delete manager-only** (a plan changes).
+  employee reads their own shifts **plus any shift up for a swap**
+  (`swapStatus != none`) so they can pick it up. Create is manager-only and
+  manager-signed (`by`/`byId` == token); delete is manager-only; **update** is
+  manager-anything OR one of the four employee swap transitions below.
 - `match /availability/{id}`: employees create their **own** unavailable dates
   (self-signed) and either the owner or a manager may delete one; managers read
   everyone's; **no updates** (remove and re-add). Immutable-once-set, like the
   rest of the app's authored records.
-- Indexes: `schedule(userId ASC, date ASC)` and `availability(userId ASC, date ASC)`.
+- Indexes: `schedule(userId ASC, date ASC)`, `schedule(swapStatus ASC, date ASC)`
+  (the swap board), and `availability(userId ASC, date ASC)`.
+
+### Shift swaps
+
+An employee gives up a shift, a coworker claims it, a manager approves the trade.
+A scheduled shift carries `swapStatus` (`none` → `offered` → `claimed`) plus
+`claimedById`/`claimedByName`. The **state machine is a pure module**
+(`lib/swaps.js`, unit-tested in `tests/swaps.test.mjs`, `npm run test:swaps`) that
+both the UI and the Firestore rules mirror, so they can't disagree:
+
+| Transition | Who | Effect |
+| --- | --- | --- |
+| offer | shift owner | `none → offered` |
+| cancel offer | shift owner | `offered → none` |
+| **claim** | any coworker (not the owner) | `offered → claimed`, records the claimer |
+| withdraw claim | the claimer | `claimed → offered` |
+| **approve** | manager | `claimed → none` and **reassigns** the shift to the claimer |
+| reject | manager | `offered`/`claimed` → `none`, owner keeps it |
+
+- `availableActions(shift, {userId, isManager})` returns the actions to render;
+  `applySwap(shift, action, actor)` returns the exact field patch (or `null`) —
+  and its patches match the rules' `affectedKeys` allow-lists. **Managers
+  supervise** swaps (approve/reject) and don't claim through this flow — a manager
+  who wants an open shift just edits the roster.
+- The Firestore `update` rule adds four employee branches (`swapOffer`,
+  `swapCancel`, `swapClaim`, `swapWithdraw`), each locked to the exact state,
+  actor, and field set; `mgr()` still covers approve/reject (an approve is a
+  manager write that reassigns `userId`).
+- **UI:** employees see swap actions on their own shifts and a **Shifts up for
+  grabs** board (offered coworker shifts to claim + their own pending claims);
+  managers see **Offered** / **Claimed by …** pills on the roster with
+  **Approve** / **Reject**.
 
 ## Deliberately out of scope (future)
 
 - **Manager punch correction** — an admin editing/inserting a *punch* for someone
   who forgot. Kept out to preserve the append-only guarantee; the clean path is a
   manager-signed corrective punch (a create, not an edit).
-- **Shift swaps, open-shift claim, recurring templates, publish/notify** —
-  richer rostering workflow beyond assign / copy / availability. (Employee
-  *availability* and one-click *copy last week* are now built; see above.)
+- **Open-shift claim, recurring templates, publish/notify** — richer rostering
+  beyond assign / copy / availability / swaps. (Copy-last-week, availability, and
+  shift swaps are now built; see above.)
 - **Time-level lateness** and overnight shifts that straddle two calendar days in
   the overlap check (reconciliation and overlap are day-scoped).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real

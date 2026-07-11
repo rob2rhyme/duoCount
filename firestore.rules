@@ -239,11 +239,13 @@ service cloud.firestore {
       }
 
       // Shift schedule — a manager-managed roster (a plan, not an audit trail,
-      // so unlike punches it is editable and deletable). Managers/owners see and
-      // manage the whole roster; an employee sees only their own shifts.
+      // so unlike punches it is editable and deletable). Managers see and manage
+      // the whole roster; an employee sees their own shifts, plus any shift that
+      // is up for a swap (offered/claimed) so they can pick it up.
       match /schedule/{shiftId} {
         allow read: if mgr()
-          || (member() && resource.data.userId == request.auth.token.userId);
+          || (member() && resource.data.userId == request.auth.token.userId)
+          || (member() && resource.data.get('swapStatus', 'none') != 'none');
 
         allow create: if mgr()
           && request.resource.data.by == request.auth.token.name
@@ -254,7 +256,47 @@ service cloud.firestore {
           && request.resource.data.start is string
           && request.resource.data.end is string;
 
-        allow update, delete: if mgr();
+        allow delete: if mgr();
+
+        function swapOffer() {
+          return member()
+            && resource.data.userId == request.auth.token.userId
+            && resource.data.get('swapStatus', 'none') == 'none'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['swapStatus'])
+            && request.resource.data.swapStatus == 'offered';
+        }
+        function swapCancel() {
+          return member()
+            && resource.data.userId == request.auth.token.userId
+            && resource.data.get('swapStatus', 'none') == 'offered'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['swapStatus'])
+            && request.resource.data.swapStatus == 'none';
+        }
+        function swapClaim() {
+          return member()
+            && resource.data.userId != request.auth.token.userId
+            && resource.data.get('swapStatus', 'none') == 'offered'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['swapStatus', 'claimedById', 'claimedByName'])
+            && request.resource.data.swapStatus == 'claimed'
+            && request.resource.data.claimedById == request.auth.token.userId
+            && request.resource.data.claimedByName == request.auth.token.name;
+        }
+        function swapWithdraw() {
+          return member()
+            && resource.data.get('swapStatus', 'none') == 'claimed'
+            && resource.data.claimedById == request.auth.token.userId
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['swapStatus', 'claimedById', 'claimedByName'])
+            && request.resource.data.swapStatus == 'offered'
+            && request.resource.data.claimedById == null
+            && request.resource.data.claimedByName == null;
+        }
+
+        // Managers may edit anything (incl. approve/reject: an approve reassigns
+        // userId to the claimer). Employees may only drive the swap state machine
+        // on their own / an offered shift — see lib/swaps.js for the mirror.
+        allow update: if mgr() || swapOffer() || swapCancel() || swapClaim() || swapWithdraw();
       }
 
       // Staff availability — employees mark dates they can't work so managers can

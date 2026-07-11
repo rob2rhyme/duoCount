@@ -2,14 +2,21 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   watchSchedule, addScheduledShift, deleteScheduledShift, addScheduledShiftsBatch, watchStaff,
-  watchAvailability, addUnavailable, deleteUnavailable,
+  watchAvailability, addUnavailable, deleteUnavailable, updateScheduledShift, watchSwapBoard,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import {
   weekStartMonday, weekDates, addDays, groupByDate, scheduledHours, findOverlaps, reconcile,
   shiftMinutes, copyShiftsToWeek, availabilityConflicts, isUnavailable,
 } from "@/lib/schedule";
+import { availableActions, applySwap, swapStatusOf, SWAP_ACTIONS } from "@/lib/swaps";
 import EmptyState, { IconCalendar } from "./EmptyState";
+
+const SWAP_TOAST = {
+  offer: "Shift offered for swap", "cancel-offer": "Offer canceled",
+  claim: "Claimed — pending manager approval", "withdraw-claim": "Claim withdrawn",
+  approve: "Swap approved — shift reassigned", reject: "Swap rejected",
+};
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const dayLabel = (d) => {
@@ -26,6 +33,7 @@ const hhmm = (t) => {
 export default function Schedule({ punches = [], locations = [], locName, onToast }) {
   const { profile, vendor, isManager } = useSession();
   const [shifts, setShifts] = useState([]);
+  const [board, setBoard] = useState([]);
   const [staff, setStaff] = useState([]);
   const [avail, setAvail] = useState([]);
   const [weekStart, setWeekStart] = useState(() => weekStartMonday(todayStr()));
@@ -37,6 +45,41 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   useEffect(() => watchSchedule(vendor.id, isManager ? null : profile.id, setShifts), [vendor.id, isManager, profile.id]);
   useEffect(() => watchAvailability(vendor.id, isManager ? null : profile.id, setAvail), [vendor.id, isManager, profile.id]);
   useEffect(() => { if (isManager) return watchStaff(vendor.id, setStaff); }, [vendor.id, isManager]);
+  // Employees also watch the swap board (offered/claimed shifts) so they can pick
+  // up coworkers' shifts; managers already see the whole roster in `shifts`.
+  useEffect(() => { if (!isManager) return watchSwapBoard(vendor.id, setBoard); }, [vendor.id, isManager]);
+
+  const actor = { userId: profile.id, name: profile.name, isManager };
+  async function doSwap(shift, action) {
+    const patch = applySwap(shift, action, actor);
+    if (!patch) return onToast?.("That swap action isn't available");
+    try { await updateScheduledShift(vendor.id, shift.id, patch); onToast?.(SWAP_TOAST[action] || "Updated"); }
+    catch (e) { console.error(e); onToast?.("Couldn't update the swap"); }
+  }
+  const swapButtons = (s) => {
+    const acts = availableActions(s, actor);
+    if (!acts.length) return null;
+    return (
+      <div className="flex gap-1.5 flex-wrap mt-2">
+        {acts.map((a) => {
+          const danger = a === "reject" || a === "cancel-offer" || a === "withdraw-claim";
+          return (
+            <button key={a} onClick={() => doSwap(s, a)}
+              className={`text-[12px] font-semibold px-2.5 py-1 rounded-md border ${a === "approve" ? "text-pos" : danger ? "text-neg" : "text-fg"}`}
+              style={{ borderColor: "var(--line)", background: "var(--subtle)" }}>
+              {SWAP_ACTIONS[a]}
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+  const swapLabel = (s) => {
+    const st = swapStatusOf(s);
+    if (st === "offered") return <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Offered</span>;
+    if (st === "claimed") return <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Claimed by {s.claimedByName}</span>;
+    return null;
+  };
 
   const days = useMemo(() => weekDates(weekStart), [weekStart]);
   const weekEnd = days[6];
@@ -105,6 +148,8 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   if (!isManager) {
     const upcoming = shifts.filter((s) => s.date >= todayStr()).slice(0, 30);
     const myOff = avail.filter((u) => u.date >= todayStr());
+    const pickups = board.filter((s) => s.userId !== profile.id && swapStatusOf(s) === "offered");
+    const myClaims = board.filter((s) => s.claimedById === profile.id);
     return (
       <div className="space-y-4">
         <div className="card overflow-hidden">
@@ -113,14 +158,52 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
             <EmptyState icon={<IconCalendar />} title="Nothing scheduled"
               subtitle="When a manager rosters you for a shift, it shows up here with the date, time, and location." />
           ) : upcoming.map((s) => (
-            <div key={s.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-medium text-sm">{dayLabel(s.date)}</div>
-                {s.locationName && <div className="text-[13px] text-muted truncate">{s.locationName}</div>}
+            <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium text-sm">{dayLabel(s.date)}{swapLabel(s)}</div>
+                  {s.locationName && <div className="text-[13px] text-muted truncate">{s.locationName}</div>}
+                </div>
+                <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)} – {hhmm(s.end)}</div>
               </div>
-              <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)} – {hhmm(s.end)}</div>
+              {swapButtons(s)}
             </div>
           ))}
+        </div>
+
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Shifts up for grabs</h3></div>
+          {pickups.length === 0 && myClaims.length === 0 ? (
+            <EmptyState icon={<IconCalendar />} title="Nothing up for grabs"
+              subtitle="When a coworker offers a shift to swap, it appears here to claim — a manager approves the trade." />
+          ) : (
+            <>
+              {myClaims.map((s) => (
+                <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm">{s.userName}&apos;s shift</div>
+                      <div className="text-[13px] text-muted">{dayLabel(s.date)}{s.locationName ? ` · ${s.locationName}` : ""} · you claimed it, pending approval</div>
+                    </div>
+                    <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)}–{hhmm(s.end)}</div>
+                  </div>
+                  {swapButtons(s)}
+                </div>
+              ))}
+              {pickups.map((s) => (
+                <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm">{s.userName}&apos;s shift</div>
+                      <div className="text-[13px] text-muted">{dayLabel(s.date)}{s.locationName ? ` · ${s.locationName}` : ""}</div>
+                    </div>
+                    <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)}–{hhmm(s.end)}</div>
+                  </div>
+                  {swapButtons(s)}
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         <div className="card p-4 space-y-3">
@@ -225,18 +308,22 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                     {list.map((s) => {
                       const isOv = overlaps.has(s.id), isConf = conflicts.has(s.id);
                       return (
-                      <div key={s.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 border ${isOv ? "bg-highlight" : "bg-subtle"}`}
+                      <div key={s.id} className={`rounded-lg px-3 py-2 border ${isOv ? "bg-highlight" : "bg-subtle"}`}
                         style={{ borderColor: isOv ? "var(--gold)" : isConf ? "var(--neg)" : "var(--line)" }}>
-                        <div className="min-w-0">
-                          <span className="font-medium text-sm">{s.userName}</span>
-                          {s.locationName && <span className="text-[13px] text-muted"> · {s.locationName}</span>}
-                          {isOv && <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Overlap</span>}
-                          {isConf && <span className="pill bg-red-100 text-red-700 ml-2">Unavailable</span>}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="font-medium text-sm">{s.userName}</span>
+                            {s.locationName && <span className="text-[13px] text-muted"> · {s.locationName}</span>}
+                            {isOv && <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Overlap</span>}
+                            {isConf && <span className="pill bg-red-100 text-red-700 ml-2">Unavailable</span>}
+                            {swapLabel(s)}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="font-mono text-[13px]">{hhmm(s.start)}–{hhmm(s.end)}</span>
+                            <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeShift(s.id)} aria-label={`Remove ${s.userName}'s shift`}>×</button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="font-mono text-[13px]">{hhmm(s.start)}–{hhmm(s.end)}</span>
-                          <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeShift(s.id)} aria-label={`Remove ${s.userName}'s shift`}>×</button>
-                        </div>
+                        {swapButtons(s)}
                       </div>
                       );
                     })}

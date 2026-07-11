@@ -15,6 +15,7 @@
     "test:auth": "node --test tests/auth.test.mjs",
     "test:timeclock": "node --test tests/timeclock.test.mjs",
     "test:schedule": "node --test tests/schedule.test.mjs",
+    "test:swaps": "node --test tests/swaps.test.mjs",
     "test:api": "node --test tests/api.test.mjs"
   },
   "dependencies": {
