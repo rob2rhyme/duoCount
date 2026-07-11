@@ -1,123 +1,41 @@
-# Inventory Management System — Next.js + Firebase
+# DuoCount — Project Package
 
-A responsive, real-time inventory tracker for small retail businesses. Track
-stock across two locations (e.g. front-of-store and back stockroom), monitor
-expiry dates, get low-stock alerts, and manage everything behind a secure
-phone-OTP login. Fully **white-label** — rebrand the whole app from a single
-config file.
+Every count, countersigned. Multi-vendor cash drawer, scratch-off, and
+inventory tracking for retail teams.
 
-> 📘 **Buyers:** open [`documentation/index.html`](documentation/index.html) in
-> your browser for the complete, step-by-step setup guide.
+## What's in this package
 
-## Features
+- `app/` — the working Next.js + Tailwind + Firebase application.
+  Start with `app/README.md` for full setup and deployment instructions.
+- `docs/` — product documentation:
+  - `app-summary-spec.md` — plain-English overview of the whole product
+  - `tier-one-build-spec.md` — spec for the tier-one trust features (now built)
+  - `inventory-tracker-spec.md` — spec for the inventory feature (now built)
+  - `barcode-scanning-spec.md` — spec for camera scanning (now built)
+  - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (now built)
+  - `positioning-one-pager.md` — market positioning, competitors, pricing
+- `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
+  branded for Smokers Haven, useful as backup or during onboarding.
 
-- **Real-time sync** — inventory updates instantly across all devices via Firestore.
-- **Two-location stock** — track quantities in two places per item, with a live total.
-- **Analytics dashboard** — KPI cards, stock- & expiry-status donut charts, units-by-category bars, and a prioritised "needs attention" list. Dependency-free SVG/CSS charts with a colourblind-safe palette.
-- **Light & dark theme** — token-based theming with a header toggle (System / Light / Dark), remembered per browser, no flash on load.
-- **Role-based access control** — Admin / Staff / Viewer roles enforced in both the UI and Firestore security rules (viewers are read-only; only admins can delete).
-- **CSV import & export** — export all or a filtered view; import from CSV with a preview (auto-creates missing categories); barcode column included.
-- **Barcode scanning** — scan with the device camera to find a product or fill its barcode when adding (ZXing, browser-only).
-- **Suppliers & reorder** — supplier directory, product-to-supplier links, and a Reorder report that groups low-stock items by supplier with purchase-order CSV export and pre-filled email orders.
-- **Settings & in-app user management** — theme preference, copy your UID, and (admins) assign/change/remove roles from a Settings page.
-- **Sortable table & search** — click any column to sort; search products by name; quick status filters.
-- **Activity log** — append-only record of adds/edits/deletes/imports with actor and timestamp; admin-only viewer page.
-- **PWA & offline** — installable to home screen; service worker + Firestore offline persistence keep it working without a connection.
-- **Status & expiry alerts** — automatic "Need to Order" and "Expiring Soon" flags with colour coding.
-- **Category grid** — visual, image-backed category cards with per-category stock summaries.
-- **Search & filter** — filter categories by type and items by status; search by name.
-- **Inline editing** — tap a quantity to edit it; changes save to Firestore with toast feedback.
-- **Add & delete products** — manage items from an in-app modal (gated by role).
-- **Secure OTP login** — Firebase phone authentication with a configurable auto sign-out timeout.
-- **White-label** — app name, logo, author, terminology, filters and thresholds all come from one config file.
-- **Responsive** — works on phones, tablets and desktop.
+## Status
 
-## Tech stack
+The app in `app/` is built, compiles, and is deployable today (multi-vendor,
+PIN auth with hashed PINs, locations, named drawers, verification, analytics
+dashboard, CSV export, countersigned inventory counts per
+`docs/inventory-tracker-spec.md`, and the tier-one trust features per
+`docs/tier-one-build-spec.md`: blind counts, variance flags with cause codes,
+dispute threads, shift notes, an end-of-day PDF report, and a daily email
+digest (Vercel cron + Resend). Camera barcode scanning (items and
+scratch packs, with last-count prefill) per `docs/barcode-scanning-spec.md`,
+and the scratch-off pack lifecycle (receive/activate/settle/return with
+settle-time shrink snapshots) per `docs/lottery-pack-lifecycle-spec.md`.
 
-- **Next.js** (Pages Router) + **React 19** + **TypeScript**
-- **Firebase** — Authentication (phone OTP) & Cloud Firestore
-- **CSS Modules** for component-scoped styling
-- **react-hot-toast** for notifications
+The full-catalog inventory application that previously lived in this repo
+(products, expiry dates, suppliers, barcode scanning) is preserved in git
+history at commit `0d9e7a1` for future porting.
 
-## Quick start
+## Name note
 
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Configure Firebase
-cp .env.example .env.local
-#   → fill in your Firebase web config (Console → Project settings → Your apps)
-
-# 3. (Optional) seed demo data — see scripts/seed.ts for credential setup
-npm run seed
-
-# 4. Run the dev server
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000). You'll be asked to sign
-in with a one-time code before you can access the inventory.
-
-### Firebase setup (summary)
-
-1. Create a Firebase project; enable **Authentication → Phone** and **Cloud Firestore**.
-2. Add a **Web app** and copy its config into `.env.local` (see `.env.example`).
-3. Deploy the included security rules: `firebase deploy --only firestore:rules`.
-4. In Firestore, create `phoneAuth/store` with a `phone` field (E.164, e.g. `+15551234567`) — the number the login screen sends the code to. `npm run seed` can do this for you via the `LOGIN_PHONE` env var.
-
-Full instructions, including screenshots-ready steps and troubleshooting, are in
-[`documentation/index.html`](documentation/index.html).
-
-## White-labeling
-
-Everything brand- and business-specific lives in **`src/config/app.config.ts`**:
-
-```ts
-appName, shortName, tagline, logoSrc, author,
-sessionTimeoutMinutes,
-auth: { defaultRole },
-labels: { item, itemPlural, category, front, back, ... },
-thresholds: { lowStock, expiringSoonDays },
-categoryFilters: [...]
-```
-
-Change these values (and drop your logo in `/public`) to rebrand the entire app
-— no component code to touch.
-
-## Project structure
-
-```
-├── data/
-│   └── sample-inventory.json     # demo catalogue used by the seed script
-├── documentation/
-│   └── index.html                # full buyer documentation
-├── public/                       # logo, favicon, manifest.json, sw.js (PWA)
-├── scripts/
-│   └── seed.ts                   # one-command demo-data seeder
-├── src/
-│   ├── components/               # UI components (grid, table, modals, search…)
-│   │   └── dashboard/            # KPI cards + SVG donut/bar charts
-│   ├── config/
-│   │   └── app.config.ts         # ⭐ white-label configuration
-│   ├── context/                  # AuthContext (roles) + ThemeContext (dark mode)
-│   ├── hooks/                    # useProducts / useCategories
-│   ├── pages/                    # index, dashboard, reorder, suppliers, activity, settings, login, _app, _document
-│   ├── styles/                   # CSS Modules + globals.css (design tokens)
-│   ├── types.ts                  # shared TypeScript types
-│   └── utils/                    # firebase, permissions, csv, activity
-├── .env.example
-├── firestore.rules
-└── firebase.json
-```
-
-## Deployment
-
-Deploy the Next.js app to **Vercel** (recommended) or any Node host, and deploy
-Firestore rules with the Firebase CLI. Step-by-step instructions for both are in
-the documentation.
-
-## License
-
-Commercial license — see [`LICENSE`](LICENSE). Distributed via CodeCanyon under
-the Envato Market licenses.
+"DuoCount" passed a web conflict screen (no competing software found).
+Before spending on branding: run a USPTO trademark search, check both app
+stores, and register duocount.app / getduocount.com and social handles.

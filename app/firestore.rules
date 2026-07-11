@@ -1,0 +1,191 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // All auth goes through the app's API routes, which verify the store
+    // code + hashed PIN and mint a custom token whose claims carry
+    // vendorId / role / locationId. These rules enforce tenant isolation:
+    // a signed-in user can only ever touch documents under their own vendor.
+
+    match /vendors/{vendorId} {
+
+      function member() {
+        return request.auth != null && request.auth.token.vendorId == vendorId;
+      }
+      function mgr() {
+        return member() && request.auth.token.role in ['manager', 'owner'];
+      }
+      function owner() {
+        return member() && request.auth.token.role == 'owner';
+      }
+      function sharedAcrossLocations() {
+        return get(/databases/$(database)/documents/vendors/$(vendorId)).data.sharingMode == 'all-locations';
+      }
+
+      // Vendor doc: members read; only the owner may edit branding + settings.
+      // (digest.lastSentDate is written by the Admin SDK cron, which bypasses rules.)
+      allow read: if member();
+      allow update: if owner()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold',
+                       'blindCounts', 'varianceThreshold', 'digest']);
+      allow create, delete: if false; // vendors are created by the signup API
+
+      match /locations/{locationId} {
+        allow read: if member();
+        allow create, update: if mgr();
+        allow delete: if false; // disable instead, so history keeps its labels
+      }
+
+      match /drawers/{drawerId} {
+        allow read: if member();
+        allow create, update: if mgr();
+        allow delete: if false;
+      }
+
+      // Tracked inventory items — same lifecycle as drawers (soft-disable only).
+      match /items/{itemId} {
+        allow read: if member();
+        allow create, update: if mgr();
+        allow delete: if false;
+      }
+
+      // Scratch-off packs: received -> active -> settled | returned,
+      // forward-only and never deleted — enforced here, not just in the UI.
+      match /packs/{packId} {
+        allow read: if member();
+        allow create: if mgr() && request.resource.data.status in ['received', 'active'];
+        allow update: if mgr()
+          && request.resource.data.status in ['received', 'active', 'settled', 'returned']
+          && (
+            resource.data.status == request.resource.data.status
+            || (resource.data.status == 'received'
+                && request.resource.data.status == 'active')
+            || (resource.data.status == 'active'
+                && request.resource.data.status in ['settled', 'returned'])
+          );
+        allow delete: if false;
+      }
+
+      match /users/{userId} {
+        allow read: if member();       // names/roles power the admin panel
+        allow write: if false;         // created/updated only via the staff API
+        match /private/{docId} {
+          allow read, write: if false; // PIN hashes are never client-readable
+        }
+      }
+
+      match /entries/{entryId} {
+        // Managers/owners see everything. Employees see everything when the
+        // vendor shares across locations, otherwise only their own location.
+        allow read: if member() && (
+          mgr()
+          || sharedAcrossLocations()
+          || (request.auth.token.locationId != null
+              && resource.data.locationId == request.auth.token.locationId)
+        );
+
+        // Entries are signed: the author's name/id must match the token,
+        // employees can only log for their assigned location, and tier-one
+        // status fields must start clean (no pre-resolved / pre-disputed rows).
+        allow create: if member()
+          && request.resource.data.by == request.auth.token.name
+          && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.kind in ['cash', 'scratch', 'inventory']
+          && request.resource.data.verifiedBy == null
+          && (mgr() || request.resource.data.locationId == request.auth.token.locationId)
+          && request.resource.data.get('disputeStatus', 'none') == 'none'
+          && request.resource.data.get('varianceStatus', 'none') in ['none', 'open']
+          && request.resource.data.get('causeCode', null) == null;
+
+        // Manager verification — never self-verified. (Existing rule, verbatim.)
+        function verifyOnly() {
+          return mgr()
+            && resource.data.byId != request.auth.token.userId
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['verifiedBy', 'verifiedAt'])
+            && request.resource.data.verifiedBy == request.auth.token.name;
+        }
+
+        // Managers work a flagged entry: open -> under-review -> resolved.
+        // Resolving requires a cause code and stamps the resolver.
+        function investigate() {
+          return mgr()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['varianceStatus', 'causeCode', 'causeNote', 'resolvedBy', 'resolvedAt'])
+            && request.resource.data.varianceStatus in ['open', 'under-review', 'resolved']
+            && (request.resource.data.varianceStatus != 'resolved'
+                || (request.resource.data.causeCode != null
+                    && request.resource.data.resolvedBy == request.auth.token.name));
+        }
+
+        // Only the entry's author may open a dispute, exactly once.
+        function disputeOpen() {
+          return member()
+            && resource.data.byId == request.auth.token.userId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disputeStatus'])
+            && resource.data.get('disputeStatus', 'none') == 'none'
+            && request.resource.data.disputeStatus == 'open';
+        }
+
+        // Managers advance/close disputes.
+        function disputeManage() {
+          return mgr()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disputeStatus'])
+            && request.resource.data.disputeStatus in ['under-review', 'resolved'];
+        }
+
+        // The denormalized comment counter may only move in lockstep with a
+        // comment write (+1 per batch).
+        function commentBump() {
+          return member()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['commentCount', 'lastCommentAt'])
+            && request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1;
+        }
+
+        allow update: if verifyOnly() || investigate() || disputeOpen() || disputeManage() || commentBump();
+
+        allow delete: if false; // append-only, for trust
+
+        // Append-only dispute/comment thread; visibility inherits the entry's.
+        match /comments/{commentId} {
+          function parentEntry() {
+            return get(/databases/$(database)/documents/vendors/$(vendorId)/entries/$(entryId)).data;
+          }
+          allow read: if member() && (
+            mgr() || sharedAcrossLocations()
+            || (request.auth.token.locationId != null
+                && parentEntry().locationId == request.auth.token.locationId));
+          allow create: if member()
+            && request.resource.data.byId == request.auth.token.userId
+            && request.resource.data.by == request.auth.token.name
+            && request.resource.data.kind in ['comment', 'status']
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
+            && request.resource.data.text.size() <= 2000;
+          allow update, delete: if false;
+        }
+      }
+
+      // Shift notes — the digital counter notebook. Visibility mirrors entries;
+      // text is immutable; managers may pin/archive.
+      match /notes/{noteId} {
+        allow read: if member() && (
+          mgr() || sharedAcrossLocations()
+          || (request.auth.token.locationId != null
+              && resource.data.locationId == request.auth.token.locationId));
+        allow create: if member()
+          && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.by == request.auth.token.name
+          && request.resource.data.text.size() <= 2000
+          && (mgr() || request.resource.data.locationId == request.auth.token.locationId)
+          && request.resource.data.pinned == false
+          && request.resource.data.active == true;
+        allow update: if mgr()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned', 'active']);
+        allow delete: if false;
+      }
+    }
+  }
+}
