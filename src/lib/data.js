@@ -230,6 +230,17 @@ export async function addScheduledShift(vendorId, shift) {
 export async function deleteScheduledShift(vendorId, id) {
   await deleteDoc(doc(db, "vendors", vendorId, "schedule", id));
 }
+// Generic patch (used by the swap flow); rules enforce which fields each role
+// may change and in which state.
+export async function updateScheduledShift(vendorId, id, patch) {
+  await updateDoc(doc(db, "vendors", vendorId, "schedule", id), patch);
+}
+// The swap board: shifts anyone has offered up or claimed, so employees can see
+// and pick up coworkers' shifts (managers already watch the whole roster).
+export function watchSwapBoard(vendorId, cb) {
+  const q = query(vcol(vendorId, "schedule"), where("swapStatus", "in", ["offered", "claimed"]), orderBy("date", "asc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
 // One-click "copy last week" writes many shifts at once.
 export async function addScheduledShiftsBatch(vendorId, shifts) {
   if (!shifts.length) return 0;

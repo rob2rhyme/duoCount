@@ -160,7 +160,9 @@ values are set.
   payroll CSV. **Schedule** — managers roster a weekly plan (editable, unlike
   punches) with double-booking warnings, scheduled hours, and one-click
   **copy-last-week**; employees see their upcoming shifts and mark the **days
-  they can't work** (managers get a conflict flag when they roster over one);
+  they can't work** (managers get a conflict flag when they roster over one), and
+  **swap shifts** (offer → a coworker claims → a manager approves; the state
+  machine lives in `src/lib/swaps.js` and is mirrored by the Firestore rules);
   `src/lib/schedule.js` reconciles the roster against the actual punches by
   business day to surface no-shows.
 - **Login rate limiting**: the login route throttles failed attempts before any
@@ -286,7 +288,9 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
   timeclock/{id}              append-only in/out punch — userId/userName (signed),
                               locationId/Name, type, ts, day; no edits or deletes
   schedule/{id}               manager-managed roster shift — userId/userName,
-                              locationId/Name, date, start/end, by/byId; editable
+                              locationId/Name, date, start/end, by/byId; editable.
+                              swapStatus (none|offered|claimed) + claimedBy* drive
+                              employee shift swaps (manager approves)
   availability/{id}           employee-authored unavailable date — userId/userName,
                               date; self-managed, manager-visible, no edits
 loginAttempts/{ip_*|store_*} server-only failed-login counters (per-IP + per-store)

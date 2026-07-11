@@ -49,6 +49,14 @@
       ]
     },
     {
+      "collectionGroup": "schedule",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "swapStatus", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "availability",
       "queryScope": "COLLECTION",
       "fields": [
