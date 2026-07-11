@@ -257,6 +257,24 @@ service cloud.firestore {
         allow update, delete: if mgr();
       }
 
+      // Staff availability — employees mark dates they can't work so managers can
+      // roster around them. Self-authored; managers see everyone's. Immutable
+      // once set (remove and re-add to change), and either the owner or a manager
+      // may remove one.
+      match /availability/{availId} {
+        allow read: if mgr()
+          || (member() && resource.data.userId == request.auth.token.userId);
+
+        allow create: if member()
+          && request.resource.data.userId == request.auth.token.userId
+          && request.resource.data.userName == request.auth.token.name
+          && request.resource.data.date is string;
+
+        allow update: if false;
+        allow delete: if mgr()
+          || (member() && resource.data.userId == request.auth.token.userId);
+      }
+
       // Shift notes — the digital counter notebook. Visibility mirrors entries;
       // text is immutable; managers may pin/archive.
       match /notes/{noteId} {

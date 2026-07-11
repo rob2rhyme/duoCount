@@ -1,9 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchSchedule, addScheduledShift, deleteScheduledShift, watchStaff } from "@/lib/data";
+import {
+  watchSchedule, addScheduledShift, deleteScheduledShift, addScheduledShiftsBatch, watchStaff,
+  watchAvailability, addUnavailable, deleteUnavailable,
+} from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import {
-  weekStartMonday, weekDates, addDays, groupByDate, scheduledHours, findOverlaps, reconcile, shiftMinutes,
+  weekStartMonday, weekDates, addDays, groupByDate, scheduledHours, findOverlaps, reconcile,
+  shiftMinutes, copyShiftsToWeek, availabilityConflicts, isUnavailable,
 } from "@/lib/schedule";
 import EmptyState, { IconCalendar } from "./EmptyState";
 
@@ -23,11 +27,15 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const { profile, vendor, isManager } = useSession();
   const [shifts, setShifts] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [avail, setAvail] = useState([]);
   const [weekStart, setWeekStart] = useState(() => weekStartMonday(todayStr()));
   const [form, setForm] = useState({ userId: "", date: todayStr(), start: "09:00", end: "17:00", locationId: "" });
+  const [newOff, setNewOff] = useState(todayStr());
   const [busy, setBusy] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   useEffect(() => watchSchedule(vendor.id, isManager ? null : profile.id, setShifts), [vendor.id, isManager, profile.id]);
+  useEffect(() => watchAvailability(vendor.id, isManager ? null : profile.id, setAvail), [vendor.id, isManager, profile.id]);
   useEffect(() => { if (isManager) return watchStaff(vendor.id, setStaff); }, [vendor.id, isManager]);
 
   const days = useMemo(() => weekDates(weekStart), [weekStart]);
@@ -35,6 +43,8 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const weekShifts = useMemo(() => shifts.filter((s) => s.date >= weekStart && s.date <= weekEnd), [shifts, weekStart, weekEnd]);
   const byDate = useMemo(() => groupByDate(weekShifts), [weekShifts]);
   const overlaps = useMemo(() => findOverlaps(weekShifts), [weekShifts]);
+  const conflicts = useMemo(() => availabilityConflicts(weekShifts, avail), [weekShifts, avail]);
+  const formConflict = form.userId && form.date && isUnavailable(avail, form.userId, form.date);
   const hours = useMemo(() => scheduledHours(weekShifts, { from: weekStart, to: weekEnd }), [weekShifts, weekStart, weekEnd]);
   const elapsed = useMemo(() => days.filter((d) => d <= todayStr()), [days]);
   const attendance = useMemo(
@@ -68,25 +78,71 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
     try { await deleteScheduledShift(vendor.id, id); onToast?.("Shift removed"); }
     catch (e) { console.error(e); onToast?.("Couldn't remove — managers only"); }
   }
+  async function copyPrevWeek() {
+    const source = shifts.filter((s) => s.date >= addDays(weekStart, -7) && s.date <= addDays(weekEnd, -7));
+    const specs = copyShiftsToWeek(source, { offsetDays: 7, existing: weekShifts })
+      .map((s) => ({ ...s, by: profile.name, byId: profile.id }));
+    if (!specs.length) return onToast?.(source.length ? "This week already matches last week" : "Last week had no shifts to copy");
+    setCopying(true);
+    try {
+      const n = await addScheduledShiftsBatch(vendor.id, specs);
+      onToast?.(`Copied ${n} shift${n === 1 ? "" : "s"} from last week`);
+    } catch (e) { console.error(e); onToast?.("Copy failed — managers only"); }
+    setCopying(false);
+  }
+  async function markUnavailable() {
+    if (!newOff) return;
+    if (avail.some((u) => u.userId === profile.id && u.date === newOff)) return onToast?.("That day is already marked");
+    try { await addUnavailable(vendor.id, { userId: profile.id, userName: profile.name, date: newOff }); onToast?.("Marked unavailable"); }
+    catch (e) { console.error(e); onToast?.("Couldn't save"); }
+  }
+  async function removeUnavailable(id) {
+    try { await deleteUnavailable(vendor.id, id); onToast?.("Removed"); }
+    catch (e) { console.error(e); onToast?.("Couldn't remove"); }
+  }
 
-  /* ---- employee view: my upcoming shifts ---- */
+  /* ---- employee view: my upcoming shifts + availability ---- */
   if (!isManager) {
     const upcoming = shifts.filter((s) => s.date >= todayStr()).slice(0, 30);
+    const myOff = avail.filter((u) => u.date >= todayStr());
     return (
-      <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Your upcoming shifts</h3></div>
-        {upcoming.length === 0 ? (
-          <EmptyState icon={<IconCalendar />} title="Nothing scheduled"
-            subtitle="When a manager rosters you for a shift, it shows up here with the date, time, and location." />
-        ) : upcoming.map((s) => (
-          <div key={s.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="font-medium text-sm">{dayLabel(s.date)}</div>
-              {s.locationName && <div className="text-[13px] text-muted truncate">{s.locationName}</div>}
+      <div className="space-y-4">
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Your upcoming shifts</h3></div>
+          {upcoming.length === 0 ? (
+            <EmptyState icon={<IconCalendar />} title="Nothing scheduled"
+              subtitle="When a manager rosters you for a shift, it shows up here with the date, time, and location." />
+          ) : upcoming.map((s) => (
+            <div key={s.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium text-sm">{dayLabel(s.date)}</div>
+                {s.locationName && <div className="text-[13px] text-muted truncate">{s.locationName}</div>}
+              </div>
+              <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)} – {hhmm(s.end)}</div>
             </div>
-            <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)} – {hhmm(s.end)}</div>
+          ))}
+        </div>
+
+        <div className="card p-4 space-y-3">
+          <div>
+            <h3 className="font-semibold text-[15px]">Days you can&apos;t work</h3>
+            <p className="text-[13px] text-muted">Mark dates you&apos;re unavailable so managers can roster around you.</p>
           </div>
-        ))}
+          <div className="flex gap-2">
+            <input type="date" className="input" value={newOff} min={todayStr()} onChange={(e) => setNewOff(e.target.value)} />
+            <button className="btn-ghost px-4 whitespace-nowrap" onClick={markUnavailable}>Add</button>
+          </div>
+          {myOff.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {myOff.map((u) => (
+                <span key={u.id} className="pill bg-subtle text-muted">
+                  {dayLabel(u.date)}
+                  <button onClick={() => removeUnavailable(u.id)} className="ml-1.5 text-neg" aria-label={`Remove ${u.date}`}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -139,12 +195,20 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
             </div>
           )}
         </div>
+        {formConflict && (
+          <p className="text-[13px] text-neg">⚠ {nameOf(form.userId)} marked this day unavailable — you can still schedule it.</p>
+        )}
         <button className="btn-primary" disabled={busy} onClick={addShift}>{busy ? "Saving…" : "Add to schedule"}</button>
       </div>
 
       {/* roster by day */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Roster</h3></div>
+        <div className="px-4 py-3.5 border-b border-line flex items-center justify-between gap-3">
+          <h3 className="font-semibold text-[15px]">Roster</h3>
+          <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={copying} onClick={copyPrevWeek}>
+            {copying ? "Copying…" : "⧉ Copy last week"}
+          </button>
+        </div>
         {weekShifts.length === 0 ? (
           <EmptyState icon={<IconCalendar />} title="No shifts this week"
             subtitle="Add shifts above and they'll lay out by day here, with double-booking warnings and weekly hours." />
@@ -158,20 +222,24 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                   <div className="text-[13px] text-faint">—</div>
                 ) : (
                   <div className="space-y-1.5">
-                    {list.map((s) => (
-                      <div key={s.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 border ${overlaps.has(s.id) ? "bg-highlight" : "bg-subtle"}`}
-                        style={{ borderColor: overlaps.has(s.id) ? "var(--gold)" : "var(--line)" }}>
+                    {list.map((s) => {
+                      const isOv = overlaps.has(s.id), isConf = conflicts.has(s.id);
+                      return (
+                      <div key={s.id} className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 border ${isOv ? "bg-highlight" : "bg-subtle"}`}
+                        style={{ borderColor: isOv ? "var(--gold)" : isConf ? "var(--neg)" : "var(--line)" }}>
                         <div className="min-w-0">
                           <span className="font-medium text-sm">{s.userName}</span>
                           {s.locationName && <span className="text-[13px] text-muted"> · {s.locationName}</span>}
-                          {overlaps.has(s.id) && <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Overlap</span>}
+                          {isOv && <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Overlap</span>}
+                          {isConf && <span className="pill bg-red-100 text-red-700 ml-2">Unavailable</span>}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="font-mono text-[13px]">{hhmm(s.start)}–{hhmm(s.end)}</span>
                           <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeShift(s.id)} aria-label={`Remove ${s.userName}'s shift`}>×</button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
