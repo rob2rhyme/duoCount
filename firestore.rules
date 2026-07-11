@@ -317,6 +317,13 @@ service cloud.firestore {
           || (member() && resource.data.userId == request.auth.token.userId);
       }
 
+      // Week templates — saved roster patterns, a manager-only planning tool.
+      // Not employee-facing (they're applied to produce real schedule shifts).
+      match /templates/{templateId} {
+        allow read: if mgr();
+        allow write: if mgr();
+      }
+
       // Shift notes — the digital counter notebook. Visibility mirrors entries;
       // text is immutable; managers may pin/archive.
       match /notes/{noteId} {

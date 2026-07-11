@@ -469,3 +469,15 @@ test("availability: the owner or a manager removes an entry; a coworker cannot",
   await assertFails(deleteDoc(doc(db("empB"), `vendors/${V}/availability/avA`)));   // coworker
   await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/availability/avA`))); // manager
 });
+
+/* ---------- week templates ---------- */
+
+test("templates: managers manage them; employees can neither read nor write", async () => {
+  const tpl = { name: "Standard week", shifts: [{ dow: 0, userId: "u-empA", userName: "Eve", start: "09:00", end: "17:00" }], by: "Mia", byId: "u-mgr", ts: new Date() };
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/templates/t1`), tpl));
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/templates/t1`)));
+  // employees are locked out entirely (templates are a manager planning tool)
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/templates/t2`), tpl));
+  await assertFails(getDoc(doc(db("empA"), `vendors/${V}/templates/t1`)));
+  await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/templates/t1`)));
+});

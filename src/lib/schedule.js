@@ -104,6 +104,50 @@ export function copyShiftsToWeek(sourceShifts = [], { offsetDays = 7, existing =
   return out;
 }
 
+/** Day-of-week offset (0 = the week's Monday … 6 = Sunday) of `date`. */
+export function dayOffset(weekStart, date) {
+  return Math.round((parseDay(date) - parseDay(weekStart)) / DAY_MS);
+}
+
+/**
+ * Turn a week's shifts into a reusable template — specs keyed by day-of-week
+ * (0-6), stripped of dates, ids, and swap state. Shifts outside the Mon-Sun
+ * window are dropped.
+ */
+export function weekShiftsToTemplate(weekShifts = [], weekStart) {
+  return weekShifts
+    .map((s) => ({
+      dow: dayOffset(weekStart, s.date),
+      userId: s.userId, userName: s.userName,
+      start: s.start, end: s.end,
+      locationId: s.locationId ?? null, locationName: s.locationName ?? null,
+    }))
+    .filter((t) => t.dow >= 0 && t.dow <= 6);
+}
+
+/**
+ * Stamp a template's day-of-week specs onto a target week, returning shift specs
+ * to write — skipping any that already exist (employee + date + start), so
+ * applying a template twice is idempotent.
+ */
+export function templateToShifts(templateShifts = [], weekStart, { existing = [] } = {}) {
+  const have = new Set(existing.map((s) => `${s.userId}|${s.date}|${s.start}`));
+  const out = [];
+  for (const t of templateShifts) {
+    if (!(t.dow >= 0 && t.dow <= 6)) continue;
+    const date = addDays(weekStart, t.dow);
+    const key = `${t.userId}|${date}|${t.start}`;
+    if (have.has(key)) continue;
+    have.add(key);
+    out.push({
+      userId: t.userId, userName: t.userName,
+      locationId: t.locationId ?? null, locationName: t.locationName ?? null,
+      date, start: t.start, end: t.end,
+    });
+  }
+  return out;
+}
+
 /**
  * Ids of scheduled shifts that land on a date the employee marked unavailable.
  * `unavailable` is a list of { userId, date }.

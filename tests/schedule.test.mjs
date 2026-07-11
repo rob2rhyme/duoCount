@@ -5,6 +5,7 @@ import {
   addDays, weekStartMonday, weekDates, parseHHMM, shiftMinutes,
   scheduledHours, findOverlaps, groupByDate, reconcile,
   copyShiftsToWeek, availabilityConflicts, isUnavailable,
+  dayOffset, weekShiftsToTemplate, templateToShifts,
 } from "../src/lib/schedule.js";
 
 const shift = (userId, date, start, end, over = {}) =>
@@ -125,6 +126,49 @@ test("copyShiftsToWeek skips shifts that already exist in the target week", () =
   const out = copyShiftsToWeek(src, { offsetDays: 7, existing });
   assert.equal(out.length, 1);
   assert.equal(out[0].date, "2026-07-14"); // only Tuesday gets copied
+});
+
+test("dayOffset gives the 0-6 weekday index within a week", () => {
+  assert.equal(dayOffset("2026-07-06", "2026-07-06"), 0); // Monday
+  assert.equal(dayOffset("2026-07-06", "2026-07-09"), 3); // Thursday
+  assert.equal(dayOffset("2026-07-06", "2026-07-12"), 6); // Sunday
+});
+
+test("weekShiftsToTemplate keys shifts by weekday and strips date/id/swap state", () => {
+  const wk = [
+    { id: "x", userId: "u1", userName: "Eve", date: "2026-07-06", start: "09:00", end: "17:00", locationId: "l1", locationName: "Downtown", swapStatus: "offered" },
+    { id: "y", userId: "u2", userName: "Bob", date: "2026-07-08", start: "10:00", end: "18:00" },
+  ];
+  const tpl = weekShiftsToTemplate(wk, "2026-07-06");
+  assert.deepEqual(tpl[0], { dow: 0, userId: "u1", userName: "Eve", start: "09:00", end: "17:00", locationId: "l1", locationName: "Downtown" });
+  assert.equal(tpl[1].dow, 2);
+  assert.equal("swapStatus" in tpl[0], false);
+  assert.equal("date" in tpl[0], false);
+  assert.equal("id" in tpl[0], false);
+});
+
+test("templateToShifts stamps a template onto a target week", () => {
+  const tpl = [
+    { dow: 0, userId: "u1", userName: "Eve", start: "09:00", end: "17:00", locationName: "Downtown" },
+    { dow: 4, userId: "u2", userName: "Bob", start: "10:00", end: "18:00" },
+  ];
+  const out = templateToShifts(tpl, "2026-07-13"); // the following week
+  assert.equal(out.length, 2);
+  assert.equal(out[0].date, "2026-07-13"); // Monday
+  assert.equal(out[0].userId, "u1");
+  assert.equal(out[0].locationName, "Downtown");
+  assert.equal(out[1].date, "2026-07-17"); // Friday
+  assert.equal(out[0].id, undefined); // ids/by stamped at write time
+});
+
+test("applying a template is idempotent against existing shifts", () => {
+  const tpl = [{ dow: 0, userId: "u1", userName: "Eve", start: "09:00", end: "17:00" }];
+  const existing = [{ userId: "u1", date: "2026-07-13", start: "09:00", end: "17:00" }];
+  assert.equal(templateToShifts(tpl, "2026-07-13", { existing }).length, 0);
+  // round-trip: save a week, re-apply to the SAME week -> nothing new
+  const wk = [{ id: "a", userId: "u1", userName: "Eve", date: "2026-07-06", start: "09:00", end: "17:00" }];
+  const rebuilt = weekShiftsToTemplate(wk, "2026-07-06");
+  assert.equal(templateToShifts(rebuilt, "2026-07-06", { existing: wk }).length, 0);
 });
 
 test("availabilityConflicts flags shifts on an employee's unavailable day", () => {

@@ -158,8 +158,9 @@ values are set.
   unit-tested aggregator (`src/lib/timeclock.js`) pairs them into shifts
   (forgiving of forgotten clock-outs) and managers get hours-by-employee +
   payroll CSV. **Schedule** — managers roster a weekly plan (editable, unlike
-  punches) with double-booking warnings, scheduled hours, and one-click
-  **copy-last-week**; employees see their upcoming shifts and mark the **days
+  punches) with double-booking warnings, scheduled hours, one-click
+  **copy-last-week**, and reusable **week templates**; employees see their
+  upcoming shifts and mark the **days
   they can't work** (managers get a conflict flag when they roster over one), and
   **swap shifts** (offer → a coworker claims → a manager approves; the state
   machine lives in `src/lib/swaps.js` and is mirrored by the Firestore rules);
@@ -293,6 +294,8 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
                               employee shift swaps (manager approves)
   availability/{id}           employee-authored unavailable date — userId/userName,
                               date; self-managed, manager-visible, no edits
+  templates/{id}              manager-only saved week pattern — name + shifts[]
+                              (dow, userId, start/end); applied to stamp a week
 loginAttempts/{ip_*|store_*} server-only failed-login counters (per-IP + per-store)
 ```
 
