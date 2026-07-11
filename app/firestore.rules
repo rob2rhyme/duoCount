@@ -50,6 +50,23 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Scratch-off packs: received -> active -> settled | returned,
+      // forward-only and never deleted — enforced here, not just in the UI.
+      match /packs/{packId} {
+        allow read: if member();
+        allow create: if mgr() && request.resource.data.status in ['received', 'active'];
+        allow update: if mgr()
+          && request.resource.data.status in ['received', 'active', 'settled', 'returned']
+          && (
+            resource.data.status == request.resource.data.status
+            || (resource.data.status == 'received'
+                && request.resource.data.status == 'active')
+            || (resource.data.status == 'active'
+                && request.resource.data.status in ['settled', 'returned'])
+          );
+        allow delete: if false;
+      }
+
       match /users/{userId} {
         allow read: if member();       // names/roles power the admin panel
         allow write: if false;         // created/updated only via the staff API

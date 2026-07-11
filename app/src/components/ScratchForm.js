@@ -7,7 +7,7 @@ import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [] }) {
+export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [], packs = [] }) {
   const { profile, vendor, isManager } = useSession();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
@@ -100,6 +100,20 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
               <option value="open">Opening</option><option value="close">Closing</option>
             </select></div>
         </div>
+        {packs.some((p) => p.status === "active" && p.locationId === f.locationId) && (
+          <div><label className="label">Active pack (fills game, price &amp; pack #)</label>
+            <select className="input" value=""
+              onChange={(e) => {
+                const p = packs.find((x) => x.id === e.target.value);
+                if (p) setF((prev) => ({ ...prev, pack: p.packNumber, game: p.game, price: String(p.price ?? "") }));
+              }}>
+              <option value="">Pick a pack…</option>
+              {packs.filter((p) => p.status === "active" && p.locationId === f.locationId).map((p) => (
+                <option key={p.id} value={p.id}>{p.game} · #{p.packNumber}{p.bin ? ` · bin ${p.bin}` : ""}</option>
+              ))}
+            </select></div>
+        )}
+
         <div className="grid grid-cols-2 gap-3.5">
           <div><label className="label">Game name</label><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></div>
           <div><label className="label">Pack / book #</label>

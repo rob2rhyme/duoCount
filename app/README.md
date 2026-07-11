@@ -114,15 +114,28 @@ initial bundle. Camera use requires HTTPS (or localhost) plus permission.
 ## Testing the security rules
 
 The rules are the product's trust boundary, so they have an executable test
-suite (`tests/rules.test.mjs`, 25 tests): tenant isolation, per-location
+suite (`tests/rules.test.mjs`, 27 tests): tenant isolation, per-location
 visibility for entries/comments/notes, the five mutually exclusive entry
 update branches (verify / investigate / dispute-open / dispute-manage /
-comment bump), clean-create guards, the owner settings whitelist, and item
-lifecycle. Run them against the local Firestore emulator (needs Java):
+comment bump), clean-create guards, the owner settings whitelist, item
+lifecycle, and the forward-only pack lifecycle. Run them against the local Firestore emulator (needs Java):
 
 ```bash
 npm run test:rules
 ```
+
+## Scratch-off pack lifecycle
+
+Beyond per-shift counts, each pack (book) can be tracked from safe to last
+ticket (see `../docs/lottery-pack-lifecycle-spec.md`): managers receive a pack
+(game, pack #, price, tickets/pack — barcode scan-fillable), activate it to a
+bin, and later settle or return it. Transitions are forward-only and enforced
+by the rules — a settled pack never reopens. Settling snapshots sold-vs-size
+from the count log (`soldAtSettle` / `shortAtSettle`), so per-pack shrink is
+frozen on the record with the responsible shifts traceable in the log. On the
+Scratch form, an "Active pack" picker fills game, price, and pack # in one
+tap; combined with the last-count prefill, a recount is one pick and one
+number. The registry is optional — free-text pack counting still works.
 
 ## Security notes
 
@@ -147,6 +160,9 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
   locations/{id}              name, active
   drawers/{id}                name, locationId, active
   items/{id}                  name, category, unit, barcode, locationId, active
+  packs/{id}                  game, packNumber, price, ticketCount, bin, status
+                              (received -> active -> settled|returned, forward-
+                              only), transition stamps, settle snapshot
   users/{id}                  name, role, locationId, active
     private/creds             pinHash (server-only)
   entries/{id}                cash, scratch, or inventory entry — locationId,

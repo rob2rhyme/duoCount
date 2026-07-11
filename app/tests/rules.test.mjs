@@ -248,6 +248,41 @@ test("only the owner edits settings, and only whitelisted keys", async () => {
   await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { slug: "stolen-code" }));
 });
 
+/* ---------- scratch-off packs (forward-only lifecycle) ---------- */
+
+const pack = (over = {}) => ({
+  game: "Lucky 7s", packNumber: "111", price: 5, ticketCount: 60, barcode: null,
+  locationId: "locA", locationName: "A", bin: null,
+  status: "received", receivedBy: "Mia",
+  activatedAt: null, activatedBy: null, settledAt: null, settledBy: null,
+  returnedAt: null, returnedBy: null, returnNote: null,
+  soldAtSettle: null, shortAtSettle: null, createdAt: new Date(),
+  ...over,
+});
+
+test("packs: manager lifecycle is forward-only; employees read-only; no deletes", async () => {
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/packs/p1`), pack()));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/packs/p2`), pack()));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/packs/p3`), pack({ status: "settled" })));
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/packs/p1`)));
+
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`),
+    { status: "active", activatedAt: new Date(), activatedBy: "Mia", bin: "4" }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`), { status: "received" }));
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`),
+    { status: "settled", settledAt: new Date(), settledBy: "Mia", soldAtSettle: 58, shortAtSettle: 2 }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`), { status: "active" }));
+  await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/packs/p1`)));
+});
+
+test("packs: no skipping received -> settled; metadata edits keep the status", async () => {
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/packs/p4`), pack({ packNumber: "222" })));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p4`),
+    { status: "settled", settledAt: new Date(), settledBy: "Mia" }));
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p4`), { bin: "7" }));
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/packs/p4`), { bin: "9" }));
+});
+
 test("items: managers manage, employees read, nobody deletes", async () => {
   await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/items/i2`),
     { name: "Elf Bar", category: "Vapes", unit: "unit", barcode: null, locationId: "locA", active: true, createdAt: new Date() }));

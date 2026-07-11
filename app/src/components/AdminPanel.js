@@ -7,8 +7,9 @@ import {
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import BarcodeScanner from "./BarcodeScanner";
+import PacksCard from "./PacksCard";
 
-export default function AdminPanel({ onToast, locations, drawers, items = [] }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [], packs = [], entries = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const [staff, setStaff] = useState([]);
 
@@ -303,6 +304,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [] }) 
           </div>
         ))}
       </div>
+
+      {/* ---------------- scratch-off packs ---------------- */}
+      <PacksCard onToast={onToast} locations={locations} packs={packs} entries={entries} />
 
       {/* ---------------- settings (owner) ---------------- */}
       <div className="card overflow-hidden">

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchPacks } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
@@ -28,6 +28,7 @@ export default function AppShell() {
   const [locations, setLocations] = useState([]);
   const [drawers, setDrawers] = useState([]);
   const [items, setItems] = useState([]);
+  const [packs, setPacks] = useState([]);
   const [notes, setNotes] = useState([]);
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
@@ -43,7 +44,8 @@ export default function AppShell() {
     const u3 = watchDrawers(vendor.id, setDrawers);
     const u4 = watchItems(vendor.id, setItems);
     const u5 = watchNotes(vendor.id, lockedLoc, setNotes);
-    return () => { u1(); u2(); u3(); u4(); u5(); };
+    const u6 = watchPacks(vendor.id, setPacks);
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); };
   }, [vendor.id, lockedLoc]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
@@ -105,7 +107,7 @@ export default function AppShell() {
           <CashForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
         )}
         {tab === "scratch" && (
-          <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} />
+          <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} packs={packs} />
         )}
         {tab === "inventory" && (
           <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
@@ -116,7 +118,7 @@ export default function AppShell() {
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName}
             onOpenLog={() => setTab("log")} onToast={ping} />
         )}
-        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} />}
+        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
       </main>
 
       {toast && (
