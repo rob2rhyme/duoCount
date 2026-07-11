@@ -17,9 +17,11 @@
   --line-soft: #e6e2d8;
   --highlight: #fbf6ec;
   --fg: #1a1c2e;
-  --muted: #6d6a61;
-  --faint: #9b978c;
+  --muted: #67645b;
+  --faint: #7a766c;
   --gold: #8a6428;
+  --pos: #0f7a37;
+  --neg: #cf2020;
   --btn-bg: #1a1c2e;
   --btn-fg: #f6f4ee;
   /* Chart ink — read by Recharts through the ThemeProvider, not CSS. */
@@ -37,8 +39,10 @@
   --highlight: #2c2618;
   --fg: #e9e8ee;
   --muted: #9a9ba7;
-  --faint: #6b6d78;
+  --faint: #83858f;
   --gold: #dcbb79;
+  --pos: #45c877;
+  --neg: #f87171;
   --btn-bg: #e9e8ee;
   --btn-fg: #14151c;
 }
@@ -57,6 +61,11 @@ body {
 .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition active:scale-[.98]; }
 .btn-primary { @apply btn w-full; background: var(--btn-bg); color: var(--btn-fg); }
 .btn-ghost { @apply btn border; background: var(--subtle); color: var(--fg); border-color: var(--line); }
+/* Disabled controls: WCAG exempts them from contrast, but they must still be
+   perceivably inactive. The custom var(--field) background overrides the
+   browser's default graying, so make the state explicit. */
+.btn:disabled, .btn[disabled] { opacity: .5; cursor: not-allowed; }
+.input:disabled { opacity: .55; cursor: not-allowed; }
 .pill { @apply inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full; }
 
 /* Safe-area insets for installed/standalone use on notched phones. Defined

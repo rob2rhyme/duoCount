@@ -34,6 +34,9 @@ rendered `docs/` folder; the code lives in the
 - **[Distribution & AI integration](distribution-analysis.md)** — AI features on
   the Anthropic API, static-HTML / WordPress / other packaging paths, with
   effort, trade-offs, and recommendations.
+- **[Theme & accessibility audit](theme-accessibility-audit.md)** — measured
+  WCAG 2.1 AA contrast across both themes, the failures found, and the token
+  fixes shipped.
 
 ---
 

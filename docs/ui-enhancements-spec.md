@@ -96,7 +96,9 @@ brand colors (`ink`, `paper`, `brass`) stay constant; theme-aware tokens live in
 `globals.css` and are exposed as Tailwind utilities via the config:
 
 `surface`, `panel`, `subtle`, `field`, `line` / `line-soft`, `highlight`, `fg`,
-`muted`, `faint`, `gold`.
+`muted`, `faint`, `gold`, and the status-text pair `pos` / `neg` (theme-aware
+over/short + error text — added in the accessibility audit so those numbers stay
+AA-legible on the dark surface). See `theme-accessibility-audit.md`.
 
 ### 3.2 Behavior
 
@@ -119,7 +121,11 @@ brand colors (`ink`, `paper`, `brass`) stay constant; theme-aware tokens live in
 - **Recharts** colors are resolved per-theme in JS (Recharts paints literal SVG
   color strings, so CSS variables aren't reliable there).
 - Semantic **status chips** (short/over/watch: red/green/amber) keep their hue
-  in both themes.
+  in both themes (light pills on either background — internal contrast passes AA;
+  the red chip's text is `red-700` for that reason). **Inline** status *text*
+  (over/short numbers, verify line, errors) instead uses the theme-aware
+  `pos` / `neg` tokens so it stays legible on the dark surface — see
+  `theme-accessibility-audit.md`.
 
 ---
 
@@ -166,3 +172,22 @@ native — most importantly, **text entry no longer zooms the page** on iOS
 (compact fields lift to 16 px on touch devices, without disabling pinch-zoom).
 The full list — tap-flash, overscroll, text-inflation, double-tap delay, and
 long-press callout — is documented in `pwa-spec.md` → **Native-app feel**.
+
+---
+
+## 7. Empty states
+
+A first-run or filtered-empty screen should read as intentional, not broken. A
+shared `EmptyState` component (`components/EmptyState.js`) renders a soft,
+theme-aware icon badge, a title, a supporting line, and an optional call-to-action
+button, with inline line-icon glyphs (receipt / note / shield / chart).
+
+- **Log** — distinguishes the two empty cases: *no counts logged yet* (purely
+  informational) vs *no entries match these filters* (with a **Clear filters**
+  action that resets type/status/person/drawer).
+- **Notes** — *No notes yet* with a **Write a note** action that focuses the
+  composer (a `ref` on the textarea).
+- **Incidents** — managers get *No incidents on file* with a **File an incident**
+  action that focuses the write-up title; employees get a plain *Nothing on file*.
+- **Dashboard** — *No activity yet* with a **Record a count** action that jumps to
+  the Cash tab (`onRecord` prop, wired in `AppShell`).

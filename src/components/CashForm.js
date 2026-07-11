@@ -52,7 +52,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   // When the counter is on, the tallied denominations are the counted amount.
   const countedValue = useCounter ? denomTotal : (Number(f.counted) || 0);
   const diff = countedValue - expected;
-  const diffClass = Math.abs(diff) < 0.005 ? "text-fg" : diff > 0 ? "text-green-700" : "text-red-600";
+  const diffClass = Math.abs(diff) < 0.005 ? "text-fg" : diff > 0 ? "text-pos" : "text-neg";
   const drawer = locDrawers.find((d) => d.id === f.drawerId);
 
   // Blind mode hides the readout for everyone (managers included) until the

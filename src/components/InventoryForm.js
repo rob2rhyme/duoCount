@@ -55,7 +55,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const unit = item?.unit || "unit";
   const expected = expectedStock(f);
   const diff = (Number(f.counted) || 0) - expected;
-  const diffClass = diff === 0 ? "text-fg" : diff > 0 ? "text-green-700" : "text-red-600";
+  const diffClass = diff === 0 ? "text-fg" : diff > 0 ? "text-pos" : "text-neg";
 
   async function save() {
     if (!f.locationId) return onSaved?.("Pick a location first");

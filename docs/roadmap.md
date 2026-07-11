@@ -18,6 +18,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Mobile-first PWA** (installable, offline app shell, safe-area, install prompt) | `pwa-spec.md` | ✅ |
 | **Distribution / AI-integration analysis** | `distribution-analysis.md` | ✅ |
 | **Mobile native-feel + branded footer** (no focus-zoom on text entry, no tap-flash/overscroll, redesigned footer) | `pwa-spec.md`, `ui-enhancements-spec.md` §5–6 | ✅ |
+| **Theme & accessibility audit** (WCAG AA contrast measured both themes; `pos`/`neg` status tokens, chip + faint + disabled fixes) | `theme-accessibility-audit.md` | ✅ |
 
 ## Next up
 
@@ -36,13 +37,15 @@ Owner-only **Load / Clear sample data** in Admin. See `demo-data-spec.md`.
   `seed:true`-tagged docs and clears only those, so real counts are untouched.
   The generator (`lib/seed-data.js`) is pure + deterministic (unit-tested).
 
-### 2. Theme-requirements audit
-Confirm the light/dark system is complete and accessible everywhere.
-- **Acceptance:** every screen and both themes pass a contrast check (WCAG AA for
-  text); no fixed-color element is unreadable in either theme; native controls,
-  focus rings, disabled states, and status chips are all verified; a short
-  checklist is recorded here. (Partially done: build + Playwright both-theme
-  screenshots + adversarial review already ran for the shipped UI.)
+### 2. Theme-requirements audit — ✅ done (this cycle)
+Full WCAG 2.1 AA contrast audit of both themes, measured (not eyeballed) for
+every text/background pairing. See `theme-accessibility-audit.md` for the
+method, the results table, and the checklist. Fixes shipped: theme-aware
+`--pos` / `--neg` status tokens (inline over/short and status text was failing
+in dark mode), red status chip lifted to `text-red-700`, the `faint` tier
+darkened and reserved for placeholders/decoration with real content moved to
+`muted`, `muted` nudged to clear `muted`-on-`subtle`, and a perceivable disabled
+state for buttons/inputs. Focus indicator and native controls verified.
 
 ### 3. Documentation-accuracy pass
 Keep docs true to the code as features land.
@@ -92,8 +95,11 @@ Tables scroll/wrap instead of overflowing; forms collapse cleanly; chips wrap.
   consider first-name-only for the pill.
 - **Sticky headers** on the Dashboard by-drawer / by-item / by-employee tables
   so column labels stay visible while scrolling long lists.
-- **Empty-state polish** — light illustrations / clearer CTAs on the empty Log,
-  Notes, Incidents, and Dashboard states.
+- ✅ **Empty-state polish** — a shared `EmptyState` component (soft icon badge +
+  title + supporting line + optional CTA) on the empty Log, Notes, Incidents, and
+  Dashboard states. Log distinguishes "no counts yet" from "no match" (with a
+  Clear-filters action); Notes/Incidents focus their composer; Dashboard jumps to
+  a new count. (`ui-enhancements-spec.md` §7)
 - **Keyboard shortcuts** for power users (tab switching, save).
 
 ## Deferred (tier 3)

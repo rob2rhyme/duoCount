@@ -59,7 +59,7 @@ export default function PinLogin() {
               inputMode="numeric" maxLength={6} value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && doLogin()} placeholder="••••" />
-            {err && <p className="text-sm text-red-600 mt-3">{err}</p>}
+            {err && <p className="text-sm text-neg mt-3">{err}</p>}
             <button className="btn-primary mt-5" disabled={busy || pin.length < 4 || !storeCode.trim()} onClick={doLogin}>
               {busy ? "Checking…" : "Sign in"}
             </button>
@@ -67,7 +67,7 @@ export default function PinLogin() {
               onClick={() => { setMode("signup"); setErr(""); }}>
               New business? Register your store
             </button>
-            <p className="text-xs text-faint mt-4 leading-relaxed">
+            <p className="text-xs text-muted mt-4 leading-relaxed">
               Your store code comes from whoever set up your business. Ask a manager if you don't have it.
             </p>
           </>
@@ -83,7 +83,7 @@ export default function PinLogin() {
             <input className="input text-center text-xl tracking-[0.3em] font-mono"
               inputMode="numeric" maxLength={6} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
-            {err && <p className="text-sm text-red-600 mt-3">{err}</p>}
+            {err && <p className="text-sm text-neg mt-3">{err}</p>}
             <button className="btn-primary mt-5" disabled={busy} onClick={doSignup}>
               {busy ? "Creating…" : "Create business & sign in"}
             </button>
@@ -91,7 +91,7 @@ export default function PinLogin() {
               onClick={() => { setMode("login"); setErr(""); }}>
               Already registered? Sign in
             </button>
-            <p className="text-xs text-faint mt-4 leading-relaxed">
+            <p className="text-xs text-muted mt-4 leading-relaxed">
               You'll get a store code to share with staff. You'll be the owner and can add locations, drawers, and staff in Admin.
             </p>
           </>
