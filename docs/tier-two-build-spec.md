@@ -93,7 +93,7 @@ match /incidents/{incidentId} {
 }
 ```
 
-(Full rules in `app/firestore.rules`; emulator tests cover create/read/ack/
+(Full rules in `firestore.rules`; emulator tests cover create/read/ack/
 close/immutability — see §6.)
 
 ### 1.6 Index
