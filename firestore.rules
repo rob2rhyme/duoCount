@@ -221,6 +221,23 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Time clock — append-only in/out punches, signed by the employee.
+      // Managers/owners see the whole store; an employee sees only their own.
+      // Immutable: a mistaken punch is corrected by punching again, never by
+      // editing the record (same trust model as entries and incidents).
+      match /timeclock/{punchId} {
+        allow read: if mgr()
+          || (member() && resource.data.userId == request.auth.token.userId);
+
+        allow create: if member()
+          && request.resource.data.userId == request.auth.token.userId
+          && request.resource.data.userName == request.auth.token.name
+          && request.resource.data.type in ['in', 'out']
+          && (mgr() || request.resource.data.locationId == request.auth.token.locationId);
+
+        allow update, delete: if false;
+      }
+
       // Shift notes — the digital counter notebook. Visibility mirrors entries;
       // text is immutable; managers may pin/archive.
       match /notes/{noteId} {

@@ -152,6 +152,12 @@ values are set.
   "signals worth a look — not conclusions". Thresholds default to
   `PATTERN_RULES` but are tunable per vendor (Admin → Alert sensitivity); there
   is no stored state and employees never see them.
+- **Time clock** (see `docs/time-clock-spec.md`): a Time tab where staff clock
+  in / out with append-only, self-signed punches (no edits, no deletes — a
+  mistake is fixed by punching again). A pure, unit-tested aggregator
+  (`src/lib/timeclock.js`) pairs in/out into shifts — forgiving of forgotten
+  clock-outs and orphan punches — and managers get hours-by-employee over a
+  7/14/30-day window with a payroll CSV export. Scheduling/rostering is deferred.
 - **Login rate limiting**: the login route throttles failed attempts before any
   credential work runs — **per IP (10 / 15 min) and per store (50 / 15 min)** —
   using a top-level `loginAttempts` collection only the Admin SDK can touch.
@@ -272,6 +278,8 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
                               severity, subjectId/subjectName (null = general),
                               evidence links, open -> acknowledged -> closed
                               with ack note; immutable text, no deletes
+  timeclock/{id}              append-only in/out punch — userId/userName (signed),
+                              locationId/Name, type, ts, day; no edits or deletes
 loginAttempts/{ip_*|store_*} server-only failed-login counters (per-IP + per-store)
 ```
 

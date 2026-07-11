@@ -198,6 +198,22 @@ export async function closeIncident(vendorId, id, managerName) {
   });
 }
 
+/* ---------- time clock (append-only in/out punches) ---------- */
+// Managers pass selfId=null to watch every punch; employees pass their own id
+// (the rules only let them read their own anyway). Newest first.
+export function watchPunches(vendorId, selfId, cb) {
+  const base = vcol(vendorId, "timeclock");
+  const q = selfId
+    ? query(base, where("userId", "==", selfId), orderBy("ts", "desc"))
+    : query(base, orderBy("ts", "desc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addPunch(vendorId, punch) {
+  await addDoc(vcol(vendorId, "timeclock"), {
+    ...punch, ts: new Date(), day: new Date().toISOString().slice(0, 10),
+  });
+}
+
 /* ---------- tier one: shift notes ---------- */
 export function watchNotes(vendorId, lockedLocationId, cb) {
   const base = vcol(vendorId, "notes");

@@ -10,6 +10,7 @@ import NotesPanel from "./NotesPanel";
 import IncidentsPanel from "./IncidentsPanel";
 import Dashboard from "./Dashboard";
 import AdminPanel from "./AdminPanel";
+import TimeClock from "./TimeClock";
 import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
 import { resolveShortcut } from "@/lib/shortcuts";
@@ -21,6 +22,7 @@ const TABS = [
   { id: "log", label: "Log" },
   { id: "notes", label: "Notes" },
   { id: "incidents", label: "Incidents" },
+  { id: "time", label: "Time" },
   { id: "dashboard", label: "Dashboard" },
   { id: "admin", label: "Admin", managerOnly: true },
 ];
@@ -151,6 +153,7 @@ export default function AppShell() {
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}
+        {tab === "time" && <TimeClock locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName}
             onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />

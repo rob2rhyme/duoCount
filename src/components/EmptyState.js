@@ -39,6 +39,14 @@ export function IconChart(props) {
     </svg>
   );
 }
+export function IconClock(props) {
+  return (
+    <svg {...base} {...props} aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" />
+    </svg>
+  );
+}
 
 export default function EmptyState({ icon, title, subtitle, action }) {
   return (
