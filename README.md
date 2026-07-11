@@ -152,12 +152,15 @@ values are set.
   "signals worth a look — not conclusions". Thresholds default to
   `PATTERN_RULES` but are tunable per vendor (Admin → Alert sensitivity); there
   is no stored state and employees never see them.
-- **Time clock** (see `docs/time-clock-spec.md`): a Time tab where staff clock
-  in / out with append-only, self-signed punches (no edits, no deletes — a
-  mistake is fixed by punching again). A pure, unit-tested aggregator
-  (`src/lib/timeclock.js`) pairs in/out into shifts — forgiving of forgotten
-  clock-outs and orphan punches — and managers get hours-by-employee over a
-  7/14/30-day window with a payroll CSV export. Scheduling/rostering is deferred.
+- **Time clock & scheduling** (see `docs/time-clock-spec.md`): a Time tab with
+  two views. **Clock** — staff punch in/out with append-only, self-signed
+  records (no edits/deletes; a mistake is fixed by punching again); a pure,
+  unit-tested aggregator (`src/lib/timeclock.js`) pairs them into shifts
+  (forgiving of forgotten clock-outs) and managers get hours-by-employee +
+  payroll CSV. **Schedule** — managers roster a weekly plan (editable, unlike
+  punches) with double-booking warnings and scheduled hours; everyone sees their
+  own upcoming shifts; `src/lib/schedule.js` reconciles the roster against the
+  actual punches by business day to surface no-shows.
 - **Login rate limiting**: the login route throttles failed attempts before any
   credential work runs — **per IP (10 / 15 min) and per store (50 / 15 min)** —
   using a top-level `loginAttempts` collection only the Admin SDK can touch.
@@ -280,6 +283,8 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
                               with ack note; immutable text, no deletes
   timeclock/{id}              append-only in/out punch — userId/userName (signed),
                               locationId/Name, type, ts, day; no edits or deletes
+  schedule/{id}               manager-managed roster shift — userId/userName,
+                              locationId/Name, date, start/end, by/byId; editable
 loginAttempts/{ip_*|store_*} server-only failed-login counters (per-IP + per-store)
 ```
 

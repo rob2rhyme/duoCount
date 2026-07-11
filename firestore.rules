@@ -238,6 +238,25 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // Shift schedule — a manager-managed roster (a plan, not an audit trail,
+      // so unlike punches it is editable and deletable). Managers/owners see and
+      // manage the whole roster; an employee sees only their own shifts.
+      match /schedule/{shiftId} {
+        allow read: if mgr()
+          || (member() && resource.data.userId == request.auth.token.userId);
+
+        allow create: if mgr()
+          && request.resource.data.by == request.auth.token.name
+          && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.userId is string
+          && request.resource.data.userName is string
+          && request.resource.data.date is string
+          && request.resource.data.start is string
+          && request.resource.data.end is string;
+
+        allow update, delete: if mgr();
+      }
+
       // Shift notes — the digital counter notebook. Visibility mirrors entries;
       // text is immutable; managers may pin/archive.
       match /notes/{noteId} {

@@ -6,6 +6,7 @@ import {
   computeShifts, summarizeHours, openShiftFor, formatDuration,
 } from "@/lib/timeclock";
 import EmptyState, { IconClock } from "./EmptyState";
+import Schedule from "./Schedule";
 
 const DAY = 24 * 3600 * 1000;
 const PERIODS = [
@@ -25,11 +26,12 @@ function downloadCSV(lines, name) {
   a.click();
 }
 
-export default function TimeClock({ locName, onToast }) {
+export default function TimeClock({ locations = [], locName, onToast }) {
   const { profile, vendor, isManager } = useSession();
   const [punches, setPunches] = useState([]);
   const [busy, setBusy] = useState(false);
   const [days, setDays] = useState(7);
+  const [view, setView] = useState("clock"); // "clock" | "schedule"
   const [, setTick] = useState(0); // re-render so the running duration stays live
 
   // Managers watch the whole store; employees watch their own (rules enforce it).
@@ -90,6 +92,19 @@ export default function TimeClock({ locName, onToast }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-1.5 bg-subtle rounded-xl p-1">
+        {[["clock", "Time clock"], ["schedule", "Schedule"]].map(([id, label]) => (
+          <button key={id} onClick={() => setView(id)}
+            className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${view === id ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "schedule" ? (
+        <Schedule punches={punches} locations={locations} locName={locName} onToast={onToast} />
+      ) : (
+      <>
       {/* self clock in/out — everyone */}
       <div className="card p-5 space-y-4">
         <div className="flex items-center gap-3">
@@ -187,6 +202,8 @@ export default function TimeClock({ locName, onToast }) {
       <p className="text-center text-[11px] text-faint px-4">
         Punches are permanent — a mistake is fixed by punching again, never edited. A forgotten clock-out shows as an open shift and adds no hours until you clock out.
       </p>
+      </>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
 import {
-  collection, doc, addDoc, getDoc, updateDoc, writeBatch,
+  collection, doc, addDoc, getDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, onSnapshot,
 } from "firebase/firestore";
 
@@ -212,6 +212,23 @@ export async function addPunch(vendorId, punch) {
   await addDoc(vcol(vendorId, "timeclock"), {
     ...punch, ts: new Date(), day: new Date().toISOString().slice(0, 10),
   });
+}
+
+/* ---------- shift scheduling (manager-managed roster) ---------- */
+// A schedule is a plan, not an audit trail: managers create/delete shifts.
+// Managers watch the whole roster (selfId=null); employees see only their own.
+export function watchSchedule(vendorId, selfId, cb) {
+  const base = vcol(vendorId, "schedule");
+  const q = selfId
+    ? query(base, where("userId", "==", selfId), orderBy("date", "asc"))
+    : query(base, orderBy("date", "asc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addScheduledShift(vendorId, shift) {
+  await addDoc(vcol(vendorId, "schedule"), { ...shift, ts: new Date() });
+}
+export async function deleteScheduledShift(vendorId, id) {
+  await deleteDoc(doc(db, "vendors", vendorId, "schedule", id));
 }
 
 /* ---------- tier one: shift notes ---------- */

@@ -1,17 +1,19 @@
 ---
-title: Time clock
+title: Time clock & scheduling
 ---
 
-# DuoCount — Time Clock Spec
+# DuoCount — Time Clock & Scheduling Spec
 
-**Status:** built (MVP). Staff clock in / out from the **Time** tab; managers see
-hours by employee and export a payroll CSV. Rostering / shift *scheduling* is
-deliberately out of this cut (see below).
+**Status:** built. The **Time** tab has two views (a segmented control):
+**Time clock** (staff clock in/out; managers get hours-by-employee + payroll CSV)
+and **Schedule** (managers roster shifts; everyone sees their own upcoming
+shifts). Together they cover the "scheduling / time-clock / payroll exports"
+tier-3 item.
 
-**Why.** "Scheduling / time-clock / payroll exports" was a deferred tier-3 item.
-The time clock is the foundation of the three — you need punch data before hours
-or payroll mean anything — so this MVP ships that spine end-to-end and leaves the
-planning side (assigning future shifts) for later.
+**Why.** The time clock came first — you need punch data before hours or payroll
+mean anything — and scheduling builds on it: the roster is reconciled against the
+actual punches to surface no-shows. The two share the Time tab and a design
+(append-only *record* vs editable *plan*).
 
 ## Model — append-only punches
 
@@ -74,14 +76,50 @@ filtering, malformed-punch tolerance, and Firestore-style timestamp coercion.
 A composite index `timeclock(userId ASC, ts DESC)` backs the employee's
 own-punches query (`firestore.indexes.json`).
 
+## Scheduling (the roster)
+
+A **schedule** is a *plan*, not an audit trail — so unlike a punch it is
+editable and deletable. Managers roster shifts; everyone sees their own.
+
+**Model** — `vendors/{v}/schedule`, one doc per scheduled shift:
+`{ userId, userName, locationId, locationName, date (YYYY-MM-DD),
+start/end ("HH:MM"), by/byId (the manager), ts }`.
+
+**Pure core** — `lib/schedule.js` (isomorphic, unit-tested in
+`tests/schedule.test.mjs`, `npm run test:schedule`):
+- **date helpers** on `YYYY-MM-DD` strings with UTC math (no `Date.now`):
+  `weekStartMonday`, `weekDates`, `addDays`.
+- **`shiftMinutes`** — duration from `HH:MM`, treating `end <= start` as an
+  **overnight** shift (+24 h).
+- **`scheduledHours`** — hours per employee over a date range.
+- **`findOverlaps`** — ids of shifts that **double-book** one employee on a day
+  (back-to-back does not count).
+- **`reconcile`** — day-level **attendance**: it lines each scheduled shift up
+  against the actual punches *by business `day` string* (so no timezone math),
+  over the elapsed days only, and returns worked / no-show / unscheduled. This
+  is the payoff of having both halves.
+
+**UI** — the **Schedule** view:
+- **Managers:** a week navigator, an add-a-shift form (employee / date / start /
+  end / optional location), a roster grouped by day with a per-shift delete and a
+  gold **Overlap** flag, a *Scheduled hours this week* table, and an *Attendance
+  so far* readout (worked vs no-show vs unscheduled, with the no-show list).
+- **Everyone:** *Your upcoming shifts* — the employee's own future shifts.
+
+**Security** — `match /schedule/{shiftId}`: managers read/manage the whole
+roster; an employee reads only their own. Create is manager-only and
+manager-signed (`by`/`byId` == token); **update/delete are manager-only** (a plan
+changes). Backed by a `schedule(userId ASC, date ASC)` index.
+
 ## Deliberately out of scope (future)
 
-- **Shift scheduling / rostering** — assigning *future* shifts, availability,
-  swap requests. A planning surface distinct from the clock; the punch model
-  here is the data it would reconcile against.
-- **Manager punch correction** — an admin editing/inserting a punch for someone
-  who forgot. Kept out to preserve the append-only guarantee for the MVP; the
-  clean path is a manager-signed corrective punch (a create, not an edit).
+- **Manager punch correction** — an admin editing/inserting a *punch* for someone
+  who forgot. Kept out to preserve the append-only guarantee; the clean path is a
+  manager-signed corrective punch (a create, not an edit).
+- **Availability, shift swaps, open-shift claim, recurring templates, publish/
+  notify** — richer rostering workflow beyond assign-and-view.
+- **Time-level lateness** and overnight shifts that straddle two calendar days in
+  the overlap check (reconciliation and overlap are day-scoped).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real
   payroll math is jurisdiction- and employer-specific; the CSV exports raw
   paired hours for a payroll system to apply its own rules.
