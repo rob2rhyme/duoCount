@@ -11,7 +11,7 @@ import IncidentsPanel from "./IncidentsPanel";
 import Dashboard from "./Dashboard";
 import AdminPanel from "./AdminPanel";
 import Logo from "./Logo";
-import ThemeToggle from "./ThemeToggle";
+import PreferencesMenu from "./PreferencesMenu";
 
 const TABS = [
   { id: "cash", label: "Cash" },
@@ -86,7 +86,7 @@ export default function AppShell() {
               {profile.role === "owner" ? "Own" : profile.role === "manager" ? "Mgr" : "Emp"}
             </span>
           </span>
-          <ThemeToggle variant="dark" />
+          <PreferencesMenu />
           <button className="text-[#c9c6bd] underline underline-offset-2 text-[13px]" onClick={logout}>Sign out</button>
         </div>
       </header>
