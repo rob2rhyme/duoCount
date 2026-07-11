@@ -127,6 +127,18 @@ export default function AppShell() {
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
       </main>
 
+      <footer className="max-w-3xl mx-auto px-4 pt-2 text-center text-[12px] text-neutral-500">
+        <p className="mb-1.5">Paper backup forms — print a stack for the register in case a phone isn&apos;t handy:</p>
+        <div className="flex justify-center gap-4 flex-wrap">
+          <a href="/forms/cash-drawer-log.pdf" download
+            className="underline underline-offset-2 font-medium"
+            aria-label="Download the cash drawer log PDF form">📄 Cash drawer log</a>
+          <a href="/forms/scratch-off-log.pdf" download
+            className="underline underline-offset-2 font-medium"
+            aria-label="Download the scratch-off log PDF form">📄 Scratch-off log</a>
+        </div>
+      </footer>
+
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-5 py-3 rounded-full text-sm font-medium shadow-lg z-50">
           {toast}
