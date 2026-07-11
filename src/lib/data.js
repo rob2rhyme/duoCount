@@ -103,6 +103,15 @@ export async function apiTestDigest() {
     headers: { Authorization: `Bearer ${await idToken()}` },
   });
 }
+// Owner-only demo data: action is "load" (write seed-tagged sample data,
+// idempotent) or "clear" (delete only seed-tagged docs).
+export async function apiSeedDemo(action) {
+  return fetchJson("/api/seed", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify({ action }),
+  });
+}
 
 /* ---------- entries ---------- */
 // lockedLocationId: pass an id to query only that location (required for

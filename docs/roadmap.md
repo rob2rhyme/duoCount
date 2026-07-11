@@ -14,24 +14,24 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | UI — denomination cash counter, scroll-to-top FAB, light/dark theme, Preferences menu | `ui-enhancements-spec.md` | ✅ |
 | **Configurable scroll-to-top FAB** (per-device toggle in Preferences) | `ui-enhancements-spec.md` §2.2, §4 | ✅ |
 | **Mobile layout audit + polish** (all 8 screens, both themes, 390px) | this file, §"Layout audit" | ✅ |
+| **Demo data seed** (owner-only load/clear of tagged sample data) | `demo-data-spec.md` | ✅ |
 
 ## Next up
 
 Ordered roughly by value-per-effort. Each item lists acceptance criteria so it
 can be picked up cleanly.
 
-### 1. Demo data seed
-Let anyone experience a populated app in seconds (marketplace demos, screenshots,
-onboarding, manual QA of the dashboard/patterns/reports).
-- **Acceptance:** an owner-only "Load sample data" action seeds the *signed-in*
-  vendor with realistic locations, drawers, staff, and ~2–4 weeks of cash /
-  scratch / inventory entries (some balanced, some short/over, a few flagged and
-  disputed, some verified) — written through the client SDK so it respects the
-  security rules, with no service-account key required. A matching "Clear sample
-  data" removes only seeded records. Deterministic (seedable) so screenshots are
-  stable. Never runs automatically.
-- **Notes:** keep seed volume modest (Firestore write costs); tag seeded docs
-  (e.g. `seed: true`) so cleanup is exact.
+### 1. Demo data seed — ✅ done (this cycle)
+Owner-only **Load / Clear sample data** in Admin. See `demo-data-spec.md`.
+
+- **Design note:** the append-only client rules (`allow delete: if false`, and
+  entries must be signed by the *signed-in* user) mean a client-side seed could
+  neither attribute entries to multiple staff nor ever be cleared. So the seed
+  runs **server-side via the Admin SDK** — the same trusted path `signup` /
+  `digest` already use — which is exactly how the product intends privileged
+  operations to work, and never weakens the client trust rules. It writes only
+  `seed:true`-tagged docs and clears only those, so real counts are untouched.
+  The generator (`lib/seed-data.js`) is pure + deterministic (unit-tested).
 
 ### 2. Theme-requirements audit
 Confirm the light/dark system is complete and accessible everywhere.
