@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:rules": "firebase emulators:exec --only firestore --project duocount-rules-test \"npm run test:rules:run\"",
+    "test:rules:run": "node --test tests/rules.test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -19,12 +21,15 @@
     "recharts": "^2.15.4"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
     "autoprefixer": "^10.4.19",
+    "firebase-tools": "^15.23.0",
     "postcss": "^8.5.10",
     "tailwindcss": "^3.4.7"
   },
   "overrides": {
     "uuid": "^11.1.1",
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "@opentelemetry/core": "^2.4.0"
   }
 }

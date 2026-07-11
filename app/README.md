@@ -111,6 +111,19 @@ Scanning is an input accelerator only: nothing saves until "Save & sign
 entry". The zxing decoder is dynamically imported and never ships in the
 initial bundle. Camera use requires HTTPS (or localhost) plus permission.
 
+## Testing the security rules
+
+The rules are the product's trust boundary, so they have an executable test
+suite (`tests/rules.test.mjs`, 25 tests): tenant isolation, per-location
+visibility for entries/comments/notes, the five mutually exclusive entry
+update branches (verify / investigate / dispute-open / dispute-manage /
+comment bump), clean-create guards, the owner settings whitelist, and item
+lifecycle. Run them against the local Firestore emulator (needs Java):
+
+```bash
+npm run test:rules
+```
+
 ## Security notes
 
 - PINs: salted scrypt hashes under `users/{id}/private/creds`, which no client
