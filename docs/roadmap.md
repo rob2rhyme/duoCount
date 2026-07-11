@@ -24,6 +24,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Auth hardening** (6-digit PIN policy on new pins; per-store login limiter alongside per-IP) | `tier-two-build-spec.md` §3 | ✅ |
 | **Time clock** (append-only in/out punches, hours-by-employee, payroll CSV) | `time-clock-spec.md` | ✅ |
 | **Shift scheduling** (manager-managed weekly roster, overlap warnings, scheduled hours, attendance reconciliation vs punches) | `time-clock-spec.md` §Scheduling | ✅ |
+| **Richer rostering** (one-click copy-last-week; employee availability + conflict warnings on the roster) | `time-clock-spec.md` §Scheduling | ✅ |
 
 ## Next up
 
@@ -115,9 +116,10 @@ Tables scroll/wrap instead of overflowing; forms collapse cleanly; chips wrap.
 
 From `tier-two-build-spec.md` §7 — revisit on customer pull:
 
-- **Time clock + payroll CSV + shift scheduling** — ✅ done (see Shipped;
-  `time-clock-spec.md`). Still deferred: manager punch correction, and richer
-  rostering (availability, swaps, open-shift claim, recurring templates).
+- **Time clock + payroll CSV + shift scheduling + rostering polish** — ✅ done
+  (see Shipped; `time-clock-spec.md`): punches, payroll export, weekly roster,
+  copy-last-week, and employee availability. Still deferred: manager punch
+  correction, shift swaps, open-shift claim, recurring templates, publish/notify.
 - ✅ **Per-vendor pattern thresholds and extra detectors** — done (see Shipped).
   Remaining slice: escalating variance *trends* and scratch settle-shortfall
   patterns.

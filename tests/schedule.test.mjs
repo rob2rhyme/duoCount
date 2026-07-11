@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   addDays, weekStartMonday, weekDates, parseHHMM, shiftMinutes,
   scheduledHours, findOverlaps, groupByDate, reconcile,
+  copyShiftsToWeek, availabilityConflicts, isUnavailable,
 } from "../src/lib/schedule.js";
 
 const shift = (userId, date, start, end, over = {}) =>
@@ -100,4 +101,46 @@ test("reconcile ignores a worked day that falls outside the requested dates", ()
   const r = reconcile([], [{ userId: "u1", day: "2026-01-01", type: "in" }], { dates: ["2026-07-06"] });
   assert.equal(r.unscheduled.length, 0);
   assert.equal(r.scheduled, 0);
+});
+
+test("copyShiftsToWeek shifts dates by a week and preserves employee + times", () => {
+  const src = [
+    shift("u1", "2026-07-06", "09:00", "17:00", { locationId: "l1", locationName: "Downtown" }),
+    shift("u2", "2026-07-07", "10:00", "18:00"),
+  ];
+  const out = copyShiftsToWeek(src, { offsetDays: 7 });
+  assert.equal(out.length, 2);
+  assert.equal(out[0].date, "2026-07-13");
+  assert.equal(out[0].userId, "u1");
+  assert.equal(out[0].start, "09:00");
+  assert.equal(out[0].locationName, "Downtown");
+  assert.equal(out[1].date, "2026-07-14");
+  // no id/by fields — those are stamped at write time
+  assert.equal(out[0].id, undefined);
+});
+
+test("copyShiftsToWeek skips shifts that already exist in the target week", () => {
+  const src = [shift("u1", "2026-07-06", "09:00", "17:00"), shift("u1", "2026-07-07", "09:00", "17:00")];
+  const existing = [shift("u1", "2026-07-13", "09:00", "17:00")]; // already copied Monday
+  const out = copyShiftsToWeek(src, { offsetDays: 7, existing });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].date, "2026-07-14"); // only Tuesday gets copied
+});
+
+test("availabilityConflicts flags shifts on an employee's unavailable day", () => {
+  const shifts = [
+    shift("u1", "2026-07-06", "09:00", "17:00"),
+    shift("u1", "2026-07-07", "09:00", "17:00"),
+    shift("u2", "2026-07-06", "09:00", "17:00"),
+  ];
+  const unavailable = [{ userId: "u1", date: "2026-07-06" }];
+  const ids = availabilityConflicts(shifts, unavailable);
+  assert.equal(ids.size, 1);
+  assert.ok(ids.has("u1-2026-07-06-09:00"));
+  assert.ok(!ids.has("u1-2026-07-07-09:00")); // different day
+  assert.ok(!ids.has("u2-2026-07-06-09:00")); // different person
+
+  assert.equal(isUnavailable(unavailable, "u1", "2026-07-06"), true);
+  assert.equal(isUnavailable(unavailable, "u1", "2026-07-07"), false);
+  assert.equal(isUnavailable(unavailable, "u2", "2026-07-06"), false);
 });

@@ -158,9 +158,11 @@ values are set.
   unit-tested aggregator (`src/lib/timeclock.js`) pairs them into shifts
   (forgiving of forgotten clock-outs) and managers get hours-by-employee +
   payroll CSV. **Schedule** — managers roster a weekly plan (editable, unlike
-  punches) with double-booking warnings and scheduled hours; everyone sees their
-  own upcoming shifts; `src/lib/schedule.js` reconciles the roster against the
-  actual punches by business day to surface no-shows.
+  punches) with double-booking warnings, scheduled hours, and one-click
+  **copy-last-week**; employees see their upcoming shifts and mark the **days
+  they can't work** (managers get a conflict flag when they roster over one);
+  `src/lib/schedule.js` reconciles the roster against the actual punches by
+  business day to surface no-shows.
 - **Login rate limiting**: the login route throttles failed attempts before any
   credential work runs — **per IP (10 / 15 min) and per store (50 / 15 min)** —
   using a top-level `loginAttempts` collection only the Admin SDK can touch.
@@ -285,6 +287,8 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
                               locationId/Name, type, ts, day; no edits or deletes
   schedule/{id}               manager-managed roster shift — userId/userName,
                               locationId/Name, date, start/end, by/byId; editable
+  availability/{id}           employee-authored unavailable date — userId/userName,
+                              date; self-managed, manager-visible, no edits
 loginAttempts/{ip_*|store_*} server-only failed-login counters (per-IP + per-store)
 ```
 

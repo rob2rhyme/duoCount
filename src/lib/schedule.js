@@ -82,6 +82,44 @@ export function findOverlaps(shifts = []) {
   return overlap;
 }
 
+/**
+ * Duplicate a set of shifts into another week (shifted by offsetDays), returning
+ * plain specs to write. Skips any that already exist in `existing` (matched on
+ * employee + new date + start), so re-running "copy last week" never doubles up.
+ */
+export function copyShiftsToWeek(sourceShifts = [], { offsetDays = 7, existing = [] } = {}) {
+  const have = new Set(existing.map((s) => `${s.userId}|${s.date}|${s.start}`));
+  const out = [];
+  for (const s of sourceShifts) {
+    const date = addDays(s.date, offsetDays);
+    const key = `${s.userId}|${date}|${s.start}`;
+    if (have.has(key)) continue;
+    have.add(key);
+    out.push({
+      userId: s.userId, userName: s.userName,
+      locationId: s.locationId ?? null, locationName: s.locationName ?? null,
+      date, start: s.start, end: s.end,
+    });
+  }
+  return out;
+}
+
+/**
+ * Ids of scheduled shifts that land on a date the employee marked unavailable.
+ * `unavailable` is a list of { userId, date }.
+ */
+export function availabilityConflicts(shifts = [], unavailable = []) {
+  const off = new Set(unavailable.map((u) => `${u.userId}|${u.date}`));
+  const ids = new Set();
+  for (const s of shifts) if (off.has(`${s.userId}|${s.date}`)) ids.add(s.id);
+  return ids;
+}
+
+/** Is this employee marked unavailable on this date? (form-time guard.) */
+export function isUnavailable(unavailable = [], userId, date) {
+  return unavailable.some((u) => u.userId === userId && u.date === date);
+}
+
 /** date -> shifts on that date, each list sorted by start time. */
 export function groupByDate(shifts = []) {
   const by = new Map();

@@ -98,26 +98,40 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
   against the actual punches *by business `day` string* (so no timezone math),
   over the elapsed days only, and returns worked / no-show / unscheduled. This
   is the payoff of having both halves.
+- **`copyShiftsToWeek`** — shifts a set of shifts by an offset (a week) into new
+  specs, **skipping any that already exist** (employee + new date + start), so
+  "copy last week" is idempotent.
+- **`availabilityConflicts` / `isUnavailable`** — flag scheduled shifts (or a
+  form selection) that land on a date the employee marked unavailable.
 
 **UI** — the **Schedule** view:
-- **Managers:** a week navigator, an add-a-shift form (employee / date / start /
-  end / optional location), a roster grouped by day with a per-shift delete and a
-  gold **Overlap** flag, a *Scheduled hours this week* table, and an *Attendance
-  so far* readout (worked vs no-show vs unscheduled, with the no-show list).
-- **Everyone:** *Your upcoming shifts* — the employee's own future shifts.
+- **Managers:** a week navigator; an add-a-shift form (employee / date / start /
+  end / optional location) that **warns** when the chosen employee marked that
+  day off (override allowed); a roster grouped by day with a per-shift delete, a
+  gold **Overlap** flag and a red **Unavailable** flag; a one-click **Copy last
+  week** (dedup-aware, batch write); a *Scheduled hours this week* table; and an
+  *Attendance so far* readout (worked / no-show / unscheduled + the no-show list).
+- **Everyone:** *Your upcoming shifts*, and **Days you can't work** — mark/remove
+  the dates you're unavailable so managers can roster around you.
 
-**Security** — `match /schedule/{shiftId}`: managers read/manage the whole
-roster; an employee reads only their own. Create is manager-only and
-manager-signed (`by`/`byId` == token); **update/delete are manager-only** (a plan
-changes). Backed by a `schedule(userId ASC, date ASC)` index.
+**Security** —
+- `match /schedule/{shiftId}`: managers read/manage the whole roster; an
+  employee reads only their own. Create is manager-only and manager-signed
+  (`by`/`byId` == token); **update/delete manager-only** (a plan changes).
+- `match /availability/{id}`: employees create their **own** unavailable dates
+  (self-signed) and either the owner or a manager may delete one; managers read
+  everyone's; **no updates** (remove and re-add). Immutable-once-set, like the
+  rest of the app's authored records.
+- Indexes: `schedule(userId ASC, date ASC)` and `availability(userId ASC, date ASC)`.
 
 ## Deliberately out of scope (future)
 
 - **Manager punch correction** — an admin editing/inserting a *punch* for someone
   who forgot. Kept out to preserve the append-only guarantee; the clean path is a
   manager-signed corrective punch (a create, not an edit).
-- **Availability, shift swaps, open-shift claim, recurring templates, publish/
-  notify** — richer rostering workflow beyond assign-and-view.
+- **Shift swaps, open-shift claim, recurring templates, publish/notify** —
+  richer rostering workflow beyond assign / copy / availability. (Employee
+  *availability* and one-click *copy last week* are now built; see above.)
 - **Time-level lateness** and overnight shifts that straddle two calendar days in
   the overlap check (reconciliation and overlap are day-scoped).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real

@@ -230,6 +230,31 @@ export async function addScheduledShift(vendorId, shift) {
 export async function deleteScheduledShift(vendorId, id) {
   await deleteDoc(doc(db, "vendors", vendorId, "schedule", id));
 }
+// One-click "copy last week" writes many shifts at once.
+export async function addScheduledShiftsBatch(vendorId, shifts) {
+  if (!shifts.length) return 0;
+  const batch = writeBatch(db);
+  const col = vcol(vendorId, "schedule");
+  for (const s of shifts) batch.set(doc(col), { ...s, ts: new Date() });
+  await batch.commit();
+  return shifts.length;
+}
+
+/* ---------- staff availability (employee-authored, manager-visible) ---------- */
+// Employees mark dates they can't work; managers see everyone's while rostering.
+export function watchAvailability(vendorId, selfId, cb) {
+  const base = vcol(vendorId, "availability");
+  const q = selfId
+    ? query(base, where("userId", "==", selfId), orderBy("date", "asc"))
+    : query(base, orderBy("date", "asc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addUnavailable(vendorId, entry) {
+  await addDoc(vcol(vendorId, "availability"), { ...entry, ts: new Date() });
+}
+export async function deleteUnavailable(vendorId, id) {
+  await deleteDoc(doc(db, "vendors", vendorId, "availability", id));
+}
 
 /* ---------- tier one: shift notes ---------- */
 export function watchNotes(vendorId, lockedLocationId, cb) {
