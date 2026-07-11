@@ -23,8 +23,10 @@ security rules keyed on server-issued auth claims.
   - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (built)
   - `ui-enhancements-spec.md` — spec for the denomination currency counter,
     scroll-to-top FAB, light/dark theme, and Preferences menu (built)
-  - `roadmap.md` — what's shipped, what's next (demo seed, PWA, distribution
-    analysis, audits), and what's deferred
+  - `demo-data-spec.md` — owner-only Load/Clear sample data (server-side, so it
+    respects the append-only trust rules)
+  - `roadmap.md` — what's shipped, what's next (PWA, distribution analysis,
+    audits), and what's deferred
   - `positioning-one-pager.md` — market positioning, competitors, pricing
 - `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
   branded for Smokers Haven, useful as backup or during onboarding. The app

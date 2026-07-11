@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import {
   watchStaff, apiCreateStaff, apiUpdateStaff,
   addLocation, updateLocation, addDrawer, updateDrawer,
-  addItem, updateItem, updateVendorSettings, apiTestDigest,
+  addItem, updateItem, updateVendorSettings, apiTestDigest, apiSeedDemo,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import BarcodeScanner from "./BarcodeScanner";
@@ -119,6 +119,30 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     try { const r = await apiTestDigest(); onToast?.(r.message || "Test digest sent"); }
     catch (e) { onToast?.(e.message); }
     setTesting(false);
+  }
+
+  /* ---- demo data (owner only) ---- */
+  const [seedBusy, setSeedBusy] = useState("");
+  async function loadDemo() {
+    if (!confirm("Load sample data?\n\nThis writes demo staff, drawers, and ~3 weeks of counts into THIS business's log. Meant for a demo or test store, not a live one. Re-loading replaces the previous sample set.")) return;
+    setSeedBusy("load");
+    try {
+      const r = await apiSeedDemo("load");
+      const c = r.counts || {};
+      onToast?.(`Loaded ${c.entries || 0} counts + demo staff, drawers & items`);
+    } catch (e) { onToast?.(e.message); }
+    setSeedBusy("");
+  }
+  async function clearDemo() {
+    if (!confirm("Remove all sample data?\n\nDeletes only the demo records tagged as sample data — your real counts are untouched.")) return;
+    setSeedBusy("clear");
+    try {
+      const r = await apiSeedDemo("clear");
+      const c = r.counts || {};
+      const total = Object.values(c).reduce((s, v) => s + (v || 0), 0);
+      onToast?.(total ? `Removed ${total} sample records` : "No sample data to remove");
+    } catch (e) { onToast?.(e.message); }
+    setSeedBusy("");
   }
 
   const locName = (id) => locations.find((l) => l.id === id)?.name || "All locations";
@@ -391,6 +415,30 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
             : <p className="text-[13px] text-faint italic">Only the owner can change these settings.</p>}
         </div>
       </div>
+
+      {isOwner && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-line">
+            <h2 className="font-semibold text-[15px]">Demo data</h2>
+            <p className="text-[13px] text-muted mt-0.5">Fill this business with realistic sample counts to explore the Log, Dashboard, and reports — then clear it in one tap.</p>
+          </div>
+          <div className="p-4 space-y-3">
+            <div className="flex gap-2">
+              <button className="btn-primary flex-1" disabled={!!seedBusy} onClick={loadDemo}>
+                {seedBusy === "load" ? "Loading…" : "Load sample data"}
+              </button>
+              <button className="btn-ghost flex-1" disabled={!!seedBusy} onClick={clearDemo}>
+                {seedBusy === "clear" ? "Clearing…" : "Clear sample data"}
+              </button>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              Sample records are tagged so <b>Clear</b> removes only them — your real counts are never touched.
+              Best used on a demo or test store: the entries land in the permanent, append-only log like any other count.
+              Demo staff are illustrative (no sign-in); add real staff above.
+            </p>
+          </div>
+        </div>
+      )}
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
         title="Scan item barcode"
