@@ -11,6 +11,7 @@
     "test:rules:run": "node --test tests/rules.test.mjs",
     "test:patterns": "node --test tests/patterns.test.mjs",
     "test:seed": "node --test tests/seed.test.mjs",
+    "test:shortcuts": "node --test tests/shortcuts.test.mjs",
     "test:api": "node --test tests/api.test.mjs"
   },
   "dependencies": {

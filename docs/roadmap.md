@@ -19,6 +19,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Distribution / AI-integration analysis** | `distribution-analysis.md` | ✅ |
 | **Mobile native-feel + branded footer** (no focus-zoom on text entry, no tap-flash/overscroll, redesigned footer) | `pwa-spec.md`, `ui-enhancements-spec.md` §5–6 | ✅ |
 | **Theme & accessibility audit** (WCAG AA contrast measured both themes; `pos`/`neg` status tokens, chip + faint + disabled fixes) | `theme-accessibility-audit.md` | ✅ |
+| **Power-user polish** (sticky dashboard table headers, first-name-only pill on tiny screens, keyboard shortcuts) | `ui-enhancements-spec.md` §8–9 | ✅ |
 
 ## Next up
 
@@ -91,16 +92,20 @@ Tables scroll/wrap instead of overflowing; forms collapse cleanly; chips wrap.
 - ✅ **Header consolidation** — Sign out moved into the gear (a power-off row at
   the bottom of the Settings menu), so the header is a single control with a
   proper tap target; reclaims width on tiny screens. (`ui-enhancements-spec.md` §4)
-- **Header identity on tiny screens** — the user name still truncates hard;
-  consider first-name-only for the pill.
-- **Sticky headers** on the Dashboard by-drawer / by-item / by-employee tables
-  so column labels stay visible while scrolling long lists.
+- ✅ **Header identity on tiny screens** — the header pill now shows first-name
+  only below `sm` and the full name at ≥`sm`, so it stops truncating hard on
+  narrow phones. (`ui-enhancements-spec.md` §4)
+- ✅ **Sticky headers** on the Dashboard by-drawer / by-item / by-employee tables
+  — each table is a bounded scroll region (`max-h`) with a `sticky` `thead`, so
+  the column labels stay visible while scrolling long lists. (`ui-enhancements-spec.md` §8)
 - ✅ **Empty-state polish** — a shared `EmptyState` component (soft icon badge +
   title + supporting line + optional CTA) on the empty Log, Notes, Incidents, and
   Dashboard states. Log distinguishes "no counts yet" from "no match" (with a
   Clear-filters action); Notes/Incidents focus their composer; Dashboard jumps to
   a new count. (`ui-enhancements-spec.md` §7)
-- **Keyboard shortcuts** for power users (tab switching, save).
+- ✅ **Keyboard shortcuts** for power users — digits jump to a tab, `[` / `]`
+  step, `⌘/Ctrl`+`Enter` saves the visible form, `?` toggles a shortcuts sheet.
+  Pure decision logic in `lib/shortcuts.js` (unit-tested). (`ui-enhancements-spec.md` §9)
 
 ## Deferred (tier 3)
 
