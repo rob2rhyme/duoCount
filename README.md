@@ -196,6 +196,26 @@ Scratch form, an "Active pack" picker fills game, price, and pack # in one
 tap; combined with the last-count prefill, a recount is one pick and one
 number. The registry is optional — free-text pack counting still works.
 
+## Interface: counting, theming & navigation
+
+Three usability upgrades (see `docs/ui-enhancements-spec.md`), all pure client
+UI with no schema impact:
+
+- **Denomination cash counter.** On the drawer count, a "Count cash by
+  denomination" toggle tallies `$100/$50/$20/$10/$5/$1` bills plus a coins
+  value; the running total (`Σ denom×count + coins`) drives "Counted at close"
+  and the live over/short readout, and is what's saved as `counted`. Works in
+  blind mode; clears after each save.
+- **Light / dark theme.** A CSS-variable design system (`:root` light /
+  `.dark` dark) exposed as Tailwind tokens (`surface`, `panel`, `line`, `fg`,
+  `muted`, `gold`, …). A sun/moon toggle (header + login) persists the choice
+  in `localStorage` and follows the OS preference on first visit; a no-flash
+  boot script in `<head>` sets the theme before first paint. PDF, print, email
+  digest, and Recharts colors intentionally stay fixed for their medium.
+- **Progressive scroll-to-top FAB.** Mounted app-wide by `AppChrome`; a ring
+  fills with scroll depth, reveals past ~240px, respects reduced-motion, and
+  stays below modals and out of the tab order while hidden.
+
 ## Security notes
 
 - PINs: salted scrypt hashes under `users/{id}/private/creds`, which no client
