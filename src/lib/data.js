@@ -16,7 +16,7 @@ export async function getVendor(vendorId) {
 }
 export async function updateVendorSettings(vendorId, patch) {
   const allowed = {};
-  const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold"];
+  const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold", "patternRules"];
   for (const k of keys) if (k in patch) allowed[k] = patch[k];
   await updateDoc(doc(db, "vendors", vendorId), allowed);
 }
