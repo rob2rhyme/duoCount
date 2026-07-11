@@ -2,7 +2,8 @@
 
 **Status:** built — denomination currency counter, progressive scroll-to-top
 FAB (toggleable per device), a full light/dark theme, a header Preferences
-menu, a branded footer, and mobile native-feel polish shipped.
+menu, a branded footer, mobile native-feel polish, empty states, sticky
+dashboard table headers, and keyboard shortcuts shipped.
 
 **Scope.** Three usability upgrades to the existing stack (Next.js App Router +
 Tailwind), chosen for high polish-per-effort and zero data-model impact:
@@ -144,6 +145,10 @@ are the owner's shared business policy), plus the account's Sign out:
   not a gear plus a separate text link — cleaner on small screens, with a proper
   tap target.
 
+The header **user pill** shows **first-name only below `sm`** and the full name
+at ≥`sm` (two responsive spans), so on a narrow phone the name stops truncating
+to a couple of letters while the store name keeps width priority.
+
 The two display preferences are personal and stored in `localStorage`
 (`PrefsProvider` for the FAB, `ThemeProvider` for the theme), so they never touch
 the vendor record, need no Firestore rules, and never change what another user
@@ -191,3 +196,37 @@ button, with inline line-icon glyphs (receipt / note / shield / chart).
   action that focuses the write-up title; employees get a plain *Nothing on file*.
 - **Dashboard** — *No activity yet* with a **Record a count** action that jumps to
   the Cash tab (`onRecord` prop, wired in `AppShell`).
+
+---
+
+## 8. Sticky dashboard table headers
+
+The Dashboard **by-drawer / by-item / by-employee** tables can get long. Each
+table body is now a **bounded scroll region** (`overflow-auto max-h-[26rem]`)
+with a `sticky top-0` `thead`, so the column labels stay visible while you
+scroll a long list. The header cells carry the card's `bg-surface` (so rows
+don't bleed through) and a 1 px inset bottom shadow as a divider. Bounding the
+height is what makes `sticky` work here — a `position: sticky` header only pins
+against a scroll container, and the table now *is* one; short tables don't scroll
+and look unchanged. Horizontal scroll on narrow screens still works.
+
+## 9. Keyboard shortcuts
+
+Desktop power-user shortcuts, mounted app-wide in `AppShell`:
+
+| Keys | Action |
+| --- | --- |
+| `1`–`8` | Jump straight to a tab (only the tabs the role can see) |
+| `[` / `]` | Previous / next tab (wraps) |
+| `⌘/Ctrl` + `Enter` | Save the visible form (clicks the primary button) |
+| `?` | Toggle a shortcuts sheet |
+| `Esc` | Close the sheet |
+
+Discoverability: a *"Press `?` for keyboard shortcuts"* hint sits in the footer
+on `sm`+ screens (hidden on touch, where there's no keyboard). Every shortcut
+except the save combo is **suppressed while typing** in an input/textarea/select,
+so keys never eat form input; the save combo works from inside a field (compose,
+then `⌘/Ctrl`+`Enter`). The decision logic is a pure function
+(`lib/shortcuts.js` → `resolveShortcut`) with a unit-test suite
+(`tests/shortcuts.test.mjs`, `npm run test:shortcuts`); the effect in `AppShell`
+only maps the returned action to `setTab` / help state / a button click.

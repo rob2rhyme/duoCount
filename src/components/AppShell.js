@@ -12,6 +12,7 @@ import Dashboard from "./Dashboard";
 import AdminPanel from "./AdminPanel";
 import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
+import { resolveShortcut } from "@/lib/shortcuts";
 
 const TABS = [
   { id: "cash", label: "Cash" },
@@ -36,6 +37,11 @@ export default function AppShell() {
   const [incidents, setIncidents] = useState([]);
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
+  const [showHelp, setShowHelp] = useState(false);
+
+  // First name only for the tiny-screen header pill (full name returns at ≥sm).
+  const firstName = (profile.name || "").trim().split(/\s+/)[0] || profile.name;
+  const cmdKey = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.userAgent) ? "⌘" : "Ctrl";
 
   // Employees in per-location mode may only read their own location's
   // entries — the query must match the security rules.
@@ -69,6 +75,27 @@ export default function AppShell() {
   const tabs = TABS.filter((t) => !t.managerOnly || isManager);
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
 
+  // Keyboard shortcuts for desktop power users. Digits jump to a tab, [ / ]
+  // step through them, ⌘/Ctrl+Enter saves the visible form, ? toggles help.
+  // The decision logic lives in resolveShortcut (unit-tested); this effect only
+  // wires it to the DOM.
+  useEffect(() => {
+    const ids = TABS.filter((t) => !t.managerOnly || isManager).map((t) => t.id);
+    function onKey(e) {
+      const el = e.target;
+      const typing = el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable);
+      const action = resolveShortcut(e, { tabIds: ids, currentTab: tab, typing });
+      if (!action) return;
+      e.preventDefault();
+      if (action.type === "tab") setTab(action.id);
+      else if (action.type === "toggleHelp") setShowHelp((v) => !v);
+      else if (action.type === "closeHelp") setShowHelp(false);
+      else if (action.type === "save") document.querySelector("main button.btn-primary:not([disabled])")?.click();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isManager, tab]);
+
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 bg-ink text-paper px-4 py-3 pt-safe px-safe flex items-center justify-between gap-3">
@@ -81,7 +108,10 @@ export default function AppShell() {
         </div>
         <div className="flex items-center gap-2 text-sm">
           <span className="bg-white/10 px-2.5 py-1 rounded-full flex items-center gap-1.5 max-w-[112px] sm:max-w-[150px]">
-            <b className="truncate">{profile.name}</b>
+            <b className="truncate">
+              <span className="sm:hidden">{firstName}</span>
+              <span className="hidden sm:inline">{profile.name}</span>
+            </b>
             <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${isManager ? "bg-[#c9a25a]" : "bg-brass"} text-ink font-bold`}>
               {profile.role === "owner" ? "Own" : profile.role === "manager" ? "Mgr" : "Emp"}
             </span>
@@ -158,6 +188,9 @@ export default function AppShell() {
           </div>
 
           <p className="text-center text-[11px] text-faint mt-5">Built for the register · Works offline</p>
+          <p className="hidden sm:block text-center text-[11px] text-faint mt-1.5">
+            Press <Kbd>?</Kbd> for keyboard shortcuts
+          </p>
         </div>
       </footer>
 
@@ -166,6 +199,41 @@ export default function AppShell() {
           {toast}
         </div>
       )}
+
+      {showHelp && (
+        <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4"
+          onClick={() => setShowHelp(false)} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+          <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-[15px]">Keyboard shortcuts</h2>
+              <button onClick={() => setShowHelp(false)} aria-label="Close"
+                className="text-muted hover:text-fg text-lg leading-none px-1">✕</button>
+            </div>
+            <dl className="space-y-3 text-sm">
+              {[
+                [<span key="k" className="flex items-center gap-1"><Kbd>1</Kbd><span className="text-faint">–</span><Kbd>{tabs.length}</Kbd></span>, "Jump to a tab"],
+                [<span key="k" className="flex items-center gap-1"><Kbd>[</Kbd><Kbd>]</Kbd></span>, "Previous / next tab"],
+                [<span key="k" className="flex items-center gap-1"><Kbd>{cmdKey}</Kbd><span className="text-faint">+</span><Kbd>Enter</Kbd></span>, "Save the current form"],
+                [<Kbd key="k">?</Kbd>, "Toggle this help"],
+                [<Kbd key="k">Esc</Kbd>, "Close"],
+              ].map(([keys, desc], i) => (
+                <div key={i} className="flex items-center justify-between gap-4">
+                  <dt className="text-muted">{desc}</dt>
+                  <dd className="flex-shrink-0">{keys}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function Kbd({ children }) {
+  return (
+    <kbd className="inline-flex items-center justify-center min-w-[1.6rem] px-1.5 py-0.5 rounded-md bg-subtle border border-line text-[12px] font-mono font-semibold text-fg">
+      {children}
+    </kbd>
   );
 }

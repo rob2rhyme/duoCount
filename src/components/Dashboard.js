@@ -265,9 +265,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
 
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">By drawer</h3></div>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[26rem]">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted [&_th]:sticky [&_th]:top-0 [&_th]:bg-surface [&_th]:z-10 [&_th]:shadow-[inset_0_-1px_0_var(--line)]">
               <th className="px-4 py-2 font-semibold">Drawer</th>
               <th className="px-4 py-2 font-semibold text-right">Entries</th>
               <th className="px-4 py-2 font-semibold text-right">Net +/âˆ’</th>
@@ -292,9 +292,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
       {a.itemRows.length > 0 && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">By item</h3></div>
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[26rem]">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+              <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted [&_th]:sticky [&_th]:top-0 [&_th]:bg-surface [&_th]:z-10 [&_th]:shadow-[inset_0_-1px_0_var(--line)]">
                 <th className="px-4 py-2 font-semibold">Item</th>
                 <th className="px-4 py-2 font-semibold text-right">Counts</th>
                 <th className="px-4 py-2 font-semibold text-right">Net units +/âˆ’</th>
@@ -317,9 +317,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
 
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">By employee</h3></div>
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[26rem]">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted">
+            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted [&_th]:sticky [&_th]:top-0 [&_th]:bg-surface [&_th]:z-10 [&_th]:shadow-[inset_0_-1px_0_var(--line)]">
               <th className="px-4 py-2 font-semibold">Name</th>
               <th className="px-4 py-2 font-semibold text-right">Entries</th>
               <th className="px-4 py-2 font-semibold text-right">Net +/âˆ’</th>
