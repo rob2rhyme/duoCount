@@ -47,6 +47,14 @@ export function IconClock(props) {
     </svg>
   );
 }
+export function IconCalendar(props) {
+  return (
+    <svg {...base} {...props} aria-hidden="true">
+      <rect x="4" y="5.5" width="16" height="15" rx="2" />
+      <path d="M4 9.5h16M8 3.5v4M16 3.5v4" />
+    </svg>
+  );
+}
 
 export default function EmptyState({ icon, title, subtitle, action }) {
   return (

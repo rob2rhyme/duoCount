@@ -1,0 +1,122 @@
+// Shift scheduling / rostering — pure and isomorphic (no Firebase imports), so
+// the component and the tests share one module. Unlike time-clock punches (an
+// immutable audit trail), a schedule is a *plan*: managers create, edit, and
+// delete scheduled shifts. This module does the planning math — durations,
+// weekly hours, double-booking detection, and day-level reconciliation against
+// the actual punches (via each punch's business `day` string, so no timezone
+// juggling is needed to line a plan up with what happened).
+
+/* ---------- date helpers (YYYY-MM-DD strings, UTC math, no Date.now) ---------- */
+function parseDay(dateStr) {
+  const [y, m, d] = String(dateStr).split("-").map(Number);
+  return Date.UTC(y, (m || 1) - 1, d || 1);
+}
+const fmtDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+const DAY_MS = 86_400_000;
+
+export function addDays(dateStr, n) {
+  return fmtDay(parseDay(dateStr) + n * DAY_MS);
+}
+/** Monday of the week containing dateStr. */
+export function weekStartMonday(dateStr) {
+  const ms = parseDay(dateStr);
+  const dow = new Date(ms).getUTCDay();     // 0=Sun … 6=Sat
+  return fmtDay(ms - ((dow + 6) % 7) * DAY_MS); // back up to Monday
+}
+/** The 7 date strings Mon…Sun starting at startStr. */
+export function weekDates(startStr) {
+  return Array.from({ length: 7 }, (_, i) => addDays(startStr, i));
+}
+
+/* ---------- time helpers ---------- */
+export function parseHHMM(s) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s ?? "").trim());
+  if (!m) return null;
+  const h = +m[1], mm = +m[2];
+  if (h > 23 || mm > 59) return null;
+  return h * 60 + mm;
+}
+/** Minutes worked, treating end <= start as an overnight shift (+24h). */
+export function shiftMinutes(start, end) {
+  const a = parseHHMM(start), b = parseHHMM(end);
+  if (a == null || b == null) return 0;
+  const d = b - a;
+  return d > 0 ? d : d + 24 * 60;
+}
+
+/* ---------- aggregation ---------- */
+/** Scheduled hours per employee over an optional inclusive [from,to] date range. */
+export function scheduledHours(shifts = [], { from = null, to = null } = {}) {
+  const byUser = new Map();
+  for (const s of shifts) {
+    if (from && s.date < from) continue;
+    if (to && s.date > to) continue;
+    const u = byUser.get(s.userId) || { userId: s.userId, userName: s.userName, mins: 0, shifts: 0 };
+    u.mins += shiftMinutes(s.start, s.end);
+    u.shifts += 1;
+    u.userName = s.userName || u.userName;
+    byUser.set(s.userId, u);
+  }
+  return [...byUser.values()]
+    .map((u) => ({ ...u, hours: Math.round((u.mins / 60) * 100) / 100 }))
+    .sort((a, b) => (a.userName || "").localeCompare(b.userName || ""));
+}
+
+/** Ids of shifts that double-book one employee (overlapping times, same date). */
+export function findOverlaps(shifts = []) {
+  const groups = new Map();
+  for (const s of shifts) {
+    const k = `${s.userId}|${s.date}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(s);
+  }
+  const overlap = new Set();
+  for (const list of groups.values()) {
+    const iv = list
+      .map((s) => { const a = parseHHMM(s.start) ?? 0; return { id: s.id, a, b: a + shiftMinutes(s.start, s.end) }; })
+      .sort((x, y) => x.a - y.a);
+    for (let i = 1; i < iv.length; i++) {
+      if (iv[i].a < iv[i - 1].b) { overlap.add(iv[i].id); overlap.add(iv[i - 1].id); }
+    }
+  }
+  return overlap;
+}
+
+/** date -> shifts on that date, each list sorted by start time. */
+export function groupByDate(shifts = []) {
+  const by = new Map();
+  for (const s of shifts) {
+    if (!by.has(s.date)) by.set(s.date, []);
+    by.get(s.date).push(s);
+  }
+  for (const list of by.values()) list.sort((a, b) => (parseHHMM(a.start) ?? 0) - (parseHHMM(b.start) ?? 0));
+  return by;
+}
+
+/**
+ * Day-level attendance reconciliation over the given business dates. A punch's
+ * `day` string is compared directly to a shift's `date`, so no timezone math is
+ * needed. Pass only ELAPSED dates (<= today) — a future scheduled shift isn't a
+ * no-show. Returns totals + the no-show and unscheduled lists.
+ */
+export function reconcile(scheduled = [], punches = [], { dates = [] } = {}) {
+  const inRange = new Set(dates);
+  const sched = new Map(); // `${userId}|${date}` -> {userId, userName, date}
+  for (const s of scheduled) if (inRange.has(s.date)) sched.set(`${s.userId}|${s.date}`, s);
+
+  const worked = new Set(); // `${userId}|${day}`
+  for (const p of punches) if (p.userId && p.day) worked.add(`${p.userId}|${p.day}`);
+
+  const noShow = [];
+  let workedCount = 0;
+  for (const [key, s] of sched) {
+    if (worked.has(key)) workedCount += 1;
+    else noShow.push({ userId: s.userId, userName: s.userName, date: s.date });
+  }
+  const unscheduled = [];
+  for (const key of worked) {
+    const [userId, day] = key.split("|");
+    if (inRange.has(day) && !sched.has(key)) unscheduled.push({ userId, date: day });
+  }
+  return { scheduled: sched.size, worked: workedCount, noShow, unscheduled };
+}
