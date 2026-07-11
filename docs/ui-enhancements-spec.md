@@ -1,8 +1,8 @@
 # DuoCount — UI Enhancements Spec
 
 **Status:** built — denomination currency counter, progressive scroll-to-top
-FAB (toggleable per device), a full light/dark theme, and a header Preferences
-menu shipped.
+FAB (toggleable per device), a full light/dark theme, a header Preferences
+menu, a branded footer, and mobile native-feel polish shipped.
 
 **Scope.** Three usability upgrades to the existing stack (Next.js App Router +
 Tailwind), chosen for high polish-per-effort and zero data-model impact:
@@ -143,3 +143,26 @@ The two display preferences are personal and stored in `localStorage`
 the vendor record, need no Firestore rules, and never change what another user
 sees. The popover closes on outside-click or `Escape`. It's the natural place to
 add future device-level preferences.
+
+---
+
+## 5. Footer
+
+The app footer (`AppShell`) is theme-aware and reads as a proper product
+footer rather than two stray links:
+
+- The **brand mark** (the brass ₵) and wordmark **DuoCount** with the tagline
+  *"Every count, countersigned."*
+- The **paper backup forms** (cash-drawer and scratch-off logs) as pill-shaped
+  ghost chips with a document glyph — a hover-brass border, not bare underlines.
+- A **top divider** (`border-line-soft`) separating it from the content, and a
+  closing line *"Built for the register · Works offline."*
+- `pb-safe` so it clears the home indicator when installed (see `pwa-spec.md`).
+
+## 6. Mobile native-feel
+
+A small set of CSS behaviors in `globals.css` make the installed app read as
+native — most importantly, **text entry no longer zooms the page** on iOS
+(compact fields lift to 16 px on touch devices, without disabling pinch-zoom).
+The full list — tap-flash, overscroll, text-inflation, double-tap delay, and
+long-press callout — is documented in `pwa-spec.md` → **Native-app feel**.

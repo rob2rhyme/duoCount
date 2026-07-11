@@ -70,7 +70,7 @@ export default function AppShell() {
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
 
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen">
       <header className="sticky top-0 z-20 bg-ink text-paper px-4 py-3 pt-safe px-safe flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <Logo src={vendor.logoUrl} alt={`${vendor.name} logo`} size={32} />
@@ -128,15 +128,36 @@ export default function AppShell() {
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
       </main>
 
-      <footer className="max-w-3xl mx-auto px-4 pt-2 text-center text-[12px] text-muted">
-        <p className="mb-1.5">Paper backup forms — print a stack for the register in case a phone isn&apos;t handy:</p>
-        <div className="flex justify-center gap-4 flex-wrap">
-          <a href="/forms/cash-drawer-log.pdf" download
-            className="underline underline-offset-2 font-medium"
-            aria-label="Download the cash drawer log PDF form">📄 Cash drawer log</a>
-          <a href="/forms/scratch-off-log.pdf" download
-            className="underline underline-offset-2 font-medium"
-            aria-label="Download the scratch-off log PDF form">📄 Scratch-off log</a>
+      <footer className="mt-10 border-t border-line-soft">
+        <div className="max-w-3xl mx-auto px-4 px-safe pb-safe pt-6 pb-6">
+          <div className="flex items-center justify-center gap-2.5 mb-5">
+            <div className="rounded-lg bg-brass grid place-items-center text-ink font-bold flex-shrink-0"
+              style={{ width: 28, height: 28, fontSize: 15 }} aria-hidden="true">₵</div>
+            <div className="text-center leading-tight">
+              <p className="text-sm font-semibold text-fg">DuoCount</p>
+              <p className="text-[11px] text-muted italic">Every count, countersigned</p>
+            </div>
+          </div>
+
+          <p className="text-center text-[12px] text-muted mb-2.5">
+            Paper backup forms — print a stack for the register in case a phone isn&apos;t handy
+          </p>
+          <div className="flex justify-center gap-2 flex-wrap">
+            <a href="/forms/cash-drawer-log.pdf" download
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border bg-subtle text-fg hover:border-brass transition"
+              style={{ borderColor: "var(--line)" }}
+              aria-label="Download the cash drawer log PDF form">
+              <span aria-hidden="true">📄</span> Cash drawer log
+            </a>
+            <a href="/forms/scratch-off-log.pdf" download
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border bg-subtle text-fg hover:border-brass transition"
+              style={{ borderColor: "var(--line)" }}
+              aria-label="Download the scratch-off log PDF form">
+              <span aria-hidden="true">📄</span> Scratch-off log
+            </a>
+          </div>
+
+          <p className="text-center text-[11px] text-faint mt-5">Built for the register · Works offline</p>
         </div>
       </footer>
 
