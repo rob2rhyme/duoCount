@@ -133,18 +133,36 @@ Managers order by `ts` alone (auto index).
 ### 2.1 Behavior
 
 A pure function scans the already-subscribed entry log (no new reads, no
-stored state) and returns alerts for four recurring-signal patterns, windowed
-by the entry's business `date`:
+stored state) and returns alerts for six recurring-signal patterns, windowed
+by the entry's business `date`. Defaults shown; all six honor the per-vendor
+thresholds below.
 
-| Pattern | Window | Trigger | Severity |
+| Pattern | Window | Trigger (default) | Severity |
 |---|---|---|---|
 | **Repeat shorts — person** | 14 days | ≥ 3 short cash counts by the same person | `high` if total short ≥ $20, else `medium` |
+| **Repeat overs — person** | 14 days | ≥ 3 over cash counts by the same person | `high` if total over ≥ $20, else `medium` |
 | **Drawer hot-spot** | 14 days | ≥ 3 short cash counts on the same drawer by ≥ 2 different people | `medium` (points at process/equipment, not a person) |
 | **Verification backlog** | all | ≥ 5 unverified entries older than 48 h | `medium` |
+| **Open-variance backlog** | all | ≥ 5 entries flagged `open` and older than 48 h | `medium` (already flagged — nobody's closing them) |
 | **Inventory shrink streak** | 14 days | ≥ 3 short counts of the same item | `medium`, with total units missing |
 
-Thresholds are constants in `lib/patterns.js` (`PATTERN_RULES`), not vendor
-settings — v1 keeps zero configuration; per-vendor tuning is a tier-3 knob.
+### 2.1a Per-vendor thresholds (tier-3)
+
+Thresholds default to the `PATTERN_RULES` constants in `lib/patterns.js` but are
+now **tunable per vendor** in Admin → Business settings → **Alert sensitivity**
+(owner-only). Five knobs: lookback window (days), repeat-count to flag (drives
+both the short and over person streaks), high-severity dollar total,
+open/unverified backlog size, and the "stale after" hours for the two backlog
+detectors.
+
+- `detectPatterns(entries, { now, rules })` takes an optional `rules` override;
+  `resolvePatternRules(raw)` coerces the stored/entered values into safe bounds
+  (empty/non-numeric → default; out of range → clamped, never a value that
+  disables a detector or explodes a query window). Stored on the vendor doc as
+  `patternRules`; the Firestore rule's owner-only key allow-list includes it.
+- The Dashboard passes the vendor's rules; the digest resolves them once and
+  uses the configured **lookback** for both its trailing-window query and its
+  "last N days" copy, so query, detectors, and email always agree.
 
 **Ethics note, deliberately in the spec:** an alert is a signal to start a
 conversation, not a verdict. The UI copy says so ("Signals worth a look — not
@@ -223,7 +241,7 @@ console-side cleanup, noted in the README.
 | `firestore.rules` | `incidents` match block (read scope, create validation, ack/close branches) |
 | `firestore.indexes.json` | `incidents(subjectId, ts DESC)` composite |
 | `src/lib/data.js` | `watchIncidents`, `addIncident`, `ackIncident`, `closeIncident` |
-| `src/lib/patterns.js` | **new** — `detectPatterns(entries, { today })` + `PATTERN_RULES` |
+| `src/lib/patterns.js` | `detectPatterns(entries, { now, rules })` + `PATTERN_RULES` + `resolvePatternRules` (per-vendor tuning + 6 detectors) |
 | `src/components/IncidentsPanel.js` | **new** — composer + feed + ack/close |
 | `src/components/AppShell.js` | Incidents tab + subscription |
 | `src/components/Dashboard.js` | Patterns card (manager-only) |
@@ -270,8 +288,10 @@ Rules-emulator additions (`npm run test:rules`):
 - **Scheduling / time clock and payroll exports** — a different product
   surface (labor management) with heavy compliance implications; revisit only
   if customers pull for it.
-- **Per-vendor pattern thresholds** and additional detectors (escalating
-  variance trends, scratch settle-shortfall patterns).
+- ~~**Per-vendor pattern thresholds** and additional detectors~~ — **done**
+  (§2.1 / §2.1a): five tunable thresholds in Admin, plus the repeat-overs and
+  open-variance-backlog detectors. Still deferred: escalating variance *trends*
+  and scratch settle-shortfall patterns.
 - **Per-user login lockout + 6-digit PIN default** (deeper brute-force
   hardening).
 - **Server-computed blind counts** (tier-one README limitation).

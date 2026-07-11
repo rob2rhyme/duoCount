@@ -6,6 +6,7 @@ import {
   addItem, updateItem, updateVendorSettings, apiTestDigest, apiSeedDemo,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
+import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import BarcodeScanner from "./BarcodeScanner";
 import PacksCard from "./PacksCard";
 
@@ -88,7 +89,10 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     digestEnabled: vendor.digest?.enabled === true,
     digestRecipients: (vendor.digest?.recipients || []).join(", "),
     digestTz: vendor.digest?.tz || "America/New_York",
+    patternRules: { ...PATTERN_RULES, ...(vendor.patternRules || {}) },
   });
+  const setRule = (k) => (e) =>
+    setSettings((s) => ({ ...s, patternRules: { ...s.patternRules, [k]: e.target.value } }));
   const [testing, setTesting] = useState(false);
   async function saveSettings() {
     // Parse + validate digest recipients (cap 10, basic format check).
@@ -103,6 +107,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
       sharingMode: settings.sharingMode,
       blindCounts: settings.blindCounts,
       varianceThreshold: threshold,
+      patternRules: resolvePatternRules(settings.patternRules),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
         lastSentDate: vendor.digest?.lastSentDate ?? null, // preserved; cron owns it
@@ -370,6 +375,43 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               value={settings.varianceThreshold} disabled={!isOwner}
               onChange={(e) => setSettings({ ...settings, varianceThreshold: e.target.value })} />
             <p className="text-xs text-muted mt-1.5 leading-relaxed">Counts off by this much or more get flagged for review. Changing it only affects new entries.</p>
+          </div>
+
+          <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
+            <div>
+              <span className="font-medium text-[14px]">Alert sensitivity</span>
+              <p className="text-xs text-muted leading-relaxed">Tunes the pattern alerts on the dashboard and in the daily digest. The defaults suit most stores — lower the counts to catch more, raise them to cut noise.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Lookback (days)</label>
+                <input type="number" inputMode="numeric" min="1" max="90" step="1" className="input"
+                  value={settings.patternRules.windowDays} disabled={!isOwner} onChange={setRule("windowDays")} />
+              </div>
+              <div>
+                <label className="label">Repeat counts to flag</label>
+                <input type="number" inputMode="numeric" min="2" max="25" step="1" className="input"
+                  value={settings.patternRules.minShorts} disabled={!isOwner} onChange={setRule("minShorts")} />
+              </div>
+              <div>
+                <label className="label">High-severity total ($)</label>
+                <input type="number" inputMode="decimal" min="1" step="1" className="input"
+                  value={settings.patternRules.highShortDollars} disabled={!isOwner} onChange={setRule("highShortDollars")} />
+              </div>
+              <div>
+                <label className="label">Backlog size to alert</label>
+                <input type="number" inputMode="numeric" min="1" max="200" step="1" className="input"
+                  value={settings.patternRules.minBacklog} disabled={!isOwner} onChange={setRule("minBacklog")} />
+              </div>
+              <div>
+                <label className="label">Unverified after (hours)</label>
+                <input type="number" inputMode="numeric" min="1" max="720" step="1" className="input"
+                  value={settings.patternRules.staleHours} disabled={!isOwner} onChange={setRule("staleHours")} />
+              </div>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              &ldquo;Repeat counts&rdquo; covers both short and over streaks by one person; &ldquo;backlog&rdquo; and &ldquo;unverified after&rdquo; drive the verification and open-variance alerts. Out-of-range values are clamped on save.
+            </p>
           </div>
 
           <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">

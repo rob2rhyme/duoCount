@@ -30,14 +30,16 @@ function Stat({ label, value, tone }) {
 }
 
 export default function Dashboard({ entries, locations = [], locName = () => "—", onOpenLog, onRecord, onToast }) {
-  const { isManager } = useSession();
+  const { isManager, vendor } = useSession();
   const { theme } = useTheme();
   const ch = CHART[theme] || CHART.light;
   const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 13 };
   const [reportOpen, setReportOpen] = useState(false);
   // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink
   // streaks) — manager-facing only, so employees never see them computed.
-  const patterns = useMemo(() => (isManager ? detectPatterns(entries) : []), [entries, isManager]);
+  const patterns = useMemo(
+    () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules }) : []),
+    [entries, isManager, vendor?.patternRules]);
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
     const scratch = entries.filter((e) => e.kind === "scratch");
