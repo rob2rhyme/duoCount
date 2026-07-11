@@ -58,3 +58,10 @@ body {
 .btn-primary { @apply btn w-full; background: var(--btn-bg); color: var(--btn-fg); }
 .btn-ghost { @apply btn border; background: var(--subtle); color: var(--fg); border-color: var(--line); }
 .pill { @apply inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full; }
+
+/* Safe-area insets for installed/standalone use on notched phones. Defined
+   after the utilities so they win over Tailwind's padding utilities on the
+   same element (e.g. a header's py-3). env() falls back to 0 off-device. */
+.pt-safe { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+.px-safe { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+.bottom-safe { bottom: max(1.25rem, env(safe-area-inset-bottom)); }

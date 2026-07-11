@@ -15,6 +15,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Configurable scroll-to-top FAB** (per-device toggle in Preferences) | `ui-enhancements-spec.md` §2.2, §4 | ✅ |
 | **Mobile layout audit + polish** (all 8 screens, both themes, 390px) | this file, §"Layout audit" | ✅ |
 | **Demo data seed** (owner-only load/clear of tagged sample data) | `demo-data-spec.md` | ✅ |
+| **Mobile-first PWA** (installable, offline app shell, safe-area, install prompt) | `pwa-spec.md` | ✅ |
 
 ## Next up
 
@@ -62,13 +63,8 @@ Decide how DuoCount reaches more buyers beyond the hosted Next.js app.
   ThemeForest, native shell). Each with effort, trade-offs, and a recommendation.
   Analysis only — no build in this item.
 
-### 6. Mobile-first PWA
-Make the installable app feel native on a phone.
-- **Acceptance:** audit and complete the PWA basics — `manifest.json` (icons,
-  name, theme/background color that follow the theme, display `standalone`,
-  orientation), maskable icons, iOS meta tags, an offline-friendly service
-  worker (at least an app-shell/offline fallback), install prompt handling, and
-  safe-area / touch-target polish. Verify with Lighthouse PWA + mobile audits.
+### 6. Mobile-first PWA — ✅ done (this cycle)
+Installable + offline app shell + safe-area + install prompt. See `pwa-spec.md`.
 
 ## Layout audit
 

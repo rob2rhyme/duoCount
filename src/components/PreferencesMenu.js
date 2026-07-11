@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "./ThemeProvider";
 import { usePrefs } from "./PrefsProvider";
+import { useInstallPrompt } from "@/lib/install";
 
 function Switch({ on, onChange, label }) {
   return (
@@ -19,6 +20,7 @@ function Switch({ on, onChange, label }) {
 export default function PreferencesMenu() {
   const { theme, setTheme } = useTheme();
   const { fabEnabled, setFabEnabled } = usePrefs();
+  const { available: canInstall, promptInstall } = useInstallPrompt();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -63,6 +65,16 @@ export default function PreferencesMenu() {
             </div>
             <Switch on={fabEnabled} onChange={setFabEnabled} label="Toggle the scroll-to-top button" />
           </div>
+
+          {canInstall && (
+            <button type="button" onClick={() => { promptInstall(); setOpen(false); }}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-subtle text-fg font-semibold text-sm py-2 hover:bg-line transition">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3v12M8 11l4 4 4-4M4 21h16" />
+              </svg>
+              Install app
+            </button>
+          )}
         </div>
       )}
     </div>

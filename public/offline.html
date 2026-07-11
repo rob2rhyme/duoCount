@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>DuoCount — offline</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #f6f4ee; color: #1a1c2e; padding: 24px;
+  }
+  .card {
+    max-width: 22rem; text-align: center; background: #fff; border: 1px solid #dcd8cc;
+    border-radius: 1rem; padding: 2rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .mark {
+    width: 56px; height: 56px; margin: 0 auto 1rem; border-radius: 14px;
+    background: #b8863b; color: #1a1c2e; display: grid; place-items: center;
+    font-weight: 800; font-size: 28px;
+  }
+  h1 { font-size: 1.15rem; margin: 0 0 .5rem; }
+  p { color: #6d6a61; line-height: 1.5; margin: 0 0 1.25rem; font-size: .95rem; }
+  button {
+    appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 600;
+    background: #1a1c2e; color: #f6f4ee; padding: .7rem 1.2rem; border-radius: .6rem; width: 100%;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #13141b; color: #e9e8ee; }
+    .card { background: #1d1f28; border-color: #343643; }
+    p { color: #9a9ba7; }
+    button { background: #e9e8ee; color: #14151b; }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">₵</div>
+    <h1>You're offline</h1>
+    <p>DuoCount needs a connection to load and sync counts. Reconnect and it'll pick up right where you left off — nothing you've entered is lost.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>

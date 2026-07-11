@@ -53,7 +53,7 @@ export default function ScrollTopFab() {
       title="Scroll to top"
       tabIndex={visible ? 0 : -1}
       aria-hidden={!visible}
-      className={`fixed bottom-5 right-5 z-40 w-12 h-12 rounded-full grid place-items-center
+      className={`fixed bottom-safe right-5 z-40 w-12 h-12 rounded-full grid place-items-center
         bg-surface border border-line shadow-lg backdrop-blur
         transition-all duration-300 ease-out hover:-translate-y-0.5 active:scale-95
         ${visible ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 translate-y-3 pointer-events-none"}`}
