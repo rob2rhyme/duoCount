@@ -71,7 +71,7 @@ export default function AppShell() {
 
   return (
     <div className="min-h-screen pb-10">
-      <header className="sticky top-0 z-20 bg-ink text-paper px-4 py-3 flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-20 bg-ink text-paper px-4 py-3 pt-safe px-safe flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <Logo src={vendor.logoUrl} alt={`${vendor.name} logo`} size={32} />
           <div className="min-w-0">
