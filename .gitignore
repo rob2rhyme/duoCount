@@ -5,6 +5,7 @@ node_modules/
 !.env.local.example
 *.log
 .DS_Store
+.firebase/
 # never commit service-account keys
 *service-account*.json
 *serviceAccount*.json
