@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test:rules": "firebase emulators:exec --only firestore --project duocount-rules-test \"npm run test:rules:run\"",
     "test:rules:run": "node --test tests/rules.test.mjs",
-    "test:patterns": "node --test tests/patterns.test.mjs"
+    "test:patterns": "node --test tests/patterns.test.mjs",
+    "test:api": "node --test tests/api.test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
