@@ -2,28 +2,29 @@ import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
+import { requireManager } from "@/lib/require-manager";
 
 export const runtime = "nodejs";
 
-async function requireManager(req) {
-  const authz = req.headers.get("authorization") || "";
-  const idToken = authz.startsWith("Bearer ") ? authz.slice(7) : null;
-  if (!idToken) throw Object.assign(new Error("Not signed in."), { status: 401 });
-  const { adminAuth } = await getAdmin();
-  const claims = await adminAuth.verifyIdToken(idToken);
-  if (!claims.vendorId || !["owner", "manager"].includes(claims.role))
-    throw Object.assign(new Error("Managers only."), { status: 403 });
-  return claims;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// "" clears the email; a non-empty value must look like an address.
+function cleanEmail(raw) {
+  const v = String(raw ?? "").trim();
+  if (v === "") return { email: null };
+  if (!EMAIL_RE.test(v) || v.length > 200) return { error: "Enter a valid email (or leave it blank)." };
+  return { email: v.toLowerCase() };
 }
 
 export async function POST(req) {
   try {
     const claims = await requireManager(req);
-    const { name, pin, role, locationId } = await req.json();
+    const { name, pin, role, locationId, email } = await req.json();
     if (!name || name.trim().length < 2)
       return NextResponse.json({ error: "Enter a name." }, { status: 400 });
     if (!isValidNewPin(pin))
       return NextResponse.json({ error: PIN_ERROR }, { status: 400 });
+    const em = cleanEmail(email);
+    if (em.error) return NextResponse.json({ error: em.error }, { status: 400 });
     const newRole = ["employee", "manager", "owner"].includes(role) ? role : "employee";
     if (newRole === "owner" && claims.role !== "owner")
       return NextResponse.json({ error: "Only an owner can create another owner." }, { status: 403 });
@@ -48,7 +49,7 @@ export async function POST(req) {
     await ref.set({
       name: name.trim(), role: newRole,
       locationId: newRole === "employee" ? locationId : (locationId || null),
-      active: true, createdAt: new Date(),
+      email: em.email, active: true, createdAt: new Date(),
     });
     await ref.collection("private").doc("creds").set({ pinHash: hashPin(pin) });
     return NextResponse.json({ ok: true, id: ref.id });
@@ -60,7 +61,7 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     const claims = await requireManager(req);
-    const { userId, role, active, locationId, pin } = await req.json();
+    const { userId, role, active, locationId, pin, email } = await req.json();
     if (!userId) return NextResponse.json({ error: "Missing userId." }, { status: 400 });
     if (userId === claims.userId)
       return NextResponse.json({ error: "You can't modify your own account here." }, { status: 400 });
@@ -85,6 +86,11 @@ export async function PATCH(req) {
       patch.active = !!active;
     }
     if (locationId !== undefined) patch.locationId = locationId || null;
+    if (email !== undefined) {
+      const em = cleanEmail(email);
+      if (em.error) return NextResponse.json({ error: em.error }, { status: 400 });
+      patch.email = em.email;
+    }
     if (Object.keys(patch).length) await ref.update(patch);
 
     if (pin !== undefined) {

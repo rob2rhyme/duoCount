@@ -340,6 +340,13 @@ service cloud.firestore {
         allow write: if mgr();
       }
 
+      // Schedule publish records — one per week, written only by the publish
+      // route (Admin SDK, which bypasses rules). Managers read to show state.
+      match /schedulePublished/{weekId} {
+        allow read: if mgr();
+        allow write: if false;
+      }
+
       // Shift notes — the digital counter notebook. Visibility mirrors entries;
       // text is immutable; managers may pin/archive.
       match /notes/{noteId} {

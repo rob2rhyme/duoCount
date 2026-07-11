@@ -18,7 +18,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
   useEffect(() => watchStaff(vendor.id, setStaff), [vendor.id]);
 
   /* ---- staff ---- */
-  const [ns, setNs] = useState({ name: "", pin: "", role: "employee", locationId: "" });
+  const [ns, setNs] = useState({ name: "", pin: "", role: "employee", locationId: "", email: "" });
   const [busy, setBusy] = useState(false);
   async function createStaff() {
     if (!ns.name.trim()) return onToast?.("Enter the staff member's name");
@@ -26,7 +26,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     setBusy(true);
     try {
       await apiCreateStaff({ ...ns, locationId: ns.locationId || locations.find((l) => l.active !== false)?.id });
-      setNs({ name: "", pin: "", role: "employee", locationId: "" });
+      setNs({ name: "", pin: "", role: "employee", locationId: "", email: "" });
       onToast?.("Staff member added");
     } catch (e) { onToast?.(e.message); }
     setBusy(false);
@@ -181,6 +181,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                 {locations.filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select></div>
           </div>
+          <div className="mb-3">
+            <label className="label">Email (optional — for schedule notifications)</label>
+            <input className="input" type="email" inputMode="email" value={ns.email}
+              onChange={(e) => setNs({ ...ns, email: e.target.value })} placeholder="sam@store.com" />
+          </div>
           <button className="btn-ghost w-full" disabled={busy} onClick={createStaff}>{busy ? "Adding…" : "Add staff member"}</button>
         </div>
         <div>
@@ -195,7 +200,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                     {isMe && <span className="pill bg-subtle text-muted">You</span>}
                     {!active && <span className="pill bg-red-100 text-red-700">Inactive</span>}
                   </div>
-                  <div className="text-[13px] text-muted">{locName(u.locationId)}</div>
+                  <div className="text-[13px] text-muted">{locName(u.locationId)}{u.email ? ` · ${u.email}` : ""}</div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <select className="input w-auto py-1.5 text-sm" value={u.role} disabled={isMe || (u.role === "owner" && !isOwner)}
@@ -222,6 +227,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                       patchStaff(u.id, { pin: v }, "PIN reset");
                     }}>
                     Reset PIN
+                  </button>
+                  <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={isMe}
+                    onClick={() => {
+                      const p = prompt(`Email for ${u.name} (for schedule notifications; blank to clear):`, u.email || "");
+                      if (p == null) return;
+                      patchStaff(u.id, { email: p.trim() }, "Email updated");
+                    }}>
+                    {u.email ? "Edit email" : "Set email"}
                   </button>
                 </div>
               </div>

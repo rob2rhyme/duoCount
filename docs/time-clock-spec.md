@@ -127,6 +127,20 @@ swaps, which need approval because someone is giving up an *assigned* shift.)
 Unassigned shifts are excluded from the hours, overlap, and attendance-no-show
 math (they aren't anyone's yet).
 
+**Publish & notify.** A manager clicks **Publish & notify** on a week and each
+employee who has a shift *and* an **email on file** gets emailed their shifts for
+that week; the week nav then shows *Published · notified N* (re-publish after
+changes). Staff emails are an **optional** field set in Admin (Set / Edit email
+per person, or on the add-staff form). The email build is a pure function
+(`lib/schedule-notify.js` → `buildScheduleEmails`, unit-tested in
+`tests/schedule-notify.test.mjs`) — one email per employee, shifts combined and
+sorted, open shifts skipped, employees without an address skipped. The server
+route `POST /api/schedule/publish` (manager/owner; shared `requireManager`
+guard) queries the week, sends via the same **Resend** path as the digest
+(`lib/digest.js`), and records `schedulePublished/{weekStart}`
+(`{ publishedAt, publishedBy, notified, recipients }`) — **manager-read,
+server-write only** (`allow write: if false`, written by the Admin SDK).
+
 **Security** —
 - `match /schedule/{shiftId}`: managers read/manage the whole roster; an
   employee reads their own shifts **plus any shift up for a swap**
@@ -143,13 +157,16 @@ math (they aren't anyone's yet).
   rest of the app's authored records.
 - `match /templates/{id}`: **manager-only** read and write — a planning tool,
   not employee-facing (templates are applied to produce real schedule shifts).
+- `match /schedulePublished/{weekStart}`: **manager-read, server-write only**
+  (`allow write: if false`) — the publish route writes it via the Admin SDK.
 - Indexes: `schedule(userId ASC, date ASC)`, `schedule(swapStatus ASC, date ASC)`
   (the swap board), `schedule(open ASC, date ASC)` (the open-shift board), and
   `availability(userId ASC, date ASC)`.
 - **Rules coverage:** the `timeclock`, `schedule` (every swap transition + open
-  shift create/claim), `availability`, and `templates` rules are exercised
-  against the Firestore emulator in `tests/rules.test.mjs` (`npm run test:rules`)
-  — read scope, self-signing, immutability, and each allowed/denied actor.
+  shift create/claim), `availability`, `templates`, and `schedulePublished` rules
+  are exercised against the Firestore emulator in `tests/rules.test.mjs`
+  (`npm run test:rules`) — read scope, self-signing, immutability, and each
+  allowed/denied actor.
 
 ### Shift swaps
 
@@ -184,12 +201,12 @@ both the UI and the Firestore rules mirror, so they can't disagree:
 
 ## Deliberately out of scope (future)
 
+Copy-last-week, week templates, availability, shift swaps, open-shift claim, and
+publish/notify are all built (see above). Still deferred:
+
 - **Manager punch correction** — an admin editing/inserting a *punch* for someone
   who forgot. Kept out to preserve the append-only guarantee; the clean path is a
   manager-signed corrective punch (a create, not an edit).
-- **Publish/notify** — mark a week "published" and email staff their shifts
-  (would reuse the Resend digest path). (Copy-last-week, week templates,
-  availability, shift swaps, and open-shift claim are now built; see above.)
 - **Time-level lateness** and overnight shifts that straddle two calendar days in
   the overlap check (reconciliation and overlap are day-scoped).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real
