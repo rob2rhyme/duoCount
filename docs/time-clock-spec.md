@@ -108,22 +108,35 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
   form selection) that land on a date the employee marked unavailable.
 
 **UI** — the **Schedule** view:
-- **Managers:** a week navigator; an add-a-shift form (employee / date / start /
-  end / optional location) that **warns** when the chosen employee marked that
-  day off (override allowed); a roster grouped by day with a per-shift delete, a
-  gold **Overlap** flag and a red **Unavailable** flag; a one-click **Copy last
+- **Managers:** a week navigator; an add-a-shift form (employee — or **Open shift
+  (unassigned)** — / date / start / end / optional location) that **warns** when
+  the chosen employee marked that day off (override allowed); a roster grouped by
+  day with a per-shift delete, a gold **Overlap** flag and a red **Unavailable**
+  flag (open shifts show a gold *Open shift* label); a one-click **Copy last
   week** (dedup-aware, batch write); **Week templates** (save the current week,
   apply a saved one to any week); a *Scheduled hours this week* table; and an
   *Attendance so far* readout (worked / no-show / unscheduled + the no-show list).
-- **Everyone:** *Your upcoming shifts*, and **Days you can't work** — mark/remove
-  the dates you're unavailable so managers can roster around you.
+- **Everyone:** *Your upcoming shifts*, **Days you can't work** (mark/remove the
+  dates you're unavailable), and a **Shifts up for grabs** board — open shifts a
+  manager posted (grab them directly) and coworkers' swap offers.
+
+**Open shifts.** A manager can post an **unassigned** shift (`userId: null`,
+`open: true`) that any employee **grabs directly** — no approval, since the
+manager posted it wanting coverage; the first to claim it gets it. (Contrast
+swaps, which need approval because someone is giving up an *assigned* shift.)
+Unassigned shifts are excluded from the hours, overlap, and attendance-no-show
+math (they aren't anyone's yet).
 
 **Security** —
 - `match /schedule/{shiftId}`: managers read/manage the whole roster; an
   employee reads their own shifts **plus any shift up for a swap**
-  (`swapStatus != none`) so they can pick it up. Create is manager-only and
-  manager-signed (`by`/`byId` == token); delete is manager-only; **update** is
-  manager-anything OR one of the four employee swap transitions below.
+  (`swapStatus != none`) **or open** (`open == true`) so they can pick it up.
+  Create is manager-only and manager-signed (`by`/`byId` == token) — either an
+  assigned shift (`userId` a string) or an **open** one (`userId` null +
+  `open:true`); delete is manager-only; **update** is manager-anything OR one of
+  the four employee swap transitions below, OR **`claimOpen`** — an employee
+  assigns an open shift to themselves (`userId`/`userName` == token, `open`→false;
+  those three keys only).
 - `match /availability/{id}`: employees create their **own** unavailable dates
   (self-signed) and either the owner or a manager may delete one; managers read
   everyone's; **no updates** (remove and re-add). Immutable-once-set, like the
@@ -131,11 +144,12 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
 - `match /templates/{id}`: **manager-only** read and write — a planning tool,
   not employee-facing (templates are applied to produce real schedule shifts).
 - Indexes: `schedule(userId ASC, date ASC)`, `schedule(swapStatus ASC, date ASC)`
-  (the swap board), and `availability(userId ASC, date ASC)`.
-- **Rules coverage:** the `timeclock`, `schedule` (incl. every swap transition),
-  `availability`, and `templates` rules are exercised against the Firestore
-  emulator in `tests/rules.test.mjs` (`npm run test:rules`) — read scope,
-  self-signing, immutability, and each allowed/denied swap actor.
+  (the swap board), `schedule(open ASC, date ASC)` (the open-shift board), and
+  `availability(userId ASC, date ASC)`.
+- **Rules coverage:** the `timeclock`, `schedule` (every swap transition + open
+  shift create/claim), `availability`, and `templates` rules are exercised
+  against the Firestore emulator in `tests/rules.test.mjs` (`npm run test:rules`)
+  — read scope, self-signing, immutability, and each allowed/denied actor.
 
 ### Shift swaps
 
@@ -173,9 +187,9 @@ both the UI and the Firestore rules mirror, so they can't disagree:
 - **Manager punch correction** — an admin editing/inserting a *punch* for someone
   who forgot. Kept out to preserve the append-only guarantee; the clean path is a
   manager-signed corrective punch (a create, not an edit).
-- **Open-shift claim, publish/notify** — richer rostering beyond assign / copy /
-  templates / availability / swaps. (Copy-last-week, week templates, availability,
-  and shift swaps are now built; see above.)
+- **Publish/notify** — mark a week "published" and email staff their shifts
+  (would reuse the Resend digest path). (Copy-last-week, week templates,
+  availability, shift swaps, and open-shift claim are now built; see above.)
 - **Time-level lateness** and overnight shifts that straddle two calendar days in
   the overlap check (reconciliation and overlap are day-scoped).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real

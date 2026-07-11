@@ -57,6 +57,14 @@
       ]
     },
     {
+      "collectionGroup": "schedule",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "open", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "availability",
       "queryScope": "COLLECTION",
       "fields": [

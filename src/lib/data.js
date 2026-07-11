@@ -241,6 +241,11 @@ export function watchSwapBoard(vendorId, cb) {
   const q = query(vcol(vendorId, "schedule"), where("swapStatus", "in", ["offered", "claimed"]), orderBy("date", "asc"));
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
+// Open (unassigned) shifts a manager posted for anyone to grab.
+export function watchOpenShifts(vendorId, cb) {
+  const q = query(vcol(vendorId, "schedule"), where("open", "==", true), orderBy("date", "asc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
 // One-click "copy last week" writes many shifts at once.
 export async function addScheduledShiftsBatch(vendorId, shifts) {
   if (!shifts.length) return 0;

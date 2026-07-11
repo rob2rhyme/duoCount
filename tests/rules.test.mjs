@@ -88,6 +88,7 @@ beforeEach(async () => {
     await setDoc(doc(f, `vendors/${V}/schedule/sA`), sched());
     await setDoc(doc(f, `vendors/${V}/schedule/sOffered`), sched({ date: "2026-07-13", swapStatus: "offered" }));
     await setDoc(doc(f, `vendors/${V}/schedule/sClaimed`), sched({ date: "2026-07-14", swapStatus: "claimed", claimedById: "u-empB", claimedByName: "Bob" }));
+    await setDoc(doc(f, `vendors/${V}/schedule/sOpen`), sched({ date: "2026-07-15", userId: null, userName: null, open: true }));
     await setDoc(doc(f, `vendors/${V}/availability/avA`), { userId: "u-empA", userName: "Eve", date: "2026-07-20", ts: new Date() });
   });
 });
@@ -453,6 +454,27 @@ test("swap: a manager approves (reassigning the shift); a non-manager cannot", a
 test("swap: a manager rejects an offered shift back to none", async () => {
   await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/schedule/sOffered`),
     { swapStatus: "none", claimedById: null, claimedByName: null }));
+});
+
+/* ---------- open shifts ---------- */
+
+test("open shift: a manager posts an unassigned shift; a null user must be flagged open; employees can't post", async () => {
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/schedule/newOpen`), sched({ userId: null, userName: null, open: true })));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/schedule/badNull`), sched({ userId: null, userName: null }))); // null user, not open
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/schedule/empOpen`), sched({ userId: null, userName: null, open: true }))); // employees never create
+});
+
+test("open shift: any employee reads it and grabs it as themselves, not for someone else", async () => {
+  await assertSucceeds(getDoc(doc(db("empB"), `vendors/${V}/schedule/sOpen`)));            // open => readable
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sOpen`),              // can't assign it to someone else
+    { userId: "u-empA", userName: "Eve", open: false }));
+  await assertSucceeds(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sOpen`),           // grabs it
+    { userId: "u-empB", userName: "Bob", open: false }));
+});
+
+test("open shift: the grab path cannot hijack an assigned (non-open) shift", async () => {
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sA`),
+    { userId: "u-empB", userName: "Bob", open: false }));
 });
 
 /* ---------- availability ---------- */
