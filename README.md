@@ -166,7 +166,9 @@ values are set.
   and **swap shifts** (offer → a coworker claims → a manager approves; the state
   machine lives in `src/lib/swaps.js` and is mirrored by the Firestore rules);
   `src/lib/schedule.js` reconciles the roster against the actual punches by
-  business day to surface no-shows.
+  business day to surface no-shows. Managers **publish & notify** a week — each
+  employee with an email on file is sent their shifts (via the same Resend path
+  as the digest).
 - **Login rate limiting**: the login route throttles failed attempts before any
   credential work runs — **per IP (10 / 15 min) and per store (50 / 15 min)** —
   using a top-level `loginAttempts` collection only the Admin SDK can touch.
@@ -277,7 +279,8 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
   packs/{id}                  game, packNumber, price, ticketCount, bin, status
                               (received -> active -> settled|returned, forward-
                               only), transition stamps, settle snapshot
-  users/{id}                  name, role, locationId, active
+  users/{id}                  name, role, locationId, active, email (optional,
+                              for schedule notifications)
     private/creds             pinHash (server-only)
   entries/{id}                cash, scratch, or inventory entry — locationId,
                               by, byId, verifiedBy, ts; cash/scratch carry
@@ -298,6 +301,8 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
                               date; self-managed, manager-visible, no edits
   templates/{id}              manager-only saved week pattern — name + shifts[]
                               (dow, userId, start/end); applied to stamp a week
+  schedulePublished/{week}    publish record (weekStart) — publishedAt/By,
+                              notified count; manager-read, server-write only
 loginAttempts/{ip_*|store_*} server-only failed-login counters (per-IP + per-store)
 ```
 

@@ -103,6 +103,14 @@ export async function apiTestDigest() {
     headers: { Authorization: `Bearer ${await idToken()}` },
   });
 }
+// Publish a week: emails each employee (with an address) their shifts.
+export async function apiPublishSchedule(weekStart) {
+  return fetchJson("/api/schedule/publish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify({ weekStart }),
+  });
+}
 // Owner-only demo data: action is "load" (write seed-tagged sample data,
 // idempotent) or "clear" (delete only seed-tagged docs).
 export async function apiSeedDemo(action) {
@@ -245,6 +253,11 @@ export function watchSwapBoard(vendorId, cb) {
 export function watchOpenShifts(vendorId, cb) {
   const q = query(vcol(vendorId, "schedule"), where("open", "==", true), orderBy("date", "asc"));
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+// Publish records (one per week, keyed by weekStart) — manager-read, server-write.
+export function watchPublished(vendorId, cb) {
+  return onSnapshot(vcol(vendorId, "schedulePublished"),
+    (s) => cb(Object.fromEntries(s.docs.map((d) => [d.id, d.data()]))));
 }
 // One-click "copy last week" writes many shifts at once.
 export async function addScheduledShiftsBatch(vendorId, shifts) {

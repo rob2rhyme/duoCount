@@ -4,6 +4,7 @@ import {
   watchSchedule, addScheduledShift, deleteScheduledShift, addScheduledShiftsBatch, watchStaff,
   watchAvailability, addUnavailable, deleteUnavailable, updateScheduledShift, watchSwapBoard,
   watchTemplates, addTemplate, deleteTemplate, watchOpenShifts,
+  apiPublishSchedule, watchPublished,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import {
@@ -40,6 +41,8 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const [avail, setAvail] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [openShifts, setOpenShifts] = useState([]);
+  const [published, setPublished] = useState({});
+  const [publishing, setPublishing] = useState(false);
   const [weekStart, setWeekStart] = useState(() => weekStartMonday(todayStr()));
   const [form, setForm] = useState({ userId: "", date: todayStr(), start: "09:00", end: "17:00", locationId: "" });
   const [newOff, setNewOff] = useState(todayStr());
@@ -50,6 +53,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   useEffect(() => watchAvailability(vendor.id, isManager ? null : profile.id, setAvail), [vendor.id, isManager, profile.id]);
   useEffect(() => { if (isManager) return watchStaff(vendor.id, setStaff); }, [vendor.id, isManager]);
   useEffect(() => { if (isManager) return watchTemplates(vendor.id, setTemplates); }, [vendor.id, isManager]);
+  useEffect(() => { if (isManager) return watchPublished(vendor.id, setPublished); }, [vendor.id, isManager]);
   // Employees also watch the swap board (offered/claimed shifts) so they can pick
   // up coworkers' shifts; managers already see the whole roster in `shifts`.
   useEffect(() => { if (!isManager) return watchSwapBoard(vendor.id, setBoard); }, [vendor.id, isManager]);
@@ -146,6 +150,18 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
       onToast?.(`Copied ${n} shift${n === 1 ? "" : "s"} from last week`);
     } catch (e) { console.error(e); onToast?.("Copy failed — managers only"); }
     setCopying(false);
+  }
+  async function publishWeek() {
+    if (!weekShifts.length) return onToast?.("No shifts this week to publish");
+    setPublishing(true);
+    try {
+      const r = await apiPublishSchedule(weekStart);
+      const bits = [`Notified ${r.notified}`];
+      if (r.noEmail) bits.push(`${r.noEmail} without an email`);
+      if (r.failed?.length) bits.push(`${r.failed.length} failed`);
+      onToast?.(`Published — ${bits.join(", ")}`);
+    } catch (e) { console.error(e); onToast?.(e.message || "Publish failed"); }
+    setPublishing(false);
   }
   async function saveTemplate() {
     const specs = weekShiftsToTemplate(weekShifts, weekStart);
@@ -289,16 +305,28 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   /* ---- manager view: roster ---- */
   return (
     <div className="space-y-4">
-      {/* week navigator */}
-      <div className="card p-3 flex items-center justify-between gap-3">
-        <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Previous week">←</button>
-        <div className="text-center">
-          <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Week of</div>
-          <button className="font-semibold text-sm hover:text-gold transition" onClick={() => setWeekStart(weekStartMonday(todayStr()))}>
-            {dayLabel(weekStart)} – {dayLabel(weekEnd)}
+      {/* week navigator + publish */}
+      <div className="card p-3 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Previous week">←</button>
+          <div className="text-center">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Week of</div>
+            <button className="font-semibold text-sm hover:text-gold transition" onClick={() => setWeekStart(weekStartMonday(todayStr()))}>
+              {dayLabel(weekStart)} – {dayLabel(weekEnd)}
+            </button>
+          </div>
+          <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week">→</button>
+        </div>
+        <div className="flex items-center justify-between gap-3 flex-wrap border-t border-line pt-3">
+          <span className="text-[12px] text-muted">
+            {published[weekStart]
+              ? <>Published · notified <b className="font-mono">{published[weekStart].notified}</b></>
+              : "Not published yet"}
+          </span>
+          <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={publishing || !weekShifts.length} onClick={publishWeek}>
+            {publishing ? "Publishing…" : published[weekStart] ? "Re-publish & notify" : "📣 Publish & notify"}
           </button>
         </div>
-        <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week">→</button>
       </div>
 
       {/* add a shift */}

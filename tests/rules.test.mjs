@@ -90,6 +90,7 @@ beforeEach(async () => {
     await setDoc(doc(f, `vendors/${V}/schedule/sClaimed`), sched({ date: "2026-07-14", swapStatus: "claimed", claimedById: "u-empB", claimedByName: "Bob" }));
     await setDoc(doc(f, `vendors/${V}/schedule/sOpen`), sched({ date: "2026-07-15", userId: null, userName: null, open: true }));
     await setDoc(doc(f, `vendors/${V}/availability/avA`), { userId: "u-empA", userName: "Eve", date: "2026-07-20", ts: new Date() });
+    await setDoc(doc(f, `vendors/${V}/schedulePublished/2026-07-06`), { weekStart: "2026-07-06", publishedAt: new Date(), publishedBy: "Mia", notified: 2, recipients: 2 });
   });
 });
 
@@ -493,6 +494,13 @@ test("availability: the owner or a manager removes an entry; a coworker cannot",
 });
 
 /* ---------- week templates ---------- */
+
+test("schedulePublished: managers read the record; employees can't; the client never writes", async () => {
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/schedulePublished/2026-07-06`)));
+  await assertFails(getDoc(doc(db("empA"), `vendors/${V}/schedulePublished/2026-07-06`)));   // manager-only read
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/schedulePublished/2026-07-13`),      // only the server (Admin SDK) writes
+    { weekStart: "2026-07-13", notified: 0 }));
+});
 
 test("templates: managers manage them; employees can neither read nor write", async () => {
   const tpl = { name: "Standard week", shifts: [{ dow: 0, userId: "u-empA", userName: "Eve", start: "09:00", end: "17:00" }], by: "Mia", byId: "u-mgr", ts: new Date() };
