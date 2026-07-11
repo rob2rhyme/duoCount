@@ -197,26 +197,45 @@ exists alongside the person detector.
 
 ### 3.1 Behavior
 
-The login route keeps a fixed-window failure counter per client IP in a
-top-level `loginAttempts/{ip}` collection (Admin SDK only — the collection
-matches no client rule, so Firestore's default-deny hides it entirely).
+The login route keeps fixed-window failure counters in a top-level
+`loginAttempts` collection (Admin SDK only — the collection matches no client
+rule, so Firestore's default-deny hides it entirely). **Two limiters run
+together** and a `429` is returned if *either* trips, *before* any credential
+work runs:
 
-- **10 failed attempts per 15 minutes per IP** → subsequent attempts get
-  `429 Too many attempts — wait a few minutes and try again` *before* any
-  credential work runs.
-- Wrong store code and wrong PIN both count as failures.
-- A successful login deletes the IP's counter (a store's staff share the
+- **Per IP** (`ip_{ip}`) — **10 fails / 15 min**. Stops one machine hammering.
+- **Per store** (`store_{slug}`) — **50 fails / 15 min** (tier-3 hardening). A
+  backstop against a *distributed* attack that rotates IPs to slip under the
+  per-IP cap. The cap sits well above what a busy store's honest typos reach,
+  so real staff aren't affected; it only bites during an actual attack.
+
+Both counters:
+- count wrong store code *and* wrong PIN as failures;
+- **auto-expire** — once the window's `windowStart` is older than 15 min the
+  count resets, so a key is **never locked permanently** (a burst blocks only
+  until the window rolls);
+- are **both cleared on any successful sign-in** (a store's staff share the
   shop Wi-Fi IP; one person's typos shouldn't lock out the shift).
-- The IP comes from the first hop of `x-forwarded-for` (set by Vercel).
+
+The IP comes from the first hop of `x-forwarded-for` (set by Vercel). The
+decision — blocked? what to write on failure? — is a pure function,
+`throttleDecision`, in `lib/login-throttle.js`, unit-tested in
+`tests/auth.test.mjs` (`npm run test:auth`).
 
 ### 3.2 Sizing the guard
 
-PINs are 4–6 digits, so an unthrottled attacker with a known store code could
-walk the 10k 4-digit space in minutes. At 10 tries per 15 minutes, the same
-sweep takes ~10 days per IP — and the counter is per-IP across *all* store
-codes, so rotating codes doesn't reset it. Distributed attacks remain
-possible (as with any IP limiter); the deeper mitigations — 6-digit PINs and
-per-user lockout — stay available as tier-3 hardening.
+**Newly set PINs are now 6 digits** (`lib/pin.js`, enforced in the signup and
+staff routes and the client inputs) — a 1,000,000-value space, 100× the old
+4-digit floor and the single biggest brute-force win for a numeric PIN. Existing
+4–5 digit pins still verify at sign-in (the salted hash doesn't encode length),
+so this is a forward policy that never locks a current user out.
+
+At 10 tries / 15 min per IP against a 6-digit space, an exhaustive sweep from one
+IP takes on the order of *years*; the per-store cap bounds a distributed sweep to
+50 guesses / 15 min no matter how many IPs it rotates through. The per-store
+lockout is a deliberate DoS trade-off (an attacker actively flooding a store can
+keep its window tripped), but it auto-recovers within minutes of the flood
+stopping and never requires a manual unlock.
 
 ### 3.3 Cost & cleanup
 
@@ -247,8 +266,10 @@ console-side cleanup, noted in the README.
 | `src/components/Dashboard.js` | Patterns card (manager-only) |
 | `src/lib/digest.js` | patterns section + open-incidents line in the email |
 | `src/app/api/cron/digest/route.js` / `api/digest/test` | via `sendDigestForVendor`: 14-day entry fetch + incidents count |
-| `src/app/api/auth/login/route.js` | rate limiter |
-| `tests/rules.test.mjs` | incidents suite |
+| `src/app/api/auth/login/route.js` | dual (per-IP + per-store) rate limiter via `lib/login-throttle.js` |
+| `src/lib/login-throttle.js` / `src/lib/pin.js` | **new** — pure throttle decision; shared 6-digit PIN policy |
+| `src/app/api/auth/signup/route.js`, `api/staff/route.js` | 6-digit PIN validation (`isValidNewPin`) |
+| `tests/rules.test.mjs`, `tests/auth.test.mjs` | incidents suite; PIN + throttle unit suite |
 
 No new dependencies. No new env vars. No auth/claims changes.
 
@@ -292,7 +313,9 @@ Rules-emulator additions (`npm run test:rules`):
   (§2.1 / §2.1a): five tunable thresholds in Admin, plus the repeat-overs and
   open-variance-backlog detectors. Still deferred: escalating variance *trends*
   and scratch settle-shortfall patterns.
-- **Per-user login lockout + 6-digit PIN default** (deeper brute-force
-  hardening).
+- ~~**Per-user login lockout + 6-digit PIN default**~~ — **done** (§3): 6-digit
+  PIN policy on all new/changed pins, plus a per-store failure limiter alongside
+  the per-IP one. ("Per-user" is realized as per-store, since the login can't
+  identify the user until the PIN matches.)
 - **Server-computed blind counts** (tier-one README limitation).
 - **State-lottery settlement-file reconciliation** (pack-lifecycle spec).

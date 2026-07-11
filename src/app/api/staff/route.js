@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { hashPin } from "@/lib/hash";
+import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
 
 export const runtime = "nodejs";
 
@@ -21,8 +22,8 @@ export async function POST(req) {
     const { name, pin, role, locationId } = await req.json();
     if (!name || name.trim().length < 2)
       return NextResponse.json({ error: "Enter a name." }, { status: 400 });
-    if (!/^\d{4,6}$/.test(String(pin || "")))
-      return NextResponse.json({ error: "PIN must be 4–6 digits." }, { status: 400 });
+    if (!isValidNewPin(pin))
+      return NextResponse.json({ error: PIN_ERROR }, { status: 400 });
     const newRole = ["employee", "manager", "owner"].includes(role) ? role : "employee";
     if (newRole === "owner" && claims.role !== "owner")
       return NextResponse.json({ error: "Only an owner can create another owner." }, { status: 403 });
@@ -87,8 +88,8 @@ export async function PATCH(req) {
     if (Object.keys(patch).length) await ref.update(patch);
 
     if (pin !== undefined) {
-      if (!/^\d{4,6}$/.test(String(pin)))
-        return NextResponse.json({ error: "PIN must be 4–6 digits." }, { status: 400 });
+      if (!isValidNewPin(pin))
+        return NextResponse.json({ error: PIN_ERROR }, { status: 400 });
       await ref.collection("private").doc("creds").set({ pinHash: hashPin(pin) });
     }
     return NextResponse.json({ ok: true });

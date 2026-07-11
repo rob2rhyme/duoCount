@@ -21,6 +21,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Theme & accessibility audit** (WCAG AA contrast measured both themes; `pos`/`neg` status tokens, chip + faint + disabled fixes) | `theme-accessibility-audit.md` | ✅ |
 | **Power-user polish** (sticky dashboard table headers, first-name-only pill on tiny screens, keyboard shortcuts) | `ui-enhancements-spec.md` §8–9 | ✅ |
 | **Per-vendor pattern thresholds + extra detectors** (5 tunable Alert-sensitivity knobs; repeat-overs & open-variance-backlog detectors) | `tier-two-build-spec.md` §2.1–2.1a | ✅ |
+| **Auth hardening** (6-digit PIN policy on new pins; per-store login limiter alongside per-IP) | `tier-two-build-spec.md` §3 | ✅ |
 
 ## Next up
 
@@ -116,6 +117,7 @@ From `tier-two-build-spec.md` §7 — revisit on customer pull:
 - ✅ **Per-vendor pattern thresholds and extra detectors** — done (see Shipped).
   Remaining slice: escalating variance *trends* and scratch settle-shortfall
   patterns.
-- Per-user login lockout + 6-digit PIN default (deeper brute-force hardening).
+- ✅ **Per-user login lockout + 6-digit PIN default** — done (see Shipped):
+  6-digit PIN policy + a per-store failure limiter beside the per-IP one.
 - Server-computed blind counts.
 - State-lottery settlement-file reconciliation.

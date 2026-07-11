@@ -12,6 +12,7 @@
     "test:patterns": "node --test tests/patterns.test.mjs",
     "test:seed": "node --test tests/seed.test.mjs",
     "test:shortcuts": "node --test tests/shortcuts.test.mjs",
+    "test:auth": "node --test tests/auth.test.mjs",
     "test:api": "node --test tests/api.test.mjs"
   },
   "dependencies": {
