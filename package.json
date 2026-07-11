@@ -1,0 +1,11 @@
+{
+  "name": "duocount-package",
+  "private": true,
+  "scripts": {
+    "install-app": "cd app && npm install",
+    "build": "cd app && npm run build"
+  },
+  "dependencies": {
+    "next": "15.5.20"
+  }
+}
