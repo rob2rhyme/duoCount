@@ -8,7 +8,7 @@ async function requireManager(req) {
   const authz = req.headers.get("authorization") || "";
   const idToken = authz.startsWith("Bearer ") ? authz.slice(7) : null;
   if (!idToken) throw Object.assign(new Error("Not signed in."), { status: 401 });
-  const { adminAuth } = getAdmin();
+  const { adminAuth } = await getAdmin();
   const claims = await adminAuth.verifyIdToken(idToken);
   if (!claims.vendorId || !["owner", "manager"].includes(claims.role))
     throw Object.assign(new Error("Managers only."), { status: 403 });
@@ -29,7 +29,7 @@ export async function POST(req) {
     if (newRole === "employee" && !locationId)
       return NextResponse.json({ error: "Assign employees to a location." }, { status: 400 });
 
-    const { adminDb } = getAdmin();
+    const { adminDb } = await getAdmin();
     const vendorRef = adminDb.collection("vendors").doc(claims.vendorId);
 
     // PIN must be unique within this store so login can identify the person.
@@ -64,7 +64,7 @@ export async function PATCH(req) {
     if (userId === claims.userId)
       return NextResponse.json({ error: "You can't modify your own account here." }, { status: 400 });
 
-    const { adminDb } = getAdmin();
+    const { adminDb } = await getAdmin();
     const ref = adminDb.collection("vendors").doc(claims.vendorId).collection("users").doc(userId);
     const snap = await ref.get();
     if (!snap.exists) return NextResponse.json({ error: "Staff member not found." }, { status: 404 });
