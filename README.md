@@ -21,6 +21,8 @@ security rules keyed on server-issued auth claims.
   - `inventory-tracker-spec.md` — spec for the inventory feature (built)
   - `barcode-scanning-spec.md` — spec for camera scanning (built)
   - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (built)
+  - `ui-enhancements-spec.md` — spec for the denomination currency counter,
+    scroll-to-top FAB, and light/dark theme (built)
   - `positioning-one-pager.md` — market positioning, competitors, pricing
 - `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
   branded for Smokers Haven, useful as backup or during onboarding. The app

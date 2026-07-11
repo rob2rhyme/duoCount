@@ -7,20 +7,32 @@ import {
 import { money, toDate } from "@/lib/utils";
 import { detectPatterns } from "@/lib/patterns";
 import { useSession } from "./SessionProvider";
+import { useTheme } from "./ThemeProvider";
 import ReportModal from "./ReportModal";
 
+// Recharts paints SVG with literal color strings (CSS vars aren't reliable on
+// SVG presentation attributes), so the chart palette is resolved from the
+// active theme in JS rather than through Tailwind tokens.
+const CHART = {
+  light: { grid: "#e6e2d8", axis: "#8a8780", tipBg: "#ffffff", tipBorder: "#dcd8cc", tipText: "#1a1c2e", bar: "#1a1c2e" },
+  dark: { grid: "#2b2d37", axis: "#6b6d78", tipBg: "#1d1f28", tipBorder: "#343643", tipText: "#e9e8ee", bar: "#c9a34f" },
+};
+
 function Stat({ label, value, tone }) {
-  const color = tone === "neg" ? "text-red-600" : tone === "pos" ? "text-green-700" : "text-ink";
+  const color = tone === "neg" ? "text-red-600" : tone === "pos" ? "text-green-700" : "text-fg";
   return (
     <div className="card p-4">
       <div className={`text-2xl font-bold font-mono ${color}`}>{value}</div>
-      <div className="text-[11px] text-neutral-500 uppercase tracking-wide font-semibold mt-1">{label}</div>
+      <div className="text-[11px] text-muted uppercase tracking-wide font-semibold mt-1">{label}</div>
     </div>
   );
 }
 
 export default function Dashboard({ entries, locations = [], locName = () => "â€”", onOpenLog, onToast }) {
   const { isManager } = useSession();
+  const { theme } = useTheme();
+  const ch = CHART[theme] || CHART.light;
+  const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 13 };
   const [reportOpen, setReportOpen] = useState(false);
   // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink
   // streaks) â€” manager-facing only, so employees never see them computed.
@@ -127,7 +139,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     return (
       <div className="space-y-4">
         {reportButton}
-        <div className="card text-center py-14 text-neutral-500">No activity yet. Once counts are logged, analytics appear here.</div>
+        <div className="card text-center py-14 text-muted">No activity yet. Once counts are logged, analytics appear here.</div>
         {reportModal}
       </div>
     );
@@ -150,18 +162,18 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
 
       {isManager && patterns.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+          <div className="px-4 py-3.5 border-b border-line">
             <h3 className="font-semibold text-[15px]">Patterns</h3>
-            <p className="text-[12px] text-neutral-500 mt-0.5">Signals worth a look â€” not conclusions.</p>
+            <p className="text-[12px] text-muted mt-0.5">Signals worth a look â€” not conclusions.</p>
           </div>
           {patterns.map((p) => (
-            <div key={p.id} className="px-4 py-2.5 border-b border-[#dcd8cc] last:border-0 flex items-start gap-3">
-              <span className={`pill flex-shrink-0 mt-0.5 ${p.severity === "high" ? "bg-red-100 text-red-600" : "bg-[#fbf6ec] text-brass-dk border border-brass/30"}`}>
+            <div key={p.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3">
+              <span className={`pill flex-shrink-0 mt-0.5 ${p.severity === "high" ? "bg-red-100 text-red-600" : "bg-highlight text-gold border border-brass/30"}`}>
                 {p.severity === "high" ? "High" : "Watch"}
               </span>
               <div className="min-w-0">
                 <div className="font-medium text-sm">{p.title}</div>
-                <div className="text-[12px] text-neutral-500">{p.detail}</div>
+                <div className="text-[12px] text-muted">{p.detail}</div>
               </div>
             </div>
           ))}
@@ -170,7 +182,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
 
       {a.attention.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-[#dcd8cc] flex items-center justify-between">
+          <div className="px-4 py-3.5 border-b border-line flex items-center justify-between">
             <h3 className="font-semibold text-[15px]">Needs attention</h3>
             {onOpenLog && <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={onOpenLog}>Open the Log â†’</button>}
           </div>
@@ -178,11 +190,11 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
             const t = toDate(e.ts);
             const label = e.kind === "cash" ? (e.drawerName || "Drawer") : e.kind === "inventory" ? (e.itemName || "Item") : e.game;
             return (
-              <div key={e.id} className="px-4 py-2.5 border-b border-[#dcd8cc] last:border-0 flex items-center gap-3 cursor-pointer hover:bg-[#faf8f2]"
+              <div key={e.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-center gap-3 cursor-pointer hover:bg-panel"
                 onClick={onOpenLog}>
-                <span className={`pill flex-shrink-0 ${why === "Unverified > 24h" ? "bg-neutral-200 text-neutral-600" : "bg-red-100 text-red-600"}`}>{why}</span>
+                <span className={`pill flex-shrink-0 ${why === "Unverified > 24h" ? "bg-subtle text-muted" : "bg-red-100 text-red-600"}`}>{why}</span>
                 <span className="font-medium text-sm truncate">{label}</span>
-                <span className="text-[12px] text-neutral-500 font-mono ml-auto whitespace-nowrap">{e.by} Â· {t ? t.toLocaleDateString() : ""}</span>
+                <span className="text-[12px] text-muted font-mono ml-auto whitespace-nowrap">{e.by} Â· {t ? t.toLocaleDateString() : ""}</span>
               </div>
             );
           })}
@@ -205,10 +217,10 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
         <h3 className="font-semibold text-[15px] mb-3">Daily over / short</h3>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={a.dayRows}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e6e2d8" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#8a8780" />
-            <YAxis tick={{ fontSize: 11 }} stroke="#8a8780" />
-            <Tooltip formatter={(v) => money(v)} contentStyle={{ borderRadius: 10, border: "1px solid #dcd8cc", fontSize: 13 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
+            <YAxis tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
+            <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
             <Bar dataKey="diff" radius={[4, 4, 0, 0]}>
               {a.dayRows.map((r, i) => <Cell key={i} fill={r.diff < 0 ? "#b03a3a" : "#2f7d5b"} />)}
             </Bar>
@@ -220,10 +232,10 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
         <h3 className="font-semibold text-[15px] mb-3">Cash sales trend</h3>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={a.dayRows}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e6e2d8" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#8a8780" />
-            <YAxis tick={{ fontSize: 11 }} stroke="#8a8780" />
-            <Tooltip formatter={(v) => money(v)} contentStyle={{ borderRadius: 10, border: "1px solid #dcd8cc", fontSize: 13 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
+            <YAxis tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
+            <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
             <Line type="monotone" dataKey="sales" stroke="#b8863b" strokeWidth={2.5} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
@@ -234,21 +246,21 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
           <h3 className="font-semibold text-[15px] mb-3">Top scratch-off games</h3>
           <ResponsiveContainer width="100%" height={Math.max(160, a.gameRows.length * 42)}>
             <BarChart layout="vertical" data={a.gameRows} margin={{ left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e6e2d8" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 11 }} stroke="#8a8780" />
-              <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12 }} stroke="#8a8780" />
-              <Tooltip formatter={(v) => money(v)} contentStyle={{ borderRadius: 10, border: "1px solid #dcd8cc", fontSize: 13 }} />
-              <Bar dataKey="dollars" fill="#1a1c2e" radius={[0, 4, 4, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
+              <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: ch.axis }} stroke={ch.axis} />
+              <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+              <Bar dataKey="dollars" fill={ch.bar} radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]"><h3 className="font-semibold text-[15px]">By drawer</h3></div>
+        <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">By drawer</h3></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-neutral-500">
+            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted">
               <th className="px-4 py-2 font-semibold">Drawer</th>
               <th className="px-4 py-2 font-semibold text-right">Entries</th>
               <th className="px-4 py-2 font-semibold text-right">Net +/âˆ’</th>
@@ -257,7 +269,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
             </tr></thead>
             <tbody>
               {a.drawerRows.map((r) => (
-                <tr key={r.name} className="border-t border-[#dcd8cc]">
+                <tr key={r.name} className="border-t border-line">
                   <td className="px-4 py-2.5 font-medium">{r.name}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-red-600" : r.diff > 0.005 ? "text-green-700" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
@@ -272,10 +284,10 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
 
       {a.itemRows.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-[#dcd8cc]"><h3 className="font-semibold text-[15px]">By item</h3></div>
+          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">By item</h3></div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="text-left text-[11px] uppercase tracking-wide text-neutral-500">
+              <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted">
                 <th className="px-4 py-2 font-semibold">Item</th>
                 <th className="px-4 py-2 font-semibold text-right">Counts</th>
                 <th className="px-4 py-2 font-semibold text-right">Net units +/âˆ’</th>
@@ -283,8 +295,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
               </tr></thead>
               <tbody>
                 {a.itemRows.map((r) => (
-                  <tr key={r.name} className="border-t border-[#dcd8cc]">
-                    <td className="px-4 py-2.5 font-medium">{r.name} <span className="text-neutral-400 text-xs">({r.unit}s)</span></td>
+                  <tr key={r.name} className="border-t border-line">
+                    <td className="px-4 py-2.5 font-medium">{r.name} <span className="text-faint text-xs">({r.unit}s)</span></td>
                     <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
                     <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < 0 ? "text-red-600" : r.diff > 0 ? "text-green-700" : ""}`}>{r.diff >= 0 ? "+" : ""}{r.diff}</td>
                     <td className={`px-4 py-2.5 text-right font-mono ${r.missing ? "text-red-600" : ""}`}>{r.missing}</td>
@@ -297,10 +309,10 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
       )}
 
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]"><h3 className="font-semibold text-[15px]">By employee</h3></div>
+        <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">By employee</h3></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-neutral-500">
+            <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted">
               <th className="px-4 py-2 font-semibold">Name</th>
               <th className="px-4 py-2 font-semibold text-right">Entries</th>
               <th className="px-4 py-2 font-semibold text-right">Net +/âˆ’</th>
@@ -309,7 +321,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
             </tr></thead>
             <tbody>
               {a.empRows.map((r) => (
-                <tr key={r.name} className="border-t border-[#dcd8cc]">
+                <tr key={r.name} className="border-t border-line">
                   <td className="px-4 py-2.5 font-medium">{r.name}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-red-600" : r.diff > 0.005 ? "text-green-700" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>

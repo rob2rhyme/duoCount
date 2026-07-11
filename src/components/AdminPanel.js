@@ -127,11 +127,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     <div className="space-y-4">
       {/* ---------------- staff ---------------- */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+        <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">Staff &amp; roles</h2>
-          <p className="text-[13px] text-neutral-500 mt-0.5">Employees log counts. Managers also verify. Owners control settings.</p>
+          <p className="text-[13px] text-muted mt-0.5">Employees log counts. Managers also verify. Owners control settings.</p>
         </div>
-        <div className="p-4 border-b border-[#dcd8cc] bg-[#faf8f2]">
+        <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div><label className="label">Name</label><input className="input" value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder="Sam K." /></div>
             <div><label className="label">PIN (4–6 digits)</label><input className="input font-mono" inputMode="numeric" maxLength={6} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="4321" /></div>
@@ -156,14 +156,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
             const isMe = u.id === profile.id;
             const active = u.active !== false;
             return (
-              <div key={u.id} className="px-4 py-3 border-b border-[#dcd8cc] last:border-0 flex items-center justify-between gap-3 flex-wrap">
+              <div key={u.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <div className="font-medium flex items-center gap-2">
                     {u.name}
-                    {isMe && <span className="pill bg-neutral-200 text-neutral-600">You</span>}
+                    {isMe && <span className="pill bg-subtle text-muted">You</span>}
                     {!active && <span className="pill bg-red-100 text-red-600">Inactive</span>}
                   </div>
-                  <div className="text-[13px] text-neutral-500">{locName(u.locationId)}</div>
+                  <div className="text-[13px] text-muted">{locName(u.locationId)}</div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <select className="input w-auto py-1.5 text-sm" value={u.role} disabled={isMe || (u.role === "owner" && !isOwner)}
@@ -194,13 +194,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
       {/* ---------------- locations ---------------- */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]"><h2 className="font-semibold text-[15px]">Locations</h2></div>
-        <div className="p-4 border-b border-[#dcd8cc] bg-[#faf8f2] flex gap-2">
+        <div className="px-4 py-3.5 border-b border-line"><h2 className="font-semibold text-[15px]">Locations</h2></div>
+        <div className="p-4 border-b border-line bg-panel flex gap-2">
           <input className="input" value={newLoc} onChange={(e) => setNewLoc(e.target.value)} placeholder="Downtown store" />
           <button className="btn-ghost whitespace-nowrap" onClick={createLoc}>Add location</button>
         </div>
         {locations.map((l) => (
-          <div key={l.id} className="px-4 py-3 border-b border-[#dcd8cc] last:border-0 flex items-center justify-between gap-3">
+          <div key={l.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="font-medium flex items-center gap-2">
               {l.name}
               {l.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
@@ -215,11 +215,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
       {/* ---------------- drawers ---------------- */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+        <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">Cash drawers</h2>
-          <p className="text-[13px] text-neutral-500 mt-0.5">Name each drawer staff count — e.g. POS Cash Drawer, Lottery Cash Drawer, Safe.</p>
+          <p className="text-[13px] text-muted mt-0.5">Name each drawer staff count — e.g. POS Cash Drawer, Lottery Cash Drawer, Safe.</p>
         </div>
-        <div className="p-4 border-b border-[#dcd8cc] bg-[#faf8f2]">
+        <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div><label className="label">Drawer name</label><input className="input" value={nd.name} onChange={(e) => setNd({ ...nd, name: e.target.value })} placeholder="Safe Drawer" /></div>
             <div><label className="label">Location</label>
@@ -230,13 +230,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
           <button className="btn-ghost w-full" onClick={createDrawer}>Add drawer</button>
         </div>
         {drawers.map((d) => (
-          <div key={d.id} className="px-4 py-3 border-b border-[#dcd8cc] last:border-0 flex items-center justify-between gap-3">
+          <div key={d.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-medium flex items-center gap-2">
                 {d.name}
                 {d.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
               </div>
-              <div className="text-[13px] text-neutral-500">{locName(d.locationId)}</div>
+              <div className="text-[13px] text-muted">{locName(d.locationId)}</div>
             </div>
             <button className="btn-ghost text-[13px] px-3 py-1.5"
               onClick={() => updateDrawer(vendor.id, d.id, { active: !(d.active !== false) }).then(() => onToast?.("Updated")).catch(() => onToast?.("Failed"))}>
@@ -248,11 +248,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
       {/* ---------------- inventory items ---------------- */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+        <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">Inventory items</h2>
-          <p className="text-[13px] text-neutral-500 mt-0.5">The tracked list staff count each shift — start with your 5–15 highest-shrink items, not the whole store.</p>
+          <p className="text-[13px] text-muted mt-0.5">The tracked list staff count each shift — start with your 5–15 highest-shrink items, not the whole store.</p>
         </div>
-        <div className="p-4 border-b border-[#dcd8cc] bg-[#faf8f2]">
+        <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div><label className="label">Item name</label><input className="input" value={ni.name} onChange={(e) => setNi({ ...ni, name: e.target.value })} placeholder="Marlboro Red carton" /></div>
             <div><label className="label">Category (optional)</label><input className="input" value={ni.category} onChange={(e) => setNi({ ...ni, category: e.target.value })} placeholder="Cigarettes" /></div>
@@ -282,14 +282,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
           <button className="btn-ghost w-full" onClick={createItem}>Add item</button>
         </div>
         {items.map((it) => (
-          <div key={it.id} className="px-4 py-3 border-b border-[#dcd8cc] last:border-0 flex items-center justify-between gap-3">
+          <div key={it.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-medium flex items-center gap-2">
                 {it.name}
-                {it.category && <span className="pill bg-[#eceae2] text-neutral-600">{it.category}</span>}
+                {it.category && <span className="pill bg-subtle text-muted">{it.category}</span>}
                 {it.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
               </div>
-              <div className="text-[13px] text-neutral-500">
+              <div className="text-[13px] text-muted">
                 {locName(it.locationId)} · counted in {it.unit || "unit"}s
                 {it.barcode && <span className="font-mono"> · ▮▯ {it.barcode}</span>}
               </div>
@@ -310,9 +310,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
       {/* ---------------- settings (owner) ---------------- */}
       <div className="card overflow-hidden">
-        <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+        <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">Business settings</h2>
-          <p className="text-[13px] text-neutral-500 mt-0.5">Store code: <b className="font-mono">{vendor.slug}</b> — staff use it to sign in.</p>
+          <p className="text-[13px] text-muted mt-0.5">Store code: <b className="font-mono">{vendor.slug}</b> — staff use it to sign in.</p>
         </div>
         <div className="p-4 space-y-3.5">
           <div><label className="label">Business name</label>
@@ -325,7 +325,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               <option value="all-locations">Shared — every location sees all logs</option>
               <option value="per-location">Per location — employees see only their location</option>
             </select>
-            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">
               Managers and owners always see every location. Staff already signed in will pick up a sharing change the next time they sign in.
             </p>
           </div>
@@ -336,7 +336,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               onChange={(e) => setSettings({ ...settings, blindCounts: e.target.checked })} />
             <label htmlFor="blindCounts" className="min-w-0">
               <span className="font-medium text-[14px]">Blind counts</span>
-              <p className="text-xs text-neutral-500 leading-relaxed">Counters can't see the expected total until after they commit the count. Applies to everyone, managers included.</p>
+              <p className="text-xs text-muted leading-relaxed">Counters can't see the expected total until after they commit the count. Applies to everyone, managers included.</p>
             </label>
           </div>
 
@@ -345,17 +345,17 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
             <input type="number" inputMode="decimal" min="0" step="0.5" className="input"
               value={settings.varianceThreshold} disabled={!isOwner}
               onChange={(e) => setSettings({ ...settings, varianceThreshold: e.target.value })} />
-            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">Counts off by this much or more get flagged for review. Changing it only affects new entries.</p>
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">Counts off by this much or more get flagged for review. Changing it only affects new entries.</p>
           </div>
 
-          <div className="border border-[#dcd8cc] rounded-xl p-3.5 space-y-3 bg-[#faf8f2]">
+          <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
             <div className="flex items-start gap-3">
               <input id="digestEnabled" type="checkbox" className="mt-1" checked={settings.digestEnabled}
                 disabled={!isOwner}
                 onChange={(e) => setSettings({ ...settings, digestEnabled: e.target.checked })} />
               <label htmlFor="digestEnabled" className="min-w-0">
                 <span className="font-medium text-[14px]">Daily email digest</span>
-                <p className="text-xs text-neutral-500 leading-relaxed">One email each morning summarizing yesterday's counts, variances, and disputes.</p>
+                <p className="text-xs text-muted leading-relaxed">One email each morning summarizing yesterday's counts, variances, and disputes.</p>
               </label>
             </div>
             <div>
@@ -375,7 +375,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               </select>
             </div>
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-xs text-neutral-500">
+              <span className="text-xs text-muted">
                 Last sent: <b className="font-mono">{vendor.digest?.lastSentDate || "never"}</b>
               </span>
               {isOwner && (
@@ -388,7 +388,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
           {isOwner
             ? <button className="btn-primary" onClick={saveSettings}>Save settings</button>
-            : <p className="text-[13px] text-neutral-400 italic">Only the owner can change these settings.</p>}
+            : <p className="text-[13px] text-faint italic">Only the owner can change these settings.</p>}
         </div>
       </div>
 

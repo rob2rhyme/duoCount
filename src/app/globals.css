@@ -2,13 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
-body { background: #f6f4ee; color: #1a1c2e; }
+/* Theme tokens. Every surface/border/text color in the app resolves through
+   one of these variables, so flipping the `.dark` class on <html> re-themes
+   the whole product. Fixed brand colors (ink/paper/brass) live in the Tailwind
+   config; anything that should shift by theme lives here. */
+:root {
+  color-scheme: light;
+  --bg: #f6f4ee;
+  --surface: #ffffff;
+  --panel: #faf8f2;
+  --subtle: #edeae1;
+  --field: #fdfcf9;
+  --line: #dcd8cc;
+  --line-soft: #e6e2d8;
+  --highlight: #fbf6ec;
+  --fg: #1a1c2e;
+  --muted: #6d6a61;
+  --faint: #9b978c;
+  --gold: #8a6428;
+  --btn-bg: #1a1c2e;
+  --btn-fg: #f6f4ee;
+  /* Chart ink — read by Recharts through the ThemeProvider, not CSS. */
+}
 
-.card { @apply bg-white border border-[#dcd8cc] rounded-2xl shadow-sm; }
-.label { @apply block text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-1.5; }
-.input { @apply w-full px-3 py-2.5 border border-[#dcd8cc] rounded-lg bg-[#fdfcf9] outline-none focus:border-brass focus:ring-2 focus:ring-brass/20 transition; }
+.dark {
+  color-scheme: dark;
+  --bg: #13141b;
+  --surface: #1d1f28;
+  --panel: #23252f;
+  --subtle: #2c2f3a;
+  --field: #191b22;
+  --line: #343643;
+  --line-soft: #2b2d37;
+  --highlight: #2c2618;
+  --fg: #e9e8ee;
+  --muted: #9a9ba7;
+  --faint: #6b6d78;
+  --gold: #dcbb79;
+  --btn-bg: #e9e8ee;
+  --btn-fg: #14151c;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.card { @apply rounded-2xl shadow-sm; background: var(--surface); border: 1px solid var(--line); }
+.label { @apply block text-xs font-semibold uppercase tracking-wide mb-1.5; color: var(--muted); }
+.input { @apply w-full px-3 py-2.5 rounded-lg outline-none transition border; background: var(--field); color: var(--fg); border-color: var(--line); }
+.input::placeholder { color: var(--faint); }
+.input:focus { @apply ring-2 ring-brass/20; border-color: #b8863b; }
 .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition active:scale-[.98]; }
-.btn-primary { @apply btn bg-ink text-paper w-full; }
-.btn-ghost { @apply btn bg-[#f1efe8] text-ink border border-[#dcd8cc]; }
+.btn-primary { @apply btn w-full; background: var(--btn-bg); color: var(--btn-fg); }
+.btn-ghost { @apply btn border; background: var(--subtle); color: var(--fg); border-color: var(--line); }
 .pill { @apply inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full; }
