@@ -21,8 +21,10 @@ module.exports = {
         highlight: "var(--highlight)", // gold-tinted accent surfaces
         fg: "var(--fg)",             // primary text
         muted: "var(--muted)",       // secondary text
-        faint: "var(--faint)",       // tertiary text / hints
+        faint: "var(--faint)",       // tertiary text / hints (placeholders)
         gold: "var(--gold)",         // gold accent text (adapts per theme)
+        pos: "var(--pos)",           // positive/over inline status text (AA in both themes)
+        neg: "var(--neg)",           // negative/short/error inline status text (AA in both themes)
       },
       fontFamily: {
         mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],

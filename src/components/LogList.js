@@ -5,6 +5,7 @@ import {
 } from "@/lib/data";
 import { money, toDate, exportCSV } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import EmptyState, { IconReceipt } from "./EmptyState";
 
 export const CAUSE_CODES = [
   ["human-error", "Human error"],
@@ -142,7 +143,7 @@ function EntryDetail({ e, onToast }) {
           {comments.map((c) => {
             const t = toDate(c.ts);
             return c.kind === "status" ? (
-              <div key={c.id} className="text-xs text-faint italic">
+              <div key={c.id} className="text-xs text-muted italic">
                 — {c.text} · {t ? t.toLocaleDateString() : ""}
               </div>
             ) : (
@@ -234,7 +235,14 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
 
       <div className="card overflow-hidden">
         {rows.length === 0 ? (
-          <div className="text-center py-12 px-5 text-muted">No entries match. Saved counts show up here for your team.</div>
+          entries.length === 0 ? (
+            <EmptyState icon={<IconReceipt />} title="No counts logged yet"
+              subtitle="Saved cash, scratch-off, and inventory counts show up here for your whole team — newest first." />
+          ) : (
+            <EmptyState icon={<IconReceipt />} title="No entries match these filters"
+              subtitle="Try a different type, status, or person — or clear the filters to see everything."
+              action={{ label: "Clear filters", onClick: () => { setFType("all"); setFStatus("all"); setFWho("all"); setFDrawer("all"); } }} />
+          )
         ) : rows.map((e) => {
           const t = toDate(e.ts);
           const stamp = `${e.by} · ${t ? t.toLocaleDateString() : "…"} ${t ? t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`;
@@ -244,7 +252,7 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
             ? <span className="pill bg-highlight text-gold border border-brass/30">{e.drawerName}</span> : null;
           const statusChips = (
             <>
-              {e.varianceStatus === "open" && <span className="pill bg-red-100 text-red-600 font-semibold">Needs review</span>}
+              {e.varianceStatus === "open" && <span className="pill bg-red-100 text-red-700 font-semibold">Needs review</span>}
               {e.varianceStatus === "under-review" && <span className="pill bg-amber-100 text-amber-700 font-semibold">Under review</span>}
               {e.varianceStatus === "resolved" && e.causeCode && <span className="pill bg-subtle text-muted">Resolved · {causeLabel(e.causeCode)}</span>}
               {["open", "under-review"].includes(e.disputeStatus) && <span className="pill bg-purple-100 text-purple-700 font-semibold">Disputed</span>}
@@ -265,7 +273,7 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                           ? <span className="pill bg-subtle text-muted">Balanced</span>
                           : e.diff > 0
                             ? <span className="pill bg-green-100 text-green-700">Over {money(e.diff)}</span>
-                            : <span className="pill bg-red-100 text-red-600">Short {money(Math.abs(e.diff))}</span>}
+                            : <span className="pill bg-red-100 text-red-700">Short {money(Math.abs(e.diff))}</span>}
                         {statusChips}{locChip}
                       </div>
                     </>
@@ -278,7 +286,7 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                           ? <span className="pill bg-subtle text-muted">Exact count</span>
                           : e.diff > 0
                             ? <span className="pill bg-green-100 text-green-700">Over {e.diff}</span>
-                            : <span className="pill bg-red-100 text-red-600">Missing {Math.abs(e.diff)}</span>}
+                            : <span className="pill bg-red-100 text-red-700">Missing {Math.abs(e.diff)}</span>}
                         <span className="pill bg-highlight text-gold border border-brass/30">{e.unit || "unit"}s</span>
                         {statusChips}{locChip}
                       </div>
@@ -305,11 +313,11 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
               </div>
               <div className="mt-2.5 pt-2.5 border-t border-dashed border-line flex items-center gap-3 flex-wrap">
                 {e.verifiedBy ? (
-                  <span className="text-[13px] text-green-700 font-semibold">✓ Verified by {e.verifiedBy}</span>
+                  <span className="text-[13px] text-pos font-semibold">✓ Verified by {e.verifiedBy}</span>
                 ) : isManager && e.byId !== profile.id ? (
                   <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => doVerify(e)}>Verify count</button>
                 ) : (
-                  <span className="text-[13px] text-faint italic">Awaiting manager verification</span>
+                  <span className="text-[13px] text-muted italic">Awaiting manager verification</span>
                 )}
                 <button className="btn-ghost text-[13px] px-3 py-1.5 ml-auto"
                   onClick={() => setExpandedId(expanded ? null : e.id)}>

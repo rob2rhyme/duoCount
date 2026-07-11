@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addIncident, ackIncident, closeIncident, watchStaff } from "@/lib/data";
 import { toDate } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import EmptyState, { IconShield } from "./EmptyState";
 
 const CATEGORIES = [
   ["cash-handling", "Cash handling"],
@@ -20,11 +21,11 @@ const SEVERITIES = [
 ];
 
 const sevPill = (s) =>
-  s === "serious" ? "bg-red-100 text-red-600"
+  s === "serious" ? "bg-red-100 text-red-700"
   : s === "warning" ? "bg-highlight text-gold border border-brass/30"
   : "bg-subtle text-muted";
 const statusPill = (s) =>
-  s === "open" ? "bg-red-100 text-red-600"
+  s === "open" ? "bg-red-100 text-red-700"
   : s === "acknowledged" ? "bg-highlight text-gold border border-brass/30"
   : "bg-subtle text-muted";
 
@@ -53,6 +54,7 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
   const [busy, setBusy] = useState(false);
   const [ackFor, setAckFor] = useState(null); // incident id with the ack composer open
   const [ackText, setAckText] = useState("");
+  const titleRef = useRef(null);
 
   useEffect(() => {
     if (isManager) return watchStaff(vendor.id, setStaff);
@@ -116,7 +118,7 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
           </div>
           <div className="p-4 space-y-3">
             <div><label className="label">Title</label>
-              <input className="input" maxLength={120} value={f.title}
+              <input ref={titleRef} className="input" maxLength={120} value={f.title}
                 placeholder="e.g. Till left unlocked during break"
                 onChange={(e) => setF({ ...f, title: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
@@ -166,9 +168,14 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
 
       <div className="card overflow-hidden">
         {visible.length === 0 ? (
-          <div className="text-center py-12 px-5 text-muted">
-            {isManager ? "No incidents on file." : "Nothing on file."}
-          </div>
+          isManager ? (
+            <EmptyState icon={<IconShield />} title="No incidents on file"
+              subtitle="A clean record. If something needs documenting, file a signed write-up above — it can't be edited after filing."
+              action={{ label: "File an incident", onClick: () => titleRef.current?.focus() }} />
+          ) : (
+            <EmptyState icon={<IconShield />} title="Nothing on file"
+              subtitle="Write-ups that concern you would appear here. There's nothing to acknowledge right now." />
+          )
         ) : visible.map((inc) => (
           <div key={inc.id} className="px-4 py-3.5 border-b border-line last:border-0">
             <div className="flex justify-between items-start gap-3">

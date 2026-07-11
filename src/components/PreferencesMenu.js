@@ -81,7 +81,7 @@ export default function PreferencesMenu({ onSignOut }) {
           {onSignOut && (
             <div className="pt-2.5 border-t border-line">
               <button type="button" role="menuitem" onClick={() => { setOpen(false); onSignOut(); }}
-                className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-red-600 hover:bg-subtle transition">
+                className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-neg hover:bg-subtle transition">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M12 2v10" />
                   <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />

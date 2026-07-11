@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addNote, updateNote } from "@/lib/data";
 import { toDate } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import EmptyState, { IconNote } from "./EmptyState";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -11,6 +12,8 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
 
   const [text, setText] = useState("");
+  const composerRef = useRef(null);
+  const focusComposer = () => composerRef.current?.focus();
   const [f, setF] = useState({ locationId: "", shift: "" });
   const [viewLoc, setViewLoc] = useState("all");
   const [busy, setBusy] = useState(false);
@@ -59,7 +62,7 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
           <p className="text-[13px] text-muted mt-0.5">The counter notebook, digitized — printer jams, IOUs, till swaps. Notes can't be edited after posting.</p>
         </div>
         <div className="p-4 space-y-3">
-          <textarea className="input min-h-[76px]" maxLength={2000} value={text}
+          <textarea ref={composerRef} className="input min-h-[76px]" maxLength={2000} value={text}
             placeholder="Leave a note for the next shift…"
             onChange={(e) => setText(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
@@ -100,7 +103,9 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
       {/* feed */}
       <div className="card overflow-hidden">
         {visible.length === 0 ? (
-          <div className="text-center py-12 px-5 text-muted">No notes yet. Anything the next shift should know goes here.</div>
+          <EmptyState icon={<IconNote />} title="No notes yet"
+            subtitle="The counter notebook, digitized — printer jams, IOUs, till swaps. Anything the next shift should know goes here."
+            action={{ label: "Write a note", onClick: focusComposer }} />
         ) : visible.map((n) => {
           const t = toDate(n.ts);
           return (
@@ -114,7 +119,7 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
                     </span>
                     {n.locationName && <span className="pill bg-subtle text-muted">{n.locationName}</span>}
                     {n.shift && <span className="pill bg-highlight text-gold border border-brass/30">{n.shift === "open" ? "Opening" : "Closing"}</span>}
-                    {n.active === false && <span className="pill bg-red-100 text-red-600">Archived</span>}
+                    {n.active === false && <span className="pill bg-red-100 text-red-700">Archived</span>}
                   </div>
                 </div>
                 {isManager && (

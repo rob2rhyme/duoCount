@@ -152,7 +152,7 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
                 <div className="text-[13px] text-muted">
                   {p.locationName} · {money(p.price)} × {p.ticketCount} = {money(value)}
                   {p.status === "settled"
-                    ? <> · settled by {p.settledBy}: {p.soldAtSettle}/{p.ticketCount} sold{p.shortAtSettle > 0 && <b className="text-red-600"> — {p.shortAtSettle} unaccounted</b>}</>
+                    ? <> · settled by {p.settledBy}: {p.soldAtSettle}/{p.ticketCount} sold{p.shortAtSettle > 0 && <b className="text-neg"> — {p.shortAtSettle} unaccounted</b>}</>
                     : p.status === "returned"
                       ? <> · returned by {p.returnedBy}{p.returnNote ? ` — ${p.returnNote}` : ""}</>
                       : <> · {sold} sold so far</>}

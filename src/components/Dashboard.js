@@ -9,6 +9,7 @@ import { detectPatterns } from "@/lib/patterns";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
 import ReportModal from "./ReportModal";
+import EmptyState, { IconChart } from "./EmptyState";
 
 // Recharts paints SVG with literal color strings (CSS vars aren't reliable on
 // SVG presentation attributes), so the chart palette is resolved from the
@@ -19,7 +20,7 @@ const CHART = {
 };
 
 function Stat({ label, value, tone }) {
-  const color = tone === "neg" ? "text-red-600" : tone === "pos" ? "text-green-700" : "text-fg";
+  const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : "text-fg";
   return (
     <div className="card p-4">
       <div className={`text-2xl font-bold font-mono ${color}`}>{value}</div>
@@ -28,7 +29,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "â€”", onOpenLog, onToast }) {
+export default function Dashboard({ entries, locations = [], locName = () => "â€”", onOpenLog, onRecord, onToast }) {
   const { isManager } = useSession();
   const { theme } = useTheme();
   const ch = CHART[theme] || CHART.light;
@@ -139,7 +140,11 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     return (
       <div className="space-y-4">
         {reportButton}
-        <div className="card text-center py-14 text-muted">No activity yet. Once counts are logged, analytics appear here.</div>
+        <div className="card">
+          <EmptyState icon={<IconChart />} title="No activity yet"
+            subtitle="Once counts are logged, your variance, sales, and attention analytics appear here â€” with an end-of-day report."
+            action={onRecord ? { label: "Record a count", onClick: onRecord } : undefined} />
+        </div>
         {reportModal}
       </div>
     );
@@ -168,7 +173,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
           </div>
           {patterns.map((p) => (
             <div key={p.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3">
-              <span className={`pill flex-shrink-0 mt-0.5 ${p.severity === "high" ? "bg-red-100 text-red-600" : "bg-highlight text-gold border border-brass/30"}`}>
+              <span className={`pill flex-shrink-0 mt-0.5 ${p.severity === "high" ? "bg-red-100 text-red-700" : "bg-highlight text-gold border border-brass/30"}`}>
                 {p.severity === "high" ? "High" : "Watch"}
               </span>
               <div className="min-w-0">
@@ -192,7 +197,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
             return (
               <div key={e.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3 cursor-pointer hover:bg-panel"
                 onClick={onOpenLog}>
-                <span className={`pill flex-shrink-0 mt-0.5 ${why === "Unverified > 24h" ? "bg-subtle text-muted" : "bg-red-100 text-red-600"}`}>{why}</span>
+                <span className={`pill flex-shrink-0 mt-0.5 ${why === "Unverified > 24h" ? "bg-subtle text-muted" : "bg-red-100 text-red-700"}`}>{why}</span>
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate">{label}</div>
                   <div className="text-[12px] text-muted font-mono truncate">{e.by} Â· {t ? t.toLocaleDateString() : ""}</div>
@@ -274,7 +279,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
                 <tr key={r.name} className="border-t border-line">
                   <td className="px-4 py-2.5 font-medium">{r.name}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
-                  <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-red-600" : r.diff > 0.005 ? "text-green-700" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
+                  <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-neg" : r.diff > 0.005 ? "text-pos" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{money(r.cash)}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>
                 </tr>
@@ -298,10 +303,10 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
               <tbody>
                 {a.itemRows.map((r) => (
                   <tr key={r.name} className="border-t border-line">
-                    <td className="px-4 py-2.5 font-medium">{r.name} <span className="text-faint text-xs">({r.unit}s)</span></td>
+                    <td className="px-4 py-2.5 font-medium">{r.name} <span className="text-muted text-xs">({r.unit}s)</span></td>
                     <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
-                    <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < 0 ? "text-red-600" : r.diff > 0 ? "text-green-700" : ""}`}>{r.diff >= 0 ? "+" : ""}{r.diff}</td>
-                    <td className={`px-4 py-2.5 text-right font-mono ${r.missing ? "text-red-600" : ""}`}>{r.missing}</td>
+                    <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < 0 ? "text-neg" : r.diff > 0 ? "text-pos" : ""}`}>{r.diff >= 0 ? "+" : ""}{r.diff}</td>
+                    <td className={`px-4 py-2.5 text-right font-mono ${r.missing ? "text-neg" : ""}`}>{r.missing}</td>
                   </tr>
                 ))}
               </tbody>
@@ -326,8 +331,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
                 <tr key={r.name} className="border-t border-line">
                   <td className="px-4 py-2.5 font-medium">{r.name}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
-                  <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-red-600" : r.diff > 0.005 ? "text-green-700" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
-                  <td className={`px-4 py-2.5 text-right font-mono ${r.shorts ? "text-red-600" : ""}`}>{r.shorts}</td>
+                  <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-neg" : r.diff > 0.005 ? "text-pos" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
+                  <td className={`px-4 py-2.5 text-right font-mono ${r.shorts ? "text-neg" : ""}`}>{r.shorts}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>
                 </tr>
               ))}

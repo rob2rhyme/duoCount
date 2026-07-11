@@ -132,11 +132,11 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
           <div className="bg-panel px-3.5 py-3">
             <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Tickets sold</div>
-            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-green-700" : "text-fg"}`}>{sold}</div>
+            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-pos" : "text-fg"}`}>{sold}</div>
           </div>
           <div className="bg-panel px-3.5 py-3">
             <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Dollars sold</div>
-            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-green-700" : "text-fg"}`}>{money(dollars)}</div>
+            <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-pos" : "text-fg"}`}>{money(dollars)}</div>
           </div>
         </div>
 

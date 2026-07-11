@@ -185,7 +185,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                   <div className="font-medium flex items-center gap-2">
                     {u.name}
                     {isMe && <span className="pill bg-subtle text-muted">You</span>}
-                    {!active && <span className="pill bg-red-100 text-red-600">Inactive</span>}
+                    {!active && <span className="pill bg-red-100 text-red-700">Inactive</span>}
                   </div>
                   <div className="text-[13px] text-muted">{locName(u.locationId)}</div>
                 </div>
@@ -227,7 +227,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
           <div key={l.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="font-medium flex items-center gap-2">
               {l.name}
-              {l.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
+              {l.active === false && <span className="pill bg-red-100 text-red-700">Inactive</span>}
             </div>
             <button className="btn-ghost text-[13px] px-3 py-1.5"
               onClick={() => updateLocation(vendor.id, l.id, { active: !(l.active !== false) }).then(() => onToast?.("Updated")).catch(() => onToast?.("Failed"))}>
@@ -258,7 +258,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
             <div className="min-w-0">
               <div className="font-medium flex items-center gap-2">
                 {d.name}
-                {d.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
+                {d.active === false && <span className="pill bg-red-100 text-red-700">Inactive</span>}
               </div>
               <div className="text-[13px] text-muted">{locName(d.locationId)}</div>
             </div>
@@ -311,7 +311,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               <div className="font-medium flex items-center gap-2">
                 {it.name}
                 {it.category && <span className="pill bg-subtle text-muted">{it.category}</span>}
-                {it.active === false && <span className="pill bg-red-100 text-red-600">Inactive</span>}
+                {it.active === false && <span className="pill bg-red-100 text-red-700">Inactive</span>}
               </div>
               <div className="text-[13px] text-muted">
                 {locName(it.locationId)} · counted in {it.unit || "unit"}s
@@ -412,7 +412,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
           {isOwner
             ? <button className="btn-primary" onClick={saveSettings}>Save settings</button>
-            : <p className="text-[13px] text-faint italic">Only the owner can change these settings.</p>}
+            : <p className="text-[13px] text-muted italic">Only the owner can change these settings.</p>}
         </div>
       </div>
 
