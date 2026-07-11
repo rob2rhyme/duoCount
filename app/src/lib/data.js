@@ -168,6 +168,35 @@ export function watchComments(vendorId, entryId, cb) {
     (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
+/* ---------- tier two: incidents (write-ups) ---------- */
+// selfId: pass the viewer's user id for employees — the rules only let them
+// read incidents where they are the subject, so the query must match.
+export function watchIncidents(vendorId, selfId, cb) {
+  const base = vcol(vendorId, "incidents");
+  const q = selfId
+    ? query(base, where("subjectId", "==", selfId), orderBy("ts", "desc"))
+    : query(base, orderBy("ts", "desc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addIncident(vendorId, incident) {
+  await addDoc(vcol(vendorId, "incidents"), {
+    ...incident, status: "open",
+    ackAt: null, ackNote: null, closedBy: null, closedAt: null, ts: new Date(),
+  });
+}
+// Subject-only, once, while open (enforced by rules).
+export async function ackIncident(vendorId, id, note) {
+  await updateDoc(doc(db, "vendors", vendorId, "incidents", id), {
+    status: "acknowledged", ackAt: new Date(),
+    ackNote: (note || "").trim().slice(0, 1000) || null,
+  });
+}
+export async function closeIncident(vendorId, id, managerName) {
+  await updateDoc(doc(db, "vendors", vendorId, "incidents", id), {
+    status: "closed", closedBy: managerName, closedAt: new Date(),
+  });
+}
+
 /* ---------- tier one: shift notes ---------- */
 export function watchNotes(vendorId, lockedLocationId, cb) {
   const base = vcol(vendorId, "notes");

@@ -10,6 +10,8 @@ inventory tracking for retail teams.
 - `docs/` — product documentation:
   - `app-summary-spec.md` — plain-English overview of the whole product
   - `tier-one-build-spec.md` — spec for the tier-one trust features (now built)
+  - `tier-two-build-spec.md` — spec for incidents, pattern alerts, and login
+    rate limiting (now built)
   - `inventory-tracker-spec.md` — spec for the inventory feature (now built)
   - `barcode-scanning-spec.md` — spec for camera scanning (now built)
   - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (now built)
@@ -27,8 +29,11 @@ dashboard, CSV export, countersigned inventory counts per
 dispute threads, shift notes, an end-of-day PDF report, and a daily email
 digest (Vercel cron + Resend). Camera barcode scanning (items and
 scratch packs, with last-count prefill) per `docs/barcode-scanning-spec.md`,
-and the scratch-off pack lifecycle (receive/activate/settle/return with
-settle-time shrink snapshots) per `docs/lottery-pack-lifecycle-spec.md`.
+the scratch-off pack lifecycle (receive/activate/settle/return with
+settle-time shrink snapshots) per `docs/lottery-pack-lifecycle-spec.md`, and
+the tier-two features per `docs/tier-two-build-spec.md`: incident write-ups
+with employee acknowledgment, pattern-detection alerts on the dashboard and
+in the digest, and login rate limiting.
 
 The full-catalog inventory application that previously lived in this repo
 (products, expiry dates, suppliers, barcode scanning) is preserved in git

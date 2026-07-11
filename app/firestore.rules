@@ -168,6 +168,59 @@ service cloud.firestore {
         }
       }
 
+      // Incident write-ups are personnel records, so visibility is narrower
+      // than entries: managers see all, the subject sees their own, coworkers
+      // never see each other's. Text is immutable; the only lifecycle moves
+      // are the subject's one-time acknowledgment and a manager close.
+      match /incidents/{incidentId} {
+        allow read: if mgr()
+          || (member() && resource.data.subjectId == request.auth.token.userId);
+
+        allow create: if mgr()
+          && request.resource.data.by == request.auth.token.name
+          && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 4000
+          && request.resource.data.severity in ['note', 'warning', 'serious']
+          && request.resource.data.status == 'open'
+          && request.resource.data.ackAt == null
+          && request.resource.data.ackNote == null
+          && request.resource.data.closedBy == null
+          && request.resource.data.links is list
+          && request.resource.data.links.size() <= 5;
+
+        // "I have seen this" — subject only, once, while open; the optional
+        // note is the employee's side, permanent like everything else.
+        function ackOwn() {
+          return member()
+            && resource.data.subjectId == request.auth.token.userId
+            && resource.data.status == 'open'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'ackAt', 'ackNote'])
+            && request.resource.data.status == 'acknowledged'
+            && (request.resource.data.ackNote == null
+                || request.resource.data.ackNote.size() <= 1000);
+        }
+
+        // Closing an unacknowledged incident is allowed (the subject may
+        // refuse, or may no longer work there).
+        function closeIncident() {
+          return mgr()
+            && resource.data.status in ['open', 'acknowledged']
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'closedBy', 'closedAt'])
+            && request.resource.data.status == 'closed'
+            && request.resource.data.closedBy == request.auth.token.name;
+        }
+
+        allow update: if ackOwn() || closeIncident();
+        allow delete: if false;
+      }
+
       // Shift notes — the digital counter notebook. Visibility mirrors entries;
       // text is immutable; managers may pin/archive.
       match /notes/{noteId} {

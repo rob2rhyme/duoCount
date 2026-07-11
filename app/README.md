@@ -98,6 +98,29 @@ Standard Next.js — Vercel works out of the box. Add all the env vars from
   Requires env vars: `RESEND_API_KEY`, `DIGEST_FROM`, `CRON_SECRET`
   (and optional `APP_URL`) — see `.env.local.example`.
 
+## Tier two: incidents, patterns & hardening
+
+- **Incident write-ups** (see `../docs/tier-two-build-spec.md`): managers file
+  signed, permanent incidents (title, category, severity, narrative, optional
+  evidence links to camera clips or photos) on the Incidents tab, optionally
+  concerning a specific staff member. Visibility is deliberately narrower than
+  entries: managers see all, the subject sees their own, coworkers never see
+  each other's. The subject acknowledges once ("I've seen this", not "I
+  agree") with an optional response that lands on the same permanent record;
+  managers close. No edits, no deletes — enforced by rules.
+- **Pattern alerts**: a pure detector (`src/lib/patterns.js`) scans the entry
+  log for recurring signals — one person short 3+ times in 14 days, one
+  drawer short under multiple hands (process, not person), a 48-hour
+  verification backlog, an item that keeps counting short. Alerts appear on a
+  manager-only Dashboard card and in the daily digest, framed as
+  "signals worth a look — not conclusions". Thresholds live in
+  `PATTERN_RULES`; there is no stored state and employees never see them.
+- **Login rate limiting**: the login route throttles failed attempts —
+  10 per 15 minutes per client IP — before any credential work runs, using a
+  top-level `loginAttempts` collection only the Admin SDK can touch. A
+  successful login clears the counter (staff share the shop Wi-Fi IP).
+  Optional cleanup: add a Firestore TTL policy on `windowStart`.
+
 ## Barcode scanning
 
 The phone camera the app already runs on doubles as the scanner (see
@@ -114,14 +137,22 @@ initial bundle. Camera use requires HTTPS (or localhost) plus permission.
 ## Testing the security rules
 
 The rules are the product's trust boundary, so they have an executable test
-suite (`tests/rules.test.mjs`, 27 tests): tenant isolation, per-location
+suite (`tests/rules.test.mjs`, 32 tests): tenant isolation, per-location
 visibility for entries/comments/notes, the five mutually exclusive entry
 update branches (verify / investigate / dispute-open / dispute-manage /
 comment bump), clean-create guards, the owner settings whitelist, item
-lifecycle, and the forward-only pack lifecycle. Run them against the local Firestore emulator (needs Java):
+lifecycle, the forward-only pack lifecycle, and the incident lifecycle
+(subject-only visibility and acknowledgment, manager close, immutable text).
+Run them against the local Firestore emulator (needs Java):
 
 ```bash
 npm run test:rules
+```
+
+The pattern detectors are pure functions with their own suite (no emulator):
+
+```bash
+npm run test:patterns
 ```
 
 ## Scratch-off pack lifecycle
@@ -150,8 +181,11 @@ number. The registry is optional — free-text pack counting still works.
 - Role or location changes take effect at the target user's next sign-in,
   because rules read the auth token's claims (issued at login).
 - The digest cron route rejects requests without `Bearer ${CRON_SECRET}`.
-- Rate limiting login attempts is a sensible next step before wide rollout
-  (e.g. by IP or store code in the login route).
+- Login attempts are rate limited: 10 failures per 15 minutes per IP, checked
+  before any credential work. Deeper hardening (per-user lockout, 6-digit
+  PIN default) is a tier-3 option in `../docs/tier-two-build-spec.md` §7.
+- Incident write-ups are subject-visible only (plus managers); coworkers can
+  never read each other's, in either sharing mode.
 
 ## Data model
 
@@ -169,4 +203,9 @@ vendors/{vendorId}            name, slug (store code), logoUrl, sharingMode
                               by, byId, verifiedBy, ts; cash/scratch carry
                               drawerId/drawerName, inventory carries
                               itemId/itemName/unit and the count fields
+  incidents/{id}              signed write-up — title, text, category,
+                              severity, subjectId/subjectName (null = general),
+                              evidence links, open -> acknowledged -> closed
+                              with ack note; immutable text, no deletes
+loginAttempts/{ip}            server-only failed-login counters (rate limiting)
 ```

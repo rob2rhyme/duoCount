@@ -5,6 +5,7 @@ import {
   Tooltip, CartesianGrid, Cell,
 } from "recharts";
 import { money, toDate } from "@/lib/utils";
+import { detectPatterns } from "@/lib/patterns";
 import { useSession } from "./SessionProvider";
 import ReportModal from "./ReportModal";
 
@@ -21,6 +22,9 @@ function Stat({ label, value, tone }) {
 export default function Dashboard({ entries, locations = [], locName = () => "—", onOpenLog, onToast }) {
   const { isManager } = useSession();
   const [reportOpen, setReportOpen] = useState(false);
+  // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink
+  // streaks) — manager-facing only, so employees never see them computed.
+  const patterns = useMemo(() => (isManager ? detectPatterns(entries) : []), [entries, isManager]);
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
     const scratch = entries.filter((e) => e.kind === "scratch");
@@ -143,6 +147,26 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
         <Stat label="Open disputes" value={a.openDisputes} tone={a.openDisputes ? "neg" : null} />
         <Stat label="Unverified" value={a.unverified} tone={null} />
       </div>
+
+      {isManager && patterns.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-[#dcd8cc]">
+            <h3 className="font-semibold text-[15px]">Patterns</h3>
+            <p className="text-[12px] text-neutral-500 mt-0.5">Signals worth a look — not conclusions.</p>
+          </div>
+          {patterns.map((p) => (
+            <div key={p.id} className="px-4 py-2.5 border-b border-[#dcd8cc] last:border-0 flex items-start gap-3">
+              <span className={`pill flex-shrink-0 mt-0.5 ${p.severity === "high" ? "bg-red-100 text-red-600" : "bg-[#fbf6ec] text-brass-dk border border-brass/30"}`}>
+                {p.severity === "high" ? "High" : "Watch"}
+              </span>
+              <div className="min-w-0">
+                <div className="font-medium text-sm">{p.title}</div>
+                <div className="text-[12px] text-neutral-500">{p.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {a.attention.length > 0 && (
         <div className="card overflow-hidden">
