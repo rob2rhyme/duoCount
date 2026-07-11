@@ -27,6 +27,8 @@ security rules keyed on server-issued auth claims.
     respects the append-only trust rules)
   - `pwa-spec.md` — installable mobile-first PWA (offline app shell, safe-area,
     install prompt)
+  - `distribution-analysis.md` — AI integration, static-HTML, WordPress, and
+    other packaging paths, with effort/trade-offs/recommendations
   - `roadmap.md` — what's shipped, what's next (PWA, distribution analysis,
     audits), and what's deferred
   - `positioning-one-pager.md` — market positioning, competitors, pricing

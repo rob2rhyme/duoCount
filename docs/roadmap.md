@@ -16,6 +16,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Mobile layout audit + polish** (all 8 screens, both themes, 390px) | this file, §"Layout audit" | ✅ |
 | **Demo data seed** (owner-only load/clear of tagged sample data) | `demo-data-spec.md` | ✅ |
 | **Mobile-first PWA** (installable, offline app shell, safe-area, install prompt) | `pwa-spec.md` | ✅ |
+| **Distribution / AI-integration analysis** | `distribution-analysis.md` | ✅ |
 
 ## Next up
 
@@ -52,16 +53,13 @@ Keep docs true to the code as features land.
 ### 4. Layout + feature-enhancement pass — ✅ done (this cycle)
 See §"Layout audit" below for the result and the enhancement backlog it produced.
 
-### 5. Distribution / versioning analysis
-Decide how DuoCount reaches more buyers beyond the hosted Next.js app.
-- **Acceptance:** a written analysis (`docs/distribution-analysis.md`) covering:
-  (a) **AI integration** — where an LLM adds real value (e.g. natural-language
-  log search, variance-explanation drafting, digest summarization, anomaly
-  narratives) and how it'd be built on the Anthropic API, with cost/privacy
-  notes; (b) a **static HTML** recreation (marketing/demo build with no backend);
-  (c) a **WordPress** version/plugin path; (d) other packagings (Envato/
-  ThemeForest, native shell). Each with effort, trade-offs, and a recommendation.
-  Analysis only — no build in this item.
+### 5. Distribution / versioning analysis — ✅ done (this cycle)
+Written analysis in `distribution-analysis.md` covering AI integration (where an
+LLM adds value + how to build it on the Anthropic API, with cost/privacy notes),
+a static-HTML build, WordPress paths, and other packagings — each with effort,
+trade-offs, and a recommendation. Headline: the **self-host template** is the
+strongest distribution channel; the **opt-in digest narrative** is the
+best-value AI feature at negligible cost, gated on a per-vendor privacy opt-in.
 
 ### 6. Mobile-first PWA — ✅ done (this cycle)
 Installable + offline app shell + safe-area + install prompt. See `pwa-spec.md`.
