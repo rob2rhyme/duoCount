@@ -32,6 +32,27 @@ a dropped connection.
   captured (not shown as the default infobar) and surfaced as an **Install app**
   action in the header Preferences menu, shown only when the browser offers it
   and hidden once installed.
+- **Native-app feel** (`globals.css`): mobile chrome that makes a web app read
+  as native —
+  - **No focus-zoom on text entry.** iOS Safari zooms the whole page when a
+    focused field's font resolves under 16 px. The compact controls
+    (`.input.text-sm`, `.input.text-[13px]` — the small selects, log filters and
+    the incident textarea) are lifted to 16 px **only on touch devices**
+    (`@media (pointer: coarse)`), so tapping into a field never zooms. This is
+    done *without* `maximum-scale=1`, so pinch-zoom stays available for
+    accessibility. The large PIN inputs (`text-2xl`) keep their size.
+  - **No tap flash / double-tap delay** (`-webkit-tap-highlight-color:
+    transparent`, `touch-action: manipulation` on buttons/links/selects).
+  - **No rubber-band overscroll** (`overscroll-behavior: none`) so the standalone
+    app doesn't pull-to-refresh or bounce like a web page.
+  - **No text auto-inflation on rotate** (`text-size-adjust: 100%`).
+  - Interactive chrome opts out of long-press selection + the iOS callout
+    (`user-select: none`, `-webkit-touch-callout: none`); body text and amounts
+    stay selectable so codes can still be copied.
+- **Footer** (`components/AppShell.js`): a theme-aware footer with the brand mark
+  and tagline ("Every count, countersigned"), the paper backup forms as
+  pill-shaped ghost chips, a top divider, and `pb-safe` so it clears the home
+  indicator in standalone mode.
 
 ## Verification
 
@@ -45,6 +66,9 @@ Against a production build (`next start`), driven by Playwright:
 - **Offline fallback:** navigating to an uncached path offline serves
   `offline.html` (HTTP 200, branded "You're offline") rather than the browser
   error.
+- **No focus-zoom:** under touch emulation (`pointer: coarse`) the compact
+  `.input.text-sm` / `.input.text-[13px]` fields compute to 16 px in both themes
+  while the PIN input stays at 24 px — asserted against the real compiled CSS.
 
 ## Build note (icons)
 

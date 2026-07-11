@@ -17,6 +17,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Demo data seed** (owner-only load/clear of tagged sample data) | `demo-data-spec.md` | ✅ |
 | **Mobile-first PWA** (installable, offline app shell, safe-area, install prompt) | `pwa-spec.md` | ✅ |
 | **Distribution / AI-integration analysis** | `distribution-analysis.md` | ✅ |
+| **Mobile native-feel + branded footer** (no focus-zoom on text entry, no tap-flash/overscroll, redesigned footer) | `pwa-spec.md`, `ui-enhancements-spec.md` §5–6 | ✅ |
 
 ## Next up
 

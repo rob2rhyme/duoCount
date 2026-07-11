@@ -64,4 +64,24 @@ body {
    same element (e.g. a header's py-3). env() falls back to 0 off-device. */
 .pt-safe { padding-top: max(0.75rem, env(safe-area-inset-top)); }
 .px-safe { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
+.pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 .bottom-safe { bottom: max(1.25rem, env(safe-area-inset-bottom)); }
+
+/* Native-app feel: kill the mobile tap-flash and the double-tap-zoom delay,
+   stop iOS auto-inflating text on rotate, and suppress the standalone
+   pull-to-refresh / rubber-band overscroll so the app doesn't feel like a web
+   page. Body text and inputs stay selectable (so store codes and amounts can be
+   copied); only interactive chrome opts out of selection + the long-press callout. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html, body { overscroll-behavior: none; }
+body { -webkit-tap-highlight-color: transparent; }
+button, a, [role="button"], .btn, select { touch-action: manipulation; }
+button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* iOS zooms the entire page when a focused field's font is under 16px. Raise
+   only the compact fields on touch devices (the large PIN inputs keep their
+   size), so text entry never triggers a zoom — without disabling pinch-zoom. */
+@media (pointer: coarse) {
+  .input.text-sm,
+  .input.text-\[13px\] { font-size: 16px; }
+}
