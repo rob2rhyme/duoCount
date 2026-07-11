@@ -64,8 +64,19 @@ and two starter drawers: POS Cash Drawer and Lottery Cash Drawer.
 
 ## Deploying
 
-Standard Next.js — Vercel works out of the box. Add all the env vars from
-`.env.local` (including `FIREBASE_SERVICE_ACCOUNT_KEY`) to the project settings.
+Standard Next.js on Vercel. The app lives in the repo's `app/` subdirectory,
+and both project configurations work:
+
+- **Root Directory left at the repo root** (the default): the repo-root
+  `vercel.json` delegates the install/build into `app/` and registers the
+  digest cron.
+- **Root Directory set to `app`**: Vercel builds here directly and reads
+  this directory's `vercel.json` for the cron.
+
+Add all the env vars from `.env.local` (including
+`FIREBASE_SERVICE_ACCOUNT_KEY`) to the project settings — a build without
+them still succeeds (the Firebase client falls back to placeholders at
+build time), but nobody can sign in until the real values are set.
 
 ## Tier one: trust features
 
