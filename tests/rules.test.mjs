@@ -46,6 +46,18 @@ const incident = (over = {}) => ({
   ...over,
 });
 
+// a time-clock punch (owned by empA at their location)
+const punch = (over = {}) => ({
+  userId: "u-empA", userName: "Eve", locationId: "locA", locationName: "A",
+  type: "in", ts: new Date(), day: "2026-07-10", ...over,
+});
+// a rostered shift (owned by empA, created by the manager)
+const sched = (over = {}) => ({
+  userId: "u-empA", userName: "Eve", locationId: "locA", locationName: "A",
+  date: "2026-07-12", start: "09:00", end: "17:00",
+  by: "Mia", byId: "u-mgr", ts: new Date(), ...over,
+});
+
 before(async () => {
   const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080").split(":");
   env = await initializeTestEnvironment({
@@ -71,6 +83,12 @@ beforeEach(async () => {
     await setDoc(doc(f, `vendors/${V}/items/i1`), { name: "Marlboro Red carton", category: "Cigarettes", unit: "carton", barcode: "0123", locationId: "locA", active: true, createdAt: new Date() });
     await setDoc(doc(f, `vendors/${V}/incidents/incA`), incident());
     await setDoc(doc(f, `vendors/${V}/incidents/incGeneral`), incident({ subjectId: null, subjectName: null, title: "Back door found unlocked" }));
+    // time clock, schedule (incl. swap states), availability
+    await setDoc(doc(f, `vendors/${V}/timeclock/tcA`), punch());
+    await setDoc(doc(f, `vendors/${V}/schedule/sA`), sched());
+    await setDoc(doc(f, `vendors/${V}/schedule/sOffered`), sched({ date: "2026-07-13", swapStatus: "offered" }));
+    await setDoc(doc(f, `vendors/${V}/schedule/sClaimed`), sched({ date: "2026-07-14", swapStatus: "claimed", claimedById: "u-empB", claimedByName: "Bob" }));
+    await setDoc(doc(f, `vendors/${V}/availability/avA`), { userId: "u-empA", userName: "Eve", date: "2026-07-20", ts: new Date() });
   });
 });
 
@@ -354,4 +372,100 @@ test("items: managers manage, employees read, nobody deletes", async () => {
     { name: "Nope", unit: "unit", locationId: "locA", active: true, createdAt: new Date() }));
   await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/items/i1`)));
   await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/items/i1`)));
+});
+
+/* ---------- time clock ---------- */
+
+test("timeclock: employee punches for themselves at their own location; signed, valid type", async () => {
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/timeclock/p1`), punch()));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/timeclock/p2`), punch({ type: "out" })));
+  // a manager may punch at any location
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/p3`), punch({ userId: "u-mgr", userName: "Mia", locationId: "locB" })));
+});
+
+test("timeclock: punches must be self-signed, a valid type, and at the employee's own location", async () => {
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/b1`), punch({ userId: "u-empB", userName: "Bob" }))); // wrong signer
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/b2`), punch({ userName: "Someone" })));               // name mismatch
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/b3`), punch({ locationId: "locB" })));               // not their location
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/b4`), punch({ type: "lunch" })));                    // bad type
+});
+
+test("timeclock: managers see all, employees only their own; punches are immutable", async () => {
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/timeclock/tcA`)));
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/timeclock/tcA`)));
+  await assertFails(getDoc(doc(db("empB"), `vendors/${V}/timeclock/tcA`)));            // not theirs
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/timeclock/tcA`), { type: "out" })); // no edits
+  await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/timeclock/tcA`)));          // no deletes
+});
+
+/* ---------- schedule (roster) ---------- */
+
+test("schedule: managers create (manager-signed) and delete; employees cannot create", async () => {
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/schedule/new1`), sched()));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/schedule/bad`), sched({ by: "Eve", byId: "u-empA" }))); // must be manager-signed
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/schedule/new2`), sched()));  // employees don't roster
+  await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/schedule/sA`)));        // managers delete
+  await assertFails(deleteDoc(doc(db("empA"), `vendors/${V}/schedule/sOffered`)));    // employees don't delete
+});
+
+test("schedule: an employee reads their own shift; a non-swap edit by an employee is denied", async () => {
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/schedule/sA`)));
+  await assertFails(getDoc(doc(db("empB"), `vendors/${V}/schedule/sA`)));             // not theirs, not up for swap
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/schedule/sA`), { start: "08:00" })); // employees can't rewrite the shift
+});
+
+/* ---------- shift swaps ---------- */
+
+test("swap: the owner offers their own shift; a coworker cannot offer it", async () => {
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sA`), { swapStatus: "offered" }));  // not the owner
+  await assertSucceeds(updateDoc(doc(db("empA"), `vendors/${V}/schedule/sA`), { swapStatus: "offered" }));
+});
+
+test("swap: an offered shift is visible to coworkers so they can pick it up", async () => {
+  await assertSucceeds(getDoc(doc(db("empB"), `vendors/${V}/schedule/sOffered`)));  // swapStatus != none
+});
+
+test("swap: a coworker claims an offered shift, signed as themselves; the owner cannot", async () => {
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/schedule/sOffered`),  // owner can't claim their own
+    { swapStatus: "claimed", claimedById: "u-empA", claimedByName: "Eve" }));
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sOffered`),  // must sign the claim as themselves
+    { swapStatus: "claimed", claimedById: "u-empA", claimedByName: "Eve" }));
+  await assertSucceeds(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sOffered`),
+    { swapStatus: "claimed", claimedById: "u-empB", claimedByName: "Bob" }));
+});
+
+test("swap: only the claimer withdraws (clearing the claim); others cannot", async () => {
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/schedule/sClaimed`),  // owner isn't the claimer
+    { swapStatus: "offered", claimedById: null, claimedByName: null }));
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sClaimed`),  // must clear the claim fields
+    { swapStatus: "offered" }));
+  await assertSucceeds(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sClaimed`),
+    { swapStatus: "offered", claimedById: null, claimedByName: null }));
+});
+
+test("swap: a manager approves (reassigning the shift); a non-manager cannot", async () => {
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/schedule/sClaimed`),  // claimer can't self-approve a reassign
+    { userId: "u-empB", userName: "Bob", swapStatus: "none", claimedById: null, claimedByName: null }));
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/schedule/sClaimed`),
+    { userId: "u-empB", userName: "Bob", swapStatus: "none", claimedById: null, claimedByName: null }));
+});
+
+test("swap: a manager rejects an offered shift back to none", async () => {
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/schedule/sOffered`),
+    { swapStatus: "none", claimedById: null, claimedByName: null }));
+});
+
+/* ---------- availability ---------- */
+
+test("availability: employees mark their own days; managers see all; not editable", async () => {
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/availability/n1`), { userId: "u-empA", userName: "Eve", date: "2026-07-25", ts: new Date() }));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/availability/n2`), { userId: "u-empB", userName: "Bob", date: "2026-07-25", ts: new Date() })); // not for someone else
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/availability/avA`)));
+  await assertFails(getDoc(doc(db("empB"), `vendors/${V}/availability/avA`)));   // a coworker can't read another's
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/availability/avA`), { date: "2026-07-26" })); // immutable
+});
+
+test("availability: the owner or a manager removes an entry; a coworker cannot", async () => {
+  await assertFails(deleteDoc(doc(db("empB"), `vendors/${V}/availability/avA`)));   // coworker
+  await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/availability/avA`))); // manager
 });

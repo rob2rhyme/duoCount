@@ -126,6 +126,10 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
   rest of the app's authored records.
 - Indexes: `schedule(userId ASC, date ASC)`, `schedule(swapStatus ASC, date ASC)`
   (the swap board), and `availability(userId ASC, date ASC)`.
+- **Rules coverage:** the `timeclock`, `schedule` (incl. every swap transition),
+  and `availability` rules are exercised against the Firestore emulator in
+  `tests/rules.test.mjs` (`npm run test:rules`) — read scope, self-signing,
+  immutability, and each allowed/denied swap actor.
 
 ### Shift swaps
 
