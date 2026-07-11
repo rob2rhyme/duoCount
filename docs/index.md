@@ -28,6 +28,7 @@ rendered `docs/` folder; the code lives in the
 | UI — currency counter, scroll-to-top FAB, light/dark theme, Settings menu | [ui-enhancements-spec.md](ui-enhancements-spec.md) |
 | Demo data seed (owner-only load/clear) | [demo-data-spec.md](demo-data-spec.md) |
 | Mobile-first PWA | [pwa-spec.md](pwa-spec.md) |
+| Time clock — punches, hours by employee, payroll CSV | [time-clock-spec.md](time-clock-spec.md) |
 
 ## Analysis
 

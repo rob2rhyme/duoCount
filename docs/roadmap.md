@@ -22,6 +22,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Power-user polish** (sticky dashboard table headers, first-name-only pill on tiny screens, keyboard shortcuts) | `ui-enhancements-spec.md` §8–9 | ✅ |
 | **Per-vendor pattern thresholds + extra detectors** (5 tunable Alert-sensitivity knobs; repeat-overs & open-variance-backlog detectors) | `tier-two-build-spec.md` §2.1–2.1a | ✅ |
 | **Auth hardening** (6-digit PIN policy on new pins; per-store login limiter alongside per-IP) | `tier-two-build-spec.md` §3 | ✅ |
+| **Time clock** (append-only in/out punches, hours-by-employee, payroll CSV) | `time-clock-spec.md` | ✅ |
 
 ## Next up
 
@@ -113,7 +114,9 @@ Tables scroll/wrap instead of overflowing; forms collapse cleanly; chips wrap.
 
 From `tier-two-build-spec.md` §7 — revisit on customer pull:
 
-- Scheduling / time-clock / payroll exports (separate product surface).
+- **Time clock + payroll CSV** — ✅ done (see Shipped; `time-clock-spec.md`).
+  Still deferred: **shift scheduling / rostering** (assigning future shifts) and
+  manager punch correction.
 - ✅ **Per-vendor pattern thresholds and extra detectors** — done (see Shipped).
   Remaining slice: escalating variance *trends* and scratch settle-shortfall
   patterns.
