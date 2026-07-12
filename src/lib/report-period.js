@@ -157,10 +157,12 @@ export function periodRange(preset, refDate, opts = {}) {
 /**
  * Reference date for the period one step earlier (dir < 0) or later (dir >= 0),
  * for a ◀ ▶ stepper. Returns a YYYY-MM-DD you can hand straight back to
- * periodRange. Calendar presets normalize to the period's start before stepping,
- * so repeated stepping never drifts (Jan 31 -> Feb -> Mar stays month-aligned)
- * and always lands squarely inside the neighbouring period. Custom has no
- * stepper (its bounds are entered directly), so it returns refDate unchanged.
+ * periodRange. Month/quarter/half/year normalize to the period's start before
+ * stepping, so repeated stepping never drifts (Jan 31 -> Feb -> Mar stays
+ * month-aligned) and always lands squarely inside the neighbouring period; day
+ * and week just shift by 1 day / 7 days (periodRange re-normalizes the week).
+ * Custom has no stepper (its bounds are entered directly), so it returns
+ * refDate unchanged.
  */
 export function stepPeriod(preset, refDate, dir) {
   if (!KNOWN.has(preset)) throw new Error(`Unknown period preset: ${preset}`);

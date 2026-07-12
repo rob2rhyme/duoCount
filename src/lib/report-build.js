@@ -201,11 +201,13 @@ export function buildPeriodReport(entries = [], range = {}, locId = "all", opts 
   })();
 
   // ---- labor (optional): hours per employee, shifts that STARTED in range ----
+  // Scoped by location like the entry and incident sections, so a per-location
+  // report yields a per-location payroll roll-up (not other stores' staff).
   let labor = null;
   if (opts.punches) {
     const fromMs = parse(startISO);
     const toMs = parse(endISO) + DAY_MS - 1; // inclusive end-of-day (23:59:59.999 UTC)
-    labor = summarizeHours(opts.punches, { fromMs, toMs });
+    labor = summarizeHours(opts.punches.filter((p) => p && scoped(p)), { fromMs, toMs });
   }
 
   // ---- incidents (optional): opened / acknowledged / closed within range ----

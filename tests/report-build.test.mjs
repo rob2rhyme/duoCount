@@ -30,14 +30,14 @@ const entries = [
 ];
 
 const punches = [
-  // Ann: 8h in range + an out-of-range Feb shift that must NOT count
-  { userId: "u_ann", userName: "Ann", type: "in", ts: new Date("2026-03-10T14:00:00Z") },
-  { userId: "u_ann", userName: "Ann", type: "out", ts: new Date("2026-03-10T22:00:00Z") },
-  { userId: "u_ann", userName: "Ann", type: "in", ts: new Date("2026-02-01T09:00:00Z") },
-  { userId: "u_ann", userName: "Ann", type: "out", ts: new Date("2026-02-01T17:00:00Z") },
-  // Bob: 7h in range
-  { userId: "u_bob", userName: "Bob", type: "in", ts: new Date("2026-03-11T16:00:00Z") },
-  { userId: "u_bob", userName: "Bob", type: "out", ts: new Date("2026-03-11T23:00:00Z") },
+  // Ann (loc_a): 8h in range + an out-of-range Feb shift that must NOT count
+  { userId: "u_ann", userName: "Ann", locationId: "loc_a", type: "in", ts: new Date("2026-03-10T14:00:00Z") },
+  { userId: "u_ann", userName: "Ann", locationId: "loc_a", type: "out", ts: new Date("2026-03-10T22:00:00Z") },
+  { userId: "u_ann", userName: "Ann", locationId: "loc_a", type: "in", ts: new Date("2026-02-01T09:00:00Z") },
+  { userId: "u_ann", userName: "Ann", locationId: "loc_a", type: "out", ts: new Date("2026-02-01T17:00:00Z") },
+  // Bob (loc_b): 7h in range
+  { userId: "u_bob", userName: "Bob", locationId: "loc_b", type: "in", ts: new Date("2026-03-11T16:00:00Z") },
+  { userId: "u_bob", userName: "Bob", locationId: "loc_b", type: "out", ts: new Date("2026-03-11T23:00:00Z") },
 ];
 
 const incidents = [
@@ -148,6 +148,14 @@ test("labor: hours per employee, only shifts that started in range", () => {
 
 test("labor is null when no punches are supplied", () => {
   assert.equal(buildPeriodReport(entries, RANGE, "all").labor, null);
+});
+
+test("labor honors location scope — a per-location report is a per-location payroll", () => {
+  const r = buildPeriodReport(entries, RANGE, "loc_a", { punches });
+  assert.equal(r.labor.length, 1);            // only loc_a staff
+  assert.equal(r.labor[0].userId, "u_ann");
+  assert.equal(r.labor[0].hours, 8);
+  assert.ok(!r.labor.some((u) => u.userId === "u_bob")); // loc_b staff excluded
 });
 
 // ------------------------------------------------------------- incidents ----
