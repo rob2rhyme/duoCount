@@ -95,26 +95,45 @@ button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -w
   .input.text-\[13px\] { font-size: 16px; }
 }
 
-/* Rendered Markdown for the in-app docs (/docs). Themed via the same CSS vars,
-   so it reads correctly in light and dark. */
-.doc-content { color: var(--fg); font-size: 15px; line-height: 1.7; }
+/* Smooth in-page jumps for the docs/guide table-of-contents anchors — but honor
+   the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+/* Rendered Markdown for the in-app docs (/docs, /guide). Themed via the same CSS
+   vars, so it reads correctly in light and dark. */
+.doc-content { color: var(--fg); font-size: 15px; line-height: 1.72; }
 .doc-content > :first-child { margin-top: 0; }
-.doc-content h1 { font-size: 1.55rem; font-weight: 700; margin: 1.7rem 0 0.6rem; }
-.doc-content h2 { font-size: 1.2rem; font-weight: 700; margin: 1.6rem 0 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--line); }
-.doc-content h3 { font-size: 1.03rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
-.doc-content p { margin: 0.7rem 0; }
-.doc-content a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
-.doc-content ul, .doc-content ol { margin: 0.6rem 0; padding-left: 1.4rem; }
+.doc-content h1 { font-size: 1.55rem; font-weight: 700; line-height: 1.25; margin: 1.7rem 0 0.6rem; }
+.doc-content h2 { font-size: 1.22rem; font-weight: 700; line-height: 1.3; margin: 2rem 0 0.6rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--line); scroll-margin-top: 1.5rem; }
+.doc-content h3 { font-size: 1.04rem; font-weight: 600; margin: 1.4rem 0 0.4rem; scroll-margin-top: 1.5rem; }
+.doc-content h2:first-child, .doc-content h3:first-child { margin-top: 0; }
+/* Briefly ring a heading you jumped to, so the target is obvious. */
+.doc-content :is(h2, h3):target { background: var(--highlight); box-shadow: 0 0 0 6px var(--highlight); border-radius: 3px; }
+.doc-content p { margin: 0.75rem 0; }
+.doc-content a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; transition: color .15s ease; }
+.doc-content a:hover { color: var(--fg); }
+.doc-content ul, .doc-content ol { margin: 0.65rem 0; padding-left: 1.4rem; }
 .doc-content ul { list-style: disc; }
 .doc-content ol { list-style: decimal; }
-.doc-content li { margin: 0.3rem 0; }
-.doc-content code { background: var(--subtle); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.86em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.doc-content pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 0.9rem 0; }
-.doc-content pre code { background: none; padding: 0; font-size: 0.82rem; }
-.doc-content blockquote { border-left: 3px solid var(--line); padding: 0.1rem 0 0.1rem 0.9rem; margin: 0.9rem 0; color: var(--muted); }
-.doc-content hr { border: 0; border-top: 1px solid var(--line); margin: 1.6rem 0; }
-.doc-content img { max-width: 100%; height: auto; }
+.doc-content li { margin: 0.35rem 0; }
+.doc-content li::marker { color: var(--faint); }
+.doc-content li > ul, .doc-content li > ol { margin: 0.35rem 0; }
+.doc-content code { background: var(--subtle); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.86em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.doc-content pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 1rem 0; }
+.doc-content pre code { background: none; padding: 0; font-size: 0.82rem; overflow-wrap: normal; }
+/* Blockquotes read as info callouts (the guide uses them for tips/asides). */
+.doc-content blockquote { border-left: 3px solid #b8863b; background: var(--highlight); padding: 0.65rem 0.95rem; margin: 1rem 0; border-radius: 0 8px 8px 0; color: var(--fg); }
+.doc-content blockquote > :first-child { margin-top: 0; }
+.doc-content blockquote > :last-child { margin-bottom: 0; }
+.doc-content hr { border: 0; border-top: 1px solid var(--line); margin: 1.9rem 0; }
+.doc-content img { max-width: 100%; height: auto; border-radius: 10px; }
 .doc-content strong { font-weight: 700; }
-.doc-content table { border-collapse: collapse; margin: 0.9rem 0; font-size: 0.92em; display: block; width: 100%; overflow-x: auto; }
-.doc-content th, .doc-content td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
-.doc-content th { background: var(--panel); font-weight: 600; }
+/* Tables scroll inside a rounded, bordered frame instead of bleeding past the edge. */
+.doc-content table { border-collapse: collapse; margin: 1rem 0; font-size: 0.9em; display: block; width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.doc-content th, .doc-content td { border-bottom: 1px solid var(--line-soft); border-right: 1px solid var(--line-soft); padding: 7px 11px; text-align: left; vertical-align: top; }
+.doc-content tr:last-child td { border-bottom: 0; }
+.doc-content th:last-child, .doc-content td:last-child { border-right: 0; }
+.doc-content th { background: var(--panel); font-weight: 600; white-space: nowrap; }
+.doc-content tbody tr:nth-child(even) { background: color-mix(in srgb, var(--panel) 45%, transparent); }

@@ -51,6 +51,33 @@ function rewrite(html) {
     .replace(/(src|href)="\.?\/?duocount-logo\.png"/g, '$1="/logo.png"');
 }
 
+const decodeEntities = (s) =>
+  s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'");
+
+// GitHub-flavored heading slug: lowercase, drop punctuation (keep word chars,
+// spaces, hyphens), spaces → hyphens. Deliberately matches GitHub so the
+// hand-written intra-doc anchor links in the Markdown (e.g. `#for-owners--managers`,
+// which keeps a double hyphen where a `&` was removed) resolve to the ids we emit.
+const slugifyHeading = (s) =>
+  decodeEntities(s).trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s/g, "-") || "section";
+
+// Add ids to h2/h3 so headings are jump targets, and collect a table of contents.
+// Ids are de-duplicated GitHub-style (a repeat gets `-1`, `-2`, …).
+function withHeadingIds(html) {
+  const toc = [];
+  const used = new Map();
+  const out = html.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (_m, level, inner) => {
+    const text = decodeEntities(inner.replace(/<[^>]+>/g, "")).trim();
+    let id = slugifyHeading(inner);
+    if (used.has(id)) { const n = used.get(id) + 1; used.set(id, n); id = `${id}-${n}`; }
+    else used.set(id, 0);
+    toc.push({ level: Number(level), id, text });
+    return `<h${level} id="${id}">${inner}</h${level}>`;
+  });
+  return { html: out, toc };
+}
+
 export function getDoc(slug) {
   if (!/^[a-z0-9-]+$/i.test(String(slug))) return null;
   const file = path.join(DOCS_DIR, `${slug}.md`);
@@ -60,15 +87,36 @@ export function getDoc(slug) {
   const title = titleOf(meta, body, slug);
   // Drop a leading H1 — the page renders the title itself.
   const bodyNoH1 = body.replace(/^\s*#\s+.+\r?\n+/, "");
-  const html = rewrite(marked.parse(bodyNoH1, { gfm: true, async: false }));
-  return { slug, title, html };
+  const { html, toc } = withHeadingIds(rewrite(marked.parse(bodyNoH1, { gfm: true, async: false })));
+  return { slug, title, html, toc };
+}
+
+// A one-line blurb for the index: the first real paragraph after the H1, with
+// markdown stripped and truncated. Falls back to "" when there's nothing usable.
+function blurbOf(body) {
+  const noH1 = body.replace(/^\s*#\s+.+\r?\n+/, "");
+  for (const block of noH1.split(/\r?\n\r?\n/)) {
+    const line = block.trim();
+    if (!line || line.startsWith("#") || line.startsWith("|") || line.startsWith("```") || line.startsWith(">")) continue;
+    const plain = line
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .replace(/[#*_>]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (plain.length < 4) continue;
+    return plain.length > 140 ? plain.slice(0, 137).trimEnd() + "…" : plain;
+  }
+  return "";
 }
 
 export function listDocs() {
   return docSlugs()
     .map((slug) => {
       const { meta, body } = stripFrontMatter(fs.readFileSync(path.join(DOCS_DIR, `${slug}.md`), "utf8"));
-      return { slug, title: titleOf(meta, body, slug) };
+      return { slug, title: titleOf(meta, body, slug), blurb: blurbOf(body) };
     })
     .sort((a, b) => a.title.localeCompare(b.title));
 }
