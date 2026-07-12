@@ -35,23 +35,30 @@ untouched.
     Idempotent: it clears any prior sample set first, so re-loading never stacks.
   - **Clear sample data** — deletes only `seed:true` docs (and their comment
     threads); returns a count.
-- **What's written** (`src/lib/seed-data.js`, ~70 docs) — every tab is populated:
-  - 2 locations, 4 drawers, 3 tracked items, 3 illustrative staff.
-  - ~21 counts over the last two weeks (cash + scratch + inventory; most
-    balanced, a few over/short, one open flag, one resolved-with-cause, one
-    disputed with a short thread, many manager-verified).
-  - 4 scratch packs across the whole lifecycle — received, active, and one
-    **settled** ($3 × 44 sold = $132 recorded) so the settlement-reconciliation
-    tool has a figure to match an uploaded CSV against.
-  - 3 shift notes (one pinned) and 2 incidents.
-  - **Time clock:** ~6 days of in/out punches for two staff (with one no-show
+- **What's written** (`src/lib/seed-data.js`, ~400 docs by default) — every tab
+  is populated with a realistic history:
+  - 2 locations, 4 drawers, 4 tracked items, 4 illustrative staff.
+  - **~4 months** of counts (~260: daily POS closes plus periodic lottery-drawer,
+    kiosk, scratch, and inventory counts; most balanced, a realistic scatter of
+    over/short, open flags, several resolved-with-cause, a live dispute thread,
+    and many manager-verified) — spanning **both locations** so per-drawer and
+    per-location breakdowns have data.
+  - 6 scratch packs across the whole lifecycle — received, active, and several
+    **settled** over time (e.g. $3 × 44 = $132 recorded) so the settlement-
+    reconciliation tool has figures to match an uploaded CSV against.
+  - 7 shift notes (some pinned) and 5 incidents (open / acknowledged / closed).
+  - **Time clock:** ~3 weeks of in/out punches for two staff (with one no-show
     that mirrors the incident), plus one person currently on the clock.
-  - **Schedule:** a full current-week roster with an open shift anyone can grab
-    and a swap in flight (one offered, one claimed), a saved week template, two
-    availability entries, and a published-week record.
+  - **Schedule:** three weeks of roster (current + two prior) with an open shift
+    to grab and a swap in flight (one offered, one claimed), two saved templates,
+    availability entries, and published-week records.
+- **Configurable window.** `buildDemoData({ days })` controls how much history is
+  generated (default 120). Bump it — e.g. `node scripts/gen-demo-seed.mjs
+  --days=400` — to populate longer report periods like semi-annual / annual.
 - **Deterministic.** The generator is a pure function seeded with a fixed value,
-  so the shape is reproducible (dates are relative to "now"). Unit-tested in
-  `tests/seed.test.mjs` (`npm run test:seed`).
+  so the shape is reproducible given `now` + `days`. Unit-tested in
+  `tests/seed.test.mjs` (`npm run test:seed`). The write path commits in chunked
+  batches, so it stays under Firestore's 500-op limit at any window size.
 
 ## Importable file (outside the app)
 

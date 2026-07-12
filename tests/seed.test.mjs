@@ -19,28 +19,46 @@ test("deterministic given the same now", () => {
   assert.deepEqual(build(), build());
 });
 
-test("expected collection counts", () => {
+test("expected collection shape (counts scale with the history window)", () => {
   const d = build();
-  assert.equal(d.staff.length, 3);
+  assert.equal(d.staff.length, 4);
   assert.equal(d.locations.length, 2);
   assert.equal(d.drawers.length, 4);
-  assert.equal(d.items.length, 3);
-  assert.equal(d.packs.length, 4); // 2 active + 1 received + 1 settled
-  assert.equal(d.entries.length, 21); // 14 cash + 4 scratch + 3 inventory
-  assert.equal(d.notes.length, 3);
-  assert.equal(d.incidents.length, 2);
-  assert.ok(d.timeclock.length >= 12, "expected several punches");
-  assert.ok(d.schedule.length >= 8, "expected a week of shifts");
-  assert.equal(d.availability.length, 2);
-  assert.equal(d.templates.length, 1);
-  assert.equal(d.schedulePublished.length, 1);
+  assert.equal(d.items.length, 4);
+  assert.ok(d.packs.length >= 6, "expected the full pack lifecycle set");
+  assert.ok(d.entries.length > 150, `expected a rich log, got ${d.entries.length}`);
+  assert.ok(d.notes.length >= 5, "expected several notes");
+  assert.ok(d.incidents.length >= 4, "expected several incidents");
+  assert.ok(d.timeclock.length >= 30, "expected weeks of punches");
+  assert.ok(d.schedule.length >= 24, "expected multiple weeks of shifts");
+  assert.ok(d.availability.length >= 2);
+  assert.ok(d.templates.length >= 1);
+  assert.ok(d.schedulePublished.length >= 1);
 });
 
-test("packs cover the full lifecycle incl. a settled pack for reconciliation", () => {
+test("history length is configurable and scales the log", () => {
+  const short = buildDemoData({ owner, now: NOW, days: 30 });
+  const long = buildDemoData({ owner, now: NOW, days: 240 });
+  assert.ok(long.entries.length > short.entries.length * 3, "more days -> proportionally more counts");
+  // Entries span roughly the requested window.
+  const oldest = long.entries.reduce((m, e) => Math.min(m, e.ts.getTime()), Infinity);
+  const daysBack = (NOW.getTime() - oldest) / 86400000;
+  assert.ok(daysBack > 180, `expected ~240 days of history, got ${Math.round(daysBack)}`);
+});
+
+test("counts span both locations and every kind", () => {
   const d = build();
-  const settled = d.packs.find((p) => p.status === "settled");
-  assert.ok(settled, "expected a settled pack");
-  assert.equal(settled.soldAtSettle, 44);
+  const kinds = new Set(d.entries.map((e) => e.kind));
+  assert.ok(kinds.has("cash") && kinds.has("scratch") && kinds.has("inventory"));
+  const locs = new Set(d.entries.map((e) => e.locationId));
+  assert.ok(locs.has("seed_loc_main") && locs.has("seed_loc_kiosk"), "expected multi-location data");
+});
+
+test("packs cover the full lifecycle incl. settled packs for reconciliation", () => {
+  const d = build();
+  const settled = d.packs.filter((p) => p.status === "settled");
+  assert.ok(settled.length >= 2, "expected several settled packs");
+  for (const p of settled) assert.ok(Number.isFinite(p.soldAtSettle), "settled pack needs soldAtSettle");
   assert.ok(d.packs.some((p) => p.status === "active") && d.packs.some((p) => p.status === "received"));
 });
 
