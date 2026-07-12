@@ -38,9 +38,19 @@ export function guessColumns(headers = []) {
   };
 }
 
+// Parse a currency-ish cell. A blank cell is 0, but a non-empty cell we can't
+// read returns null (not 0) so the caller can surface it instead of silently
+// reconciling a real figure to zero (a mis-mapped column, an odd export format).
+// Accounting negatives "(123.45)" and a trailing-minus "123.45-" — both common
+// in state-lottery / accounting exports for credits — normalize to a leading minus.
 const cleanNum = (v) => {
-  const n = Number(String(v ?? "").replace(/[$,\s]/g, ""));
-  return Number.isFinite(n) ? n : 0;
+  let s = String(v ?? "").trim();
+  if (s === "") return 0;
+  s = s.replace(/[$,\s]/g, "");
+  if (/^\(.+\)$/.test(s)) s = "-" + s.slice(1, -1);      // (123.45) -> -123.45
+  else if (/^.+-$/.test(s)) s = "-" + s.slice(0, -1);     // 123.45-  -> -123.45
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
 };
 const key = (v) => String(v ?? "").trim();
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -48,7 +58,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 /**
  * Reconcile mapped file rows [{ packNumber, amount }] against recorded packs.
  * `basis`: "dollars" (sold × price) or "tickets" (sold count). Returns matched /
- * discrepancies / unknown / missing lists and totals.
+ * discrepancies / unknown / missing / unparsed / onFileNotYetSettled lists and totals.
  */
 export function reconcileSettlement(packs = [], rows = [], { basis = "dollars", tolerance = 0.005 } = {}) {
   const recordedOf = (p) =>
@@ -57,15 +67,29 @@ export function reconcileSettlement(packs = [], rows = [], { basis = "dollars", 
   const byNum = new Map();
   for (const p of packs) if (key(p.packNumber)) byNum.set(key(p.packNumber), p);
 
-  const matched = [], discrepancies = [], unknown = [];
+  const matched = [], discrepancies = [], unknown = [], unparsed = [], onFileNotYetSettled = [];
   const seen = new Set();
+  let fileTotal = 0;
   for (const r of rows) {
     const k = key(r.packNumber);
-    if (!k) continue;
-    seen.add(k);
-    const fileAmount = round2(cleanNum(r.amount));
+    if (k) seen.add(k); // a pack that appears in the file isn't "missing", even if its amount is unreadable
+    const amt = cleanNum(r.amount);
+    if (amt === null) {
+      if (k) unparsed.push({ packNumber: r.packNumber, raw: String(r.amount ?? "").trim() });
+      continue;
+    }
+    fileTotal += amt;
+    if (!k) continue; // amount-only row: counted in the file total, nothing to reconcile
+    const fileAmount = round2(amt);
     const p = byNum.get(k);
     if (!p) { unknown.push({ packNumber: r.packNumber, fileAmount }); continue; }
+    // A received/active pack the store hasn't settled yet has no recorded figure
+    // (soldAtSettle is null); comparing it against 0 would report a phantom
+    // full-amount discrepancy, so bucket it separately (mirrors `missing`).
+    if (p.soldAtSettle == null) {
+      onFileNotYetSettled.push({ packNumber: r.packNumber, game: p.game || "", fileAmount });
+      continue;
+    }
     const recorded = round2(recordedOf(p));
     const delta = round2(fileAmount - recorded);
     const item = { packNumber: r.packNumber, game: p.game || "", fileAmount, recorded, delta };
@@ -79,9 +103,9 @@ export function reconcileSettlement(packs = [], rows = [], { basis = "dollars", 
 
   const compared = [...matched, ...discrepancies];
   return {
-    matched, discrepancies, unknown, missing,
+    matched, discrepancies, unknown, missing, unparsed, onFileNotYetSettled,
     totals: {
-      file: round2(rows.reduce((s, r) => s + cleanNum(r.amount), 0)),
+      file: round2(fileTotal),
       recorded: round2(compared.reduce((s, m) => s + m.recorded, 0)),
       delta: round2(discrepancies.reduce((s, m) => s + m.delta, 0)),
     },

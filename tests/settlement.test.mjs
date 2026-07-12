@@ -69,3 +69,49 @@ test("pack numbers are matched exactly (leading zeros preserved)", () => {
   assert.equal(r.unknown.length, 1);
   assert.equal(r.matched.length, 0);
 });
+
+test("accounting-style negatives — (123.45) and 123.45- — parse as credits", () => {
+  // 0012345 recorded $200; a "(200.00)" credit is a -$200 file figure, i.e. a
+  // -$400 delta, not a phantom match. Both notations must land the same.
+  const paren = reconcileSettlement(packs, [{ packNumber: "0012345", amount: "(200.00)" }]);
+  assert.equal(paren.discrepancies.length, 1);
+  assert.equal(paren.discrepancies[0].fileAmount, -200);
+  assert.equal(paren.discrepancies[0].delta, -400);
+  const trailing = reconcileSettlement(packs, [{ packNumber: "0012345", amount: "$200.00-" }]);
+  assert.equal(trailing.discrepancies[0].fileAmount, -200);
+});
+
+test("an unreadable amount is surfaced, not silently reconciled to $0", () => {
+  const rows = [
+    { packNumber: "0012345", amount: "200" },     // fine
+    { packNumber: "0067890", amount: "n/a" },      // mis-mapped / junk -> unparsed
+  ];
+  const r = reconcileSettlement(packs, rows);
+  assert.equal(r.unparsed.length, 1);
+  assert.equal(r.unparsed[0].packNumber, "0067890");
+  // The junk row is NOT a $0 discrepancy and does NOT drag the file total down.
+  assert.ok(!r.discrepancies.some((d) => d.packNumber === "0067890"));
+  assert.equal(r.totals.file, 200);
+  // It appeared in the file, so it isn't reported "settled but not billed" either.
+  assert.ok(!r.missing.some((m) => m.packNumber === "0067890"));
+});
+
+test("a blank amount is treated as $0, not as unreadable", () => {
+  const r = reconcileSettlement(packs, [{ packNumber: "0012345", amount: "  " }]);
+  assert.equal(r.unparsed.length, 0);
+  assert.equal(r.discrepancies.length, 1);   // $0 vs recorded $200
+  assert.equal(r.discrepancies[0].fileAmount, 0);
+});
+
+test("a pack on the file that the store hasn't settled yet is bucketed, not a phantom discrepancy", () => {
+  const withUnsettled = [
+    ...packs,
+    { packNumber: "0055555", game: "New Pack", price: 5, soldAtSettle: null }, // received/active, not settled
+  ];
+  const r = reconcileSettlement(withUnsettled, [{ packNumber: "0055555", amount: "120" }]);
+  assert.equal(r.onFileNotYetSettled.length, 1);
+  assert.equal(r.onFileNotYetSettled[0].packNumber, "0055555");
+  assert.equal(r.onFileNotYetSettled[0].fileAmount, 120);
+  // NOT a $120 discrepancy against a recorded $0.
+  assert.equal(r.discrepancies.length, 0);
+});

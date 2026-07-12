@@ -103,7 +103,7 @@ export default function SettlementReconcile({ packs = [], onToast }) {
             </div>
             <div className="text-[13px] text-muted">
               File total <b className="font-mono text-fg">{fmt(result.totals.file)}</b> · net discrepancy{" "}
-              <b className={`font-mono ${result.totals.delta ? "text-neg" : "text-fg"}`}>{fmt(result.totals.delta)}</b>
+              <b className={`font-mono ${result.totals.delta ? "text-neg" : "text-fg"}`}>{result.totals.delta >= 0 ? "+" : ""}{fmt(result.totals.delta)}</b>
             </div>
 
             {result.discrepancies.length > 0 && (
@@ -138,7 +138,13 @@ export default function SettlementReconcile({ packs = [], onToast }) {
             {result.missing.length > 0 && (
               <p className="text-[13px] text-muted"><b className="text-gold">Settled but not on the file:</b> {result.missing.map((m) => m.packNumber).join(", ")}</p>
             )}
-            {result.discrepancies.length === 0 && result.unknown.length === 0 && result.missing.length === 0 && (
+            {result.onFileNotYetSettled?.length > 0 && (
+              <p className="text-[13px] text-muted"><b className="text-gold">On the file, not settled yet:</b> {result.onFileNotYetSettled.map((m) => m.packNumber).join(", ")}</p>
+            )}
+            {result.unparsed?.length > 0 && (
+              <p className="text-[13px] text-neg"><b>Couldn&apos;t read the amount for {result.unparsed.length} row{result.unparsed.length > 1 ? "s" : ""}</b> — check the amount-column mapping or the file&apos;s number format.</p>
+            )}
+            {result.discrepancies.length === 0 && result.unknown.length === 0 && result.missing.length === 0 && !result.onFileNotYetSettled?.length && !result.unparsed?.length && (
               <p className="text-[13px] text-pos font-semibold">✓ Everything reconciles.</p>
             )}
           </div>
