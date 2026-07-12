@@ -155,7 +155,7 @@ export default function AppShell() {
         {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
-          <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName}
+          <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
             onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
         )}
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}

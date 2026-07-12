@@ -29,7 +29,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", onOpenLog, onRecord, onToast }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], onOpenLog, onRecord, onToast }) {
   const { isManager, vendor } = useSession();
   const { theme } = useTheme();
   const ch = CHART[theme] || CHART.light;
@@ -134,7 +134,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
     </div>
   );
   const reportModal = reportOpen && (
-    <ReportModal locations={locations} locName={locName}
+    <ReportModal locations={locations} locName={locName} incidents={incidents}
       onClose={() => setReportOpen(false)} onToast={onToast} />
   );
 

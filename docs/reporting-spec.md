@@ -4,10 +4,11 @@ title: Reports & records export
 
 # DuoCount — Reports & Records Export Spec
 
-**Status:** phases 1–3 shipped (period + aggregation libs, bounded fetch, and the
-Report center UI with CSV export). Phase 4 (period-native PDF + labor/incidents
-sections + trend sparkline) is still planned; until then the Report center's
-**Print** button produces the records printout (print-to-PDF from the browser).
+**Status:** shipped (phases 1–4). Period + aggregation libs, bounded date-range
+fetch, and the Report center — period picker + live preview, CSV export, a
+period-native summary **PDF** (by location / drawer / game / item, integrity,
+labor roll-up, incident tally, and an over/short sparkline), plus a line-by-line
+**Print**. Future niceties are listed under "Out of scope" below.
 
 **Goal.** Let an owner/manager generate and **download a report for any period** —
 daily, weekly, monthly, quarterly, semi-annual, annual, or a custom date range —
@@ -106,7 +107,7 @@ wasteful/limited for a year. A report is a one-shot snapshot, not a live view, s
 1. ✅ **Period + aggregation libs + tests** (pure; no UI risk). Ships the hard logic first.
 2. ✅ **`fetchEntriesInRange`** + wire the aggregation to real data.
 3. ✅ **Report UI**: period picker + live preview + **CSV** download.
-4. **PDF** export (period-formatted) + labor/incidents sections + trend sparkline.
+4. ✅ **PDF** export (period-formatted summary tables) + labor/incidents sections + trend sparkline.
 
 ## Out of scope (v1) / future
 - Fiscal-year start offset; multi-location side-by-side comparison; scheduled/

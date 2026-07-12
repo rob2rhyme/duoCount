@@ -145,6 +145,19 @@ export async function fetchEntriesInRange(vendorId, startISO, endISO, locationId
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
+// One-shot punches for a report's labor roll-up, fetched by business `day`
+// (punches are never backdated — `day` is stamped at write time). The end is
+// extended by one day so an overnight shift that clocked IN within the period
+// can still pair its clock-OUT the next morning; the roll-up only counts shifts
+// that STARTED in range, so the extra day's own shifts are excluded downstream.
+// No location filter (the report scopes labor by location) and no new index —
+// the range rides the automatic single-field `day` index.
+export async function fetchPunchesInRange(vendorId, startISO, endISO) {
+  const endPlus = new Date(Date.parse(`${endISO}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  const q = query(vcol(vendorId, "timeclock"), where("day", ">=", startISO), where("day", "<=", endPlus), orderBy("day", "asc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
 export async function addEntry(vendorId, entry) {
   // Tier-one fields default to their safe values; callers (e.g. the cash form)
   // may override flagged / varianceStatus / blind before the spread.

@@ -6,7 +6,7 @@ import { useModalA11y } from "@/lib/use-modal-a11y";
 import Field from "./Field";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPeriodReport } from "@/lib/report-build";
-import { fetchEntriesInRange } from "@/lib/data";
+import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const slug = (s) => String(s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "x";
@@ -15,7 +15,7 @@ const slug = (s) => String(s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+
 // location scope, preview what it contains, and export it for the record.
 // Reports only READ the append-only log (one-shot, via fetchEntriesInRange) and
 // render client-side — they never mutate the signed history.
-export default function ReportModal({ locations = [], locName = () => "—", onClose, onToast }) {
+export default function ReportModal({ locations = [], locName = () => "—", incidents = [], onClose, onToast }) {
   const { profile, vendor } = useSession();
   const panelRef = useModalA11y(onClose);
 
@@ -27,6 +27,7 @@ export default function ReportModal({ locations = [], locName = () => "—", onC
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   // Resolve the selected period; an invalid custom range (end before start)
   // yields null so the UI can flag it and disable the exports.
@@ -56,7 +57,9 @@ export default function ReportModal({ locations = [], locName = () => "—", onC
     return () => { alive = false; };
   }, [vendor.id, startISO, endISO, scopeLocId]);
 
-  const report = useMemo(() => (range ? buildPeriodReport(rows, range, locId) : null), [rows, range, locId]);
+  // Preview report (entries + incidents, both already in memory). Labor needs a
+  // punch fetch, so it's computed only for the PDF, on demand.
+  const report = useMemo(() => (range ? buildPeriodReport(rows, range, locId, { incidents }) : null), [rows, range, locId, incidents]);
 
   const locLabel = locId === "all" ? "All locations" : locName(locId);
   const fileBase = `duocount-report-${locId === "all" ? "all" : slug(locName(locId))}-${range ? range.key : "period"}`;
@@ -67,8 +70,146 @@ export default function ReportModal({ locations = [], locName = () => "—", onC
     downloadCSV(entriesToCSV(rows), `${fileBase}.csv`);
   }
 
-  // Print-friendly HTML (browser print -> paper or save-as-PDF), period-formatted.
-  // A period-native @react-pdf export lands in the next phase.
+  // Period-native PDF for records: bounded SUMMARY tables (by location / drawer /
+  // game / item), an over/short sparkline, the labor roll-up (punches fetched on
+  // demand), and the incident tally — so a year prints as cleanly as a day.
+  async function downloadPdf() {
+    if (!range || !report) return;
+    setBusy(true);
+    try {
+      const punches = await fetchPunchesInRange(vendor.id, range.startISO, range.endISO);
+      const r = buildPeriodReport(rows, range, locId, { punches, incidents });
+      const { pdf, Document, Page, Text, View, StyleSheet, Svg, Rect, Line } = await import("@react-pdf/renderer");
+      const s = StyleSheet.create({
+        page: { padding: 28, fontSize: 9, fontFamily: "Helvetica", color: "#1a1c2e" },
+        h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
+        meta: { color: "#666", marginBottom: 2, fontSize: 8 },
+        section: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 14, marginBottom: 5 },
+        row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#ccc", paddingVertical: 3 },
+        head: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#1a1c2e", paddingVertical: 3, fontFamily: "Helvetica-Bold" },
+        totals: { flexDirection: "row", paddingVertical: 4, fontFamily: "Helvetica-Bold", borderTopWidth: 1, borderTopColor: "#1a1c2e" },
+        neg: { color: "#b03a3a" }, pos: { color: "#2f7d5b" },
+        sig: { flexDirection: "row", justifyContent: "space-between", marginTop: 30 },
+        sigLine: { width: "44%", borderTopWidth: 1, borderTopColor: "#1a1c2e", paddingTop: 3, fontSize: 8, color: "#666" },
+        empty: { marginTop: 8, color: "#666", fontStyle: "italic" },
+        kpis: { flexDirection: "row", marginTop: 12 },
+        kpi: { flex: 1, borderWidth: 1, borderColor: "#e2e0d8", borderRadius: 4, padding: 6, marginRight: 5 },
+        kpiV: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+        kpiL: { fontSize: 7, color: "#666", marginTop: 2 },
+        cap: { fontSize: 7, color: "#888", marginTop: 2 },
+      });
+      const C = ({ w, children, style }) => (
+        <Text style={[{ width: w }, ...(Array.isArray(style) ? style : style ? [style] : [])]}>{children}</Text>
+      );
+      const tone = (n) => (n < -0.005 ? s.neg : n > 0.005 ? s.pos : null);
+      const sgn = (n, fmt = (x) => x) => `${n >= 0 ? "+" : ""}${fmt(n)}`;
+
+      const spark = r.trend;
+      const maxAbs = Math.max(1, ...spark.map((b) => Math.abs(b.netDiff)));
+      const SW = 539, SH = 46, mid = SH / 2, bw = spark.length ? SW / spark.length : SW;
+
+      const doc = (
+        <Document title={fileBase}>
+          <Page size="A4" style={s.page}>
+            <Text style={s.h1}>{vendor.name} — Records Report</Text>
+            <Text style={s.meta}>Store code: {vendor.slug} · {locLabel} · {r.range.startISO} → {r.range.endISO}</Text>
+            <Text style={s.meta}>{range.label} · generated by {profile.name} at {new Date().toLocaleString()}</Text>
+
+            {r.empty && <Text style={s.empty}>No activity recorded in this period.</Text>}
+
+            <View style={s.kpis}>
+              <View style={s.kpi}><Text style={s.kpiV}>{sgn(r.cash.netDiff, money)}</Text><Text style={s.kpiL}>Net over/short</Text></View>
+              <View style={s.kpi}><Text style={s.kpiV}>{money(r.cash.sales)}</Text><Text style={s.kpiL}>Cash sales</Text></View>
+              <View style={s.kpi}><Text style={s.kpiV}>{money(r.scratch.dollars)}</Text><Text style={s.kpiL}>Scratch $</Text></View>
+              <View style={[s.kpi, { marginRight: 0 }]}><Text style={s.kpiV}>{Math.round(r.integrity.verificationRate * 100)}%</Text><Text style={s.kpiL}>Verified</Text></View>
+            </View>
+
+            {spark.length > 0 && (<>
+              <Text style={s.section}>Over / short by {r.trendBy}</Text>
+              <Svg width={SW} height={SH}>
+                <Line x1={0} y1={mid} x2={SW} y2={mid} strokeWidth={0.5} stroke="#bbb" />
+                {spark.map((b, i) => {
+                  const h = (Math.abs(b.netDiff) / maxAbs) * (mid - 3);
+                  return <Rect key={i} x={i * bw + 0.5} y={b.netDiff >= 0 ? mid - h : mid} width={Math.max(1, bw - 1)} height={Math.max(0.4, h)} fill={b.netDiff < 0 ? "#b03a3a" : "#2f7d5b"} />;
+                })}
+              </Svg>
+              <Text style={s.cap}>{spark[0].label} → {spark[spark.length - 1].label}</Text>
+            </>)}
+
+            {r.cash.byLocation.length > 0 && (<>
+              <Text style={s.section}>Cash — by location</Text>
+              <View style={s.head}><C w="28%">Location</C><C w="12%">Counts</C><C w="15%">Sales</C><C w="15%">Paid out</C><C w="15%">Counted</C><C w="15%">Over/short</C></View>
+              {r.cash.byLocation.map((l, i) => (
+                <View key={i} style={s.row}><C w="28%">{l.locationName || "—"}</C><C w="12%">{l.count}</C><C w="15%">{money(l.sales)}</C><C w="15%">{money(l.paidout)}</C><C w="15%">{money(l.counted)}</C><C w="15%" style={tone(l.netDiff)}>{sgn(l.netDiff, money)}</C></View>
+              ))}
+              <View style={s.totals}><C w="28%">Total</C><C w="12%">{r.cash.count}</C><C w="15%">{money(r.cash.sales)}</C><C w="15%">{money(r.cash.paidout)}</C><C w="15%">{money(r.cash.counted)}</C><C w="15%" style={tone(r.cash.netDiff)}>{sgn(r.cash.netDiff, money)}</C></View>
+            </>)}
+
+            {r.cash.byDrawer.length > 0 && (<>
+              <Text style={s.section}>Cash — by drawer</Text>
+              <View style={s.head}><C w="34%">Drawer</C><C w="30%">Location</C><C w="12%">Counts</C><C w="24%">Over/short</C></View>
+              {r.cash.byDrawer.map((d, i) => (
+                <View key={i} style={s.row}><C w="34%">{d.drawerName || "—"}</C><C w="30%">{d.locationName || "—"}</C><C w="12%">{d.count}</C><C w="24%" style={tone(d.netDiff)}>{sgn(d.netDiff, money)}</C></View>
+              ))}
+            </>)}
+
+            {r.scratch.byGame.length > 0 && (<>
+              <Text style={s.section}>Scratch-offs — by game</Text>
+              <View style={s.head}><C w="46%">Game</C><C w="14%">Counts</C><C w="18%">Tickets</C><C w="22%">Dollars</C></View>
+              {r.scratch.byGame.map((g, i) => (
+                <View key={i} style={s.row}><C w="46%">{g.game}</C><C w="14%">{g.count}</C><C w="18%">{g.tickets}</C><C w="22%">{money(g.dollars)}</C></View>
+              ))}
+              <View style={s.totals}><C w="46%">Total</C><C w="14%">{r.scratch.count}</C><C w="18%">{r.scratch.tickets}</C><C w="22%">{money(r.scratch.dollars)}</C></View>
+            </>)}
+
+            {r.inventory.byItem.length > 0 && (<>
+              <Text style={s.section}>Inventory — by item</Text>
+              <View style={s.head}><C w="50%">Item</C><C w="16%">Counts</C><C w="16%">Counted</C><C w="18%">Net shrink</C></View>
+              {r.inventory.byItem.map((it, i) => (
+                <View key={i} style={s.row}><C w="50%">{it.itemName}</C><C w="16%">{it.count}</C><C w="16%">{it.counted}</C><C w="18%" style={it.netShrink < 0 ? s.neg : null}>{it.netShrink}</C></View>
+              ))}
+              <View style={s.totals}><C w="82%">Total net shrink (units)</C><C w="18%" style={r.inventory.netShrink < 0 ? s.neg : null}>{r.inventory.netShrink}</C></View>
+            </>)}
+
+            <Text style={s.section}>Integrity</Text>
+            <Text>{r.integrity.flagged} flagged · {r.integrity.disputed} disputed · {r.integrity.resolvedWithCause} resolved with cause · {r.integrity.verified} of {r.integrity.total} verified ({Math.round(r.integrity.verificationRate * 100)}%).</Text>
+
+            {r.labor && r.labor.length > 0 && (<>
+              <Text style={s.section}>Labor — hours by employee</Text>
+              <View style={s.head}><C w="60%">Employee</C><C w="18%">Shifts</C><C w="22%">Hours</C></View>
+              {r.labor.map((u, i) => (
+                <View key={i} style={s.row}><C w="60%">{u.userName || "—"}</C><C w="18%">{u.shifts}</C><C w="22%">{u.hours}</C></View>
+              ))}
+              <View style={s.totals}><C w="60%">Total</C><C w="18%">{r.labor.reduce((a, u) => a + u.shifts, 0)}</C><C w="22%">{Math.round(r.labor.reduce((a, u) => a + u.hours, 0) * 100) / 100}</C></View>
+            </>)}
+
+            {r.incidents && (r.incidents.opened + r.incidents.acknowledged + r.incidents.closed) > 0 && (<>
+              <Text style={s.section}>Incidents</Text>
+              <Text>{r.incidents.opened} opened · {r.incidents.acknowledged} acknowledged · {r.incidents.closed} closed within the period.</Text>
+            </>)}
+
+            <View style={s.sig}>
+              <View style={s.sigLine}><Text>Prepared by · date</Text></View>
+              <View style={s.sigLine}><Text>Reviewed by (manager) · date</Text></View>
+            </View>
+          </Page>
+        </Document>
+      );
+      const blob = await pdf(doc).toBlob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${fileBase}.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      console.error(err);
+      onToast?.("PDF failed — try Print");
+    }
+    setBusy(false);
+  }
+
+  // Print-friendly HTML (browser print -> paper or save-as-PDF), listing the
+  // period's rows — a complement to the summary PDF for a line-by-line record.
   function printReport() {
     if (!range || !report) return; // an empty period still prints, with a "no activity" line
     const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
@@ -154,15 +295,19 @@ export default function ReportModal({ locations = [], locName = () => "—", onC
                 <div>{report.counts.inventory} inventory counts · net shrink {report.inventory.netShrink} units</div>
                 <div>{report.integrity.flagged} flagged · {report.integrity.disputed} disputed</div>
                 <div>{report.integrity.verified} of {report.integrity.total} verified ({Math.round(report.integrity.verificationRate * 100)}%)</div>
+                {report.incidents && (report.incidents.opened + report.incidents.closed) > 0 && (
+                  <div>{report.incidents.opened} incidents opened · {report.incidents.closed} closed</div>
+                )}
                 {report.empty && <div className="text-muted italic mt-1">No activity in this period.</div>}
               </>
             ) : null}
           </div>
 
           <div className="flex gap-2">
-            <button className="btn-primary flex-1" disabled={!ready} onClick={downloadCsv}>Download CSV</button>
-            <button className="btn-ghost flex-1" disabled={!ready} onClick={printReport}>Print</button>
+            <button className="btn-primary flex-1" disabled={!ready || busy} onClick={downloadPdf}>{busy ? "Generating…" : "Download PDF"}</button>
+            <button className="btn-ghost flex-1" disabled={!ready || busy} onClick={downloadCsv}>Download CSV</button>
           </div>
+          <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={printReport}>Print (line-by-line)</button>
           <p className="text-[11px] text-muted">A read-only snapshot of recorded counts for the period — saved for your records.</p>
         </div>
       </div>
