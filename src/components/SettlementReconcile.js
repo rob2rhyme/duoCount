@@ -40,6 +40,7 @@ export default function SettlementReconcile({ packs = [], onToast }) {
       setPackCol(guess.packNumber);
       setAmountCol(guess.amount);
     };
+    reader.onerror = () => { onToast?.("Couldn't read that file — try re-saving it as CSV."); };
     reader.readAsText(f);
   }
 
@@ -139,10 +140,16 @@ export default function SettlementReconcile({ packs = [], onToast }) {
             {result.onFileNotYetSettled?.length > 0 && (
               <p className="text-[13px] text-muted"><b className="text-gold">On the file, not settled yet:</b> {result.onFileNotYetSettled.map((m) => m.packNumber).join(", ")}</p>
             )}
+            {result.onFileButReturned?.length > 0 && (
+              <p className="text-[13px] text-muted"><b className="text-neg">Billed on the file, but you returned it:</b> {result.onFileButReturned.map((m) => m.packNumber).join(", ")}</p>
+            )}
+            {result.duplicates?.length > 0 && (
+              <p className="text-[13px] text-muted"><b className="text-gold">Listed more than once in the file:</b> {result.duplicates.map((d) => d.packNumber).join(", ")} — counted once; check the file for repeats.</p>
+            )}
             {result.unparsed?.length > 0 && (
               <p className="text-[13px] text-neg"><b>Couldn&apos;t read the amount for {result.unparsed.length} row{result.unparsed.length > 1 ? "s" : ""}</b> — check the amount-column mapping or the file&apos;s number format.</p>
             )}
-            {result.discrepancies.length === 0 && result.unknown.length === 0 && result.missing.length === 0 && !result.onFileNotYetSettled?.length && !result.unparsed?.length && (
+            {result.discrepancies.length === 0 && result.unknown.length === 0 && result.missing.length === 0 && !result.onFileNotYetSettled?.length && !result.onFileButReturned?.length && !result.duplicates?.length && !result.unparsed?.length && (
               <p className="text-[13px] text-pos font-semibold">✓ Everything reconciles.</p>
             )}
           </div>

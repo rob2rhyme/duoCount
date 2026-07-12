@@ -69,7 +69,10 @@ filtering, malformed-punch tolerance, and Firestore-style timestamp coercion.
   every 30 s), and a short list of the user's recent closed shifts.
 - **Managers / owners:** *Hours by employee* over a 7 / 14 / 30-day window
   (sticky-header table + total row) and an **Export payroll CSV** button
-  (employee, shifts, hours, period, export timestamp).
+  (employee, shifts, hours, period, export timestamp). The window is a **trailing**
+  one anchored to *now*, so it keeps sliding as the live-duration tick re-renders
+  — a shift that ages out of the window drops off without a manual refresh. The
+  payroll CSV runs every cell through the shared `csvCell` formula-injection guard.
 
 ## Security — `firestore.rules`
 
@@ -125,7 +128,9 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
 **UI** — the **Schedule** view:
 - **Managers:** a week navigator; an add-a-shift form (employee — or **Open shift
   (unassigned)** — / date / start / end / optional location) that **warns** when
-  the chosen employee marked that day off (override allowed); a roster grouped by
+  the chosen employee marked that day off (override allowed), and **rejects a
+  shift whose start equals its end** (which would otherwise be read as a 24 h
+  overnight shift); a roster grouped by
   day with a per-shift delete, a gold **Overlap** flag and a red **Unavailable**
   flag (open shifts show a gold *Open shift* label); a one-click **Copy last
   week** (dedup-aware, batch write); **Week templates** (save the current week,

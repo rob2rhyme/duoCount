@@ -37,6 +37,16 @@ export function toDate(ts) {
 // and shared by the log export and the period-report export. Rows are emitted in
 // the order given; callers order them (the log reverses its newest-first stream,
 // a report passes its already-chronological rows).
+// One CSV cell: quotes it, doubles internal quotes, and guards against formula
+// injection — a value a spreadsheet might execute (leading =, +, -, @, tab, or
+// CR) is prefixed with an apostrophe so it's read as text. A plain number is
+// exempt, so a legitimate negative amount (−1.00) stays a number, not text.
+export function csvCell(v) {
+  let s = String(v ?? "");
+  if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 export function entriesToCSV(entries = []) {
   const head = ["Type","Date","Shift","By","Role","Detail1","Detail2","Expected/Price","Counted/Sold","OverShort/Dollars","VerifiedBy","Timestamp"];
   const lines = [head.join(",")];
@@ -49,7 +59,7 @@ export function entriesToCSV(entries = []) {
       r = ["Inventory", e.date, e.shift, e.by, e.byRole, e.itemName, e.unit||"unit", e.expected||0, e.counted||0, e.diff||0, e.verifiedBy||"", t?t.toISOString():""];
     else
       r = ["Scratch", e.date, e.shift, e.by, e.byRole, e.game, "pack "+(e.pack||""), (e.price||0).toFixed(2), e.sold, (e.dollars||0).toFixed(2), e.verifiedBy||"", t?t.toISOString():""];
-    lines.push(r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","));
+    lines.push(r.map(csvCell).join(","));
   });
   return lines.join("\n");
 }

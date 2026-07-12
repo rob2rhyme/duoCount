@@ -165,9 +165,12 @@ service cloud.firestore {
         }
 
         // Managers work a flagged entry: open -> under-review -> resolved.
-        // Resolving requires a cause code and stamps the resolver.
+        // Resolving requires a cause code and stamps the resolver. The entry must
+        // already BE in the queue (open/under-review) — a manager can't fabricate a
+        // resolution on a clean 'none' count, or re-open a 'resolved' one (L9).
         function investigate() {
           return mgr()
+            && resource.data.get('varianceStatus', 'none') in ['open', 'under-review']
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['varianceStatus', 'causeCode', 'causeNote', 'resolvedBy', 'resolvedAt'])
             && request.resource.data.varianceStatus in ['open', 'under-review', 'resolved']
@@ -185,9 +188,11 @@ service cloud.firestore {
             && request.resource.data.disputeStatus == 'open';
         }
 
-        // Managers advance/close disputes.
+        // Managers advance/close disputes — but only ones an author actually
+        // opened. A manager can't resolve a dispute that was never raised (L9).
         function disputeManage() {
           return mgr()
+            && resource.data.get('disputeStatus', 'none') in ['open', 'under-review']
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disputeStatus'])
             && request.resource.data.disputeStatus in ['under-review', 'resolved'];
         }

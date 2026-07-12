@@ -115,6 +115,22 @@ export async function PATCH(req) {
       if (em.error) return NextResponse.json({ error: em.error }, { status: 400 });
       patch.email = em.email;
     }
+
+    // A store must always keep at least one active owner. If this change would
+    // demote or deactivate the last one, refuse — otherwise nobody could ever
+    // manage settings or owners again.
+    const demotingOwner = target.role === "owner" && patch.role !== undefined && patch.role !== "owner";
+    const deactivatingOwner = target.role === "owner" && patch.active === false;
+    if (demotingOwner || deactivatingOwner) {
+      const owners = await ref.parent.where("role", "==", "owner").get();
+      const otherActiveOwner = owners.docs.some(
+        (d) => d.id !== userId && d.data().active !== false);
+      if (!otherActiveOwner)
+        return NextResponse.json(
+          { error: "This is the store's last active owner — make someone else an owner first." },
+          { status: 400 });
+    }
+
     if (Object.keys(patch).length) await ref.update(patch);
 
     if (pin !== undefined) {

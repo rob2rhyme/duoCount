@@ -225,6 +225,9 @@ function verifyOnly() { /* existing rule, verbatim */ }
 
 function investigate() {
   return mgr()
+    // L9: the entry must already be in the queue — a manager can't fabricate a
+    // resolution on a clean 'none' count or re-open a 'resolved' one.
+    && resource.data.get('varianceStatus','none') in ['open','under-review']
     && request.resource.data.diff(resource.data).affectedKeys()
          .hasOnly(['varianceStatus','causeCode','causeNote','resolvedBy','resolvedAt'])
     && request.resource.data.varianceStatus in ['open','under-review','resolved']
@@ -243,6 +246,8 @@ function disputeOpen() {
 
 function disputeManage() {
   return mgr()
+    // L9: only a dispute an author actually opened can be advanced/closed.
+    && resource.data.get('disputeStatus','none') in ['open','under-review']
     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['disputeStatus'])
     && request.resource.data.disputeStatus in ['under-review','resolved'];
 }

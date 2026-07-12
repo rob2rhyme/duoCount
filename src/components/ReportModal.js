@@ -295,8 +295,8 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 <div>{report.counts.inventory} inventory counts · net shrink {report.inventory.netShrink} units</div>
                 <div>{report.integrity.flagged} flagged · {report.integrity.disputed} disputed</div>
                 <div>{report.integrity.verified} of {report.integrity.total} verified ({Math.round(report.integrity.verificationRate * 100)}%)</div>
-                {report.incidents && (report.incidents.opened + report.incidents.closed) > 0 && (
-                  <div>{report.incidents.opened} incidents opened · {report.incidents.closed} closed</div>
+                {report.incidents && (report.incidents.opened + report.incidents.acknowledged + report.incidents.closed) > 0 && (
+                  <div>{report.incidents.opened} incidents opened · {report.incidents.acknowledged} acknowledged · {report.incidents.closed} closed</div>
                 )}
                 {report.empty && <div className="text-muted italic mt-1">No activity in this period.</div>}
               </>

@@ -120,6 +120,9 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
     const m = isOpen ? null : staff.find((s) => s.id === form.userId);
     if (!isOpen && !m) return onToast?.("Pick an employee (or post an open shift)");
     if (!form.date) return onToast?.("Pick a date");
+    // start == end would be read as a 24h overnight shift; that's never intended.
+    if (form.start && form.end && form.start === form.end)
+      return onToast?.("A shift can't start and end at the same time");
     if (shiftMinutes(form.start, form.end) <= 0) return onToast?.("Check the start/end times");
     setBusy(true);
     try {

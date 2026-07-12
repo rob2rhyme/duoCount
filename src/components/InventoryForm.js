@@ -140,6 +140,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
         title="Scan to select item"
+        hint="The scan just picks the item — nothing saves until you save & sign the count."
         onDetected={(code) => {
           setScanOpen(false);
           const match = locItems.find((i) => i.barcode && i.barcode === code);

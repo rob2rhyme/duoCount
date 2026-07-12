@@ -232,9 +232,12 @@ decision — blocked? what to write on failure? — is a pure function,
 
 **Newly set PINs are now 6 digits** (`lib/pin.js`, enforced in the signup and
 staff routes and the client inputs) — a 1,000,000-value space, 100× the old
-4-digit floor and the single biggest brute-force win for a numeric PIN. Existing
-4–5 digit pins still verify at sign-in (the salted hash doesn't encode length),
-so this is a forward policy that never locks a current user out.
+4-digit floor and the single biggest brute-force win for a numeric PIN. The salted
+hash doesn't encode length, so a shorter legacy PIN would still *verify*
+server-side — but the sign-in form requires a full 6 digits before it will
+submit (`PinLogin.js`), so any pre-existing shorter PIN must be **reset to 6
+digits by a manager** before that user can sign in again. (This app enforced
+6-digit PINs from launch, so in practice there are no shorter PINs to migrate.)
 
 At 10 tries / 15 min per IP against a 6-digit space, an exhaustive sweep from one
 IP takes on the order of *years*; the per-store cap bounds a distributed sweep to
@@ -311,6 +314,20 @@ and the demoted/removed user is bounced from the UI within a listener round-trip
 2. Reactivating the user restores write access with no re-deploy.
 3. A signed-in user who is deactivated or has their role changed is signed out by
    the client watcher without a manual reload.
+
+### 3.6 Signup hardening + last-owner protection
+
+- **Signup rate limit.** Store creation is rare and writes a whole vendor tree,
+  so `api/auth/signup` caps it per IP (5 / hour) via the same `throttleDecision`
+  used by login, counting every attempt (not just failures) in an Admin-only
+  `signupAttempts` collection. Over the cap → `429`.
+- **Transactional slug allocation.** The store-code (slug) uniqueness check and
+  the whole tree write now run inside one `runTransaction`, so two people signing
+  up at the same moment can't grab the same code — the slug query is part of the
+  transaction's read-set, so a concurrent write to it forces a retry.
+- **Last-owner protection.** `api/staff` (PATCH) refuses a demotion or
+  deactivation that would leave the store with **zero active owners** — otherwise
+  nobody could ever manage settings or owners again. Add another owner first.
 
 ---
 

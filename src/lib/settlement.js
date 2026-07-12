@@ -68,10 +68,12 @@ export function reconcileSettlement(packs = [], rows = [], { basis = "dollars", 
   for (const p of packs) if (key(p.packNumber)) byNum.set(key(p.packNumber), p);
 
   const matched = [], discrepancies = [], unknown = [], unparsed = [], onFileNotYetSettled = [];
+  const duplicates = [], onFileButReturned = [];
   const seen = new Set();
   let fileTotal = 0;
   for (const r of rows) {
     const k = key(r.packNumber);
+    const isDup = !!k && seen.has(k); // this pack number already appeared earlier in the file
     if (k) seen.add(k); // a pack that appears in the file isn't "missing", even if its amount is unreadable
     const amt = cleanNum(r.amount);
     if (amt === null) {
@@ -81,8 +83,18 @@ export function reconcileSettlement(packs = [], rows = [], { basis = "dollars", 
     fileTotal += amt;
     if (!k) continue; // amount-only row: counted in the file total, nothing to reconcile
     const fileAmount = round2(amt);
+    // A pack number listed twice in the file would be reconciled twice, double-
+    // counting the recorded side. Flag the repeat and don't re-reconcile it (its
+    // amount still counts in the file total — that's what the file literally sums to).
+    if (isDup) { duplicates.push({ packNumber: r.packNumber, fileAmount }); continue; }
     const p = byNum.get(k);
     if (!p) { unknown.push({ packNumber: r.packNumber, fileAmount }); continue; }
+    // The store returned this pack — the lottery shouldn't be billing it at all.
+    // Flag it distinctly from a pack that simply hasn't been settled yet.
+    if (p.status === "returned") {
+      onFileButReturned.push({ packNumber: r.packNumber, game: p.game || "", fileAmount });
+      continue;
+    }
     // A received/active pack the store hasn't settled yet has no recorded figure
     // (soldAtSettle is null); comparing it against 0 would report a phantom
     // full-amount discrepancy, so bucket it separately (mirrors `missing`).
@@ -98,12 +110,13 @@ export function reconcileSettlement(packs = [], rows = [], { basis = "dollars", 
 
   // settled packs (have a settle count) the file never billed
   const missing = packs
-    .filter((p) => key(p.packNumber) && !seen.has(key(p.packNumber)) && p.soldAtSettle != null)
+    .filter((p) => key(p.packNumber) && !seen.has(key(p.packNumber)) && p.soldAtSettle != null && p.status !== "returned")
     .map((p) => ({ packNumber: p.packNumber, game: p.game || "", recorded: round2(recordedOf(p)) }));
 
   const compared = [...matched, ...discrepancies];
   return {
     matched, discrepancies, unknown, missing, unparsed, onFileNotYetSettled,
+    duplicates, onFileButReturned,
     totals: {
       file: round2(fileTotal),
       recorded: round2(compared.reduce((s, m) => s + m.recorded, 0)),

@@ -48,6 +48,35 @@ test("reconcile flags file rows with no matching pack (unknown) and settled pack
   assert.deepEqual(r.missing.map((m) => m.packNumber).sort(), ["0067890", "0099999"]);
 });
 
+test("a pack number listed twice in the file is flagged once, not reconciled twice (L5)", () => {
+  const rows = [
+    { packNumber: "0012345", amount: "200" }, // matches recorded 200
+    { packNumber: "0012345", amount: "200" }, // duplicate line in the file
+  ];
+  const r = reconcileSettlement(packs, rows);
+  assert.equal(r.matched.length, 1);          // reconciled once, not twice
+  assert.equal(r.duplicates.length, 1);
+  assert.equal(r.duplicates[0].packNumber, "0012345");
+  assert.equal(r.totals.file, 400);           // file total still sums both lines
+});
+
+test("a returned pack billed on the file is flagged distinctly, not as not-yet-settled (L6)", () => {
+  const withReturned = [
+    { packNumber: "0012345", game: "Lucky 7s", price: 5, soldAtSettle: 40 },
+    { packNumber: "0055555", game: "Sent Back", price: 5, soldAtSettle: null, status: "returned" },
+  ];
+  const r = reconcileSettlement(withReturned, [
+    { packNumber: "0012345", amount: "200" },
+    { packNumber: "0055555", amount: "100" }, // the lottery is billing a pack we returned
+  ]);
+  assert.deepEqual(r.onFileButReturned.map((m) => m.packNumber), ["0055555"]);
+  assert.equal(r.onFileNotYetSettled.length, 0); // not mislabeled as unsettled
+  assert.equal(r.matched.length, 1);
+  // a returned pack absent from the file is not counted as "missing" either
+  const r2 = reconcileSettlement(withReturned, [{ packNumber: "0012345", amount: "200" }]);
+  assert.equal(r2.missing.some((m) => m.packNumber === "0055555"), false);
+});
+
 test("reconcile can compare ticket counts instead of dollars", () => {
   const rows = [{ packNumber: "0012345", amount: "40" }, { packNumber: "0067890", amount: "31" }];
   const r = reconcileSettlement(packs, rows, { basis: "tickets" });

@@ -508,6 +508,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
         title="Scan item barcode"
+        hint="The scan fills the barcode — nothing saves until you add the item."
         onDetected={(code) => { setNi((p) => ({ ...p, barcode: code })); setScanOpen(false); onToast?.("Scanned"); }} />
     </div>
   );
