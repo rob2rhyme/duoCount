@@ -199,7 +199,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
         </div>
       )}
 
-      <p className="text-center text-[11px] text-faint px-4">
+      <p className="text-center text-[11px] text-muted px-4">
         Punches are permanent — a mistake is fixed by punching again, never edited. A forgotten clock-out shows as an open shift and adds no hours until you clock out.
       </p>
       </>

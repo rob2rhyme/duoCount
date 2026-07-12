@@ -4,6 +4,7 @@ import { addNote, updateNote } from "@/lib/data";
 import { toDate } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconNote } from "./EmptyState";
+import Field from "./Field";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -63,20 +64,21 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
         </div>
         <div className="p-4 space-y-3">
           <textarea ref={composerRef} className="input min-h-[76px]" maxLength={2000} value={text}
+            aria-label="New shift note"
             placeholder="Leave a note for the next shift…"
             onChange={(e) => setText(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Location</label>
+            <Field label={"Location"}>
               <select className="input" value={f.locationId} disabled={!!lockedLoc}
                 onChange={(e) => setF({ ...f, locationId: e.target.value })}>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>
-            <div><label className="label">Shift (optional)</label>
+              </select></Field>
+            <Field label={"Shift (optional)"}>
               <select className="input" value={f.shift} onChange={(e) => setF({ ...f, shift: e.target.value })}>
                 <option value="">—</option>
                 <option value="open">Opening</option>
                 <option value="close">Closing</option>
-              </select></div>
+              </select></Field>
           </div>
           <button className="btn-primary" disabled={busy} onClick={post}>{busy ? "Posting…" : "Post note"}</button>
         </div>
@@ -86,7 +88,7 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
       {(canFilter || isManager) && (
         <div className="flex gap-2 flex-wrap items-center">
           {canFilter && (
-            <select className="input w-auto flex-1 min-w-[140px]" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
+            <select className="input w-auto flex-1 min-w-[140px]" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)} aria-label="Filter notes by location">
               <option value="all">All locations</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>

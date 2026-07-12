@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import {
   watchStaff, apiCreateStaff, apiUpdateStaff,
   addLocation, updateLocation, addDrawer, updateDrawer,
@@ -11,10 +11,14 @@ import { PIN_LENGTH, PIN_HELP, isValidNewPin } from "@/lib/pin";
 import BarcodeScanner from "./BarcodeScanner";
 import PacksCard from "./PacksCard";
 import SettlementReconcile from "./SettlementReconcile";
+import Field from "./Field";
 
 export default function AdminPanel({ onToast, locations, drawers, items = [], packs = [], entries = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const [staff, setStaff] = useState([]);
+  const barcodeFieldId = useId();
+  const sharingId = useId();
+  const varianceId = useId();
 
   useEffect(() => watchStaff(vendor.id, setStaff), [vendor.id]);
 
@@ -166,27 +170,26 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
         </div>
         <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">Name</label><input className="input" value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder="Sam K." /></div>
-            <div><label className="label">PIN ({PIN_HELP})</label><input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="123456" /></div>
+            <Field label={"Name"}><input className="input" value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder="Sam K." /></Field>
+            <Field label={<>PIN ({PIN_HELP})</>}><input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="123456" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">Role</label>
+            <Field label={"Role"}>
               <select className="input" value={ns.role} onChange={(e) => setNs({ ...ns, role: e.target.value })}>
                 <option value="employee">Employee</option>
                 <option value="manager">Manager</option>
                 {isOwner && <option value="owner">Owner</option>}
-              </select></div>
-            <div><label className="label">Location</label>
+              </select></Field>
+            <Field label={"Location"}>
               <select className="input" value={ns.locationId} onChange={(e) => setNs({ ...ns, locationId: e.target.value })}>
                 {ns.role !== "employee" && <option value="">All locations</option>}
                 {locations.filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>
+              </select></Field>
           </div>
-          <div className="mb-3">
-            <label className="label">Email (optional — for schedule notifications)</label>
+          <Field className="mb-3" label={"Email (optional — for schedule notifications)"}>
             <input className="input" type="email" inputMode="email" value={ns.email}
               onChange={(e) => setNs({ ...ns, email: e.target.value })} placeholder="sam@store.com" />
-          </div>
+          </Field>
           <button className="btn-ghost w-full" disabled={busy} onClick={createStaff}>{busy ? "Adding…" : "Add staff member"}</button>
         </div>
         <div>
@@ -205,12 +208,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <select className="input w-auto py-1.5 text-sm" value={u.role} disabled={isMe || (u.role === "owner" && !isOwner)}
+                    aria-label={`Role for ${u.name}`}
                     onChange={(e) => patchStaff(u.id, { role: e.target.value }, `${u.name} is now ${e.target.value}`)}>
                     <option value="employee">Employee</option>
                     <option value="manager">Manager</option>
                     <option value="owner" disabled={!isOwner}>Owner</option>
                   </select>
                   <select className="input w-auto py-1.5 text-sm" value={u.locationId || ""} disabled={isMe}
+                    aria-label={`Location for ${u.name}`}
                     onChange={(e) => patchStaff(u.id, { locationId: e.target.value || null })}>
                     <option value="">All locations</option>
                     {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -248,7 +253,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line"><h2 className="font-semibold text-[15px]">Locations</h2></div>
         <div className="p-4 border-b border-line bg-panel flex gap-2">
-          <input className="input" value={newLoc} onChange={(e) => setNewLoc(e.target.value)} placeholder="Downtown store" />
+          <input className="input" value={newLoc} onChange={(e) => setNewLoc(e.target.value)} placeholder="Downtown store" aria-label="Location name" />
           <button className="btn-ghost whitespace-nowrap" onClick={createLoc}>Add location</button>
         </div>
         {locations.map((l) => (
@@ -273,11 +278,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
         </div>
         <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">Drawer name</label><input className="input" value={nd.name} onChange={(e) => setNd({ ...nd, name: e.target.value })} placeholder="Safe Drawer" /></div>
-            <div><label className="label">Location</label>
+            <Field label={"Drawer name"}><input className="input" value={nd.name} onChange={(e) => setNd({ ...nd, name: e.target.value })} placeholder="Safe Drawer" /></Field>
+            <Field label={"Location"}>
               <select className="input" value={nd.locationId} onChange={(e) => setNd({ ...nd, locationId: e.target.value })}>
                 {locations.filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>
+              </select></Field>
           </div>
           <button className="btn-ghost w-full" onClick={createDrawer}>Add drawer</button>
         </div>
@@ -306,27 +311,27 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
         </div>
         <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">Item name</label><input className="input" value={ni.name} onChange={(e) => setNi({ ...ni, name: e.target.value })} placeholder="Marlboro Red carton" /></div>
-            <div><label className="label">Category (optional)</label><input className="input" value={ni.category} onChange={(e) => setNi({ ...ni, category: e.target.value })} placeholder="Cigarettes" /></div>
+            <Field label={"Item name"}><input className="input" value={ni.name} onChange={(e) => setNi({ ...ni, name: e.target.value })} placeholder="Marlboro Red carton" /></Field>
+            <Field label={"Category (optional)"}><input className="input" value={ni.category} onChange={(e) => setNi({ ...ni, category: e.target.value })} placeholder="Cigarettes" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div><label className="label">Unit</label>
+            <Field label={"Unit"}>
               <select className="input" value={ni.unit} onChange={(e) => setNi({ ...ni, unit: e.target.value })}>
                 <option value="unit">Unit</option>
                 <option value="carton">Carton</option>
                 <option value="pack">Pack</option>
                 <option value="box">Box</option>
                 <option value="case">Case</option>
-              </select></div>
-            <div><label className="label">Location</label>
+              </select></Field>
+            <Field label={"Location"}>
               <select className="input" value={ni.locationId} onChange={(e) => setNi({ ...ni, locationId: e.target.value })}>
                 {locations.filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>
+              </select></Field>
           </div>
           <div className="mb-3">
-            <label className="label">Barcode (optional)</label>
+            <label htmlFor={barcodeFieldId} className="label">Barcode (optional)</label>
             <div className="flex gap-2">
-              <input className="input font-mono" value={ni.barcode} placeholder="Scan or type"
+              <input id={barcodeFieldId} className="input font-mono" value={ni.barcode} placeholder="Scan or type"
                 onChange={(e) => setNi({ ...ni, barcode: e.target.value })} />
               <button type="button" className="btn-ghost whitespace-nowrap px-3" onClick={() => setScanOpen(true)}>📷 Scan</button>
             </div>
@@ -370,13 +375,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
           <p className="text-[13px] text-muted mt-0.5">Store code: <b className="font-mono">{vendor.slug}</b> — staff use it to sign in.</p>
         </div>
         <div className="p-4 space-y-3.5">
-          <div><label className="label">Business name</label>
-            <input className="input" value={settings.name} onChange={(e) => setSettings({ ...settings, name: e.target.value })} disabled={!isOwner} /></div>
-          <div><label className="label">Logo URL</label>
-            <input className="input" value={settings.logoUrl} onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })} disabled={!isOwner} /></div>
+          <Field label={"Business name"}>
+            <input className="input" value={settings.name} onChange={(e) => setSettings({ ...settings, name: e.target.value })} disabled={!isOwner} /></Field>
+          <Field label={"Logo URL"}>
+            <input className="input" value={settings.logoUrl} onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })} disabled={!isOwner} /></Field>
           <div>
-            <label className="label">Data sharing</label>
-            <select className="input" value={settings.sharingMode} onChange={(e) => setSettings({ ...settings, sharingMode: e.target.value })} disabled={!isOwner}>
+            <label htmlFor={sharingId} className="label">Data sharing</label>
+            <select id={sharingId} className="input" value={settings.sharingMode} onChange={(e) => setSettings({ ...settings, sharingMode: e.target.value })} disabled={!isOwner}>
               <option value="all-locations">Shared — every location sees all logs</option>
               <option value="per-location">Per location — employees see only their location</option>
             </select>
@@ -396,8 +401,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
           </div>
 
           <div>
-            <label className="label">Variance threshold ($)</label>
-            <input type="number" inputMode="decimal" min="0" step="0.5" className="input"
+            <label htmlFor={varianceId} className="label">Variance threshold ($)</label>
+            <input id={varianceId} type="number" inputMode="decimal" min="0" step="0.5" className="input"
               value={settings.varianceThreshold} disabled={!isOwner}
               onChange={(e) => setSettings({ ...settings, varianceThreshold: e.target.value })} />
             <p className="text-xs text-muted mt-1.5 leading-relaxed">Counts off by this much or more get flagged for review. Changing it only affects new entries.</p>
@@ -409,31 +414,26 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               <p className="text-xs text-muted leading-relaxed">Tunes the pattern alerts on the dashboard and in the daily digest. The defaults suit most stores — lower the counts to catch more, raise them to cut noise.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Lookback (days)</label>
+              <Field label={"Lookback (days)"}>
                 <input type="number" inputMode="numeric" min="1" max="90" step="1" className="input"
                   value={settings.patternRules.windowDays} disabled={!isOwner} onChange={setRule("windowDays")} />
-              </div>
-              <div>
-                <label className="label">Repeat counts to flag</label>
+              </Field>
+              <Field label={"Repeat counts to flag"}>
                 <input type="number" inputMode="numeric" min="2" max="25" step="1" className="input"
                   value={settings.patternRules.minShorts} disabled={!isOwner} onChange={setRule("minShorts")} />
-              </div>
-              <div>
-                <label className="label">High-severity total ($)</label>
+              </Field>
+              <Field label={"High-severity total ($)"}>
                 <input type="number" inputMode="decimal" min="1" step="1" className="input"
                   value={settings.patternRules.highShortDollars} disabled={!isOwner} onChange={setRule("highShortDollars")} />
-              </div>
-              <div>
-                <label className="label">Backlog size to alert</label>
+              </Field>
+              <Field label={"Backlog size to alert"}>
                 <input type="number" inputMode="numeric" min="1" max="200" step="1" className="input"
                   value={settings.patternRules.minBacklog} disabled={!isOwner} onChange={setRule("minBacklog")} />
-              </div>
-              <div>
-                <label className="label">Unverified after (hours)</label>
+              </Field>
+              <Field label={"Unverified after (hours)"}>
                 <input type="number" inputMode="numeric" min="1" max="720" step="1" className="input"
                   value={settings.patternRules.staleHours} disabled={!isOwner} onChange={setRule("staleHours")} />
-              </div>
+              </Field>
             </div>
             <p className="text-xs text-muted leading-relaxed">
               &ldquo;Repeat counts&rdquo; covers both short and over streaks by one person; &ldquo;backlog&rdquo; and &ldquo;unverified after&rdquo; drive the verification and open-variance alerts. Out-of-range values are clamped on save.
@@ -450,14 +450,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                 <p className="text-xs text-muted leading-relaxed">One email each morning summarizing yesterday's counts, variances, and disputes.</p>
               </label>
             </div>
-            <div>
-              <label className="label">Recipients (comma-separated, max 10)</label>
+            <Field label={"Recipients (comma-separated, max 10)"}>
               <input className="input" value={settings.digestRecipients} disabled={!isOwner}
                 placeholder="owner@store.com, manager@store.com"
                 onChange={(e) => setSettings({ ...settings, digestRecipients: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Timezone</label>
+            </Field>
+            <Field label={"Timezone"}>
               <select className="input" value={settings.digestTz} disabled={!isOwner}
                 onChange={(e) => setSettings({ ...settings, digestTz: e.target.value })}>
                 {["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix",
@@ -465,7 +463,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                   <option key={tz} value={tz}>{tz}</option>
                 ))}
               </select>
-            </div>
+            </Field>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <span className="text-xs text-muted">
                 Last sent: <b className="font-mono">{vendor.digest?.lastSentDate || "never"}</b>

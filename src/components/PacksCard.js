@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { addPack, updatePack } from "@/lib/data";
 import { money, toDate } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
 import BarcodeScanner from "./BarcodeScanner";
+import Field from "./Field";
 
 const STATUS_PILL = {
   received: "bg-subtle text-muted",
@@ -21,6 +22,7 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
   const { profile, vendor } = useSession();
   const [np, setNp] = useState({ game: "", packNumber: "", price: "", ticketCount: "", locationId: "", bin: "", barcode: "" });
   const [scanOpen, setScanOpen] = useState(false);
+  const barcodeId = useId();
   const [filter, setFilter] = useState("open"); // open = received + active
 
   async function create() {
@@ -102,23 +104,23 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
       {/* add form */}
       <div className="p-4 border-b border-line bg-panel">
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="label">Game</label><input className="input" value={np.game} onChange={(e) => setNp({ ...np, game: e.target.value })} placeholder="Lucky 7s" /></div>
-          <div><label className="label">Pack / book #</label><input className="input font-mono" value={np.packNumber} onChange={(e) => setNp({ ...np, packNumber: e.target.value })} placeholder="0000000" /></div>
+          <Field label={"Game"}><input className="input" value={np.game} onChange={(e) => setNp({ ...np, game: e.target.value })} placeholder="Lucky 7s" /></Field>
+          <Field label={"Pack / book #"}><input className="input font-mono" value={np.packNumber} onChange={(e) => setNp({ ...np, packNumber: e.target.value })} placeholder="0000000" /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="label">Ticket price</label><input type="number" inputMode="decimal" className="input" value={np.price} onChange={(e) => setNp({ ...np, price: e.target.value })} placeholder="5.00" /></div>
-          <div><label className="label">Tickets per pack</label><input type="number" inputMode="numeric" className="input" value={np.ticketCount} onChange={(e) => setNp({ ...np, ticketCount: e.target.value })} placeholder="60" /></div>
+          <Field label={"Ticket price"}><input type="number" inputMode="decimal" className="input" value={np.price} onChange={(e) => setNp({ ...np, price: e.target.value })} placeholder="5.00" /></Field>
+          <Field label={"Tickets per pack"}><input type="number" inputMode="numeric" className="input" value={np.ticketCount} onChange={(e) => setNp({ ...np, ticketCount: e.target.value })} placeholder="60" /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div><label className="label">Location</label>
+          <Field label={"Location"}>
             <select className="input" value={np.locationId} onChange={(e) => setNp({ ...np, locationId: e.target.value })}>
               {locations.filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select></div>
-          <div><label className="label">Barcode (optional)</label>
+            </select></Field>
+          <div><label htmlFor={barcodeId} className="label">Barcode (optional)</label>
             <div className="flex gap-2">
-              <input className="input font-mono min-w-0" value={np.barcode} placeholder="Scan or type"
+              <input id={barcodeId} className="input font-mono min-w-0" value={np.barcode} placeholder="Scan or type"
                 onChange={(e) => setNp({ ...np, barcode: e.target.value })} />
-              <button type="button" className="btn-ghost px-2.5 flex-shrink-0" onClick={() => setScanOpen(true)}>📷</button>
+              <button type="button" className="btn-ghost px-2.5 flex-shrink-0" onClick={() => setScanOpen(true)} aria-label="Scan barcode">📷</button>
             </div></div>
         </div>
         <button className="btn-ghost w-full" onClick={create}>Receive pack</button>
@@ -126,7 +128,7 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
 
       {/* filter */}
       <div className="px-4 py-2.5 border-b border-line">
-        <select className="input w-auto py-1.5 text-sm" value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <select className="input w-auto py-1.5 text-sm" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter packs by status">
           <option value="open">Received & active</option>
           <option value="settled">Settled</option>
           <option value="returned">Returned</option>

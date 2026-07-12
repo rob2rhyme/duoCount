@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { parseCSV, guessColumns, reconcileSettlement } from "@/lib/settlement";
 import { money } from "@/lib/utils";
+import Field from "./Field";
 
 function Stat({ label, value, tone }) {
   const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : tone === "gold" ? "text-gold" : "text-fg";
@@ -56,7 +57,7 @@ export default function SettlementReconcile({ packs = [], onToast }) {
         <p className="text-[13px] text-muted mt-0.5">Upload your state settlement/invoice CSV and match it against your recorded scratch-off packs — no fixed format, you map the columns.</p>
       </div>
       <div className="p-4 space-y-3.5">
-        <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile}
+        <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile} aria-label="Upload settlement CSV"
           className="block w-full text-sm text-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-subtle file:text-fg file:font-semibold file:text-sm file:cursor-pointer" />
 
         {table.length > 0 && (
@@ -67,28 +68,25 @@ export default function SettlementReconcile({ packs = [], onToast }) {
               First row is a header
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Pack-number column</label>
+              <Field label={"Pack-number column"}>
                 <select className="input" value={packCol} onChange={(e) => setPackCol(Number(e.target.value))}>
                   <option value={-1}>Select…</option>
                   {colOptions.map((c) => <option key={c.i} value={c.i}>{c.label}</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="label">Amount column</label>
+              </Field>
+              <Field label={"Amount column"}>
                 <select className="input" value={amountCol} onChange={(e) => setAmountCol(Number(e.target.value))}>
                   <option value={-1}>Select…</option>
                   {colOptions.map((c) => <option key={c.i} value={c.i}>{c.label}</option>)}
                 </select>
-              </div>
+              </Field>
             </div>
-            <div>
-              <label className="label">Compare the amount against</label>
+            <Field label={"Compare the amount against"}>
               <select className="input" value={basis} onChange={(e) => setBasis(e.target.value)}>
                 <option value="dollars">Gross dollars (tickets sold × price)</option>
                 <option value="tickets">Tickets sold</option>
               </select>
-            </div>
+            </Field>
             <button className="btn-primary" onClick={run}>Reconcile</button>
           </>
         )}

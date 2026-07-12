@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { money, toDate } from "@/lib/utils";
 import { causeLabel } from "./LogList";
 import { useSession } from "./SessionProvider";
+import { useModalA11y } from "@/lib/use-modal-a11y";
+import Field from "./Field";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -30,6 +32,7 @@ export default function ReportModal({ entries, locations, locName, onClose, onTo
   const [date, setDate] = useState(today());
   const [locId, setLocId] = useState("all");
   const [busy, setBusy] = useState(false);
+  const panelRef = useModalA11y(onClose);
 
   const r = useMemo(() => buildReport(entries, date, locId), [entries, date, locId]);
   const locLabel = locId === "all" ? "All locations" : locName(locId);
@@ -170,20 +173,21 @@ export default function ReportModal({ entries, locations, locName, onClose, onTo
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-surface rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="report-modal-title"
+        className="bg-surface rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="px-4 py-3.5 border-b border-line flex items-center justify-between">
-          <h2 className="font-semibold text-[15px]">End-of-day report</h2>
-          <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose}>✕</button>
+          <h2 id="report-modal-title" className="font-semibold text-[15px]">End-of-day report</h2>
+          <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose} aria-label="Close"><span aria-hidden="true">✕</span></button>
         </div>
         <div className="p-4 space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Date</label>
-              <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-            <div><label className="label">Location</label>
+            <Field label="Date">
+              <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+            <Field label="Location">
               <select className="input" value={locId} onChange={(e) => setLocId(e.target.value)}>
                 <option value="all">All locations</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select></div>
+              </select></Field>
           </div>
 
           <div className="bg-panel border border-line rounded-xl p-3.5 text-sm space-y-1">
