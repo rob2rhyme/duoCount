@@ -120,6 +120,18 @@ export async function PATCH(req) {
     if (pin !== undefined) {
       if (!isValidNewPin(pin))
         return NextResponse.json({ error: PIN_ERROR }, { status: 400 });
+      // A reset PIN must stay unique within the store (excluding this user).
+      // Sign-in identifies a person by their PIN, so a collision would let login
+      // resolve to the wrong identity — same check the create path enforces.
+      const vendorRef = adminDb.collection("vendors").doc(claims.vendorId);
+      const users = await vendorRef.collection("users").get();
+      const { verifyPin } = await import("@/lib/hash");
+      for (const u of users.docs) {
+        if (u.id === userId) continue;
+        const creds = await u.ref.collection("private").doc("creds").get();
+        if (creds.exists && verifyPin(pin, creds.data().pinHash))
+          return NextResponse.json({ error: "That PIN is already in use at this store." }, { status: 409 });
+      }
       await ref.collection("private").doc("creds").set({ pinHash: hashPin(pin) });
     }
     return NextResponse.json({ ok: true });

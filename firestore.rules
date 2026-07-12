@@ -58,11 +58,16 @@ service cloud.firestore {
         allow update: if mgr()
           && request.resource.data.status in ['received', 'active', 'settled', 'returned']
           && (
-            resource.data.status == request.resource.data.status
-            || (resource.data.status == 'received'
-                && request.resource.data.status == 'active')
+            // forward-only transitions
+            (resource.data.status == 'received' && request.resource.data.status == 'active')
             || (resource.data.status == 'active'
                 && request.resource.data.status in ['settled', 'returned'])
+            // metadata edit (status unchanged) — but a settled/returned pack is
+            // terminal: its settle snapshot (soldAtSettle/shortAtSettle/price…)
+            // is frozen HERE, in rules, not just by the absence of a UI control.
+            || (resource.data.status == request.resource.data.status
+                && (!(resource.data.status in ['settled', 'returned'])
+                    || request.resource.data.diff(resource.data).affectedKeys().size() == 0))
           );
         allow delete: if false;
       }
@@ -98,7 +103,8 @@ service cloud.firestore {
           && request.resource.data.get('disputeStatus', 'none') == 'none'
           && request.resource.data.get('varianceStatus', 'none') in ['none', 'open']
           && request.resource.data.get('causeCode', null) == null
-          && varianceConsistent();
+          && varianceConsistent()
+          && flagConsistent();
 
         // Cash/inventory entries carry counted/expected/diff; the stored diff
         // must equal counted - expected (±0.01 to absorb float cents) so a
@@ -114,6 +120,24 @@ service cloud.firestore {
                      >= request.resource.data.counted - request.resource.data.expected - 0.01
                 && request.resource.data.diff
                      <= request.resource.data.counted - request.resource.data.expected + 0.01);
+        }
+
+        // A cash count at or beyond the store's variance threshold must be signed
+        // as an OPEN variance — a client can't record a real short/over as
+        // 'none' and hide it from the review queue, the owner dashboard/digest,
+        // and the theft-pattern detectors. Only cash auto-flags today (scratch
+        // has no diff; inventory flagging is a separate feature), and this fails
+        // OPEN when the threshold is misconfigured so a bad setting can never
+        // reject a legitimate count. Mirrors CashForm's `abs(diff) >= threshold`.
+        function cashVarianceThreshold() {
+          return get(/databases/$(database)/documents/vendors/$(vendorId)).data.get('varianceThreshold', 5);
+        }
+        function flagConsistent() {
+          return request.resource.data.kind != 'cash'
+            || !(cashVarianceThreshold() is number)
+            || !(request.resource.data.diff is number)
+            || math.abs(request.resource.data.diff) < cashVarianceThreshold()
+            || request.resource.data.get('varianceStatus', 'none') == 'open';
         }
 
         // Manager verification — never self-verified. (Existing rule, verbatim.)
@@ -263,6 +287,11 @@ service cloud.firestore {
           && request.resource.data.userId == request.auth.token.userId
           && request.resource.data.userName == request.auth.token.name
           && request.resource.data.type in ['in', 'out']
+          // The punch time is the hours-bearing field, so it must be the server's
+          // clock, not a client-chosen value — otherwise an employee could
+          // back/forward-date a punch to inflate paid hours. (`day` stays the
+          // client's business-day label for reconciliation.)
+          && request.resource.data.ts == request.time
           && (mgr() || request.resource.data.locationId == request.auth.token.locationId);
 
         allow update, delete: if false;

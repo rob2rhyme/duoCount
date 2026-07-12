@@ -2,7 +2,7 @@ import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
-  query, where, orderBy, onSnapshot, getDocs,
+  query, where, orderBy, onSnapshot, getDocs, serverTimestamp,
 } from "firebase/firestore";
 
 /* All data lives under vendors/{vendorId}/... — every helper is tenant-scoped. */
@@ -244,8 +244,10 @@ export function watchPunches(vendorId, selfId, cb) {
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 export async function addPunch(vendorId, punch) {
+  // ts is the server clock (rules require ts == request.time so paid hours can't
+  // be forged); `day` stays the client's local business-day label.
   await addDoc(vcol(vendorId, "timeclock"), {
-    ...punch, ts: new Date(), day: new Date().toISOString().slice(0, 10),
+    ...punch, ts: serverTimestamp(), day: new Date().toISOString().slice(0, 10),
   });
 }
 

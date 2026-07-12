@@ -42,17 +42,23 @@ match /packs/{packId} {
   allow update: if mgr()
     && request.resource.data.status in ['received', 'active', 'settled', 'returned']
     && (
-      resource.data.status == request.resource.data.status            // metadata edit
-      || (resource.data.status == 'received'
+      // forward-only transitions
+      (resource.data.status == 'received'
           && request.resource.data.status == 'active')                // activate
       || (resource.data.status == 'active'
           && request.resource.data.status in ['settled', 'returned']) // close out
+      // metadata edit (status unchanged) — but a settled/returned pack is
+      // terminal: its settle snapshot is frozen HERE, in rules, so NO field
+      // may change once it's closed out.
+      || (resource.data.status == request.resource.data.status
+          && (!(resource.data.status in ['settled', 'returned'])
+              || request.resource.data.diff(resource.data).affectedKeys().size() == 0))
     );
   allow delete: if false;
 }
 ```
 
-Forward-only is the rule, not a convention: a settled or returned pack can never be reopened, and nothing skips from `received` straight to `settled`.
+Forward-only is the rule, not a convention: a settled or returned pack can never be reopened, and nothing skips from `received` straight to `settled`. **A closed-out pack is frozen whole** — the trust-model pass tightened the metadata-edit branch so that once a pack is `settled` or `returned`, rules reject *any* field change (not just a status change). Before, the `resource.data.status == request.resource.data.status` branch let a manager rewrite `soldAtSettle`/`shortAtSettle` on a settled pack after the fact — erasing a recorded short. Now the settle snapshot is immutable at the rules layer, matching the append-only posture of entries and punches.
 
 ---
 
@@ -100,6 +106,6 @@ columns** — which one is the pack/book number, which is the amount.
 ## 5. Acceptance criteria
 
 1. Rules reject backward or skipping transitions (emulator-tested), pack deletion, and employee writes; everyone signed-in can read.
-2. Settling freezes `soldAtSettle`/`shortAtSettle`; later counts never rewrite a settled pack's snapshot.
+2. Settling freezes `soldAtSettle`/`shortAtSettle`; later counts never rewrite a settled pack's snapshot — a settled/returned pack rejects *any* field edit at the rules layer (emulator-tested), not just a status change.
 3. The scratch form's picker lists only `active` packs at the selected location, and selecting one fills pack/game/price without touching start/end numbers except via the existing last-count prefill.
 4. A pack registry is optional: stores that never open the card lose nothing — free-text pack counting behaves exactly as before.

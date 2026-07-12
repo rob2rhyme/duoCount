@@ -105,6 +105,7 @@ Managers may classify their own entries (small shops make self-investigation una
 2. An entry cannot reach `resolved` without a `causeCode` (enforced by rules, §3).
 3. Dashboard "Open variances" equals the count of `varianceStatus == 'open'` in the current view scope.
 4. Cause-code distribution appears in the EOD report's flagged-items section.
+5. The flag is not client-trust-only: a cash count at or beyond the threshold that is written as `varianceStatus: 'none'` (unflagged) is rejected by rules (`flagConsistent()`, §3), so a short can't be hidden from the queue at save time.
 
 ---
 
@@ -256,11 +257,44 @@ function commentBump() {
 allow update: if verifyOnly() || investigate() || disputeOpen() || disputeManage() || commentBump();
 ```
 
-**Entries create** additionally requires clean initial state:
+**Entries create** additionally requires clean initial state, and — as hardened in the trust-model pass — that the stored numbers can't be forged to hide a short:
 ```
 && request.resource.data.get('disputeStatus','none') == 'none'
 && request.resource.data.get('varianceStatus','none') in ['none','open']
 && request.resource.data.get('causeCode', null) == null
+&& varianceConsistent()   // diff must equal counted - expected (±0.01)
+&& flagConsistent()       // an over-threshold cash count must be signed 'open'
+```
+
+`varianceConsistent()` and `flagConsistent()` close the gap where a non-manager could sign a clean-looking count that hides a real short from the review queue, the owner digest, and the theft-pattern detectors — all of which trust the stored `diff`/`varianceStatus`:
+```
+// Cash/inventory entries carry counted/expected/diff; the stored diff must
+// equal counted - expected (±0.01 to absorb float cents). Scratch is exempt.
+function varianceConsistent() {
+  return !(request.resource.data.kind in ['cash','inventory'])
+    || (request.resource.data.diff is number
+        && request.resource.data.counted is number
+        && request.resource.data.expected is number
+        && request.resource.data.diff >= request.resource.data.counted - request.resource.data.expected - 0.01
+        && request.resource.data.diff <= request.resource.data.counted - request.resource.data.expected + 0.01);
+}
+
+// A cash count at or beyond the store's variance threshold must be signed as an
+// OPEN variance — a client can't record a real short/over as 'none' and hide it
+// from review. Reads the threshold from the vendor doc (default 5), mirrors
+// CashForm's `abs(diff) >= threshold`, and fails OPEN when the threshold is
+// misconfigured so a bad setting can never reject a legitimate count. Cash only
+// (scratch has no diff; inventory auto-flagging is a later tier).
+function cashVarianceThreshold() {
+  return get(/databases/$(database)/documents/vendors/$(vendorId)).data.get('varianceThreshold', 5);
+}
+function flagConsistent() {
+  return request.resource.data.kind != 'cash'
+    || !(cashVarianceThreshold() is number)
+    || !(request.resource.data.diff is number)
+    || math.abs(request.resource.data.diff) < cashVarianceThreshold()
+    || request.resource.data.get('varianceStatus','none') == 'open';
+}
 ```
 
 **Comments subcollection** (inherits parent-entry visibility; note: the read costs two extra `get()` reads — vendor + parent entry — which is fine at this scale):

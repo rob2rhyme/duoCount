@@ -50,15 +50,19 @@ export async function POST(req) {
     // Small staff lists per store, so verifying against each active user's
     // salted hash is fine (salted hashes can't be queried directly).
     const uSnap = await vendorDoc.ref.collection("users").where("active", "==", true).get();
-    let match = null;
+    const matches = [];
     for (const u of uSnap.docs) {
       const creds = await u.ref.collection("private").doc("creds").get();
-      if (creds.exists && verifyPin(pin, creds.data().pinHash)) { match = { id: u.id, ...u.data() }; break; }
+      if (creds.exists && verifyPin(pin, creds.data().pinHash)) matches.push({ id: u.id, ...u.data() });
     }
-    if (!match) {
+    // Exactly one identity must match. Zero → wrong PIN. More than one (a PIN
+    // collision that slipped past the set-time uniqueness checks) → refuse
+    // rather than sign in as an arbitrary one of them.
+    if (matches.length !== 1) {
       await recordFail();
       return NextResponse.json({ error: "PIN not recognized for this store." }, { status: 401 });
     }
+    const match = matches[0];
 
     // A store's staff share the shop Wi-Fi IP — one person's typos shouldn't
     // lock out the shift once somebody signs in fine. Clear both counters.

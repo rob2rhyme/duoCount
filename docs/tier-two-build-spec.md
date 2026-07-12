@@ -239,6 +239,23 @@ lockout is a deliberate DoS trade-off (an attacker actively flooding a store can
 keep its window tripped), but it auto-recovers within minutes of the flood
 stopping and never requires a manual unlock.
 
+### 3.2a PIN uniqueness — no ambiguous sign-in
+
+Because a store's staff sign in with the store code plus their PIN (no username),
+a PIN has to identify exactly one person. Two safeguards keep that true, tightened
+in the trust-model pass:
+
+- **At set time** (`api/staff` create *and* PIN-reset): the route hashes the new
+  PIN against every other active user in the store and returns **409** if it
+  collides — so a manager can't hand two people the same PIN. The reset path was
+  hardened to run this same check (it previously only enforced it on create).
+- **At sign-in** (`api/auth/login`): the route no longer stops at the first
+  hash that verifies. It collects **all** matches and requires **exactly one** —
+  zero means the wrong PIN (401), and more than one (a collision that somehow
+  slipped past the set-time checks) is **refused** rather than silently signing
+  in as an arbitrary one of them. This closes the gap where a duplicate PIN could
+  have logged someone in under the wrong identity.
+
 ### 3.3 Cost & cleanup
 
 One extra read per login attempt, one write per failure, one delete per
