@@ -19,6 +19,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
   const barcodeFieldId = useId();
   const sharingId = useId();
   const varianceId = useId();
+  const invVarianceId = useId();
 
   useEffect(() => watchStaff(vendor.id, setStaff), [vendor.id]);
 
@@ -94,6 +95,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     name: vendor.name, logoUrl: vendor.logoUrl || "", sharingMode: vendor.sharingMode,
     blindCounts: vendor.blindCounts === true,
     varianceThreshold: vendor.varianceThreshold ?? 5,
+    invVarianceThreshold: vendor.invVarianceThreshold ?? "",
     digestEnabled: vendor.digest?.enabled === true,
     digestRecipients: (vendor.digest?.recipients || []).join(", "),
     digestTz: vendor.digest?.tz || "America/New_York",
@@ -110,11 +112,20 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
       return onToast?.("Check the digest email addresses");
     const threshold = Number(settings.varianceThreshold);
     if (!(threshold >= 0)) return onToast?.("Variance threshold must be a number");
+    // Inventory threshold is opt-in: blank turns inventory auto-flagging off.
+    const invRaw = String(settings.invVarianceThreshold ?? "").trim();
+    let invThreshold = null;
+    if (invRaw !== "") {
+      const n = Number(invRaw);
+      if (!(n >= 0)) return onToast?.("Inventory variance threshold must be a number (or blank)");
+      invThreshold = n;
+    }
     const patch = {
       name: settings.name, logoUrl: settings.logoUrl.trim() || null,
       sharingMode: settings.sharingMode,
       blindCounts: settings.blindCounts,
       varianceThreshold: threshold,
+      invVarianceThreshold: invThreshold,
       patternRules: resolvePatternRules(settings.patternRules),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
@@ -405,7 +416,15 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
             <input id={varianceId} type="number" inputMode="decimal" min="0" step="0.5" className="input"
               value={settings.varianceThreshold} disabled={!isOwner}
               onChange={(e) => setSettings({ ...settings, varianceThreshold: e.target.value })} />
-            <p className="text-xs text-muted mt-1.5 leading-relaxed">Counts off by this much or more get flagged for review. Changing it only affects new entries.</p>
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">Cash counts off by this much or more get flagged for review. Changing it only affects new entries.</p>
+          </div>
+
+          <div>
+            <label htmlFor={invVarianceId} className="label">Inventory variance threshold (units)</label>
+            <input id={invVarianceId} type="number" inputMode="numeric" min="0" step="1" className="input"
+              value={settings.invVarianceThreshold} disabled={!isOwner} placeholder="Off — leave blank"
+              onChange={(e) => setSettings({ ...settings, invVarianceThreshold: e.target.value })} />
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">Inventory counts off by this many units or more get flagged for review. Leave blank to turn inventory flagging off. Only affects new entries.</p>
           </div>
 
           <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">

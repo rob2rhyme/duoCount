@@ -16,8 +16,9 @@
 
 | Field | Type | Default | Editable by | Notes |
 |---|---|---|---|---|
-| `blindCounts` | boolean | `false` | owner | Hides expected/over-short in the cash form until the count is committed |
+| `blindCounts` | boolean | `false` | owner | Hides expected/over-short in the cash **and inventory** forms until the count is committed |
 | `varianceThreshold` | number | `5` | owner | Dollars. `abs(diff) >= threshold` flags a cash entry at save time |
+| `invVarianceThreshold` | number \| null | `null` (off) | owner | Units. Opt-in: when set to a positive number, `abs(diff) >= threshold` flags an **inventory** entry at save time; blank/unset = inventory flagging off |
 | `digest.enabled` | boolean | `false` | owner | Master switch for the email digest |
 | `digest.recipients` | string[] | `[]` | owner | Email addresses; cap 10; validate format client-side |
 | `digest.tz` | string | `"America/New_York"` | owner | IANA timezone used to compute "yesterday" |
@@ -28,7 +29,7 @@
 | Field | Type | Set when | Values / rules |
 |---|---|---|---|
 | `blind` | boolean | create | `true` if the vendor had blind mode on when this count was taken (report/audit display) |
-| `flagged` | boolean | create | Cash only: `abs(diff) >= vendor.varianceThreshold` at save time. Frozen at entry time — later threshold changes don't rewrite history |
+| `flagged` | boolean | create | Cash: `abs(diff) >= vendor.varianceThreshold` at save time. Inventory: same, against `vendor.invVarianceThreshold` when the owner opts in (else unflagged). Frozen at entry time — later threshold changes don't rewrite history |
 | `varianceStatus` | string | create + manager updates | `'none'` (unflagged) or `'open'` at create; managers move `open → under-review → resolved` |
 | `causeCode` | string \| null | manager resolution | `human-error \| training-gap \| equipment-fault \| register-error \| suspected-theft \| other` (enum from loss-prevention practice). Required to resolve |
 | `causeNote` | string \| null | manager resolution | ≤ 500 chars; required when `causeCode == 'other'` |
@@ -105,7 +106,7 @@ Managers may classify their own entries (small shops make self-investigation una
 2. An entry cannot reach `resolved` without a `causeCode` (enforced by rules, §3).
 3. Dashboard "Open variances" equals the count of unresolved variances (`varianceStatus in ['open', 'under-review']`) in the current view scope — the same `UNRESOLVED` definition the digest and period report use.
 4. Cause-code distribution appears in the EOD report's flagged-items section.
-5. The flag is not client-trust-only: a cash count at or beyond the threshold that is written as `varianceStatus: 'none'` (unflagged) is rejected by rules (`flagConsistent()`, §3), so a short can't be hidden from the queue at save time.
+5. The flag is not client-trust-only: a cash count at or beyond its threshold — or an inventory count at or beyond `invVarianceThreshold` when the owner opts in — written as `varianceStatus: 'none'` (unflagged) is rejected by rules (`flagConsistent()`, §3), so a short can't be hidden from the queue at save time.
 
 ---
 
@@ -277,7 +278,7 @@ allow update: if verifyOnly() || investigate() || disputeOpen() || disputeManage
 && request.resource.data.get('varianceStatus','none') in ['none','open']
 && request.resource.data.get('causeCode', null) == null
 && varianceConsistent()   // diff must equal counted - expected (±0.01)
-&& flagConsistent()       // an over-threshold cash count must be signed 'open'
+&& flagConsistent()       // an over-threshold cash/inventory count must be signed 'open'
 ```
 
 `varianceConsistent()` and `flagConsistent()` close the gap where a non-manager could sign a clean-looking count that hides a real short from the review queue, the owner digest, and the theft-pattern detectors — all of which trust the stored `diff`/`varianceStatus`:
@@ -293,20 +294,26 @@ function varianceConsistent() {
         && request.resource.data.diff <= request.resource.data.counted - request.resource.data.expected + 0.01);
 }
 
-// A cash count at or beyond the store's variance threshold must be signed as an
-// OPEN variance — a client can't record a real short/over as 'none' and hide it
-// from review. Reads the threshold from the vendor doc (default 5), mirrors
-// CashForm's `abs(diff) >= threshold`, and fails OPEN when the threshold is
-// misconfigured so a bad setting can never reject a legitimate count. Cash only
-// (scratch has no diff; inventory auto-flagging is a later tier).
+// A count at/beyond the store's threshold must be signed as an OPEN variance —
+// a client can't record a real short/over as 'none' and hide it from review.
+// Cash always auto-flags (default $5); inventory flags only when the owner opts
+// in with a positive unit threshold (scratch has no diff). Both fail OPEN when
+// the threshold is unset/misconfigured so a bad setting can never reject a
+// legitimate count. Mirrors the forms' `abs(diff) >= threshold`.
 function cashVarianceThreshold() {
   return get(/databases/$(database)/documents/vendors/$(vendorId)).data.get('varianceThreshold', 5);
 }
+function invVarianceThreshold() {
+  return get(/databases/$(database)/documents/vendors/$(vendorId)).data.get('invVarianceThreshold', null);
+}
 function flagConsistent() {
-  return request.resource.data.kind != 'cash'
-    || !(cashVarianceThreshold() is number)
+  return flagOk('cash', cashVarianceThreshold()) && flagOk('inventory', invVarianceThreshold());
+}
+function flagOk(kind, threshold) {   // fail-open unless this kind + a positive threshold + numeric diff
+  return request.resource.data.kind != kind
+    || !(threshold is number) || !(threshold > 0)
     || !(request.resource.data.diff is number)
-    || math.abs(request.resource.data.diff) < cashVarianceThreshold()
+    || math.abs(request.resource.data.diff) < threshold
     || request.resource.data.get('varianceStatus','none') == 'open';
 }
 ```

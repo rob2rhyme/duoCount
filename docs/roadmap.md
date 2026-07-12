@@ -34,6 +34,8 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Reports & records export** (period presets + custom range; PDF, CSV, print; cash/scratch/inventory/integrity/hours/incidents roll-up; read-only) | `reporting-spec.md` | ✅ |
 | **In-app documentation** (the `docs/` guides served at `/docs` in the app; getting-started guide) | `getting-started.md`, `src/lib/docs.js` | ✅ |
 | **Trust-model & consistency hardening** (server-pinned punches, frozen settled packs, honest-count enforcement, unambiguous PINs, immediate deactivation, overlap + open-shift fixes, unified "unresolved" metrics, tamper-proof comment counter) | `tier-one/two-build-spec.md`, `time-clock-spec.md`, `lottery-pack-lifecycle-spec.md` | ✅ |
+| **Inventory variance flagging + blind mode** (opt-in per-store unit threshold; rules-enforced honest counts; blind readout; surfaces in the shared queues) | `inventory-tracker-spec.md` | ✅ |
+| **Report PDF brand mark** (DuoCount "DC" mark drawn with PDF primitives in the report/print header) | `reporting-spec.md` | ✅ |
 
 ## Next up
 

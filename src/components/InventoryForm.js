@@ -59,9 +59,18 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const diff = (Number(f.counted) || 0) - expected;
   const diffClass = diff === 0 ? "text-fg" : diff > 0 ? "text-pos" : "text-neg";
 
+  // Blind mode hides the expected/over-short readout until the count is committed
+  // (same as cash). Inventory flagging is opt-in: only when the owner set a
+  // positive unit threshold. Mirrors the rules' flagConsistent for inventory.
+  const blind = vendor.blindCounts === true;
+  const invThreshold = Number(vendor.invVarianceThreshold);
+  const flaggable = Number.isFinite(invThreshold) && invThreshold > 0;
+  const flagged = flaggable && Math.abs(diff) >= invThreshold;
+
   async function save() {
     if (!f.locationId) return onSaved?.("Pick a location first");
     if (!item) return onSaved?.("Pick an item first — add items in Admin");
+    if (blind && !confirm("You're committing a blind count. Entries can't be edited after saving.")) return;
     setBusy(true);
     try {
       await addEntry(vendor.id, {
@@ -71,10 +80,13 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
         startQty: Number(f.startQty) || 0, received: Number(f.received) || 0,
         removed: Number(f.removed) || 0, soldQty: Number(f.soldQty) || 0,
         counted: Number(f.counted) || 0,
-        expected, diff, by: profile.name, byId: profile.id, byRole: profile.role,
+        expected, diff, blind,
+        flagged, varianceStatus: flagged ? "open" : "none",
+        by: profile.name, byId: profile.id, byRole: profile.role,
       });
       setF((p) => ({ ...p, startQty: String(Number(p.counted) || 0), received: "", removed: "", soldQty: "", counted: "" }));
-      onSaved?.("Inventory count signed & saved");
+      const result = diff === 0 ? "balanced" : diff > 0 ? `over ${diff} ${unit}s` : `short ${Math.abs(diff)} ${unit}s`;
+      onSaved?.(blind ? `Saved — ${result}` : "Inventory count signed & saved");
     } catch (e) { console.error(e); onSaved?.("Save failed — check connection"); }
     setBusy(false);
   }
@@ -123,16 +135,23 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
         </div>
         <Field label={"Counted on hand"}><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></Field>
 
-        <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
-          <div className="bg-panel px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Expected on hand</div>
-            <div className="text-xl font-bold font-mono mt-0.5">{expected} <span className="text-sm font-normal text-muted">{unit}s</span></div>
+        {blind ? (
+          <div className="bg-panel border border-dashed border-line rounded-xl px-3.5 py-4 text-center">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Blind count</div>
+            <div className="text-sm text-muted mt-1">Result shown after you save</div>
           </div>
-          <div className="bg-panel px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Over / short</div>
-            <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>{diff >= 0 ? "+" : ""}{diff} <span className="text-sm font-normal text-muted">{unit}s</span></div>
+        ) : (
+          <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
+            <div className="bg-panel px-3.5 py-3">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Expected on hand</div>
+              <div className="text-xl font-bold font-mono mt-0.5">{expected} <span className="text-sm font-normal text-muted">{unit}s</span></div>
+            </div>
+            <div className="bg-panel px-3.5 py-3">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Over / short</div>
+              <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>{diff >= 0 ? "+" : ""}{diff} <span className="text-sm font-normal text-muted">{unit}s</span></div>
+            </div>
           </div>
-        </div>
+        )}
 
         <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
         <p className="text-xs text-muted leading-relaxed">Expected = start + received − sold − removed. Negative over/short means missing stock. Your name, item, location, and time stamp attach automatically.</p>

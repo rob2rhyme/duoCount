@@ -188,6 +188,29 @@ test("an honest over-threshold cash short must be signed open, not hidden as 'no
     entry({ kind: "scratch", counted: 0, expected: 0, diff: 0 })));
 });
 
+const invEntry = (over = {}) => entry({
+  kind: "inventory", itemId: "i1", itemName: "Marlboro Red carton", unit: "carton",
+  startQty: 10, received: 0, removed: 0, soldQty: 0, counted: 10, expected: 10, diff: 0, ...over,
+});
+
+test("inventory flagging is opt-in: off by default, enforced once a unit threshold is set", async () => {
+  // No invVarianceThreshold on the vendor → a 10-unit short recorded as 'none'
+  // is accepted (flagging is opt-in, and unset fails open).
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/invOff`),
+    invEntry({ counted: 0, diff: -10, varianceStatus: "none" })));
+  // Owner opts in with a positive unit threshold.
+  await env.withSecurityRulesDisabled(async (c) =>
+    updateDoc(doc(c.firestore(), `vendors/${V}`), { invVarianceThreshold: 3 }));
+  // Now a 10-unit short as 'none' is refused; opened it passes; a 1-unit short
+  // (below the threshold) stays 'none'.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/invHide`),
+    invEntry({ counted: 0, diff: -10, varianceStatus: "none" })));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/invOpen`),
+    invEntry({ counted: 0, diff: -10, flagged: true, varianceStatus: "open" })));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/invSmall`),
+    invEntry({ soldQty: 8, counted: 1, expected: 2, diff: -1, varianceStatus: "none" })));
+});
+
 test("byRole must match the token's role (no CSV role self-labeling)", async () => {
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/role1`),
     entry({ byRole: "manager" })));

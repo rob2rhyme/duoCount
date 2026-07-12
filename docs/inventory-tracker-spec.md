@@ -1,6 +1,6 @@
 # DuoCount — Inventory Tracker Spec
 
-**Status:** built — items catalog, Inventory tab, log/dashboard/CSV integration, and rules shipped. Tier one has shipped, and inventory entries inherit its verification, disputes, and comment threads automatically. **Two tier-one extras are specified below but not yet wired to inventory: variance flagging and blind mode** — see the Status note in §1.2.
+**Status:** built — items catalog, Inventory tab, log/dashboard/CSV integration, and rules shipped. Tier one has shipped, and inventory entries inherit its verification, disputes, and comment threads automatically. **Variance flagging (opt-in unit threshold) and blind mode are now wired to inventory too** — see the Status note in §1.2.
 
 **Goal.** Extend DuoCount's countersigned-count mechanics to physical stock — cigarette cartons, vape products, and other high-shrink items — so shift counts of merchandise get the same treatment as cash and scratch-offs: signed, timestamped, verified, append-only, disputable.
 
@@ -40,9 +40,9 @@ Reuses the entry envelope (`by`, `byId`, `date`, `shift`, `locationId`, `locatio
 
 The math mirrors the cash drawer formula on purpose — staff already understand it. Blind mode (tier one) applies identically: hide `expected`/`diff` until committed.
 
-**Variance threshold:** cash thresholds are dollars; inventory needs units. Add `vendors.invVarianceThreshold` (number, default `1` — any missing unit flags). Same flag → cause code → resolve flow.
+**Variance threshold:** cash thresholds are dollars; inventory needs units, via `vendors.invVarianceThreshold`. It is **opt-in**: blank/unset means inventory auto-flagging is **off** (a single global unit threshold is crude across cartons vs. singles, so stores turn it on deliberately). Set a positive number and `abs(diff) >= threshold` flags the count `open` at save, into the same flag → cause code → resolve flow.
 
-> **Status (not yet implemented).** These two sub-features remain specified but unbuilt for inventory. `InventoryForm` saves entries without `flagged`/`varianceStatus`, so they fall back to the safe defaults (`flagged: false`, `varianceStatus: 'none'`) — the cash form's `abs(diff) >= threshold` flagging has no inventory equivalent, and `invVarianceThreshold` is whitelisted for writes but read by nothing (no Admin UI sets it). The inventory form also renders the expected/over-short readout unconditionally and never checks `vendor.blindCounts`, so **blind mode does not apply to inventory**. Both would need code (not just docs) to ship.
+> **Status (shipped).** Both sub-features are now wired for inventory. `InventoryForm` computes `flagged`/`varianceStatus` from `vendor.invVarianceThreshold` (opt-in; `abs(diff) >= threshold`, mirroring the cash form) and stores `blind`; the owner sets the unit threshold in **Admin → Business settings → Inventory variance threshold** (blank = off). The form now hides the expected/over-short readout and shows a confirm sheet when `vendor.blindCounts` is on, and reveals the result on the post-save toast — **blind mode applies to inventory** exactly like cash. The rules enforce it too: `flagConsistent()` requires an at/over-threshold inventory count to be signed `open` (fail-open when the threshold is unset), so a short can't be hidden as `none`.
 
 ---
 
@@ -51,7 +51,7 @@ The math mirrors the cash drawer formula on purpose — staff already understand
 1. **New "Inventory" tab** (form mirrors the cash form): location select, item select (active items at that location, searchable if >15), date/shift, the five quantity fields, readout block showing expected + over/short in units, Save & sign. Post-save behavior identical to cash, including blind mode.
 2. **Admin → Items card** (clone of the Drawers card): add item (name, category, unit, location), disable/enable, edit name/category.
 3. **Log**: inventory entries render with item name + unit chip; existing filters gain "Inventory only"; verification, disputes, and flags need no changes.
-4. **Dashboard**: "By item" table (entries, net unit diff, short-counts count) parallel to "By drawer"; missing-units total added to the stat cards. (As built, the third column is **Short counts** — entries with `diff < 0` — since inventory entries are never variance-flagged.)
+4. **Dashboard**: "By item" table (entries, net unit diff, short-counts count) parallel to "By drawer"; missing-units total added to the stat cards. The third column is **Short counts** (entries with `diff < 0`); when the store opts into an inventory threshold, flagged inventory counts also feed the shared **Open variances** tile, the Log's Needs-review filter, and the theft-pattern detectors — no inventory-specific wiring needed, since those all key off `varianceStatus`.
 5. **EOD report**: gains an Inventory section (item, shift, start, received, sold, removed, expected, counted, diff, verified-by) between scratch-offs and the flagged section.
 
 Tab bar reaches nine tabs (Cash, Scratch-offs, Inventory, Log, Notes, Incidents, Time, Dashboard, Admin — Incidents and Time were added in later tiers); it already horizontally scrolls on phones. If that feels crowded in practice, merge Cash/Scratch/Inventory into one "New count" tab with a kind switcher — a UI decision to make with real users, not in this spec.
