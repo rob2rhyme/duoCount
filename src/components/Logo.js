@@ -16,6 +16,11 @@ export default function Logo({ src = null, alt = "logo", size = 32, rounded = "r
     );
   }
   return (
+    // src is an arbitrary owner-supplied external URL (vendor.logoUrl), which
+    // next/image can't optimize without whitelisting each domain in
+    // images.remotePatterns — impractical here — and the onError-to-brass-mark
+    // fallback needs a plain <img>.
+    // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt={alt} onError={() => setFailed(true)}
       className={`${rounded} object-contain bg-white flex-shrink-0`}
       style={{ width: px, height: px }} />

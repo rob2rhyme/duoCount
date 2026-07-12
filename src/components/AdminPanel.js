@@ -396,7 +396,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               onChange={(e) => setSettings({ ...settings, blindCounts: e.target.checked })} />
             <label htmlFor="blindCounts" className="min-w-0">
               <span className="font-medium text-[14px]">Blind counts</span>
-              <p className="text-xs text-muted leading-relaxed">Counters can't see the expected total until after they commit the count. Applies to everyone, managers included.</p>
+              <p className="text-xs text-muted leading-relaxed">Counters can&apos;t see the expected total until after they commit the count. Applies to everyone, managers included.</p>
             </label>
           </div>
 
@@ -447,7 +447,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                 onChange={(e) => setSettings({ ...settings, digestEnabled: e.target.checked })} />
               <label htmlFor="digestEnabled" className="min-w-0">
                 <span className="font-medium text-[14px]">Daily email digest</span>
-                <p className="text-xs text-muted leading-relaxed">One email each morning summarizing yesterday's counts, variances, and disputes.</p>
+                <p className="text-xs text-muted leading-relaxed">One email each morning summarizing yesterday&apos;s counts, variances, and disputes.</p>
               </label>
             </div>
             <Field label={"Recipients (comma-separated, max 10)"}>

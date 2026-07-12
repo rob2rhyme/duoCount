@@ -114,7 +114,7 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
           <div className="px-4 py-3.5 border-b border-line">
             <h2 className="font-semibold text-[15px]">File an incident</h2>
             <p className="text-[13px] text-muted mt-0.5">
-              Signed, permanent, and shown to the person it concerns — they can acknowledge and add their side. Write-ups can't be edited after filing.
+              Signed, permanent, and shown to the person it concerns — they can acknowledge and add their side. Write-ups can&apos;t be edited after filing.
             </p>
           </div>
           <div className="p-4 space-y-3">
@@ -154,7 +154,7 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
         </div>
       ) : (
         <p className="text-[13px] text-muted px-1">
-          Write-ups that concern you appear here. Acknowledging means "I've seen this" — not "I agree" — and you can add your side to the permanent record.
+          Write-ups that concern you appear here. Acknowledging means &ldquo;I&apos;ve seen this&rdquo; — not &ldquo;I agree&rdquo; — and you can add your side to the permanent record.
         </p>
       )}
 

@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { money, toDate } from "@/lib/utils";
+import { money } from "@/lib/utils";
 import { causeLabel } from "./LogList";
 import { useSession } from "./SessionProvider";
 import { useModalA11y } from "@/lib/use-modal-a11y";

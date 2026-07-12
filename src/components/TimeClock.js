@@ -46,7 +46,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
 
   const now = Date.now();
   const myPunches = useMemo(() => punches.filter((p) => p.userId === profile.id), [punches, profile.id]);
-  const open = useMemo(() => openShiftFor(myPunches, profile.id), [myPunches]);
+  const open = useMemo(() => openShiftFor(myPunches, profile.id), [myPunches, profile.id]);
   const myShifts = useMemo(
     () => computeShifts(myPunches).filter((s) => !s.open).slice(-6).reverse(),
     [myPunches]

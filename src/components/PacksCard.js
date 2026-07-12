@@ -1,7 +1,7 @@
 "use client";
 import { useId, useState } from "react";
 import { addPack, updatePack } from "@/lib/data";
-import { money, toDate } from "@/lib/utils";
+import { money } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
 import BarcodeScanner from "./BarcodeScanner";
 import Field from "./Field";

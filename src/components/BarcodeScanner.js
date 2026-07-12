@@ -77,7 +77,7 @@ export default function BarcodeScanner({ open, onClose, onDetected, title = "Sca
           )}
         </div>
         <p className="px-4 py-3 text-xs text-muted leading-relaxed">
-          Point the camera at the barcode. Nothing saves until you tap "Save &amp; sign entry".
+          Point the camera at the barcode. Nothing saves until you tap &ldquo;Save &amp; sign entry&rdquo;.
         </p>
       </div>
     </div>

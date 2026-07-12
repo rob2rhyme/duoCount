@@ -70,7 +70,7 @@ export default function PinLogin() {
               New business? Register your store
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">
-              Your store code comes from whoever set up your business. Ask a manager if you don't have it.
+              Your store code comes from whoever set up your business. Ask a manager if you don&apos;t have it.
             </p>
           </>
         ) : (
@@ -94,7 +94,7 @@ export default function PinLogin() {
               Already registered? Sign in
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">
-              You'll get a store code to share with staff. You'll be the owner and can add locations, drawers, and staff in Admin.
+              You&apos;ll get a store code to share with staff. You&apos;ll be the owner and can add locations, drawers, and staff in Admin.
             </p>
           </>
         )}

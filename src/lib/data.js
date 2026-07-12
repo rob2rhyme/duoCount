@@ -1,7 +1,7 @@
 import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
 import {
-  collection, doc, addDoc, getDoc, updateDoc, deleteDoc, writeBatch,
+  collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, onSnapshot,
 } from "firebase/firestore";
 
@@ -10,10 +10,6 @@ import {
 const vcol = (vendorId, name) => collection(db, "vendors", vendorId, name);
 
 /* ---------- vendor ---------- */
-export async function getVendor(vendorId) {
-  const s = await getDoc(doc(db, "vendors", vendorId));
-  return s.exists() ? { id: s.id, ...s.data() } : null;
-}
 export async function updateVendorSettings(vendorId, patch) {
   const allowed = {};
   const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold", "patternRules"];

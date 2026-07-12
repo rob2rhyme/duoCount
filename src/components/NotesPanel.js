@@ -60,7 +60,7 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">Shift notes</h2>
-          <p className="text-[13px] text-muted mt-0.5">The counter notebook, digitized — printer jams, IOUs, till swaps. Notes can't be edited after posting.</p>
+          <p className="text-[13px] text-muted mt-0.5">The counter notebook, digitized — printer jams, IOUs, till swaps. Notes can&apos;t be edited after posting.</p>
         </div>
         <div className="p-4 space-y-3">
           <textarea ref={composerRef} className="input min-h-[76px]" maxLength={2000} value={text}
