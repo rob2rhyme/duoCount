@@ -9,7 +9,7 @@ A phone-friendly web app where retail teams log their cash drawer and lottery sc
 - **Employees** — sign in with the store code plus their own 6-digit PIN and log counts for their location.
 
 ## How signing in works
-No emails or passwords. Staff enter the store code (like `smokers-haven`) and their personal PIN. PINs are stored scrambled, never as plain text, and one business can never see another business's data — that separation is enforced by the database itself, not just the screens.
+No emails or passwords. Staff enter the store code (like `acme-market`) and their personal PIN. PINs are stored scrambled, never as plain text, and one business can never see another business's data — that separation is enforced by the database itself, not just the screens.
 
 ## What the app does today
 
@@ -38,7 +38,7 @@ No emails or passwords. Staff enter the store code (like `smokers-haven`) and th
 ## The trust features (built)
 
 1. **Blind counts** — the counter can't see the "expected" number until after they save, so nobody can count *to* the target. Since entries can't be edited, the count is locked in before the answer is revealed.
-2. **Automatic flags with reasons** — any count off by more than a set amount (default $5) gets flagged for review. Managers close the flag by recording why: honest mistake, training gap, equipment fault, register error, suspected theft, or other.
+2. **Automatic flags with reasons** — any count off by more than a set amount (default $5) gets flagged for review. Managers close the flag by recording why: Human error, Training gap, Equipment fault, Register error, Suspected theft, or Other.
 3. **Disputes** — if an employee disagrees with a count or a flag, they can open a dispute right on the entry and state their side. The whole conversation is saved permanently, and a manager resolves it. Nobody's word gets lost.
 4. **Shift notes** — a digital logbook for handoff messages ("register 2 drawer is sticking," "lottery bin 4 running low"), pinned notes, per location.
 5. **End-of-day report** — one tap produces a PDF for any day and location: every count, totals, flags, verification status, and signature lines for employee and manager.
