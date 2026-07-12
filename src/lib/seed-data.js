@@ -8,6 +8,8 @@
 // flag — none of which a client could do under the append-only, signed-author
 // rules. It only ever touches `seed`-tagged docs; real data is never affected.
 
+import { weekStartMonday, weekDates } from "./schedule.js";
+
 // Small seeded PRNG (mulberry32) so "random-looking" values are reproducible.
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -59,9 +61,13 @@ export function buildDemoData({ owner, now = new Date() }) {
   ].map((it) => ({ ...it, active: true, createdAt: ts(30) }));
 
   const packs = [
-    { id: "seed_pak_bonus", game: "$5 Bonus Cashword", pack: "1234-001", price: 5, ticketsPerPack: 60, status: "active", bin: "3", locationId: "seed_loc_main" },
-    { id: "seed_pak_colossal", game: "$10 Colossal Cash", pack: "0777-014", price: 10, ticketsPerPack: 40, status: "active", bin: "5", locationId: "seed_loc_main" },
+    { id: "seed_pak_bonus", game: "$5 Bonus Cashword", pack: "1234-001", price: 5, ticketsPerPack: 60, status: "active", bin: "3", locationId: "seed_loc_main", activatedAt: ts(18), activatedBy: manager.name },
+    { id: "seed_pak_colossal", game: "$10 Colossal Cash", pack: "0777-014", price: 10, ticketsPerPack: 40, status: "active", bin: "5", locationId: "seed_loc_main", activatedAt: ts(15), activatedBy: manager.name },
     { id: "seed_pak_lucky", game: "$2 Lucky 7s", pack: "0450-208", price: 2, ticketsPerPack: 75, status: "received", locationId: "seed_loc_main" },
+    // A fully settled pack, so the Packs list shows the whole lifecycle and the
+    // settlement-reconciliation tool has a recorded figure to match a CSV against
+    // ($3 × 44 sold = $132 recorded).
+    { id: "seed_pak_cherry", game: "$3 Wild Cherry", pack: "0888-102", price: 3, ticketsPerPack: 50, status: "settled", locationId: "seed_loc_main", activatedAt: ts(24), activatedBy: manager.name, settledAt: ts(3), settledBy: manager.name, soldAtSettle: 44, shortAtSettle: 6 },
   ].map((p) => ({ ...p, createdAt: ts(30) }));
 
   const entries = [];
@@ -202,8 +208,86 @@ export function buildDemoData({ owner, now = new Date() }) {
     locationId: "seed_loc_main", locationName: "Main Store",
   }));
 
-  return { staff, locations, drawers, items, packs, entries, comments, notes, incidents };
+  // ---- workforce: time clock, schedule, availability, templates ----
+  // Dates are UTC-ISO like the rest of the app (schedule.js is UTC-based), so
+  // the roster lands on exactly the week the Schedule tab renders by default.
+  const sam = staff[0], alex = staff[1], mgr = staff[2];
+  const iso = (daysAgo) => dateStr(daysAgo);
+  const atUTC = (dayIso, hourUTC) => new Date(`${dayIso}T${String(hourUTC).padStart(2, "0")}:00:00Z`);
+
+  // Time-clock punches for the last 6 days: Sam a morning shift, Alex a midday
+  // shift with one no-show (day 2 — mirrors the no-show incident), plus Sam
+  // currently on the clock today (an open, un-paired punch).
+  const timeclock = [];
+  let tcSeq = 0;
+  const punch = (u, dayIso, hourUTC, type, tsOverride) => ({
+    id: `seed_tc_${String(++tcSeq).padStart(3, "0")}`,
+    userId: u.id, userName: u.name,
+    locationId: "seed_loc_main", locationName: "Main Store",
+    type, ts: tsOverride || atUTC(dayIso, hourUTC), day: dayIso,
+  });
+  for (let d = 6; d >= 1; d--) {
+    const day = iso(d);
+    timeclock.push(punch(sam, day, 14, "in"));
+    timeclock.push(punch(sam, day, 22, "out"));
+    if (d !== 2) {
+      timeclock.push(punch(alex, day, 16, "in"));
+      timeclock.push(punch(alex, day, 23, "out"));
+    }
+  }
+  // Sam is still on the clock now (clocked in a couple hours ago, no out yet).
+  timeclock.push(punch(sam, iso(0), 0, "in", new Date(now.getTime() - 2 * 3600000)));
+
+  // Roster for the current week (Mon–Sun), so the Schedule tab opens populated.
+  const ws = weekStartMonday(iso(0));
+  const wd = weekDates(ws);
+  const schedule = [];
+  let schSeq = 0;
+  const shift = (u, date, start, end, extra = {}) => ({
+    id: `seed_sch_${String(++schSeq).padStart(3, "0")}`,
+    userId: u ? u.id : null, userName: u ? u.name : null,
+    locationId: "seed_loc_main", locationName: "Main Store",
+    date, start, end, by: mgr.name, byId: mgr.id, ts: ts(7), ...extra,
+  });
+  [0, 1, 2, 3, 4].forEach((i) => schedule.push(shift(sam, wd[i], "09:00", "17:00")));
+  [0, 2, 4, 5].forEach((i) => schedule.push(shift(alex, wd[i], "12:00", "20:00")));
+  schedule.push(shift(null, wd[6], "10:00", "18:00", { open: true })); // open shift anyone can grab
+  // A swap in flight: Alex offers Friday; his Saturday is claimed by Sam.
+  const alexFri = schedule.find((s) => s.userId === alex.id && s.date === wd[4]);
+  if (alexFri) alexFri.swapStatus = "offered";
+  const alexSat = schedule.find((s) => s.userId === alex.id && s.date === wd[5]);
+  if (alexSat) { alexSat.swapStatus = "claimed"; alexSat.claimedById = sam.id; alexSat.claimedByName = sam.name; }
+
+  // Staff availability — days employees marked they can't work.
+  const availability = [
+    { id: "seed_avl_1", userId: alex.id, userName: alex.name, date: wd[3], ts: ts(5) },
+    { id: "seed_avl_2", userId: sam.id, userName: sam.name, date: wd[6], ts: ts(4) },
+  ];
+
+  // One saved week template (the assigned shifts, as day-of-week specs).
+  const templates = [{
+    id: "seed_tpl_standard", name: "Standard week",
+    shifts: schedule.filter((s) => s.userId).map((s) => ({
+      dow: wd.indexOf(s.date), userId: s.userId, userName: s.userName,
+      start: s.start, end: s.end, locationId: s.locationId, locationName: s.locationName,
+    })),
+    by: mgr.name, byId: mgr.id, ts: ts(10),
+  }];
+
+  // The current week was published (the doc id is the week start, per the API).
+  const schedulePublished = [{
+    id: ws, weekStart: ws, weekEnd: wd[6],
+    publishedAt: ts(1), publishedBy: mgr.name, notified: 2, recipients: 2,
+  }];
+
+  return {
+    staff, locations, drawers, items, packs, entries, comments, notes, incidents,
+    timeclock, schedule, availability, templates, schedulePublished,
+  };
 }
 
 // Collections whose top-level docs carry a `seed` flag, for tagging + clearing.
-export const SEED_COLLECTIONS = ["locations", "drawers", "items", "packs", "entries", "notes", "incidents", "users"];
+export const SEED_COLLECTIONS = [
+  "locations", "drawers", "items", "packs", "entries", "notes", "incidents", "users",
+  "timeclock", "schedule", "availability", "templates", "schedulePublished",
+];

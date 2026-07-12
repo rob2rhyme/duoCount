@@ -34,7 +34,10 @@ async function stageClear(vendorRef, batch) {
   };
   await wipe("entries", ["comments"]);
   await wipe("users", ["private"]);
-  for (const name of ["locations", "drawers", "items", "packs", "notes", "incidents"]) await wipe(name);
+  for (const name of [
+    "locations", "drawers", "items", "packs", "notes", "incidents",
+    "timeclock", "schedule", "availability", "templates", "schedulePublished",
+  ]) await wipe(name);
   return counts;
 }
 
@@ -75,6 +78,11 @@ export async function POST(req) {
       add("entries", data.entries);
       add("notes", data.notes);
       add("incidents", data.incidents);
+      add("timeclock", data.timeclock);
+      add("schedule", data.schedule);
+      add("availability", data.availability);
+      add("templates", data.templates);
+      add("schedulePublished", data.schedulePublished);
       for (const [entryId, list] of Object.entries(data.comments)) {
         for (const { id, ...c } of list) {
           batch.set(vendorRef.collection("entries").doc(entryId).collection("comments").doc(id), { ...c, seed: true });
@@ -86,6 +94,9 @@ export async function POST(req) {
         staff: data.staff.length, locations: data.locations.length, drawers: data.drawers.length,
         items: data.items.length, packs: data.packs.length, entries: data.entries.length,
         notes: data.notes.length, incidents: data.incidents.length,
+        timeclock: data.timeclock.length, schedule: data.schedule.length,
+        availability: data.availability.length, templates: data.templates.length,
+        schedulePublished: data.schedulePublished.length,
       };
       return NextResponse.json({ ok: true, action: "load", counts });
     }
