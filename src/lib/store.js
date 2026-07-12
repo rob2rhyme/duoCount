@@ -2,5 +2,5 @@
 // logo at signup; those live in Firestore on the vendor document.
 export const PRODUCT = {
   name: "DuoCount",
-  tagline: "Every count, countersigned",
+  tagline: "All your counts. All in one place.",
 };

@@ -2,11 +2,24 @@
 title: DuoCount documentation
 ---
 
+<p align="center">
+  <img src="duocount-logo.png" alt="DuoCount logo" width="112" height="112" />
+</p>
+<p align="center">
+  <span style="font-size:40px;font-weight:800;letter-spacing:-1.5px;color:#16305a;">Duo</span><span style="font-size:40px;font-weight:800;letter-spacing:-1.5px;color:#1f9d57;">Count</span>
+</p>
+<p align="center" style="font-size:13px;letter-spacing:2px;color:#6b7280;text-transform:uppercase;margin:4px 0 0;">
+  All your counts. All in one place.
+</p>
+<p align="center" style="font-size:14px;color:#374151;margin-top:10px;">
+  📦&nbsp; Inventory &nbsp;·&nbsp; 💵&nbsp; Store Cash &nbsp;·&nbsp; 🎟️&nbsp; Lottery Log
+</p>
+
 # DuoCount documentation
 
-Every count, countersigned. A multi-tenant Next.js + Tailwind + Firebase app for
-retail cash-drawer, scratch-off, and inventory tracking. This site is the
-rendered `docs/` folder; the code lives in the
+A multi-tenant Next.js + Tailwind + Firebase app for retail cash-drawer,
+scratch-off, and inventory tracking. This site is the rendered `docs/` folder;
+the code lives in the
 [GitHub repository](https://github.com/rob2rhyme/sh-stock-tracking).
 
 ## Start here
