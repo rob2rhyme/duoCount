@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import DocLayout from "@/components/DocLayout";
 import { docSlugs, getDoc } from "@/lib/docs";
 
 // Pre-render every doc at build time; unknown slugs 404 rather than hitting the
@@ -21,20 +22,21 @@ export default async function DocPage({ params }) {
   const doc = getDoc(slug);
   if (!doc) notFound();
 
-  return (
-    <main className="min-h-screen px-5 py-10">
-      <div className="max-w-2xl mx-auto">
-        <p className="text-[12px] text-muted mb-4">
-          <Link href="/docs" className="underline underline-offset-2">← Documentation</Link>
-        </p>
-        <h1 className="text-2xl font-bold mb-5">{doc.title}</h1>
-        <div className="doc-content" dangerouslySetInnerHTML={{ __html: doc.html }} />
-        <p className="text-[12px] text-muted mt-10 pt-5 border-t border-line">
-          <Link href="/docs" className="underline underline-offset-2">← All documents</Link>
-          {" · "}
-          <Link href="/" className="underline underline-offset-2">Back to the app</Link>
-        </p>
-      </div>
-    </main>
+  const header = (
+    <p className="text-[12px] text-muted mb-6">
+      <Link href="/docs" className="underline underline-offset-2 hover:text-fg">← Documentation</Link>
+    </p>
   );
+
+  const footer = (
+    <p className="text-[12px] text-muted mt-12 pt-5 border-t border-line">
+      <Link href="/docs" className="underline underline-offset-2 hover:text-fg">← All documents</Link>
+      {" · "}
+      <Link href="/guide" className="underline underline-offset-2 hover:text-fg">User guide</Link>
+      {" · "}
+      <Link href="/" className="underline underline-offset-2 hover:text-fg">Back to the app</Link>
+    </p>
+  );
+
+  return <DocLayout header={header} title={doc.title} html={doc.html} toc={doc.toc} footer={footer} />;
 }
