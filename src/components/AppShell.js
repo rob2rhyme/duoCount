@@ -14,6 +14,7 @@ import TimeClock from "./TimeClock";
 import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
 import { resolveShortcut } from "@/lib/shortcuts";
+import { PRODUCT } from "@/lib/store";
 
 const TABS = [
   { id: "cash", label: "Cash" },
@@ -168,7 +169,7 @@ export default function AppShell() {
               style={{ width: 28, height: 28, fontSize: 15 }} aria-hidden="true">₵</div>
             <div className="text-center leading-tight">
               <p className="text-sm font-semibold text-fg">DuoCount</p>
-              <p className="text-[11px] text-muted italic">Every count, countersigned</p>
+              <p className="text-[11px] text-muted italic">{PRODUCT.tagline}</p>
             </div>
           </div>
 

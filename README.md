@@ -1,6 +1,6 @@
 # DuoCount — multi-vendor cash, scratch-off & inventory tracking
 
-Every count, countersigned. A multi-tenant Next.js + Tailwind + Firebase app
+All your counts. All in one place. A multi-tenant Next.js + Tailwind + Firebase app
 where any retail business can sign up, add its locations, named cash drawers
 (POS Cash Drawer, Lottery Cash Drawer, Safe, …), and tracked inventory items,
 and give staff PIN sign-in. Employees log opening and closing counts — cash
