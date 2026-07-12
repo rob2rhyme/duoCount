@@ -20,9 +20,9 @@ If you work a shift and just need to log your counts, jump to
 
 - You sign in with a **store code** (like `acme-market`) and your own **PIN** —
   no email, no password.
-- Across the top (or bottom on a phone) are **tabs**: **Cash**, **Scratch-offs**,
-  **Inventory**, **Log**, **Notes**, **Incidents**, **Time**, **Dashboard**, and
-  **Admin** (managers only).
+- Near the top is a **row of tabs** that scrolls sideways on a narrow phone:
+  **Cash**, **Scratch-offs**, **Inventory**, **Log**, **Notes**, **Incidents**,
+  **Time**, **Dashboard**, and **Admin** (managers only).
 - Employees **log counts**. Managers **verify** them (a second set of eyes),
   handle anything flagged, and pull **reports**.
 - The app does the arithmetic and shows **over/short** in green (over) or red
@@ -34,8 +34,8 @@ If you work a shift and just need to log your counts, jump to
 
 ### 1. Create your store (owners only, one time)
 
-1. Open the app and choose **Create a business** (the sign-up link under the
-   sign-in button).
+1. Open the app and tap **New business? Register your store** (the sign-up link
+   under the sign-in button), then **Create business & sign in**.
 2. Enter your **business name**, **your name**, and a **6-digit PIN** you'll
    remember. (A logo URL is optional.)
 3. The app gives you a **store code** — write it down. This is what you and every
@@ -54,9 +54,10 @@ Open **Admin** and add the pieces your team will pick from when they count:
 - **Staff** — add each employee with their **name**, **role** (employee or
   manager), and a **PIN**. Share the store code with them.
 
-> **Just exploring?** As the owner you'll see a **Load demo data** button. It
-> fills the app with realistic sample counts, staff, and history so you can try
-> every screen — then **Clear demo data** removes exactly what it added.
+> **Just exploring?** In **Admin**, under **Demo data**, the owner sees a **Load
+> sample data** button. It fills the app with realistic sample counts, staff, and
+> history so you can try every screen — then **Clear sample data** removes exactly
+> what it added.
 
 ### 3. Choose how much each location sees (Settings)
 
@@ -73,7 +74,7 @@ turn on an optional **daily email digest** (off by default).
   drawer, and item, plus quiet **pattern alerts** (e.g. "same drawer short under
   three people" — a conversation starter, never a verdict).
 - **Handle flags.** Any count off by more than your threshold (default $5) is
-  flagged; close it by recording *why* (honest mistake, register error, training
+  flagged; close it by recording *why* (Human error, Register error, Training
   gap, etc.).
 - **Disputes & notes.** If an employee disagrees, they open a **dispute** on the
   entry; you resolve it. **Notes** is your shift logbook for handoffs.
@@ -158,8 +159,10 @@ bin 4 running low." Managers can pin the important ones.
 
 - **Over/short** = counted − expected. **Green** means more than expected (over),
   **red** means less (short), and near-zero is a balanced drawer.
-- **Expected cash** = start + sales − paid-outs. **Expected stock** = start +
-  received − sold − removed. The app computes these for you.
+- **Expected cash** = start + sales − paid-outs *(for a **closing** count)*. For
+  an **opening** count, the expected is just the **starting cash** — there are no
+  sales or paid-outs yet. **Expected stock** = start + received − sold − removed.
+  The app computes these for you.
 - **Verified** means a manager double-checked it. **Flagged** means it's off by
   more than the store's threshold and needs a reason. **Disputed** means someone
   formally disagreed — and the whole conversation is kept.
@@ -170,7 +173,9 @@ bin 4 running low." Managers can pin the important ones.
 
 - **Install it like an app.** DuoCount is a PWA — your phone/browser can "Add to
   Home Screen," and it opens full-screen and works offline for the basics.
-- **Light or dark.** Tap the sun/moon in the header; it remembers your choice.
+- **Light or dark.** On the sign-in screen, tap the sun/moon. Once you're signed
+  in, open the header **gear (Settings) → Appearance** to switch — it remembers
+  your choice per device.
 - **Keyboard shortcuts** (on a computer): press **?** to see them — number keys
   jump between tabs, **⌘/Ctrl + Enter** saves the current form.
 - **Export anytime.** The **Log** tab has an **Export CSV** button for the full

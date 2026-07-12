@@ -31,22 +31,25 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Publish & notify** (email each employee their week's shifts; optional staff emails) | `time-clock-spec.md` §Scheduling | ✅ |
 | **Lottery settlement reconciliation** (flexible CSV import, matched vs. records) | `lottery-pack-lifecycle-spec.md` §Reconciliation | ✅ |
 | **Rules-engine test coverage** for time clock, schedule, swaps, availability, templates | `tests/rules.test.mjs` | ✅ |
+| **Reports & records export** (period presets + custom range; PDF, CSV, print; cash/scratch/inventory/integrity/hours/incidents roll-up; read-only) | `reporting-spec.md` | ✅ |
+| **In-app documentation** (the `docs/` guides served at `/docs` in the app; getting-started guide) | `getting-started.md`, `src/lib/docs.js` | ✅ |
+| **Trust-model & consistency hardening** (server-pinned punches, frozen settled packs, honest-count enforcement, unambiguous PINs, immediate deactivation, overlap + open-shift fixes, unified "unresolved" metrics, tamper-proof comment counter) | `tier-one/two-build-spec.md`, `time-clock-spec.md`, `lottery-pack-lifecycle-spec.md` | ✅ |
 
 ## Next up
 
 Ordered roughly by value-per-effort. Each item lists acceptance criteria so it
 can be picked up cleanly.
 
-### 0. Reports & records export — 📌 planned (owner-requested)
-Let an owner/manager generate and **download** a report for any period — daily,
-weekly, monthly, quarterly, semi-annual, annual, or custom dates — to keep for
-records (accountant, franchise, tax, audit). Generalizes the current single-day
-EOD report to arbitrary ranges with PDF + CSV output. Full design, phasing, and
-acceptance criteria in **`reporting-spec.md`**.
-- **Acceptance:** period presets + custom range; PDF and CSV download scoped to
-  All / a location; cash over-short, scratch, inventory, integrity, hours, and
-  incidents rolled up for the period; pure, unit-tested period + aggregation
-  libs; read-only (no new rules). Build the pure libs first (Phase 1).
+### 0. Reports & records export — ✅ done
+Owner/manager generates and **downloads** a report for any period — daily,
+weekly, monthly, quarterly, semi-annual, annual, or custom dates — for records
+(accountant, franchise, tax, audit). Generalized the single-day EOD report to
+arbitrary ranges with PDF + CSV + print output. Design and acceptance criteria in
+**`reporting-spec.md`**; the beginner walkthrough is in **`getting-started.md`**.
+- **Delivered:** period presets + custom range; PDF/CSV/print scoped to All / a
+  location; cash over-short, scratch, inventory, integrity, hours, and incidents
+  rolled up for the period; pure, unit-tested period + aggregation libs
+  (`report-period.js`, `report-build.js`); read-only (no new rules).
 
 ### 1. Demo data seed — ✅ done (this cycle)
 Owner-only **Load / Clear sample data** in Admin. See `demo-data-spec.md`.
@@ -70,12 +73,18 @@ darkened and reserved for placeholders/decoration with real content moved to
 `muted`, `muted` nudged to clear `muted`-on-`subtle`, and a perceivable disabled
 state for buttons/inputs. Focus indicator and native controls verified.
 
-### 3. Documentation-accuracy pass
+### 3. Documentation-accuracy pass — ✅ done (audit fix cycle)
 Keep docs true to the code as features land.
 - **Acceptance:** README, `app-summary-spec.md`, and each `*-spec.md` are
   reconciled against the current source (file/paths, field names, behavior);
   drift is fixed; this roadmap's "Shipped" table matches reality. Run at the end
-  of each feature. (Partially done for the UI features this cycle.)
+  of each feature.
+- **Delivered:** the feature-audit fix cycle reconciled the guides against the
+  app — sign-up/register wording, sample-data buttons, cause-code labels
+  (Human error / …), the tab-row layout, the in-app theme control (gear →
+  Appearance), the opening-count expected-cash caveat, and the `acme-market`
+  store-code example — and every trust-model/consistency change was written into
+  its spec as it shipped.
 
 ### 4. Layout + feature-enhancement pass — ✅ done (this cycle)
 See §"Layout audit" below for the result and the enhancement backlog it produced.

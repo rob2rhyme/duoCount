@@ -72,7 +72,7 @@ or inspection — the same builder produces a portable file:
 - `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json node
   scripts/import-demo-seed.mjs <vendorId> [demo-seed.json]` writes it into
   `vendors/<vendorId>/…` via the Admin SDK, tagging every doc `seed: true` — so
-  the same owner-only **Clear demo data** removes exactly what it imported.
+  the same owner-only **Clear sample data** button removes exactly what it imported.
   (Service-account keys are git-ignored.)
 
 ## Guardrails
