@@ -25,23 +25,39 @@ export function toDate(ts) {
   return new Date(ts);
 }
 
-export function exportCSV(entries) {
+// Build the CSV text for a set of entries — pure (no DOM), so it is unit-tested
+// and shared by the log export and the period-report export. Rows are emitted in
+// the order given; callers order them (the log reverses its newest-first stream,
+// a report passes its already-chronological rows).
+export function entriesToCSV(entries = []) {
   const head = ["Type","Date","Shift","By","Role","Detail1","Detail2","Expected/Price","Counted/Sold","OverShort/Dollars","VerifiedBy","Timestamp"];
   const lines = [head.join(",")];
-  entries.slice().reverse().forEach((e) => {
+  entries.forEach((e) => {
     const t = toDate(e.ts);
     let r;
     if (e.kind === "cash")
-      r = ["Cash", e.date, e.shift, e.by, e.byRole, e.reg, "", (e.expected||0).toFixed(2), (e.counted||0).toFixed(2), (e.diff||0).toFixed(2), e.verifiedBy||"", t?t.toISOString():""];
+      r = ["Cash", e.date, e.shift, e.by, e.byRole, e.drawerName || e.reg, "", (e.expected||0).toFixed(2), (e.counted||0).toFixed(2), (e.diff||0).toFixed(2), e.verifiedBy||"", t?t.toISOString():""];
     else if (e.kind === "inventory")
       r = ["Inventory", e.date, e.shift, e.by, e.byRole, e.itemName, e.unit||"unit", e.expected||0, e.counted||0, e.diff||0, e.verifiedBy||"", t?t.toISOString():""];
     else
       r = ["Scratch", e.date, e.shift, e.by, e.byRole, e.game, "pack "+(e.pack||""), (e.price||0).toFixed(2), e.sold, (e.dollars||0).toFixed(2), e.verifiedBy||"", t?t.toISOString():""];
-    lines.push(r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","));
+    lines.push(r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","));
   });
-  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  return lines.join("\n");
+}
+
+// Trigger a browser download of text as a file (DOM side of the CSV export).
+export function downloadCSV(text, filename) {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "duocount-log.csv";
+  a.download = filename;
   a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// The Log tab's "Export CSV": its entries stream newest-first, so reverse to
+// chronological before writing. Reports pass their own rows + filename directly.
+export function exportCSV(entries, filename = "duocount-log.csv") {
+  downloadCSV(entriesToCSV(entries.slice().reverse()), filename);
 }

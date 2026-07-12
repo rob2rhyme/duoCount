@@ -2,7 +2,7 @@ import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
-  query, where, orderBy, onSnapshot,
+  query, where, orderBy, onSnapshot, getDocs,
 } from "firebase/firestore";
 
 /* All data lives under vendors/{vendorId}/... — every helper is tenant-scoped. */
@@ -126,6 +126,24 @@ export function watchEntries(vendorId, lockedLocationId, cb) {
     ? query(base, where("locationId", "==", lockedLocationId), orderBy("ts", "desc"))
     : query(base, orderBy("ts", "desc"));
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+// One-shot snapshot of entries whose business `date` falls within
+// [startISO, endISO] (inclusive), optionally scoped to one location — the data
+// source for the Reports center. A report is a point-in-time export, not a live
+// view, so this is a bounded getDocs rather than watchEntries' unbounded stream
+// (which is fine for a day but wasteful for a year). We range-query the `date`
+// STRING (not ts) so an entry lands in the period it is FOR, not when it was
+// written — a count backdated by the form still reports under its own date. The
+// unscoped range uses the automatic single-field index on `date`; the scoped
+// query uses the (locationId, date) composite index in firestore.indexes.json.
+// Managers already have read access to every entry, so no rules change is needed.
+export async function fetchEntriesInRange(vendorId, startISO, endISO, locationId = null) {
+  const base = vcol(vendorId, "entries");
+  const q = locationId
+    ? query(base, where("locationId", "==", locationId), where("date", ">=", startISO), where("date", "<=", endISO), orderBy("date", "asc"))
+    : query(base, where("date", ">=", startISO), where("date", "<=", endISO), orderBy("date", "asc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 export async function addEntry(vendorId, entry) {
   // Tier-one fields default to their safe values; callers (e.g. the cash form)

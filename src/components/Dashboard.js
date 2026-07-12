@@ -130,11 +130,11 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
 
   const reportButton = isManager && (
     <div className="flex justify-end">
-      <button className="btn-ghost text-[13px] px-3.5 py-2" onClick={() => setReportOpen(true)}>📄 End-of-day report</button>
+      <button className="btn-ghost text-[13px] px-3.5 py-2" onClick={() => setReportOpen(true)}>📄 Reports</button>
     </div>
   );
   const reportModal = reportOpen && (
-    <ReportModal entries={entries} locations={locations} locName={locName}
+    <ReportModal locations={locations} locName={locName}
       onClose={() => setReportOpen(false)} onToast={onToast} />
   );
 
