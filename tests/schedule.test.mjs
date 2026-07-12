@@ -67,6 +67,23 @@ test("findOverlaps flags an employee double-booked on the same day only", () => 
   assert.equal(findOverlaps(abut).size, 0);
 });
 
+test("findOverlaps catches a long shift swallowing a later, non-adjacent one", () => {
+  // 09:00-17:00 covers the whole day; 09:05-09:20 overlaps its front; 12:00-13:00
+  // starts AFTER the 09:05 shift ends but still sits inside the long one. An
+  // adjacent-only check (compare i to i-1) misses the noon shift — full pairwise
+  // must flag all three.
+  const shifts = [
+    shift("u1", "2026-07-06", "09:00", "17:00"),
+    shift("u1", "2026-07-06", "09:05", "09:20"),
+    shift("u1", "2026-07-06", "12:00", "13:00"),
+  ];
+  const ov = findOverlaps(shifts);
+  assert.equal(ov.size, 3);
+  assert.ok(ov.has("u1-2026-07-06-09:00"));
+  assert.ok(ov.has("u1-2026-07-06-09:05"));
+  assert.ok(ov.has("u1-2026-07-06-12:00")); // the one the old code missed
+});
+
 test("groupByDate buckets and sorts each day by start time", () => {
   const by = groupByDate([
     shift("u1", "2026-07-06", "14:00", "18:00"),
@@ -126,6 +143,29 @@ test("copyShiftsToWeek skips shifts that already exist in the target week", () =
   const out = copyShiftsToWeek(src, { offsetDays: 7, existing });
   assert.equal(out.length, 1);
   assert.equal(out[0].date, "2026-07-14"); // only Tuesday gets copied
+});
+
+test("copy-week and templates carry open:true so a null-user spec stays writable", () => {
+  const open = { id: "o1", userId: null, userName: null, date: "2026-07-06", start: "09:00", end: "17:00", open: true };
+  const assigned = shift("u1", "2026-07-07", "10:00", "18:00");
+
+  // copyShiftsToWeek: the open shift keeps open:true; the assigned one omits it.
+  const copied = copyShiftsToWeek([open, assigned], { offsetDays: 7 });
+  const copiedOpen = copied.find((s) => s.userId == null);
+  const copiedAssigned = copied.find((s) => s.userId === "u1");
+  assert.equal(copiedOpen.open, true);
+  assert.equal(copiedOpen.date, "2026-07-13");
+  assert.equal("open" in copiedAssigned, false);
+
+  // Round-trip through a template: saved spec preserves open, and stamping it
+  // onto a week re-emits open:true (so the create rule accepts the null user).
+  const tpl = weekShiftsToTemplate([open, assigned], "2026-07-06");
+  const tplOpen = tpl.find((t) => t.userId == null);
+  assert.equal(tplOpen.open, true);
+  const stamped = templateToShifts(tpl, "2026-07-13");
+  const stampedOpen = stamped.find((s) => s.userId == null);
+  assert.equal(stampedOpen.open, true);
+  assert.equal("open" in stamped.find((s) => s.userId === "u1"), false);
 });
 
 test("unassigned (open) shifts don't count as hours, overlaps, or no-shows", () => {
