@@ -17,18 +17,31 @@ async function requireOwner(req) {
   return claims;
 }
 
-// Collect every seed-tagged doc (and its known subcollections) into a batch of
-// deletes. Reads happen up front; the batch commits atomically.
-async function stageClear(vendorRef, batch) {
+// A batch that auto-flushes every 400 ops, so the seed — which runs to hundreds
+// of docs on a long history window — never hits Firestore's 500-op batch limit.
+function chunkedWriter(adminDb) {
+  let batch = adminDb.batch();
+  let n = 0;
+  const commits = [];
+  const flush = () => { commits.push(batch.commit()); batch = adminDb.batch(); n = 0; };
+  return {
+    set(ref, data) { batch.set(ref, data); if (++n >= 400) flush(); },
+    delete(ref) { batch.delete(ref); if (++n >= 400) flush(); },
+    async done() { if (n) flush(); await Promise.all(commits); },
+  };
+}
+
+// Collect every seed-tagged doc (and its known subcollections) into delete ops.
+async function stageClear(vendorRef, writer) {
   const counts = {};
   const wipe = async (name, subcols = []) => {
     const snap = await vendorRef.collection(name).where("seed", "==", true).get();
     for (const doc of snap.docs) {
       for (const sub of subcols) {
         const subSnap = await doc.ref.collection(sub).get();
-        subSnap.docs.forEach((s) => batch.delete(s.ref));
+        subSnap.docs.forEach((s) => writer.delete(s.ref));
       }
-      batch.delete(doc.ref);
+      writer.delete(doc.ref);
     }
     counts[name] = snap.size;
   };
@@ -49,26 +62,26 @@ export async function POST(req) {
     const vendorRef = adminDb.collection("vendors").doc(claims.vendorId);
 
     if (action === "clear") {
-      const batch = adminDb.batch();
-      const counts = await stageClear(vendorRef, batch);
-      await batch.commit();
+      const writer = chunkedWriter(adminDb);
+      const counts = await stageClear(vendorRef, writer);
+      await writer.done();
       return NextResponse.json({ ok: true, action: "clear", counts });
     }
 
     if (action === "load") {
       // Idempotent: remove any prior seed data first so re-loading never stacks.
-      const clearBatch = adminDb.batch();
-      await stageClear(vendorRef, clearBatch);
-      await clearBatch.commit();
+      const clearWriter = chunkedWriter(adminDb);
+      await stageClear(vendorRef, clearWriter);
+      await clearWriter.done();
 
       const data = buildDemoData({
         owner: { id: claims.userId, name: claims.name || "Owner", role: "owner" },
         now: new Date(),
       });
 
-      const batch = adminDb.batch();
+      const writer = chunkedWriter(adminDb);
       const add = (name, docs) => {
-        for (const { id, ...fields } of docs) batch.set(vendorRef.collection(name).doc(id), { ...fields, seed: true });
+        for (const { id, ...fields } of docs) writer.set(vendorRef.collection(name).doc(id), { ...fields, seed: true });
       };
       add("users", data.staff);
       add("locations", data.locations);
@@ -85,10 +98,10 @@ export async function POST(req) {
       add("schedulePublished", data.schedulePublished);
       for (const [entryId, list] of Object.entries(data.comments)) {
         for (const { id, ...c } of list) {
-          batch.set(vendorRef.collection("entries").doc(entryId).collection("comments").doc(id), { ...c, seed: true });
+          writer.set(vendorRef.collection("entries").doc(entryId).collection("comments").doc(id), { ...c, seed: true });
         }
       }
-      await batch.commit();
+      await writer.done();
 
       const counts = {
         staff: data.staff.length, locations: data.locations.length, drawers: data.drawers.length,
