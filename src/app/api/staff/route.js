@@ -15,6 +15,19 @@ function cleanEmail(raw) {
   return { email: v.toLowerCase() };
 }
 
+// A client-supplied locationId is untrusted: verify it names a real, active
+// location in this vendor before persisting it. Otherwise a stale or forged id
+// silently strands an employee — their reads filter by locationId, so they'd
+// open to a permanently empty log with no error anywhere. Returns an error
+// string, or null when the id is valid.
+async function locationError(adminDb, vendorId, locationId) {
+  const loc = await adminDb
+    .collection("vendors").doc(vendorId)
+    .collection("locations").doc(String(locationId)).get();
+  if (!loc.exists || loc.data().active === false) return "That location doesn't exist.";
+  return null;
+}
+
 export async function POST(req) {
   try {
     const claims = await requireManager(req);
@@ -33,6 +46,11 @@ export async function POST(req) {
 
     const { adminDb } = await getAdmin();
     const vendorRef = adminDb.collection("vendors").doc(claims.vendorId);
+
+    if (locationId) {
+      const locErr = await locationError(adminDb, claims.vendorId, locationId);
+      if (locErr) return NextResponse.json({ error: locErr }, { status: 400 });
+    }
 
     // PIN must be unique within this store so login can identify the person.
     const users = await vendorRef.collection("users").get();
@@ -85,7 +103,13 @@ export async function PATCH(req) {
         return NextResponse.json({ error: "Only an owner can disable an owner." }, { status: 403 });
       patch.active = !!active;
     }
-    if (locationId !== undefined) patch.locationId = locationId || null;
+    if (locationId !== undefined) {
+      if (locationId) {
+        const locErr = await locationError(adminDb, claims.vendorId, locationId);
+        if (locErr) return NextResponse.json({ error: locErr }, { status: 400 });
+      }
+      patch.locationId = locationId || null;
+    }
     if (email !== undefined) {
       const em = cleanEmail(email);
       if (em.error) return NextResponse.json({ error: em.error }, { status: 400 });
