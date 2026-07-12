@@ -267,6 +267,20 @@ test("employees cannot work the variance queue", async () => {
     { varianceStatus: "under-review" }));
 });
 
+test("a manager can't fabricate a resolution on a never-flagged entry (L9)", async () => {
+  // eA is a clean count (varianceStatus 'none'); a manager can't jump it to
+  // under-review or resolved — only entries already in the queue are workable.
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eA`),
+    { varianceStatus: "under-review" }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eA`),
+    { varianceStatus: "resolved", causeCode: "training-gap", resolvedBy: "Mia", resolvedAt: new Date() }));
+  // And a resolved flag is terminal — it can't be reopened.
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/entries/flagged`),
+    { varianceStatus: "resolved", causeCode: "training-gap", resolvedBy: "Mia", resolvedAt: new Date() }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/flagged`),
+    { varianceStatus: "open" }));
+});
+
 /* ---------- disputes ---------- */
 
 test("only the author opens a dispute, exactly once, flag alone", async () => {
@@ -288,6 +302,15 @@ test("non-authors cannot open; employees cannot advance; managers can", async ()
   await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eB`),
     { disputeStatus: "under-review" }));
   await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eB`),
+    { disputeStatus: "resolved" }));
+});
+
+test("a manager can't resolve a dispute nobody opened (L9)", async () => {
+  // eA has disputeStatus 'none' — a manager can't move it straight to
+  // under-review or resolved without an author first opening it.
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eA`),
+    { disputeStatus: "under-review" }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eA`),
     { disputeStatus: "resolved" }));
 });
 

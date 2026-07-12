@@ -91,15 +91,21 @@ columns** — which one is the pack/book number, which is the amount.
   sold** (compared to `soldAtSettle`).
 - **Result:** each file row is matched to a recorded pack by pack number and
   split into **matched** vs **discrepancies** (delta beyond a small tolerance),
-  plus **unknown in file** (no matching pack) and **settled but not billed**
-  (a settled pack the file omits). Totals show the file sum and net delta.
+  plus **unknown in file** (no matching pack), **settled but not billed** (a
+  settled pack the file omits), **on the file but not settled yet**, **listed
+  more than once in the file** (a duplicate is reconciled once — not double-
+  counted — and flagged), and **billed but returned** (the file bills a pack the
+  store sent back, distinct from a not-yet-settled one). Totals show the file sum
+  and net delta.
 - **Pure + tested:** `src/lib/settlement.js` (`parseCSV`, `guessColumns`,
   `reconcileSettlement`) is a pure module — no Firebase, no network. The file is
   parsed and reconciled entirely **client-side** (nothing is uploaded anywhere),
-  and it reads the existing `packs`; there are no new writes or rules. Unit tests
-  in `tests/settlement.test.mjs` (`npm run test:settlement`): CSV quoting/escapes,
-  column guessing, dollar/ticket bases, unknown/missing detection, `$`/comma
-  amount cleaning, and exact (leading-zero-preserving) pack matching.
+  and it reads the existing `packs`; there are no new writes or rules. A file that
+  can't be read surfaces a toast (`FileReader.onerror`). Unit tests in
+  `tests/settlement.test.mjs` (`npm run test:settlement`): CSV quoting/escapes,
+  column guessing, dollar/ticket bases, unknown/missing detection, duplicate-row
+  and returned-pack flagging, `$`/comma amount cleaning, and exact (leading-zero-
+  preserving) pack matching.
 - **Out of scope:** a live state-lottery **API** integration, and per-state
   commission math (the tool compares gross figures you map, not net-of-commission).
 

@@ -176,6 +176,7 @@ export default function PacksCard({ onToast, locations, packs, entries }) {
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
         title="Scan pack barcode"
+        hint="The scan fills the barcode — nothing saves until you register the pack."
         onDetected={(code) => { setNp((prev) => ({ ...prev, barcode: code })); setScanOpen(false); onToast?.("Scanned"); }} />
     </div>
   );

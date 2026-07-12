@@ -51,6 +51,9 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   }, [f.locationId, drawers]); // eslint-disable-line
 
   const expected = expectedCash(f);
+  // An opening count has no sales or paid-outs yet — expected is just the
+  // starting drawer — so those two fields are hidden and stored as 0.
+  const isOpen = f.shift === "open";
   // When the counter is on, the tallied denominations are the counted amount.
   const countedValue = useCounter ? denomTotal : (Number(f.counted) || 0);
   const diff = countedValue - expected;
@@ -74,8 +77,8 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
         kind: "cash", date: f.date, shift: f.shift,
         locationId: f.locationId, locationName: locName(f.locationId),
         drawerId: drawer.id, drawerName: drawer.name,
-        start: Number(f.start) || 0, sales: Number(f.sales) || 0,
-        paidout: Number(f.paidout) || 0, counted: countedValue,
+        start: Number(f.start) || 0, sales: isOpen ? 0 : Number(f.sales) || 0,
+        paidout: isOpen ? 0 : Number(f.paidout) || 0, counted: countedValue,
         expected, diff, blind,
         flagged, varianceStatus: flagged ? "open" : "none",
         by: profile.name, byId: profile.id, byRole: profile.role,
@@ -115,24 +118,40 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
               <option value="open">Opening</option><option value="close">Closing</option>
             </select></Field>
         </div>
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Starting drawer"}><input type="number" inputMode="decimal" className="input" value={f.start} onChange={set("start")} placeholder="0.00" /></Field>
-          <Field label={"Cash sales"}><input type="number" inputMode="decimal" className="input" value={f.sales} onChange={set("sales")} placeholder="0.00" /></Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Paid out / drops"}><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></Field>
-          <div>
-            <label htmlFor={countedId} className="label">Counted at close</label>
-            {useCounter ? (
-              <div className="input flex items-center justify-between font-mono font-semibold" aria-live="polite">
-                <span>{money(denomTotal)}</span>
-                <span className="text-[10px] uppercase tracking-wide text-muted font-sans">from counter</span>
+        {(() => {
+          const countedInput = useCounter ? (
+            <div className="input flex items-center justify-between font-mono font-semibold" aria-live="polite">
+              <span>{money(denomTotal)}</span>
+              <span className="text-[10px] uppercase tracking-wide text-muted font-sans">from counter</span>
+            </div>
+          ) : (
+            <input id={countedId} type="number" inputMode="decimal" className="input" value={f.counted} onChange={set("counted")} placeholder="0.00" />
+          );
+          const startField = (
+            <Field label={"Starting drawer"}><input type="number" inputMode="decimal" className="input" value={f.start} onChange={set("start")} placeholder="0.00" /></Field>
+          );
+          const countedField = (
+            <div>
+              <label htmlFor={countedId} className="label">{isOpen ? "Counted now" : "Counted at close"}</label>
+              {countedInput}
+            </div>
+          );
+          // Opening: just the starting drawer + the count (no sales/paid-outs yet).
+          if (isOpen)
+            return <div className="grid grid-cols-2 gap-3.5">{startField}{countedField}</div>;
+          return (
+            <>
+              <div className="grid grid-cols-2 gap-3.5">
+                {startField}
+                <Field label={"Cash sales"}><input type="number" inputMode="decimal" className="input" value={f.sales} onChange={set("sales")} placeholder="0.00" /></Field>
               </div>
-            ) : (
-              <input id={countedId} type="number" inputMode="decimal" className="input" value={f.counted} onChange={set("counted")} placeholder="0.00" />
-            )}
-          </div>
-        </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <Field label={"Paid out / drops"}><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></Field>
+                {countedField}
+              </div>
+            </>
+          );
+        })()}
 
         <div>
           <button type="button" onClick={() => setUseCounter((v) => !v)}
@@ -192,7 +211,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
         )}
 
         <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
-        <p className="text-xs text-muted leading-relaxed">Expected = start + sales − paid out. Your name, drawer, location, and time stamp attach automatically.</p>
+        <p className="text-xs text-muted leading-relaxed">{isOpen ? "Expected = your starting drawer (an opening count has no sales or paid-outs yet)." : "Expected = start + sales − paid out."} Your name, drawer, location, and time stamp attach automatically.</p>
       </div>
     </div>
   );

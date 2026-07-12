@@ -115,7 +115,9 @@ Type the **store code** your manager gave you and **your own PIN**, then
 1. Tap the **Cash** tab.
 2. Choose your **location**, **drawer**, and whether this is an **opening** or
    **closing** count.
-3. Enter the **starting cash**, **sales**, and **paid-outs**.
+3. Enter the **starting cash** — and, on a **closing** count, the **sales** and
+   **paid-outs** too. (An opening count only asks for the starting cash; the
+   sales/paid-out boxes are hidden because there aren't any yet.)
 4. Count the drawer. Two ways:
    - Type the **counted** total, or
    - Turn on the **denomination counter** and enter how many $100s, $50s, $20s,

@@ -89,7 +89,11 @@ wasteful/limited for a year. A report is a one-shot snapshot, not a live view, s
     period label, location, generated-at, prepared/reviewed signature line),
     then the summary tables and the trend. Reuse/upgrade the current PDF code.
   - **Download CSV** — the period's raw rows for a spreadsheet, generalizing
-    `exportCSV` (`src/lib/utils.js:28`) to accept a filtered set.
+    `exportCSV` (`src/lib/utils.js`) to accept a filtered set. Every cell goes
+    through `csvCell`, which guards against **CSV/formula injection** — a value a
+    spreadsheet might execute (leading `=`, `+`, `-`, `@`, tab, or CR) is prefixed
+    with an apostrophe, while a plain negative amount (−1.00) stays a real number.
+    The same `csvCell` backs the payroll CSV in `TimeClock.js`.
 - **Filenames**: `duocount-report-<scope>-<periodKey>.<ext>`, e.g.
   `duocount-report-all-2026-Q3.pdf`, `duocount-report-main-2026-07.csv`.
 - **Access**: owner + manager (management artifact). Employees don't see it (or,

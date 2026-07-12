@@ -7,6 +7,7 @@ import {
 } from "@/lib/timeclock";
 import EmptyState, { IconClock } from "./EmptyState";
 import Schedule from "./Schedule";
+import { csvCell } from "@/lib/utils";
 
 const DAY = 24 * 3600 * 1000;
 const PERIODS = [
@@ -17,7 +18,6 @@ const PERIODS = [
 const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const fmtDay = (ms) => new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 
-function csvCell(v) { return `"${String(v).replace(/"/g, '""')}"`; }
 function downloadCSV(lines, name) {
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   const a = document.createElement("a");
@@ -71,10 +71,13 @@ export default function TimeClock({ locations = [], locName, onToast }) {
     setBusy(false);
   }
 
-  // Manager summary over the selected trailing window.
+  // Manager summary over the selected trailing window. `now` is in the deps so
+  // the window keeps sliding as time passes (the live-duration tick re-renders
+  // us) — otherwise a shift that aged out, or a day rollover, wouldn't update the
+  // totals until punches or the period changed.
   const summary = useMemo(
     () => (isManager ? summarizeHours(punches, { fromMs: now - days * DAY, toMs: now }) : []),
-    [isManager, punches, days] // eslint-disable-line react-hooks/exhaustive-deps
+    [isManager, punches, days, now]
   );
   const totalHours = summary.reduce((s, r) => s + r.hours, 0);
   const totalShifts = summary.reduce((s, r) => s + r.shifts, 0);

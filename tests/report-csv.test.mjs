@@ -1,7 +1,30 @@
 // Pure CSV builder — no DOM needed. Run: npm run test:report-csv
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { entriesToCSV } from "../src/lib/utils.js";
+import { entriesToCSV, csvCell } from "../src/lib/utils.js";
+
+test("csvCell guards formula injection but leaves plain numbers alone (L4)", () => {
+  // A spreadsheet-formula payload is neutralized with a leading apostrophe...
+  assert.equal(csvCell("=1+1"), `"'=1+1"`);
+  assert.equal(csvCell("+44 20"), `"'+44 20"`);
+  assert.equal(csvCell("@SUM(A1)"), `"'@SUM(A1)"`);
+  assert.equal(csvCell("-2+3"), `"'-2+3"`);        // leading - but not a number
+  // ...while a legitimate negative amount stays a real number (no apostrophe).
+  assert.equal(csvCell("-1.00"), `"-1.00"`);
+  assert.equal(csvCell("-42"), `"-42"`);
+  assert.equal(csvCell("Cash"), `"Cash"`);
+  assert.equal(csvCell('a "quote"'), `"a ""quote"""`); // normal quoting still applies
+});
+
+test("a malicious drawer name can't smuggle a formula into the export (L4)", () => {
+  const evil = {
+    kind: "cash", date: "2026-03-10", shift: "close", by: "Sam", byRole: "employee",
+    drawerName: "=HYPERLINK(0)", expected: 100, counted: 100, diff: 0, verifiedBy: null,
+    ts: new Date("2026-03-10T22:00:00Z"),
+  };
+  const line = entriesToCSV([evil]).split("\n")[1];
+  assert.ok(line.includes(`"'=HYPERLINK(0)"`), `formula not neutralized: ${line}`);
+});
 
 const cash = {
   kind: "cash", date: "2026-03-10", shift: "close", by: "Sam", byRole: "employee",

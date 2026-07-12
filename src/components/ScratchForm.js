@@ -148,6 +148,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
         title="Scan pack barcode"
+        hint="The scan fills the pack — nothing saves until you save & sign the count."
         onDetected={(code) => {
           setScanOpen(false);
           setF((p) => ({ ...p, pack: code }));

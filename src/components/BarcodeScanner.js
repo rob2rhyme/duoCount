@@ -7,7 +7,7 @@ import { useModalA11y } from "@/lib/use-modal-a11y";
 // Ported from the legacy inventory app, where the camera lifecycle survived
 // an adversarial review: the stream stops on close, on unmount, and on
 // detect; onDetected lives in a ref so parent re-renders never restart it.
-export default function BarcodeScanner({ open, onClose, onDetected, title = "Scan barcode" }) {
+export default function BarcodeScanner({ open, onClose, onDetected, title = "Scan barcode", hint }) {
   const videoRef = useRef(null);
   const onDetectedRef = useRef(onDetected);
   onDetectedRef.current = onDetected;
@@ -77,7 +77,7 @@ export default function BarcodeScanner({ open, onClose, onDetected, title = "Sca
           )}
         </div>
         <p className="px-4 py-3 text-xs text-muted leading-relaxed">
-          Point the camera at the barcode. Nothing saves until you tap &ldquo;Save &amp; sign entry&rdquo;.
+          Point the camera at the barcode. {hint || "The scanned code just fills in the form — nothing is saved until you confirm."}
         </p>
       </div>
     </div>
