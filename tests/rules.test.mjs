@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment, assertSucceeds, assertFails,
 } from "@firebase/rules-unit-testing";
 import {
-  doc, collection, getDoc, setDoc, updateDoc, deleteDoc, writeBatch,
+  doc, collection, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp,
 } from "firebase/firestore";
 
 const V = "v1";   // vendor under test
@@ -46,10 +46,12 @@ const incident = (over = {}) => ({
   ...over,
 });
 
-// a time-clock punch (owned by empA at their location)
+// a time-clock punch (owned by empA at their location). The punch time must be
+// the server clock — the rules pin ts to request.time — so it's a
+// serverTimestamp() sentinel, not a client-chosen Date.
 const punch = (over = {}) => ({
   userId: "u-empA", userName: "Eve", locationId: "locA", locationName: "A",
-  type: "in", ts: new Date(), day: "2026-07-10", ...over,
+  type: "in", ts: serverTimestamp(), day: "2026-07-10", ...over,
 });
 // a rostered shift (owned by empA, created by the manager)
 const sched = (over = {}) => ({
@@ -157,6 +159,26 @@ test("a forged diff that hides a real short is rejected; the truthful diff passe
 test("cent-level float diffs are accepted within tolerance", async () => {
   await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/cents`),
     entry({ counted: 149.99, expected: 150, diff: -0.01 })));
+});
+
+test("an honest over-threshold cash short must be signed open, not hidden as 'none'", async () => {
+  // The diff is truthful (-50 = 100 - 150, so varianceConsistent passes), but
+  // recording it as varianceStatus 'none' hides a real $50 short from the review
+  // queue, the owner digest, and the theft-pattern detectors — refused. The same
+  // short, opened, goes through.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/hide1`),
+    entry({ counted: 100, expected: 150, diff: -50, flagged: false, varianceStatus: "none" })));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/hide2`),
+    entry({ counted: 100, expected: 150, diff: -50, flagged: true, varianceStatus: "open" })));
+  // An over-count (drawer runs long) is just as much a variance to surface.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/hide3`),
+    entry({ counted: 200, expected: 150, diff: 50, flagged: false, varianceStatus: "none" })));
+  // A diff below the threshold is the common clean count and stays 'none'.
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/small`),
+    entry({ counted: 147, expected: 150, diff: -3, flagged: false, varianceStatus: "none" })));
+  // Scratch entries carry no diff and are exempt from the cash flag rule.
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/scr`),
+    entry({ kind: "scratch", counted: 0, expected: 0, diff: 0 })));
 });
 
 test("byRole must match the token's role (no CSV role self-labeling)", async () => {
@@ -353,6 +375,20 @@ test("packs: no skipping received -> settled; metadata edits keep the status", a
   await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/packs/p4`), { bin: "9" }));
 });
 
+test("packs: a settled pack is terminal — its settle snapshot is frozen", async () => {
+  const f = db("mgr");
+  await assertSucceeds(setDoc(doc(f, `vendors/${V}/packs/term`), pack()));
+  await assertSucceeds(updateDoc(doc(f, `vendors/${V}/packs/term`),
+    { status: "active", activatedAt: new Date(), activatedBy: "Mia" }));
+  await assertSucceeds(updateDoc(doc(f, `vendors/${V}/packs/term`),
+    { status: "settled", settledAt: new Date(), settledBy: "Mia", soldAtSettle: 58, shortAtSettle: 2 }));
+  // Rewriting the snapshot to erase a short after the fact is refused...
+  await assertFails(updateDoc(doc(f, `vendors/${V}/packs/term`), { soldAtSettle: 60 }));
+  await assertFails(updateDoc(doc(f, `vendors/${V}/packs/term`), { shortAtSettle: 0 }));
+  // ...and so is any other edit — a terminal pack is frozen whole.
+  await assertFails(updateDoc(doc(f, `vendors/${V}/packs/term`), { bin: "9" }));
+});
+
 /* ---------- incidents (tier-two write-ups) ---------- */
 
 test("incidents: managers file them, employees cannot, and identity must match", async () => {
@@ -427,6 +463,16 @@ test("timeclock: punches must be self-signed, a valid type, and at the employee'
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/b2`), punch({ userName: "Someone" })));               // name mismatch
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/b3`), punch({ locationId: "locB" })));               // not their location
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/b4`), punch({ type: "lunch" })));                    // bad type
+});
+
+test("timeclock: the punch time must be the server clock, not a client-chosen value", async () => {
+  // ts is the hours-bearing field. A client Date instead of a serverTimestamp
+  // sentinel — back-dated to stretch a shift, or forward-dated — won't equal
+  // request.time, so the rule refuses it.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/back`),
+    punch({ ts: new Date("2020-01-01T00:00:00Z") })));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/fwd`),
+    punch({ ts: new Date("2999-01-01T00:00:00Z") })));
 });
 
 test("timeclock: managers see all, employees only their own; punches are immutable", async () => {

@@ -24,13 +24,22 @@ employee, exactly like entries, incidents, and notes:
 { userId, userName,          // == the token's userId / name (signed)
   locationId, locationName,  // where the shift is worked (nullable)
   type: "in" | "out",
-  ts,                        // when the punch happened
+  ts,                        // serverTimestamp() — pinned to the server clock
   day }                      // YYYY-MM-DD business date
 ```
 
 There is **no edit and no delete**. A mistake is corrected by punching again —
 the same trust model as the rest of the app ("every count, countersigned"). This
 keeps the clock an honest audit trail rather than an editable timesheet.
+
+**`ts` is the server's clock, not the client's.** `ts` is the hours-bearing
+field — worked time is `out.ts − in.ts` — so a client-chosen value would let an
+employee back- or forward-date a punch to inflate paid hours. The client writes
+a `serverTimestamp()` sentinel and the rule pins it: `request.resource.data.ts
+== request.time`. A punch carrying any client `Date` (not the sentinel) is
+rejected at the rules layer (emulator-tested). `day` stays the client's
+business-day label, used only for reconciliation grouping — it bears no hours,
+so it isn't pinned.
 
 ## Pairing — `lib/timeclock.js` (pure, isomorphic)
 
@@ -142,6 +151,11 @@ guard) queries the week, sends via the same **Resend** path as the digest
 server-write only** (`allow write: if false`, written by the Admin SDK).
 
 **Security** —
+- `match /timeclock/{punchId}`: managers read the whole store, an employee reads
+  only their own; create is self-signed (`userId`/`userName` == token), a valid
+  `type` (`in`/`out`), at the employee's own location (managers anywhere), and
+  **`ts == request.time`** so the hours-bearing punch time is the server clock,
+  not a client value; **no update, no delete** (append-only).
 - `match /schedule/{shiftId}`: managers read/manage the whole roster; an
   employee reads their own shifts **plus any shift up for a swap**
   (`swapStatus != none`) **or open** (`open == true`) so they can pick it up.
