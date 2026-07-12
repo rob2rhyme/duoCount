@@ -50,7 +50,7 @@ record — the dispute-thread philosophy applied to personnel documentation.
 | `entryId` | string \| null | create | Optional link to a related log entry |
 | `links` | string[] | create | Evidence URLs (camera footage, photos, receipts); ≤ 5, each ≤ 500 chars, `http(s)` only (client-validated); rules cap the list size |
 | `locationId`, `locationName` | string | create | Same denormalization as entries |
-| `by`, `byId`, `byRole` | string | create | Must match the writer's token claims |
+| `by`, `byId`, `byRole` | string | create | `by`/`byId` must match the writer's token claims (rules-enforced); `byRole` is stored but not validated against the token in the incidents create rule |
 | `status` | string | lifecycle | `open → acknowledged → closed` (or `open → closed` if the subject never acks). Forward-only |
 | `ackAt` | timestamp \| null | subject ack | Stamped when the subject acknowledges |
 | `ackNote` | string \| null | subject ack | ≤ 1000 chars — the employee's side, on the record |
@@ -178,10 +178,12 @@ exists alongside the person detector.
   attention counters and the charts, listing each alert with a severity pill.
   Hidden when there are no alerts and from employees always.
 - **Daily digest:** a "Patterns" section listing the same alerts, computed
-  server-side from the trailing 14 days of entries (the digest route already
-  reads with the Admin SDK; it fetches `date >= today−14d` once and derives
-  both yesterday's summary and the patterns from that single query). The
-  digest also gains an **open incidents** count on its attention line.
+  server-side from the trailing window of entries (the digest route already
+  reads with the Admin SDK; it fetches `date >= today−Nd` once and derives
+  both yesterday's summary and the patterns from that single query). Per §2.1a
+  the window `N` is the vendor's configured lookback (default 14 days, clamped
+  1–90), not a fixed 14. The digest also gains an **open incidents** count on
+  its attention line.
 
 ### 2.3 Acceptance criteria
 

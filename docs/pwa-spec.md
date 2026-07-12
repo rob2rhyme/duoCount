@@ -16,23 +16,23 @@ a dropped connection.
   brand ink so adaptive-icon masks never crop it). Icons are generated from
   `public/logo.png` (see the build note below).
 - **Service worker** (`public/sw.js`, registered in production by
-  `components/PWA.js`): caches the app shell on install; **network-first** for
+  `src/components/PWA.js`): caches the app shell on install; **network-first** for
   page navigations (fresh app, falls back to the cached shell, then a branded
   **`offline.html`**); **cache-first** for hashed static assets. It only ever
   touches same-origin GETs, so Firebase (Firestore / Auth) and this app's
   `/api/` routes always hit the network and are never served stale.
-- **iOS / standalone meta** (`app/layout.js`): `apple-mobile-web-app-capable`,
+- **iOS / standalone meta** (`src/app/layout.js`): `apple-mobile-web-app-capable`,
   a black-translucent status bar, an `apple-touch-icon`, `applicationName`, and
   `viewport-fit: cover` so safe-area insets resolve.
-- **Safe-area insets** (`globals.css` utilities `pt-safe` / `px-safe` /
+- **Safe-area insets** (`src/app/globals.css` utilities `pt-safe` / `px-safe` /
   `bottom-safe`): the sticky header pads under the notch/status bar and the
   scroll-to-top FAB clears the home indicator. Off-device the `env()` values are
   0, so nothing changes on desktop.
-- **Install prompt** (`lib/install.js`): the browser's `beforeinstallprompt` is
+- **Install prompt** (`src/lib/install.js`): the browser's `beforeinstallprompt` is
   captured (not shown as the default infobar) and surfaced as an **Install app**
-  action in the header Preferences menu, shown only when the browser offers it
+  action in the header Settings menu, shown only when the browser offers it
   and hidden once installed.
-- **Native-app feel** (`globals.css`): mobile chrome that makes a web app read
+- **Native-app feel** (`src/app/globals.css`): mobile chrome that makes a web app read
   as native —
   - **No focus-zoom on text entry.** iOS Safari zooms the whole page when a
     focused field's font resolves under 16 px. The compact controls
@@ -49,14 +49,17 @@ a dropped connection.
   - Interactive chrome opts out of long-press selection + the iOS callout
     (`user-select: none`, `-webkit-touch-callout: none`); body text and amounts
     stay selectable so codes can still be copied.
-- **Footer** (`components/AppShell.js`): a theme-aware footer with the brand mark
+- **Footer** (`src/components/AppShell.js`): a theme-aware footer with the brand mark
   and tagline ("Every count, countersigned"), the paper backup forms as
   pill-shaped ghost chips, a top divider, and `pb-safe` so it clears the home
   indicator in standalone mode.
 
 ## Verification
 
-Against a production build (`next start`), driven by Playwright:
+There is no automated PWA / end-to-end suite in the repo (no Playwright — the
+test scripts are all `node --test` unit/rules suites). The checks below were
+verified **manually** against a production build (`next start`); treat this as
+the checklist to re-run by hand after any PWA change:
 
 - Manifest is linked; apple-web-app + `viewport-fit=cover` meta present; icons
   include 192 + maskable.
@@ -68,7 +71,7 @@ Against a production build (`next start`), driven by Playwright:
   error.
 - **No focus-zoom:** under touch emulation (`pointer: coarse`) the compact
   `.input.text-sm` / `.input.text-[13px]` fields compute to 16 px in both themes
-  while the PIN input stays at 24 px — asserted against the real compiled CSS.
+  while the PIN input stays at 24 px — checked against the compiled CSS.
 
 ## Build note (icons)
 

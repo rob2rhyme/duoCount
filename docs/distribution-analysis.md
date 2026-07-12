@@ -5,7 +5,7 @@ reaches more buyers (AI features, a static build, a WordPress path, other
 packagings), each with effort, trade-offs, and a recommendation.
 
 **Baseline.** DuoCount is a Next.js (App Router) + Tailwind + Firebase app:
-client UI, a handful of server API routes (`/api/auth`, `/api/digest`,
+client UI, a handful of server API routes (`/api/auth`, `/api/cron/digest`,
 `/api/seed`) that use the Firebase Admin SDK, and Firestore security rules that
 enforce the append-only, countersigned trust model. That server surface and the
 existing daily email digest are the two hooks the options below build on.
@@ -22,7 +22,7 @@ so none requires new data collection.
 | # | Feature | What it does | Model tier | Risk |
 |---|---------|--------------|-----------|------|
 | 1 | **Digest narrative** | Turn the existing daily digest's aggregates into 2–3 plain-English sentences + "what to watch tomorrow" | Haiku / Sonnet | Low — already server-side aggregated |
-| 2 | **Natural-language log search** | "Sam's shorts over $10 last month" → the Log's existing filter object (type/who/drawer/status/date) | Haiku | Low — output is a filter, not prose about people |
+| 2 | **Natural-language log search** | "Sam's shorts over $10 last month" → the Log's existing filter object (type/who/drawer/status) | Haiku | Low — output is a filter, not prose about people |
 | 3 | **Pattern narratives** | Render the computed `detectPatterns` signals as readable, non-accusatory prose | Haiku / Sonnet | Low |
 | 4 | **Variance-note assist** | Draft a neutral cause-code + note for a flagged entry; the manager edits before saving | Sonnet | Medium — touches personnel judgement |
 | 5 | **Incident write-up assist** | Expand a manager's bullet points into a factual, neutral write-up draft | Sonnet / Opus | Medium — personnel record |
@@ -33,7 +33,7 @@ they never auto-write to the append-only log.
 ### 1.2 How to build it on the Anthropic API
 
 - **Server-side only.** Call the API from a Next.js route (the same pattern as
-  `/api/digest`), never the browser — the API key must never ship to the client.
+  `/api/cron/digest`), never the browser — the API key must never ship to the client.
   Use the official `@anthropic-ai/sdk` (this is a JS/TS project). This slots
   directly into the existing `src/app/api/**` + `firebase-admin` architecture.
 - **Model choice** (current model IDs / list price per million tokens):

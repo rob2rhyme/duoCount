@@ -87,7 +87,7 @@ columns** — which one is the pack/book number, which is the amount.
   split into **matched** vs **discrepancies** (delta beyond a small tolerance),
   plus **unknown in file** (no matching pack) and **settled but not billed**
   (a settled pack the file omits). Totals show the file sum and net delta.
-- **Pure + tested:** `lib/settlement.js` (`parseCSV`, `guessColumns`,
+- **Pure + tested:** `src/lib/settlement.js` (`parseCSV`, `guessColumns`,
   `reconcileSettlement`) is a pure module — no Firebase, no network. The file is
   parsed and reconciled entirely **client-side** (nothing is uploaded anywhere),
   and it reads the existing `packs`; there are no new writes or rules. Unit tests
