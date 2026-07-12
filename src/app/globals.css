@@ -94,3 +94,27 @@ button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -w
   .input.text-sm,
   .input.text-\[13px\] { font-size: 16px; }
 }
+
+/* Rendered Markdown for the in-app docs (/docs). Themed via the same CSS vars,
+   so it reads correctly in light and dark. */
+.doc-content { color: var(--fg); font-size: 15px; line-height: 1.7; }
+.doc-content > :first-child { margin-top: 0; }
+.doc-content h1 { font-size: 1.55rem; font-weight: 700; margin: 1.7rem 0 0.6rem; }
+.doc-content h2 { font-size: 1.2rem; font-weight: 700; margin: 1.6rem 0 0.5rem; padding-bottom: 0.25rem; border-bottom: 1px solid var(--line); }
+.doc-content h3 { font-size: 1.03rem; font-weight: 600; margin: 1.25rem 0 0.4rem; }
+.doc-content p { margin: 0.7rem 0; }
+.doc-content a { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+.doc-content ul, .doc-content ol { margin: 0.6rem 0; padding-left: 1.4rem; }
+.doc-content ul { list-style: disc; }
+.doc-content ol { list-style: decimal; }
+.doc-content li { margin: 0.3rem 0; }
+.doc-content code { background: var(--subtle); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.86em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.doc-content pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 0.9rem 0; }
+.doc-content pre code { background: none; padding: 0; font-size: 0.82rem; }
+.doc-content blockquote { border-left: 3px solid var(--line); padding: 0.1rem 0 0.1rem 0.9rem; margin: 0.9rem 0; color: var(--muted); }
+.doc-content hr { border: 0; border-top: 1px solid var(--line); margin: 1.6rem 0; }
+.doc-content img { max-width: 100%; height: auto; }
+.doc-content strong { font-weight: 700; }
+.doc-content table { border-collapse: collapse; margin: 0.9rem 0; font-size: 0.92em; display: block; width: 100%; overflow-x: auto; }
+.doc-content th, .doc-content td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.doc-content th { background: var(--panel); font-weight: 600; }

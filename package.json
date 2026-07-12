@@ -29,6 +29,7 @@
     "@zxing/library": "0.21.3",
     "firebase": "^11.10.0",
     "firebase-admin": "^14.1.0",
+    "marked": "^13.0.3",
     "next": "15.5.20",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

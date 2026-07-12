@@ -18,7 +18,7 @@ If you work a shift and just need to log your counts, jump to
 
 ## The 60-second picture
 
-- You sign in with a **store code** (like `smokers-haven`) and your own **PIN** —
+- You sign in with a **store code** (like `acme-market`) and your own **PIN** —
   no email, no password.
 - Across the top (or bottom on a phone) are **tabs**: **Cash**, **Scratch-offs**,
   **Inventory**, **Log**, **Notes**, **Incidents**, **Time**, **Dashboard**, and
@@ -182,7 +182,7 @@ bin 4 running low." Managers can pin the important ones.
 
 | Word | What it means |
 | --- | --- |
-| **Store code** | Your business's sign-in name (e.g. `smokers-haven`). |
+| **Store code** | Your business's sign-in name (e.g. `acme-market`). |
 | **Over / short** | How far a count is above (over) or below (short) expected. |
 | **Verify** | A manager confirming a count — never their own. |
 | **Flag** | An automatic "please explain" on a count that's too far off. |
