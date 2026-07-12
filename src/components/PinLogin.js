@@ -106,6 +106,8 @@ export default function PinLogin() {
           </div>
         )}
         <p className="text-center text-[11px] text-muted mt-5 pt-4 border-t border-line">
+          <Link href="/guide" className="underline underline-offset-2 hover:text-fg">User guide</Link>
+          {" · "}
           <Link href="/docs" className="underline underline-offset-2 hover:text-fg">Documentation</Link>
         </p>
       </div>

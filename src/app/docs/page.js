@@ -37,7 +37,12 @@ export default function DocsIndex() {
         </div>
 
         <h1 className="text-xl font-semibold">Documentation</h1>
-        <p className="text-sm text-muted mt-1 mb-6">Plain-language guides and the product specs behind DuoCount.</p>
+        <p className="text-sm text-muted mt-1 mb-5">Plain-language guides and the product specs behind DuoCount.</p>
+
+        <Link href="/guide" className="block bg-highlight border border-brass/40 rounded-xl px-4 py-3 mb-6 hover:bg-panel transition">
+          <div className="font-semibold text-sm">📖 New here? Read the User Guide</div>
+          <div className="text-[12px] text-muted mt-0.5">A plain-language walkthrough for owners, managers, and staff.</div>
+        </Link>
 
         {featured.length > 0 && (
           <>
