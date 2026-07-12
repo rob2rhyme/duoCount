@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useId, useState } from "react";
 import { useSession } from "./SessionProvider";
 import { PRODUCT } from "@/lib/store";
@@ -104,6 +105,9 @@ export default function PinLogin() {
             Store created. Your store code is <b className="font-mono">{createdSlug}</b> — share it with staff so they can sign in.
           </div>
         )}
+        <p className="text-center text-[11px] text-muted mt-5 pt-4 border-t border-line">
+          <Link href="/docs" className="underline underline-offset-2 hover:text-fg">Documentation</Link>
+        </p>
       </div>
     </div>
   );
