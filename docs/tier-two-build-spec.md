@@ -270,6 +270,44 @@ console-side cleanup, noted in the README.
 3. A new window (> 15 min later) starts counting from 1.
 4. Clients cannot read or write `loginAttempts` (default-deny; no rule added).
 
+### 3.5 Offboarding — deactivation takes effect immediately (H2)
+
+Role and `active` state ride in the custom-token claims, which **freeze at
+sign-in**. Left alone, a fired or demoted employee would keep their access until
+the token was re-minted (next sign-in). The trust-model pass closed that lag with
+two coordinated halves:
+
+- **Rules (server, authoritative for writes).** A `liveActive()` helper reads the
+  writer's **live** user doc and every member/manager/owner write requires
+  `active == true`:
+  ```
+  function liveActive() {
+    return get(/databases/$(database)/documents/vendors/$(vendorId)/users/$(request.auth.token.userId))
+             .data.get('active', true) == true;
+  }
+  ```
+  A deactivated user can no longer log counts, punch the clock, file/ack
+  incidents, move packs, roster shifts, or edit settings — **even holding a valid
+  token**. Reads stay on the token (a `get()` on every listener would be costly);
+  a missing `active` field defaults to `true`, matching the app's optional-field
+  convention. This is one extra document read per write.
+- **Client (SessionProvider watcher).** While signed in, the app subscribes to its
+  own user doc. If `active` flips to `false` **or the role changes**, it force
+  signs-out — the next sign-in mints fresh claims or bounces a disabled account.
+  This covers the read side (their listeners stop) and role demotion (which the
+  rules `active`-check alone doesn't catch, since a demoted user is still active).
+
+Between the two, deactivation is enforced server-side the instant the doc flips,
+and the demoted/removed user is bounced from the UI within a listener round-trip.
+
+**Acceptance criteria.**
+1. A write by a `uid` whose live user doc is `active:false` is denied by rules,
+   even on a still-valid token (emulator-tested for entries, punches, notes,
+   packs, incidents, and manager variance actions).
+2. Reactivating the user restores write access with no re-deploy.
+3. A signed-in user who is deactivated or has their role changed is signed out by
+   the client watcher without a manual reload.
+
 ---
 
 ## 4. Files touched

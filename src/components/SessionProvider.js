@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signInWithCustomToken, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { fetchJson } from "@/lib/api";
 
@@ -39,6 +39,31 @@ export default function SessionProvider({ children }) {
     });
     return () => unsub();
   }, []);
+
+  // While signed in, watch our own user doc live. Role and active-state are
+  // frozen in the token at sign-in, so a mid-session deactivation or demotion
+  // wouldn't otherwise take effect until the next sign-in. If we're deactivated
+  // or our role changed, force a sign-out — the next sign-in mints fresh claims
+  // (or bounces a disabled account). This is the client half of the H2 guard;
+  // the Firestore rules (liveActive) already ban a deactivated user's writes
+  // server-side, so a stale token can't act even before this fires.
+  const cVendorId = profile?.claims?.vendorId;
+  const cUserId = profile?.claims?.userId;
+  const cRole = profile?.claims?.role;
+  useEffect(() => {
+    if (!cVendorId || !cUserId) return;
+    const ref = doc(db, "vendors", cVendorId, "users", cUserId);
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) return; // user deletion isn't a supported flow
+        const d = snap.data();
+        if (d.active === false || d.role !== cRole) signOut(auth);
+      },
+      () => {}, // transient listen errors: the next auth cycle re-checks
+    );
+    return () => unsub();
+  }, [cVendorId, cUserId, cRole]);
 
   async function login(storeCode, pin) {
     const j = await fetchJson("/api/auth/login", {
