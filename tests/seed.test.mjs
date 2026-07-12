@@ -8,7 +8,12 @@ const owner = { id: "owner1", name: "Jordan Price", role: "owner" };
 const build = () => buildDemoData({ owner, now: NOW });
 
 const round2 = (n) => Math.round(n * 100) / 100;
-const allDocs = (d) => [...d.staff, ...d.locations, ...d.drawers, ...d.items, ...d.packs, ...d.entries, ...d.notes, ...d.incidents];
+// Every seed doc except schedulePublished, whose id is intentionally the week
+// start (so the app recognizes the week as published), not a seed_ id.
+const allDocs = (d) => [
+  ...d.staff, ...d.locations, ...d.drawers, ...d.items, ...d.packs, ...d.entries,
+  ...d.notes, ...d.incidents, ...d.timeclock, ...d.schedule, ...d.availability, ...d.templates,
+];
 
 test("deterministic given the same now", () => {
   assert.deepEqual(build(), build());
@@ -20,10 +25,53 @@ test("expected collection counts", () => {
   assert.equal(d.locations.length, 2);
   assert.equal(d.drawers.length, 4);
   assert.equal(d.items.length, 3);
-  assert.equal(d.packs.length, 3);
+  assert.equal(d.packs.length, 4); // 2 active + 1 received + 1 settled
   assert.equal(d.entries.length, 21); // 14 cash + 4 scratch + 3 inventory
   assert.equal(d.notes.length, 3);
   assert.equal(d.incidents.length, 2);
+  assert.ok(d.timeclock.length >= 12, "expected several punches");
+  assert.ok(d.schedule.length >= 8, "expected a week of shifts");
+  assert.equal(d.availability.length, 2);
+  assert.equal(d.templates.length, 1);
+  assert.equal(d.schedulePublished.length, 1);
+});
+
+test("packs cover the full lifecycle incl. a settled pack for reconciliation", () => {
+  const d = build();
+  const settled = d.packs.find((p) => p.status === "settled");
+  assert.ok(settled, "expected a settled pack");
+  assert.equal(settled.soldAtSettle, 44);
+  assert.ok(d.packs.some((p) => p.status === "active") && d.packs.some((p) => p.status === "received"));
+});
+
+test("time-clock punches are signed, typed, and pair into shifts", () => {
+  const d = build();
+  for (const p of d.timeclock) {
+    assert.ok(["in", "out"].includes(p.type), "punch type must be in/out");
+    assert.ok(p.userId && p.userName, "punch must be signed");
+    assert.ok(p.ts instanceof Date && typeof p.day === "string");
+  }
+  // Exactly one open (unpaired) punch: someone currently on the clock.
+  const ins = d.timeclock.filter((p) => p.type === "in").length;
+  const outs = d.timeclock.filter((p) => p.type === "out").length;
+  assert.equal(ins - outs, 1, "expected one open shift (one extra 'in')");
+});
+
+test("schedule has assigned shifts, an open shift, and a swap in flight", () => {
+  const d = build();
+  assert.ok(d.schedule.some((s) => s.userId && !s.open), "expected assigned shifts");
+  assert.ok(d.schedule.some((s) => s.open === true && s.userId === null), "expected an open shift");
+  assert.ok(d.schedule.some((s) => s.swapStatus === "offered"), "expected an offered swap");
+  const claimed = d.schedule.find((s) => s.swapStatus === "claimed");
+  assert.ok(claimed && claimed.claimedById && claimed.claimedByName, "expected a claimed swap with a claimer");
+  for (const s of d.schedule) assert.ok(s.by && s.byId, "shift must be signed by a manager");
+});
+
+test("the published-week record keys off the week start (not a seed_ id)", () => {
+  const d = build();
+  const pub = d.schedulePublished[0];
+  assert.equal(pub.id, pub.weekStart, "doc id must equal the week start");
+  assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(pub.weekStart) && /^\d{4}-\d{2}-\d{2}$/.test(pub.weekEnd));
 });
 
 test("every doc is seed-namespaced and ids are unique", () => {

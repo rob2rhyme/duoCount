@@ -1,0 +1,1437 @@
+{
+  "_meta": {
+    "app": "sh-stock-tracking demo seed",
+    "generatedAtNow": "2026-07-12T00:00:00.000Z",
+    "import": "node scripts/import-demo-seed.mjs <vendorId> [demo-seed.json]",
+    "notes": "Every doc is written with { seed: true } so the in-app clear removes it. Dates are tagged { __ts__: ISO }."
+  },
+  "collections": {
+    "users": {
+      "seed_usr_owner": {
+        "name": "Jordan Price",
+        "role": "owner",
+        "locationId": null,
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_usr_sam": {
+        "name": "Sam Rivera",
+        "role": "employee",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_usr_alex": {
+        "name": "Alex Kim",
+        "role": "employee",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_usr_dana": {
+        "name": "Dana Brooks",
+        "role": "manager",
+        "locationId": null,
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      }
+    },
+    "locations": {
+      "seed_loc_main": {
+        "name": "Main Store",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_loc_kiosk": {
+        "name": "Downtown Kiosk",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      }
+    },
+    "drawers": {
+      "seed_drw_pos_main": {
+        "name": "POS Cash Drawer",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_drw_lot_main": {
+        "name": "Lottery Cash Drawer",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_drw_safe_main": {
+        "name": "Safe",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_drw_pos_kiosk": {
+        "name": "POS Cash Drawer",
+        "locationId": "seed_loc_kiosk",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      }
+    },
+    "items": {
+      "seed_itm_marlboro": {
+        "name": "Marlboro Gold Box",
+        "category": "Cigarettes",
+        "unit": "pack",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_itm_swisher": {
+        "name": "Grape Swishers",
+        "category": "Cigars",
+        "unit": "pack",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_itm_bic": {
+        "name": "Bic Lighters",
+        "category": "Accessories",
+        "unit": "each",
+        "locationId": "seed_loc_main",
+        "active": true,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      }
+    },
+    "packs": {
+      "seed_pak_bonus": {
+        "game": "$5 Bonus Cashword",
+        "pack": "1234-001",
+        "price": 5,
+        "ticketsPerPack": 60,
+        "status": "active",
+        "bin": "3",
+        "locationId": "seed_loc_main",
+        "activatedAt": {
+          "__ts__": "2026-06-24T00:00:00.000Z"
+        },
+        "activatedBy": "Dana Brooks",
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_pak_colossal": {
+        "game": "$10 Colossal Cash",
+        "pack": "0777-014",
+        "price": 10,
+        "ticketsPerPack": 40,
+        "status": "active",
+        "bin": "5",
+        "locationId": "seed_loc_main",
+        "activatedAt": {
+          "__ts__": "2026-06-27T00:00:00.000Z"
+        },
+        "activatedBy": "Dana Brooks",
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_pak_lucky": {
+        "game": "$2 Lucky 7s",
+        "pack": "0450-208",
+        "price": 2,
+        "ticketsPerPack": 75,
+        "status": "received",
+        "locationId": "seed_loc_main",
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      },
+      "seed_pak_cherry": {
+        "game": "$3 Wild Cherry",
+        "pack": "0888-102",
+        "price": 3,
+        "ticketsPerPack": 50,
+        "status": "settled",
+        "locationId": "seed_loc_main",
+        "activatedAt": {
+          "__ts__": "2026-06-18T00:00:00.000Z"
+        },
+        "activatedBy": "Dana Brooks",
+        "settledAt": {
+          "__ts__": "2026-07-09T00:00:00.000Z"
+        },
+        "settledBy": "Dana Brooks",
+        "soldAtSettle": 44,
+        "shortAtSettle": 6,
+        "createdAt": {
+          "__ts__": "2026-06-12T00:00:00.000Z"
+        }
+      }
+    },
+    "entries": {
+      "seed_ent_001": {
+        "date": "2026-06-28",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": null,
+        "disputeStatus": "under-review",
+        "varianceStatus": "none",
+        "commentCount": 2,
+        "ts": {
+          "__ts__": "2026-06-28T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 781,
+        "paidout": 16,
+        "counted": 965,
+        "expected": 965,
+        "diff": 0,
+        "blind": false,
+        "flagged": false,
+        "comments": {
+          "seed_cmt_1": {
+            "by": "Alex Kim",
+            "byId": "seed_usr_alex",
+            "kind": "comment",
+            "text": "The over/short here looks off — I was covering register 2, not this drawer.",
+            "ts": {
+              "__ts__": "2026-06-28T00:30:00.000Z"
+            }
+          },
+          "seed_cmt_2": {
+            "by": "Dana Brooks",
+            "byId": "seed_usr_dana",
+            "kind": "status",
+            "text": "Dispute marked under review by Dana Brooks",
+            "ts": {
+              "__ts__": "2026-06-28T01:30:00.000Z"
+            }
+          }
+        }
+      },
+      "seed_ent_002": {
+        "date": "2026-06-29",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Sam Rivera",
+        "byId": "seed_usr_sam",
+        "byRole": "employee",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-06-29T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 545,
+        "paidout": 5,
+        "counted": 740,
+        "expected": 740,
+        "diff": 0,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-06-29T01:00:00.000Z"
+        }
+      },
+      "seed_ent_003": {
+        "date": "2026-06-30",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-06-30T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 774,
+        "paidout": 13,
+        "counted": 961,
+        "expected": 961,
+        "diff": 0,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-06-30T01:00:00.000Z"
+        }
+      },
+      "seed_ent_004": {
+        "date": "2026-07-01",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-01T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 515,
+        "paidout": 7,
+        "counted": 704.56,
+        "expected": 708,
+        "diff": -3.44,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-01T01:00:00.000Z"
+        }
+      },
+      "seed_ent_005": {
+        "date": "2026-07-02",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-02T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 784,
+        "paidout": 3,
+        "counted": 981,
+        "expected": 981,
+        "diff": 0,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-02T01:00:00.000Z"
+        }
+      },
+      "seed_ent_006": {
+        "date": "2026-07-03",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Sam Rivera",
+        "byId": "seed_usr_sam",
+        "byRole": "employee",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-03T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 547,
+        "paidout": 0,
+        "counted": 747.24,
+        "expected": 747,
+        "diff": 0.24,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-03T01:00:00.000Z"
+        }
+      },
+      "seed_ent_007": {
+        "date": "2026-07-04",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Jordan Price",
+        "byId": "seed_usr_owner",
+        "byRole": "owner",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-04T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 619,
+        "paidout": 15,
+        "counted": 808.93,
+        "expected": 804,
+        "diff": 4.93,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-04T01:00:00.000Z"
+        }
+      },
+      "seed_ent_008": {
+        "date": "2026-07-05",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Jordan Price",
+        "byId": "seed_usr_owner",
+        "byRole": "owner",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "resolved",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 669,
+        "paidout": 30,
+        "counted": 849.03,
+        "expected": 839,
+        "diff": 10.03,
+        "blind": false,
+        "flagged": true,
+        "verifiedAt": {
+          "__ts__": "2026-07-05T01:00:00.000Z"
+        },
+        "causeCode": "register-error",
+        "causeNote": "Register mis-rang a lottery payout; corrected at close.",
+        "resolvedBy": "Dana Brooks",
+        "resolvedAt": {
+          "__ts__": "2026-07-05T02:00:00.000Z"
+        }
+      },
+      "seed_ent_009": {
+        "date": "2026-07-06",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Sam Rivera",
+        "byId": "seed_usr_sam",
+        "byRole": "employee",
+        "verifiedBy": null,
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-06T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 404,
+        "paidout": 28,
+        "counted": 576,
+        "expected": 576,
+        "diff": 0,
+        "blind": false,
+        "flagged": false
+      },
+      "seed_ent_010": {
+        "date": "2026-07-07",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-07T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 700,
+        "paidout": 7,
+        "counted": 893,
+        "expected": 893,
+        "diff": 0,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-07T01:00:00.000Z"
+        }
+      },
+      "seed_ent_011": {
+        "date": "2026-07-08",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "byRole": "manager",
+        "verifiedBy": "Jordan Price",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-08T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 629,
+        "paidout": 38,
+        "counted": 787.06,
+        "expected": 791,
+        "diff": -3.94,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-08T01:00:00.000Z"
+        }
+      },
+      "seed_ent_012": {
+        "date": "2026-07-09",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Jordan Price",
+        "byId": "seed_usr_owner",
+        "byRole": "owner",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-09T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 508,
+        "paidout": 6,
+        "counted": 702,
+        "expected": 702,
+        "diff": 0,
+        "blind": false,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-09T01:00:00.000Z"
+        }
+      },
+      "seed_ent_013": {
+        "date": "2026-07-10",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": null,
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-10T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 526,
+        "paidout": 11,
+        "counted": 715,
+        "expected": 715,
+        "diff": 0,
+        "blind": false,
+        "flagged": false
+      },
+      "seed_ent_014": {
+        "date": "2026-07-11",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "byRole": "manager",
+        "verifiedBy": null,
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-11T00:00:00.000Z"
+        },
+        "kind": "cash",
+        "drawerId": "seed_drw_pos_main",
+        "drawerName": "POS Cash Drawer",
+        "start": 200,
+        "sales": 400,
+        "paidout": 19,
+        "counted": 581,
+        "expected": 581,
+        "diff": 0,
+        "blind": false,
+        "flagged": false
+      },
+      "seed_ent_015": {
+        "date": "2026-07-03",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "byRole": "manager",
+        "verifiedBy": null,
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-03T00:00:00.000Z"
+        },
+        "kind": "scratch",
+        "drawerId": "seed_drw_lot_main",
+        "drawerName": "Lottery Cash Drawer",
+        "game": "$5 Bonus Cashword",
+        "price": 5,
+        "pack": "1234-001",
+        "startno": 4,
+        "endno": 21,
+        "sold": 17,
+        "dollars": 85
+      },
+      "seed_ent_016": {
+        "date": "2026-07-06",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-06T00:00:00.000Z"
+        },
+        "kind": "scratch",
+        "drawerId": "seed_drw_lot_main",
+        "drawerName": "Lottery Cash Drawer",
+        "game": "$10 Colossal Cash",
+        "price": 10,
+        "pack": "0777-014",
+        "startno": 0,
+        "endno": 9,
+        "sold": 9,
+        "dollars": 90,
+        "verifiedAt": {
+          "__ts__": "2026-07-06T01:00:00.000Z"
+        }
+      },
+      "seed_ent_017": {
+        "date": "2026-07-09",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": null,
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-09T00:00:00.000Z"
+        },
+        "kind": "scratch",
+        "drawerId": "seed_drw_lot_main",
+        "drawerName": "Lottery Cash Drawer",
+        "game": "$5 Bonus Cashword",
+        "price": 5,
+        "pack": "1234-001",
+        "startno": 21,
+        "endno": 33,
+        "sold": 12,
+        "dollars": 60
+      },
+      "seed_ent_018": {
+        "date": "2026-07-11",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": null,
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-11T00:00:00.000Z"
+        },
+        "kind": "scratch",
+        "drawerId": "seed_drw_lot_main",
+        "drawerName": "Lottery Cash Drawer",
+        "game": "$2 Lucky 7s",
+        "price": 2,
+        "pack": "0450-208",
+        "startno": 0,
+        "endno": 25,
+        "sold": 25,
+        "dollars": 50
+      },
+      "seed_ent_019": {
+        "date": "2026-07-04",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "byRole": "employee",
+        "verifiedBy": null,
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-04T00:00:00.000Z"
+        },
+        "kind": "inventory",
+        "itemId": "seed_itm_marlboro",
+        "itemName": "Marlboro Gold Box",
+        "unit": "pack",
+        "startQty": 25,
+        "received": 12,
+        "soldQty": 14,
+        "removed": 0,
+        "expected": 23,
+        "counted": 23,
+        "diff": 0,
+        "flagged": false
+      },
+      "seed_ent_020": {
+        "date": "2026-07-07",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Jordan Price",
+        "byId": "seed_usr_owner",
+        "byRole": "owner",
+        "verifiedBy": "Dana Brooks",
+        "disputeStatus": "none",
+        "varianceStatus": "none",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-07T00:00:00.000Z"
+        },
+        "kind": "inventory",
+        "itemId": "seed_itm_swisher",
+        "itemName": "Grape Swishers",
+        "unit": "pack",
+        "startQty": 40,
+        "received": 0,
+        "soldQty": 9,
+        "removed": 1,
+        "expected": 30,
+        "counted": 30,
+        "diff": 0,
+        "flagged": false,
+        "verifiedAt": {
+          "__ts__": "2026-07-07T01:00:00.000Z"
+        }
+      },
+      "seed_ent_021": {
+        "date": "2026-07-10",
+        "shift": "close",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "byRole": "manager",
+        "verifiedBy": "Jordan Price",
+        "disputeStatus": "none",
+        "varianceStatus": "open",
+        "commentCount": 0,
+        "ts": {
+          "__ts__": "2026-07-10T00:00:00.000Z"
+        },
+        "kind": "inventory",
+        "itemId": "seed_itm_bic",
+        "itemName": "Bic Lighters",
+        "unit": "each",
+        "startQty": 60,
+        "received": 24,
+        "soldQty": 30,
+        "removed": 0,
+        "expected": 54,
+        "counted": 49,
+        "diff": -5,
+        "flagged": true,
+        "verifiedAt": {
+          "__ts__": "2026-07-10T01:00:00.000Z"
+        }
+      }
+    },
+    "notes": {
+      "seed_note_1": {
+        "text": "Register 2 drawer is sticking — jiggle the till, don't force it.",
+        "pinned": true,
+        "shift": "open",
+        "active": true,
+        "by": "Sam Rivera",
+        "byId": "seed_usr_sam",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "ts": {
+          "__ts__": "2026-07-06T00:00:00.000Z"
+        }
+      },
+      "seed_note_2": {
+        "text": "Lottery bin 5 low on $10 Colossal — reorder when the box lands.",
+        "pinned": false,
+        "shift": "close",
+        "active": true,
+        "by": "Alex Kim",
+        "byId": "seed_usr_alex",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "ts": {
+          "__ts__": "2026-07-08T00:00:00.000Z"
+        }
+      },
+      "seed_note_3": {
+        "text": "New hire shadowing closing counts this week; double-check their drawer.",
+        "pinned": false,
+        "shift": "close",
+        "active": true,
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "ts": {
+          "__ts__": "2026-07-10T00:00:00.000Z"
+        }
+      }
+    },
+    "incidents": {
+      "seed_inc_1": {
+        "title": "POS drawer left unlocked overnight",
+        "text": "Closing count was fine, but the POS drawer was found unlocked the next morning. Nothing missing; logging for the record and a coaching conversation.",
+        "severity": "warning",
+        "subjectId": "seed_usr_sam",
+        "subjectName": "Sam Rivera",
+        "links": [],
+        "ts": {
+          "__ts__": "2026-07-08T00:00:00.000Z"
+        },
+        "status": "open",
+        "ackAt": null,
+        "ackNote": null,
+        "closedBy": null,
+        "closedAt": null,
+        "by": "Jordan Price",
+        "byId": "seed_usr_owner",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store"
+      },
+      "seed_inc_2": {
+        "title": "No-call no-show for opening shift",
+        "text": "Scheduled to open Main Store and did not arrive or call; store opened 25 minutes late.",
+        "severity": "serious",
+        "subjectId": "seed_usr_alex",
+        "subjectName": "Alex Kim",
+        "links": [],
+        "ts": {
+          "__ts__": "2026-07-10T00:00:00.000Z"
+        },
+        "status": "open",
+        "ackAt": null,
+        "ackNote": null,
+        "closedBy": null,
+        "closedAt": null,
+        "by": "Jordan Price",
+        "byId": "seed_usr_owner",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store"
+      }
+    },
+    "timeclock": {
+      "seed_tc_001": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-06T14:00:00.000Z"
+        },
+        "day": "2026-07-06"
+      },
+      "seed_tc_002": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-06T22:00:00.000Z"
+        },
+        "day": "2026-07-06"
+      },
+      "seed_tc_003": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-06T16:00:00.000Z"
+        },
+        "day": "2026-07-06"
+      },
+      "seed_tc_004": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-06T23:00:00.000Z"
+        },
+        "day": "2026-07-06"
+      },
+      "seed_tc_005": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-07T14:00:00.000Z"
+        },
+        "day": "2026-07-07"
+      },
+      "seed_tc_006": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-07T22:00:00.000Z"
+        },
+        "day": "2026-07-07"
+      },
+      "seed_tc_007": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-07T16:00:00.000Z"
+        },
+        "day": "2026-07-07"
+      },
+      "seed_tc_008": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-07T23:00:00.000Z"
+        },
+        "day": "2026-07-07"
+      },
+      "seed_tc_009": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-08T14:00:00.000Z"
+        },
+        "day": "2026-07-08"
+      },
+      "seed_tc_010": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-08T22:00:00.000Z"
+        },
+        "day": "2026-07-08"
+      },
+      "seed_tc_011": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-08T16:00:00.000Z"
+        },
+        "day": "2026-07-08"
+      },
+      "seed_tc_012": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-08T23:00:00.000Z"
+        },
+        "day": "2026-07-08"
+      },
+      "seed_tc_013": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-09T14:00:00.000Z"
+        },
+        "day": "2026-07-09"
+      },
+      "seed_tc_014": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-09T22:00:00.000Z"
+        },
+        "day": "2026-07-09"
+      },
+      "seed_tc_015": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-09T16:00:00.000Z"
+        },
+        "day": "2026-07-09"
+      },
+      "seed_tc_016": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-09T23:00:00.000Z"
+        },
+        "day": "2026-07-09"
+      },
+      "seed_tc_017": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-10T14:00:00.000Z"
+        },
+        "day": "2026-07-10"
+      },
+      "seed_tc_018": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-10T22:00:00.000Z"
+        },
+        "day": "2026-07-10"
+      },
+      "seed_tc_019": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-11T14:00:00.000Z"
+        },
+        "day": "2026-07-11"
+      },
+      "seed_tc_020": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-11T22:00:00.000Z"
+        },
+        "day": "2026-07-11"
+      },
+      "seed_tc_021": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-11T16:00:00.000Z"
+        },
+        "day": "2026-07-11"
+      },
+      "seed_tc_022": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "out",
+        "ts": {
+          "__ts__": "2026-07-11T23:00:00.000Z"
+        },
+        "day": "2026-07-11"
+      },
+      "seed_tc_023": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "type": "in",
+        "ts": {
+          "__ts__": "2026-07-11T22:00:00.000Z"
+        },
+        "day": "2026-07-12"
+      }
+    },
+    "schedule": {
+      "seed_sch_001": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-06",
+        "start": "09:00",
+        "end": "17:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        }
+      },
+      "seed_sch_002": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-07",
+        "start": "09:00",
+        "end": "17:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        }
+      },
+      "seed_sch_003": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-08",
+        "start": "09:00",
+        "end": "17:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        }
+      },
+      "seed_sch_004": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-09",
+        "start": "09:00",
+        "end": "17:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        }
+      },
+      "seed_sch_005": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-10",
+        "start": "09:00",
+        "end": "17:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        }
+      },
+      "seed_sch_006": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-06",
+        "start": "12:00",
+        "end": "20:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        }
+      },
+      "seed_sch_007": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-08",
+        "start": "12:00",
+        "end": "20:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        }
+      },
+      "seed_sch_008": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-10",
+        "start": "12:00",
+        "end": "20:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        },
+        "swapStatus": "offered"
+      },
+      "seed_sch_009": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-11",
+        "start": "12:00",
+        "end": "20:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        },
+        "swapStatus": "claimed",
+        "claimedById": "seed_usr_sam",
+        "claimedByName": "Sam Rivera"
+      },
+      "seed_sch_010": {
+        "userId": null,
+        "userName": null,
+        "locationId": "seed_loc_main",
+        "locationName": "Main Store",
+        "date": "2026-07-12",
+        "start": "10:00",
+        "end": "18:00",
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-05T00:00:00.000Z"
+        },
+        "open": true
+      }
+    },
+    "availability": {
+      "seed_avl_1": {
+        "userId": "seed_usr_alex",
+        "userName": "Alex Kim",
+        "date": "2026-07-09",
+        "ts": {
+          "__ts__": "2026-07-07T00:00:00.000Z"
+        }
+      },
+      "seed_avl_2": {
+        "userId": "seed_usr_sam",
+        "userName": "Sam Rivera",
+        "date": "2026-07-12",
+        "ts": {
+          "__ts__": "2026-07-08T00:00:00.000Z"
+        }
+      }
+    },
+    "templates": {
+      "seed_tpl_standard": {
+        "name": "Standard week",
+        "shifts": [
+          {
+            "dow": 0,
+            "userId": "seed_usr_sam",
+            "userName": "Sam Rivera",
+            "start": "09:00",
+            "end": "17:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 1,
+            "userId": "seed_usr_sam",
+            "userName": "Sam Rivera",
+            "start": "09:00",
+            "end": "17:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 2,
+            "userId": "seed_usr_sam",
+            "userName": "Sam Rivera",
+            "start": "09:00",
+            "end": "17:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 3,
+            "userId": "seed_usr_sam",
+            "userName": "Sam Rivera",
+            "start": "09:00",
+            "end": "17:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 4,
+            "userId": "seed_usr_sam",
+            "userName": "Sam Rivera",
+            "start": "09:00",
+            "end": "17:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 0,
+            "userId": "seed_usr_alex",
+            "userName": "Alex Kim",
+            "start": "12:00",
+            "end": "20:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 2,
+            "userId": "seed_usr_alex",
+            "userName": "Alex Kim",
+            "start": "12:00",
+            "end": "20:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 4,
+            "userId": "seed_usr_alex",
+            "userName": "Alex Kim",
+            "start": "12:00",
+            "end": "20:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          },
+          {
+            "dow": 5,
+            "userId": "seed_usr_alex",
+            "userName": "Alex Kim",
+            "start": "12:00",
+            "end": "20:00",
+            "locationId": "seed_loc_main",
+            "locationName": "Main Store"
+          }
+        ],
+        "by": "Dana Brooks",
+        "byId": "seed_usr_dana",
+        "ts": {
+          "__ts__": "2026-07-02T00:00:00.000Z"
+        }
+      }
+    },
+    "schedulePublished": {
+      "2026-07-06": {
+        "weekStart": "2026-07-06",
+        "weekEnd": "2026-07-12",
+        "publishedAt": {
+          "__ts__": "2026-07-11T00:00:00.000Z"
+        },
+        "publishedBy": "Dana Brooks",
+        "notified": 2,
+        "recipients": 2
+      }
+    }
+  }
+}
