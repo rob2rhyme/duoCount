@@ -53,6 +53,7 @@ Generalize `ReportModal.buildReport` from one date to a range + richer rollups.
   - **Scratch**: tickets sold, gross dollars; by game.
   - **Inventory**: units counted, **net shrink** (Σ negative diff); by item.
   - **Integrity**: flagged, disputed, resolved-with-cause, **verification rate**.
+    "Flagged" and "disputed" both mean **unresolved** (`status in ['open', 'under-review']`) — the shared `UNRESOLVED` definition (`lib/utils.js`) the dashboard tiles and digest also use, so the report agrees with the live views (M3).
   - **Trend**: per-sub-period subtotals (per-day for week/month, per-month for
     quarter+) so the PDF can show a small over/short trend.
   - **Labor** (optional, if punches passed): hours per employee via

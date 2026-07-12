@@ -296,14 +296,28 @@ test("non-authors cannot open; employees cannot advance; managers can", async ()
 test("comment + counter bump succeed in one batch; wrong bump fails", async () => {
   const f = db("empA");
   const good = writeBatch(f);
-  good.set(doc(f, `vendors/${V}/entries/eA/comments/new`), { text: "hello", kind: "comment", by: "Eve", byId: "u-empA", byRole: "employee", ts: new Date() });
-  good.update(doc(f, `vendors/${V}/entries/eA`), { commentCount: 2, lastCommentAt: new Date() });
+  good.set(doc(f, `vendors/${V}/entries/eA/comments/newc`), { text: "hello", kind: "comment", by: "Eve", byId: "u-empA", byRole: "employee", ts: new Date() });
+  good.update(doc(f, `vendors/${V}/entries/eA`), { commentCount: 2, lastCommentAt: new Date(), lastCommentId: "newc" });
   await assertSucceeds(good.commit());
 
+  // right comment, wrong (non +1) count.
   const bad = writeBatch(f);
-  bad.set(doc(f, `vendors/${V}/entries/eA/comments/new2`), { text: "again", kind: "comment", by: "Eve", byId: "u-empA", byRole: "employee", ts: new Date() });
-  bad.update(doc(f, `vendors/${V}/entries/eA`), { commentCount: 9, lastCommentAt: new Date() });
+  bad.set(doc(f, `vendors/${V}/entries/eA/comments/newc2`), { text: "again", kind: "comment", by: "Eve", byId: "u-empA", byRole: "employee", ts: new Date() });
+  bad.update(doc(f, `vendors/${V}/entries/eA`), { commentCount: 9, lastCommentAt: new Date(), lastCommentId: "newc2" });
   await assertFails(bad.commit());
+});
+
+test("the counter can't be bumped without a real new comment (M4)", async () => {
+  const f = db("empA");
+  // A bare +1 with no comment created in the batch — refused (lastCommentId
+  // names a doc that doesn't exist after the commit).
+  await assertFails(updateDoc(doc(f, `vendors/${V}/entries/eA`),
+    { commentCount: 2, lastCommentAt: new Date(), lastCommentId: "ghost" }));
+  // Pointing at a PRE-EXISTING comment (c1 was seeded) is also refused — the
+  // comment must be created in THIS commit, so an old one can't be reused to
+  // inflate the count past the real thread length.
+  await assertFails(updateDoc(doc(f, `vendors/${V}/entries/eA`),
+    { commentCount: 2, lastCommentAt: new Date(), lastCommentId: "c1" }));
 });
 
 test("comments validate identity, kind, and length; and are immutable", async () => {

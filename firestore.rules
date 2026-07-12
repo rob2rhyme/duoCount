@@ -192,13 +192,22 @@ service cloud.firestore {
             && request.resource.data.disputeStatus in ['under-review', 'resolved'];
         }
 
-        // The denormalized comment counter may only move in lockstep with a
-        // comment write (+1 per batch).
+        // The denormalized comment counter may only move +1, and only in lockstep
+        // with an actual comment write in the SAME commit (M4). lastCommentId names
+        // that comment; the rule requires it to be a doc that did NOT exist before
+        // and DOES exist after this commit — i.e. genuinely created here. Because a
+        // batch shares one request.auth, that comment was created by this user and
+        // already passed the comments create rule. A standalone counter bump with
+        // no comment (or one pointed at a pre-existing comment) is refused, so the
+        // count can't be inflated past the real thread length.
         function commentBump() {
           return member()
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['commentCount', 'lastCommentAt'])
+                 .hasOnly(['commentCount', 'lastCommentAt', 'lastCommentId'])
             && request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1
+            && request.resource.data.lastCommentId is string
+            && !exists(/databases/$(database)/documents/vendors/$(vendorId)/entries/$(entryId)/comments/$(request.resource.data.lastCommentId))
+            && existsAfter(/databases/$(database)/documents/vendors/$(vendorId)/entries/$(entryId)/comments/$(request.resource.data.lastCommentId))
             && (mgr() || sharedAcrossLocations()
                 || (request.auth.token.locationId != null
                     && resource.data.locationId == request.auth.token.locationId));

@@ -3,6 +3,14 @@ export function money(n) {
   return "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// The one definition of an "unresolved" variance or dispute — a flag raised but
+// not yet closed out. The dashboard tiles/attention list, the owner digest, and
+// the period report all use this, so all three agree (M3). 'open' = freshly
+// raised; 'under-review' = a manager picked it up but hasn't resolved it — both
+// still count as unresolved. 'resolved'/'none' do not.
+export const UNRESOLVED = ["open", "under-review"];
+export const isUnresolved = (status) => UNRESOLVED.includes(status);
+
 export function expectedCash({ shift, start, sales, paidout }) {
   const s = Number(start) || 0, sa = Number(sales) || 0, p = Number(paidout) || 0;
   return shift === "open" ? s : s + sa - p;
