@@ -223,6 +223,12 @@ Scratch form, an "Active pack" picker fills game, price, and pack # in one
 tap; combined with the last-count prefill, a recount is one pick and one
 number. The registry is optional — free-text pack counting still works.
 
+**Settlement reconciliation** (Admin): upload your state lottery settlement CSV
+— any format, you map the pack-number and amount columns — and it matches each
+row to a recorded pack, flagging discrepancies, unknown packs, and settled-but-
+unbilled packs. Parsing + matching are pure and client-side (`src/lib/settlement.js`,
+unit-tested); nothing is uploaded anywhere and there are no new writes.
+
 ## Interface: counting, theming & navigation
 
 Three usability upgrades (see `docs/ui-enhancements-spec.md`), all pure client

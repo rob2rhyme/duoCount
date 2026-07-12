@@ -17,6 +17,7 @@
     "test:schedule": "node --test tests/schedule.test.mjs",
     "test:swaps": "node --test tests/swaps.test.mjs",
     "test:notify": "node --test tests/schedule-notify.test.mjs",
+    "test:settlement": "node --test tests/settlement.test.mjs",
     "test:api": "node --test tests/api.test.mjs"
   },
   "dependencies": {
