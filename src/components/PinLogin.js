@@ -2,7 +2,7 @@
 import { useId, useState } from "react";
 import { useSession } from "./SessionProvider";
 import { PRODUCT } from "@/lib/store";
-import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
+import { PIN_LENGTH, PIN_PLACEHOLDER, isValidNewPin } from "@/lib/pin";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 
@@ -43,7 +43,7 @@ export default function PinLogin() {
     <div className="min-h-screen flex items-center justify-center p-5">
       <div className="card w-full max-w-sm p-7">
         <div className="flex items-center gap-3 mb-6">
-          <Logo size={40} />
+          <Logo src="/logo.png" alt="DuoCount" size={40} />
           <div className="min-w-0">
             <h1 className="text-lg font-semibold leading-tight">{PRODUCT.name}</h1>
             <p className="text-xs text-muted">{PRODUCT.tagline}</p>
@@ -56,13 +56,13 @@ export default function PinLogin() {
             <label htmlFor={ids.storeCode} className="label">Store code</label>
             <input id={ids.storeCode} className="input mb-4 font-mono lowercase" value={storeCode}
               onChange={(e) => setStoreCode(e.target.value)} placeholder="smokers-haven" autoFocus />
-            <label htmlFor={ids.pin} className="label">Your PIN</label>
+            <label htmlFor={ids.pin} className="label">Your PIN ({PIN_LENGTH} digits)</label>
             <input id={ids.pin} className="input text-center text-2xl tracking-[0.4em] font-mono"
-              inputMode="numeric" maxLength={6} value={pin}
+              inputMode="numeric" maxLength={PIN_LENGTH} value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-              onKeyDown={(e) => e.key === "Enter" && doLogin()} placeholder="••••" />
+              onKeyDown={(e) => e.key === "Enter" && doLogin()} placeholder={PIN_PLACEHOLDER} />
             {err && <p className="text-sm text-neg mt-3">{err}</p>}
-            <button className="btn-primary mt-5" disabled={busy || pin.length < 4 || !storeCode.trim()} onClick={doLogin}>
+            <button className="btn-primary mt-5" disabled={busy || pin.length < PIN_LENGTH || !storeCode.trim()} onClick={doLogin}>
               {busy ? "Checking…" : "Sign in"}
             </button>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"

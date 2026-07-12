@@ -4,7 +4,11 @@ title: Reports & records export
 
 # DuoCount — Reports & Records Export Spec
 
-**Status:** planned (not yet built). Captured so the design is ready to implement.
+**Status:** shipped (phases 1–4). Period + aggregation libs, bounded date-range
+fetch, and the Report center — period picker + live preview, CSV export, a
+period-native summary **PDF** (by location / drawer / game / item, integrity,
+labor roll-up, incident tally, and an over/short sparkline), plus a line-by-line
+**Print**. Future niceties are listed under "Out of scope" below.
 
 **Goal.** Let an owner/manager generate and **download a report for any period** —
 daily, weekly, monthly, quarterly, semi-annual, annual, or a custom date range —
@@ -58,15 +62,19 @@ Generalize `ReportModal.buildReport` from one date to a range + richer rollups.
   "No activity in this period" line.
 
 ### 3. Data access — bounded range fetch
-`watchEntries` (`src/lib/data.js:123`) streams the **whole** log; fine for a day,
+`watchEntries` (`src/lib/data.js`) streams the **whole** log; fine for a day,
 wasteful/limited for a year. A report is a one-shot snapshot, not a live view, so:
-- Add `fetchEntriesInRange(vendorId, startMs, endMs, locId?)` — a one-shot
-  `getDocs` with `where('ts','>=',start).where('ts','<=',end)` (plus
-  `where('locationId','==',locId)` when scoped). The composite
-  `locationId + ts` index already exists in `firestore.indexes.json`; a plain
-  `ts`-only range needs no extra index. No rules change — it uses the same entry
-  read scope managers already have.
-- For very large ranges, page the fetch and show a soft progress note.
+- `fetchEntriesInRange(vendorId, startISO, endISO, locId?)` — a one-shot
+  `getDocs` that range-queries the business **`date` string**
+  (`where('date','>=',startISO).where('date','<=',endISO)`, plus
+  `where('locationId','==',locId)` when scoped). We query `date` rather than
+  `ts` so a form-**backdated** count reports under the period it is *for*, not
+  when it was written — matching exactly how `buildPeriodReport` filters. The
+  unscoped range rides the automatic single-field `date` index; the scoped query
+  uses a `locationId + date` composite index (added to `firestore.indexes.json`,
+  and must be deployed for scoped fetches to work in production). No rules change
+  — managers already read every entry.
+- For very large ranges, paging the fetch is a future optimization.
 
 ### 4. UI — extend the report surface (`src/components/ReportModal.js` → a Report center)
 - A **period picker**: preset dropdown (Day / Week / Month / Quarter / Half-year
@@ -91,13 +99,15 @@ wasteful/limited for a year. A report is a one-shot snapshot, not a live view, s
 - `tests/report-period.test.mjs` — every preset, boundary cases above, prev/next.
 - `tests/report-build.test.mjs` — totals/breakdowns on a fixed fixture (the demo
   seed is a ready fixture), empty period, location scoping, labor roll-up.
-- Both pure (`node --test`), no emulator — same style as `settlement`/`patterns`.
+- `tests/report-csv.test.mjs` — the pure `entriesToCSV` builder: per-kind rows,
+  2dp money, escaping, ordering, null-safety.
+- All pure (`node --test`), no emulator — same style as `settlement`/`patterns`.
 
 ## Phasing
-1. **Period + aggregation libs + tests** (pure; no UI risk). Ships the hard logic first.
-2. **`fetchEntriesInRange`** + wire the aggregation to real data.
-3. **Report UI**: period picker + live preview + **CSV** download.
-4. **PDF** export (period-formatted) + labor/incidents sections + trend sparkline.
+1. ✅ **Period + aggregation libs + tests** (pure; no UI risk). Ships the hard logic first.
+2. ✅ **`fetchEntriesInRange`** + wire the aggregation to real data.
+3. ✅ **Report UI**: period picker + live preview + **CSV** download.
+4. ✅ **PDF** export (period-formatted summary tables) + labor/incidents sections + trend sparkline.
 
 ## Out of scope (v1) / future
 - Fiscal-year start offset; multi-location side-by-side comparison; scheduled/
