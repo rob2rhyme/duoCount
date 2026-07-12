@@ -10,6 +10,7 @@ import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { PIN_LENGTH, PIN_HELP, isValidNewPin } from "@/lib/pin";
 import BarcodeScanner from "./BarcodeScanner";
 import PacksCard from "./PacksCard";
+import SettlementReconcile from "./SettlementReconcile";
 
 export default function AdminPanel({ onToast, locations, drawers, items = [], packs = [], entries = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
@@ -358,6 +359,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
 
       {/* ---------------- scratch-off packs ---------------- */}
       <PacksCard onToast={onToast} locations={locations} packs={packs} entries={entries} />
+
+      {/* ---------------- lottery settlement reconciliation ---------------- */}
+      <SettlementReconcile packs={packs} onToast={onToast} />
 
       {/* ---------------- settings (owner) ---------------- */}
       <div className="card overflow-hidden">

@@ -29,6 +29,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Week templates** (save a week's roster, stamp it onto any future week) | `time-clock-spec.md` §Scheduling | ✅ |
 | **Open shifts** (manager posts an unassigned shift; employees grab it directly) | `time-clock-spec.md` §Scheduling | ✅ |
 | **Publish & notify** (email each employee their week's shifts; optional staff emails) | `time-clock-spec.md` §Scheduling | ✅ |
+| **Lottery settlement reconciliation** (flexible CSV import, matched vs. records) | `lottery-pack-lifecycle-spec.md` §Reconciliation | ✅ |
 | **Rules-engine test coverage** for time clock, schedule, swaps, availability, templates | `tests/rules.test.mjs` | ✅ |
 
 ## Next up
@@ -130,5 +131,10 @@ From `tier-two-build-spec.md` §7 — revisit on customer pull:
   patterns.
 - ✅ **Per-user login lockout + 6-digit PIN default** — done (see Shipped):
   6-digit PIN policy + a per-store failure limiter beside the per-IP one.
-- Server-computed blind counts.
-- State-lottery settlement-file reconciliation.
+- ✅ **State-lottery settlement-file reconciliation** — done (see Shipped): a
+  flexible CSV importer (map your columns — no fixed state format) that matches a
+  settlement file against recorded scratch-off packs and flags discrepancies,
+  unknown packs, and settled-but-unbilled packs. `lib/settlement.js` (unit-tested).
+- Server-computed blind counts (the one remaining tier-3 item — deferred: it
+  needs the cash-entry write path moved server-side, and its value is partial
+  since the counter enters start/sales/paid-out themselves).

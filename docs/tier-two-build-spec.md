@@ -318,4 +318,5 @@ Rules-emulator additions (`npm run test:rules`):
   the per-IP one. ("Per-user" is realized as per-store, since the login can't
   identify the user until the PIN matches.)
 - **Server-computed blind counts** (tier-one README limitation).
-- **State-lottery settlement-file reconciliation** (pack-lifecycle spec).
+- ~~**State-lottery settlement-file reconciliation**~~ — **done** (flexible CSV
+  import; `lottery-pack-lifecycle-spec.md` §6). A live-API integration remains out.

@@ -68,8 +68,34 @@ Counting flow once packs are registered: pick pack → everything prefills → t
 ## 4. Explicitly not in v1
 
 - Employee-run transitions (managers only, matching drawers/items; owners can promote).
-- State-lottery settlement-file import or API reconciliation (tier 3).
+- ~~State-lottery settlement-file import or API reconciliation (tier 3).~~ —
+  **built**, see §6 below (CSV import; a live-API integration remains out of scope).
 - Automatic pack detection from a scanned entry barcode (the scan fills `pack`; linking a *count* to a pack stays by pack-number match, which tolerates unregistered packs).
+
+## 6. Settlement reconciliation (tier 3 — built)
+
+State lottery settlement/invoice files have **no common format**, so instead of
+guessing one, the reconciler accepts **any CSV** and lets the manager **map the
+columns** — which one is the pack/book number, which is the amount.
+
+- **Where:** Admin → *Lottery settlement reconciliation* (a card under the packs
+  registry). Upload a CSV; the header row is parsed and the pack-number / amount
+  columns are auto-guessed from common names (editable). Choose whether the
+  amount is **gross dollars** (compared to `soldAtSettle × price`) or **tickets
+  sold** (compared to `soldAtSettle`).
+- **Result:** each file row is matched to a recorded pack by pack number and
+  split into **matched** vs **discrepancies** (delta beyond a small tolerance),
+  plus **unknown in file** (no matching pack) and **settled but not billed**
+  (a settled pack the file omits). Totals show the file sum and net delta.
+- **Pure + tested:** `lib/settlement.js` (`parseCSV`, `guessColumns`,
+  `reconcileSettlement`) is a pure module — no Firebase, no network. The file is
+  parsed and reconciled entirely **client-side** (nothing is uploaded anywhere),
+  and it reads the existing `packs`; there are no new writes or rules. Unit tests
+  in `tests/settlement.test.mjs` (`npm run test:settlement`): CSV quoting/escapes,
+  column guessing, dollar/ticket bases, unknown/missing detection, `$`/comma
+  amount cleaning, and exact (leading-zero-preserving) pack matching.
+- **Out of scope:** a live state-lottery **API** integration, and per-state
+  commission math (the tool compares gross figures you map, not net-of-commission).
 
 ## 5. Acceptance criteria
 
