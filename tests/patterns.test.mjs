@@ -30,6 +30,32 @@ test("three shorts by one person in the window trigger a person alert; big total
   assert.equal(a2[0].severity, "high");
 });
 
+test("two people who share a name get distinct alert ids (M6)", () => {
+  // Same display name ("Eve"), different user ids — three shorts each. Buckets
+  // key off the id, so the alert ids must differ; the old name-based id collided
+  // and React's key={p.id} dropped one of the two.
+  const a = [cash({ diff: -5, byId: "u1" }), cash({ diff: -5, byId: "u1", date: dstr(3) }), cash({ diff: -5, byId: "u1", date: dstr(5) })];
+  const b = [cash({ diff: -5, byId: "u9" }), cash({ diff: -5, byId: "u9", date: dstr(3) }), cash({ diff: -5, byId: "u9", date: dstr(5) })];
+  const alerts = detectPatterns([...a, ...b], { now: NOW }).filter((x) => x.kind === "person-shorts");
+  assert.equal(alerts.length, 2);
+  assert.equal(new Set(alerts.map((x) => x.id)).size, 2);
+  assert.ok(alerts.map((x) => x.id).includes("person-shorts:u1"));
+  assert.ok(alerts.map((x) => x.id).includes("person-shorts:u9"));
+});
+
+test("two drawers sharing a name get distinct alert ids (M6)", () => {
+  // Same drawerName, different drawerId, each short under two different people.
+  const mk = (drawerId) => [
+    cash({ diff: -3, drawerId, byId: "u1" }),
+    cash({ diff: -3, drawerId, byId: "u2", date: dstr(2) }),
+    cash({ diff: -3, drawerId, byId: "u1", date: dstr(4) }),
+  ];
+  const alerts = detectPatterns([...mk("dA"), ...mk("dB")], { now: NOW }).filter((x) => x.kind === "drawer-shorts");
+  assert.equal(alerts.length, 2);
+  assert.equal(new Set(alerts.map((x) => x.id)).size, 2);
+  assert.ok(alerts.map((x) => x.id).includes("drawer-shorts:dA"));
+});
+
 test("shorts outside the window don't count", () => {
   const stale = [cash({ diff: -5, date: dstr(20) }), cash({ diff: -5, date: dstr(21) }), cash({ diff: -5, date: dstr(22) })];
   assert.deepEqual(detectPatterns(stale, { now: NOW }), []);

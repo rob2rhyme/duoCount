@@ -16,6 +16,7 @@
 // An empty period is valid: every rollup zeroes and `empty` is true.
 
 import { summarizeHours } from "./timeclock.js";
+import { UNRESOLVED } from "./utils.js";
 
 const DAY_MS = 86_400_000;
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -43,7 +44,9 @@ function tsToISODate(ts) {
   return d && !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : null;
 }
 
-const FLAG_OPEN = ["open", "under-review"];
+// Shared "unresolved" definition (open + under-review) — see lib/utils.js. The
+// dashboard and digest use the same one so all three surfaces agree (M3).
+const FLAG_OPEN = UNRESOLVED;
 
 // Even sub-period buckets spanning [startISO, endISO] inclusive, per-day or
 // per-month. Every bucket is emitted (even zero-activity ones) so a trend line

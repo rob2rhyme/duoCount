@@ -3,6 +3,7 @@
 // sends it via the Resend HTTP API — no email SDK needed.
 
 import { detectPatterns, resolvePatternRules } from "./patterns";
+import { isUnresolved } from "./utils";
 
 const money = (n) => {
   const v = Math.round((Number(n) || 0) * 100) / 100;
@@ -46,8 +47,8 @@ function summarizeEntries(entries) {
   return {
     locations: Object.values(byLoc).sort((a, b) => a.name.localeCompare(b.name)),
     total: entries.length,
-    openVariances: entries.filter((e) => e.varianceStatus === "open").length,
-    openDisputes: entries.filter((e) => e.disputeStatus === "open").length,
+    openVariances: entries.filter((e) => isUnresolved(e.varianceStatus)).length,
+    openDisputes: entries.filter((e) => isUnresolved(e.disputeStatus)).length,
     unverified: entries.filter((e) => !e.verifiedBy).length,
   };
 }

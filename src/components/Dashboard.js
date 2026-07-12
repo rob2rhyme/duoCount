@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, CartesianGrid, Cell,
 } from "recharts";
-import { money, toDate } from "@/lib/utils";
+import { money, toDate, isUnresolved } from "@/lib/utils";
 import { detectPatterns } from "@/lib/patterns";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -52,16 +52,18 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     const cashSales = cash.reduce((s, e) => s + (e.sales || 0), 0);
     const missingUnits = inv.reduce((s, e) => s + (e.diff < 0 ? -e.diff : 0), 0);
 
-    // tier one: attention counters + top-10 needs-attention list
-    const openVariances = entries.filter((e) => e.varianceStatus === "open").length;
-    const openDisputes = entries.filter((e) => e.disputeStatus === "open").length;
+    // tier one: attention counters + top-10 needs-attention list. "Open" here
+    // means unresolved (open OR under-review) â€” the same definition the digest
+    // and period report use, so the surfaces can't disagree (M3).
+    const openVariances = entries.filter((e) => isUnresolved(e.varianceStatus)).length;
+    const openDisputes = entries.filter((e) => isUnresolved(e.disputeStatus)).length;
     const unverified = entries.filter((e) => !e.verifiedBy).length;
     const dayMs = 24 * 60 * 60 * 1000;
     const attention = entries
       .map((e) => {
         const why =
-          e.varianceStatus === "open" ? "Variance open"
-          : e.disputeStatus === "open" ? "Dispute open"
+          isUnresolved(e.varianceStatus) ? `Variance ${e.varianceStatus.replace("-", " ")}`
+          : isUnresolved(e.disputeStatus) ? `Dispute ${e.disputeStatus.replace("-", " ")}`
           : !e.verifiedBy && toDate(e.ts) && Date.now() - toDate(e.ts).getTime() > dayMs ? "Unverified > 24h"
           : null;
         return why ? { e, why } : null;

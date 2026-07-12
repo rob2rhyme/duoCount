@@ -34,7 +34,7 @@
 | `causeNote` | string \| null | manager resolution | ≤ 500 chars; required when `causeCode == 'other'` |
 | `resolvedBy`, `resolvedAt` | string/ts \| null | manager resolution | Stamped when `varianceStatus` becomes `resolved` |
 | `disputeStatus` | string | author / managers | `'none'` at create. Author may set `none → open`; managers move `open → under-review → resolved` |
-| `commentCount` | number | comment writes | Denormalized; incremented by exactly 1 in the same batch as each comment create |
+| `commentCount` | number | comment writes | Denormalized; bumped by `increment(1)` (server-side, never off a stale cached value) in the same batch as each comment create. `lastCommentId` names that comment; rules require it to be a doc created in the same commit, so the counter can't be inflated without a real comment (M4) |
 | `lastCommentAt` | timestamp \| null | comment writes | For sorting "needs attention" |
 
 ### 1.3 New subcollection: `vendors/{v}/entries/{e}/comments/{id}`
@@ -98,12 +98,12 @@ Managers may classify their own entries (small shops make self-investigation una
 - Log rows: red **Needs review** badge when `varianceStatus == 'open'`; amber when `under-review`; the existing over/short pill stays.
 - Log filters: add a status filter (`All / Needs review / Under review / Resolved / Disputed`).
 - Entry expanded view: Resolution panel (managers only) above the verify button.
-- Dashboard: new stat cards — **Open variances**, **Open disputes**, **Unverified** — plus a "Needs attention" list (top 10 by recency: open variances, open disputes, unverified > 24h) linking into the Log.
+- Dashboard: new stat cards — **Open variances**, **Open disputes**, **Unverified** — plus a "Needs attention" list (top 10 by recency: unresolved variances, unresolved disputes, unverified > 24h) linking into the Log. "Open" here means **unresolved** = status in `['open', 'under-review']` — the one definition shared with the digest and the period report (see `lib/utils.js` `UNRESOLVED`), so the three surfaces can't disagree.
 
 **Acceptance criteria.**
 1. Threshold change affects only entries saved afterward.
 2. An entry cannot reach `resolved` without a `causeCode` (enforced by rules, §3).
-3. Dashboard "Open variances" equals the count of `varianceStatus == 'open'` in the current view scope.
+3. Dashboard "Open variances" equals the count of unresolved variances (`varianceStatus in ['open', 'under-review']`) in the current view scope — the same `UNRESOLVED` definition the digest and period report use.
 4. Cause-code distribution appears in the EOD report's flagged-items section.
 5. The flag is not client-trust-only: a cash count at or beyond the threshold that is written as `varianceStatus: 'none'` (unflagged) is rejected by rules (`flagConsistent()`, §3), so a short can't be hidden from the queue at save time.
 
@@ -113,7 +113,7 @@ Managers may classify their own entries (small shops make self-investigation una
 
 **Behavior.** Any entry can carry an append-only comment thread. The entry's **author** can open a dispute (`disputeStatus: none → open`) — the UI pairs this with a required first comment explaining why. Any member who can see the entry can comment. Managers move disputes to `under-review` / `resolved` (with a closing comment). Thread visibility inherits the entry's visibility (same per-location rules), so in per-location mode an employee never sees another location's disputes.
 
-Comment create + `commentCount`/`lastCommentAt` bump ship in **one Firestore batch** so the counter can't drift.
+Comment create + `commentCount`/`lastCommentAt`/`lastCommentId` bump ship in **one Firestore batch** so the counter can't drift. The bump uses `increment(1)` (resolved server-side, so a stale cached count never drops or double-writes a comment — M7), and the entry-update rule requires `lastCommentId` to name a comment that did **not** exist before and **does** exist after the commit — a bare counter bump with no comment is refused (M4).
 
 **Screens.**
 - Log rows: comment icon + count; tap to expand the thread inline beneath the entry.
@@ -124,7 +124,7 @@ Comment create + `commentCount`/`lastCommentAt` bump ship in **one Firestore bat
 **Acceptance criteria.**
 1. Only the entry's author can open a dispute; only managers can advance/close it.
 2. Comments are immutable — no edit/delete path in UI or rules.
-3. `commentCount` always equals the thread length (verified by batch-write test).
+3. `commentCount` always equals the thread length — the counter can only move `+1` alongside a genuinely new comment in the same commit (rules-enforced, emulator-tested), so it can't be inflated on its own.
 4. Per-location employees cannot read threads on other locations' entries (rules test).
 
 ---
@@ -250,10 +250,19 @@ function disputeManage() {
 function commentBump() {
   return member()
     && request.resource.data.diff(resource.data).affectedKeys()
-         .hasOnly(['commentCount','lastCommentAt'])
-    && request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1;
+         .hasOnly(['commentCount','lastCommentAt','lastCommentId'])
+    && request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1
+    // M4: the bump must accompany a comment created in THIS commit. lastCommentId
+    // must name a doc that didn't exist before and does after — a bare +1 with no
+    // comment (or one reusing an old comment) is refused. The batch shares one
+    // request.auth, so that comment passed the comments create rule as this user.
+    && request.resource.data.lastCommentId is string
+    && !exists(/databases/$(database)/documents/vendors/$(vendorId)/entries/$(entryId)/comments/$(request.resource.data.lastCommentId))
+    && existsAfter(/databases/$(database)/documents/vendors/$(vendorId)/entries/$(entryId)/comments/$(request.resource.data.lastCommentId));
 }
 
+// (each update branch is additionally gated on liveActive() — see the H2
+// deactivation guard in tier-two §3.5)
 allow update: if verifyOnly() || investigate() || disputeOpen() || disputeManage() || commentBump();
 ```
 

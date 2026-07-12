@@ -2,7 +2,7 @@ import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
-  query, where, orderBy, onSnapshot, getDocs, serverTimestamp,
+  query, where, orderBy, onSnapshot, getDocs, serverTimestamp, increment,
 } from "firebase/firestore";
 
 /* All data lives under vendors/{vendorId}/... — every helper is tenant-scoped. */
@@ -186,15 +186,20 @@ export async function investigateEntry(vendorId, entryId, patch) {
 export async function setDisputeStatus(vendorId, entryId, status) {
   await updateDoc(doc(db, "vendors", vendorId, "entries", entryId), { disputeStatus: status });
 }
-// Comment + counter bump ship in one batch so commentCount can't drift.
+// Comment + counter bump ship in one batch so commentCount can't drift. The
+// counter uses increment(1) — computed server-side against the live value — so a
+// stale cached entry.commentCount can never make the bump miss or overwrite a
+// concurrent comment (M7). lastCommentId names the comment created in this same
+// batch; the rules require it to point at a brand-new comment doc, so the counter
+// can't be inflated without a real comment behind it (M4).
 export async function addComment(vendorId, entry, { text, kind = "comment" }, profile) {
   const b = writeBatch(db);
   const cRef = doc(collection(db, "vendors", vendorId, "entries", entry.id, "comments"));
   b.set(cRef, {
-    text, kind, by: profile.name, byId: profile.id, byRole: profile.role, ts: new Date(),
+    text, kind, by: profile.name, byId: profile.id, byRole: profile.role, ts: serverTimestamp(),
   });
   b.update(doc(db, "vendors", vendorId, "entries", entry.id), {
-    commentCount: (entry.commentCount || 0) + 1, lastCommentAt: new Date(),
+    commentCount: increment(1), lastCommentAt: serverTimestamp(), lastCommentId: cRef.id,
   });
   await b.commit();
 }

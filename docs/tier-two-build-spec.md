@@ -163,6 +163,10 @@ detectors.
 - The Dashboard passes the vendor's rules; the digest resolves them once and
   uses the configured **lookback** for both its trailing-window query and its
   "last N days" copy, so query, detectors, and email always agree.
+- Each alert's `id` is built from the **stable entity id** — `byId` for a person,
+  `drawerId` for a drawer, `itemId` for an item — not the display name (M6). Two
+  people (or drawers/items) that happen to share a name still produce two separate
+  alerts with distinct ids, so the dashboard's `key={p.id}` doesn't collapse them.
 
 **Ethics note, deliberately in the spec:** an alert is a signal to start a
 conversation, not a verdict. The UI copy says so ("Signals worth a look — not

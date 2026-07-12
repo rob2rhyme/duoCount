@@ -69,7 +69,7 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   for (const e of recent) {
     if (e.kind !== "cash" || !((e.diff || 0) < -0.005)) continue;
     const k = e.byId || e.by;
-    byPerson[k] = byPerson[k] || { name: e.by, count: 0, total: 0 };
+    byPerson[k] = byPerson[k] || { key: k, name: e.by, count: 0, total: 0 };
     byPerson[k].count++;
     byPerson[k].total += e.diff || 0;
   }
@@ -77,7 +77,9 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
     if (p.count < R.minShorts) continue;
     const high = -p.total >= R.highShortDollars;
     alerts.push({
-      id: `person-shorts:${p.name}`, kind: "person-shorts",
+      // id keys off the stable user id (the bucket key), not the display name,
+      // so two people who share a name produce two distinct alerts (M6).
+      id: `person-shorts:${p.key}`, kind: "person-shorts",
       severity: high ? "high" : "medium",
       title: `${p.name}: ${p.count} short counts in ${R.windowDays} days`,
       detail: `Totaling ${money(p.total)} short. Worth a conversation — check the drawer and the till procedure before anything else.`,
@@ -91,7 +93,7 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   for (const e of recent) {
     if (e.kind !== "cash" || !((e.diff || 0) > 0.005)) continue;
     const k = e.byId || e.by;
-    byPersonOver[k] = byPersonOver[k] || { name: e.by, count: 0, total: 0 };
+    byPersonOver[k] = byPersonOver[k] || { key: k, name: e.by, count: 0, total: 0 };
     byPersonOver[k].count++;
     byPersonOver[k].total += e.diff || 0;
   }
@@ -99,7 +101,7 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
     if (p.count < R.minShorts) continue;
     const high = p.total >= R.highShortDollars;
     alerts.push({
-      id: `person-overs:${p.name}`, kind: "person-overs",
+      id: `person-overs:${p.key}`, kind: "person-overs",
       severity: high ? "high" : "medium",
       title: `${p.name}: ${p.count} over counts in ${R.windowDays} days`,
       detail: `Totaling ${money(p.total)} over. Consistent overs are worth a look too — check for under-ringing or a counting habit before anything else.`,
@@ -111,17 +113,18 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   const byDrawer = {};
   for (const e of recent) {
     if (e.kind !== "cash" || !((e.diff || 0) < -0.005)) continue;
-    const k = e.drawerName || "(no drawer)";
-    byDrawer[k] = byDrawer[k] || { count: 0, total: 0, people: new Set() };
+    const k = e.drawerId || e.drawerName || "(no drawer)";
+    byDrawer[k] = byDrawer[k] || { key: k, name: e.drawerName || "(no drawer)", count: 0, total: 0, people: new Set() };
     byDrawer[k].count++;
     byDrawer[k].total += e.diff || 0;
     byDrawer[k].people.add(e.byId || e.by);
   }
-  for (const [name, d] of Object.entries(byDrawer)) {
+  for (const d of Object.values(byDrawer)) {
     if (d.count < R.minShorts || d.people.size < 2) continue;
     alerts.push({
-      id: `drawer-shorts:${name}`, kind: "drawer-shorts", severity: "medium",
-      title: `${name}: short ${d.count} times across ${d.people.size} people`,
+      // Keyed by drawerId, so two drawers named alike don't collide (M6).
+      id: `drawer-shorts:${d.key}`, kind: "drawer-shorts", severity: "medium",
+      title: `${d.name}: short ${d.count} times across ${d.people.size} people`,
       detail: `Totaling ${money(d.total)} short in ${R.windowDays} days. Multiple hands, same drawer — suspect the register, the float, or the procedure.`,
     });
   }
@@ -161,16 +164,17 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   const byItem = {};
   for (const e of recent) {
     if (e.kind !== "inventory" || !((e.diff || 0) < 0)) continue;
-    const k = e.itemName || "(item)";
-    byItem[k] = byItem[k] || { count: 0, units: 0, unit: e.unit || "unit" };
+    const k = e.itemId || e.itemName || "(item)";
+    byItem[k] = byItem[k] || { key: k, name: e.itemName || "(item)", count: 0, units: 0, unit: e.unit || "unit" };
     byItem[k].count++;
     byItem[k].units += -(e.diff || 0);
   }
-  for (const [name, it] of Object.entries(byItem)) {
+  for (const it of Object.values(byItem)) {
     if (it.count < R.minShorts) continue;
     alerts.push({
-      id: `item-shrink:${name}`, kind: "item-shrink", severity: "medium",
-      title: `${name}: short on ${it.count} counts in ${R.windowDays} days`,
+      // Keyed by itemId, so two items named alike don't collide (M6).
+      id: `item-shrink:${it.key}`, kind: "item-shrink", severity: "medium",
+      title: `${it.name}: short on ${it.count} counts in ${R.windowDays} days`,
       detail: `${it.units} ${it.unit}${it.units === 1 ? "" : "s"} missing in total.`,
     });
   }
