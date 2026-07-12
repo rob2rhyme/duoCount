@@ -11,9 +11,11 @@ rendered `docs/` folder; the code lives in the
 
 ## Start here
 
+- **[Getting started](getting-started.md)** — 👋 new to DuoCount? A plain-language,
+  step-by-step guide for owners and for employees. Start here.
+- **[App summary](app-summary-spec.md)** — the whole product in plain English.
 - **[Roadmap](roadmap.md)** — what's shipped, what's next, what's deferred. The
   living plan.
-- **[App summary](app-summary-spec.md)** — the whole product in plain English.
 - **[Positioning](positioning-one-pager.md)** — market, competitors, pricing.
 
 ## Build specs

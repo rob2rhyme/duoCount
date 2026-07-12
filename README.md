@@ -14,6 +14,8 @@ security rules keyed on server-issued auth claims.
 - The Next.js app lives at the repo root (`src/`, `public/`, `firestore.rules`,
   `tests/`).
 - `docs/` — product documentation:
+  - `getting-started.md` — plain-language, step-by-step **user guide** for owners
+    and employees (no technical background needed)
   - `app-summary-spec.md` — plain-English overview of the whole product
   - `tier-one-build-spec.md` — spec for the tier-one trust features (built)
   - `tier-two-build-spec.md` — spec for incidents, pattern alerts, and login
