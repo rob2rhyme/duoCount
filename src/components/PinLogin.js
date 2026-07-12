@@ -16,9 +16,9 @@ export default function PinLogin() {
   // login fields
   const [storeCode, setStoreCode] = useState("");
   const [pin, setPin] = useState("");
-  // signup fields — prefilled for the first store, Smokers Haven
-  const [bizName, setBizName] = useState("Smokers Haven");
-  const [logoUrl, setLogoUrl] = useState("https://sh.rob2rhyme.app/smoke-shop-logo.svg");
+  // signup fields — the owner fills these in for their own store
+  const [bizName, setBizName] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [newPin, setNewPin] = useState("");
   const ids = { storeCode: useId(), pin: useId(), bizName: useId(), logoUrl: useId(), ownerName: useId(), newPin: useId() };
@@ -55,7 +55,7 @@ export default function PinLogin() {
           <>
             <label htmlFor={ids.storeCode} className="label">Store code</label>
             <input id={ids.storeCode} className="input mb-4 font-mono lowercase" value={storeCode}
-              onChange={(e) => setStoreCode(e.target.value)} placeholder="smokers-haven" autoFocus />
+              onChange={(e) => setStoreCode(e.target.value)} placeholder="acme-market" autoFocus />
             <label htmlFor={ids.pin} className="label">Your PIN ({PIN_LENGTH} digits)</label>
             <input id={ids.pin} className="input text-center text-2xl tracking-[0.4em] font-mono"
               inputMode="numeric" maxLength={PIN_LENGTH} value={pin}
@@ -76,7 +76,7 @@ export default function PinLogin() {
         ) : (
           <>
             <label htmlFor={ids.bizName} className="label">Business name</label>
-            <input id={ids.bizName} className="input mb-4" value={bizName} onChange={(e) => setBizName(e.target.value)} />
+            <input id={ids.bizName} className="input mb-4" value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Acme Market" />
             <label htmlFor={ids.logoUrl} className="label">Logo URL (optional)</label>
             <input id={ids.logoUrl} className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
             <label htmlFor={ids.ownerName} className="label">Your name (owner)</label>
