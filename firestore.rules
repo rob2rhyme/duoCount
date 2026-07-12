@@ -22,10 +22,25 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/vendors/$(vendorId)).data.sharingMode == 'all-locations';
       }
 
+      // Role and active-state live in the token claims, which freeze at sign-in,
+      // so a deactivated or demoted user keeps their access until the token is
+      // re-minted. To enforce a mid-session deactivation WITHOUT waiting for the
+      // token to expire, every write consults the LIVE user doc: a user whose
+      // doc is active:false can no longer write, even holding a valid token.
+      // Reads stay on the token (a get() on every listener would be costly, and
+      // the client SessionProvider force-signs-out a deactivated/demoted user,
+      // stopping their reads too). A missing 'active' defaults to true, matching
+      // the app's optional-field convention. Role demotion is caught by the same
+      // client sign-out; the rules ban here is specifically the write kill-switch.
+      function liveActive() {
+        return get(/databases/$(database)/documents/vendors/$(vendorId)/users/$(request.auth.token.userId))
+                 .data.get('active', true) == true;
+      }
+
       // Vendor doc: members read; only the owner may edit branding + settings.
       // (digest.lastSentDate is written by the Admin SDK cron, which bypasses rules.)
       allow read: if member();
-      allow update: if owner()
+      allow update: if owner() && liveActive()
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold',
                        'blindCounts', 'varianceThreshold', 'digest', 'patternRules']);
@@ -33,20 +48,20 @@ service cloud.firestore {
 
       match /locations/{locationId} {
         allow read: if member();
-        allow create, update: if mgr();
+        allow create, update: if mgr() && liveActive();
         allow delete: if false; // disable instead, so history keeps its labels
       }
 
       match /drawers/{drawerId} {
         allow read: if member();
-        allow create, update: if mgr();
+        allow create, update: if mgr() && liveActive();
         allow delete: if false;
       }
 
       // Tracked inventory items — same lifecycle as drawers (soft-disable only).
       match /items/{itemId} {
         allow read: if member();
-        allow create, update: if mgr();
+        allow create, update: if mgr() && liveActive();
         allow delete: if false;
       }
 
@@ -54,8 +69,8 @@ service cloud.firestore {
       // forward-only and never deleted — enforced here, not just in the UI.
       match /packs/{packId} {
         allow read: if member();
-        allow create: if mgr() && request.resource.data.status in ['received', 'active'];
-        allow update: if mgr()
+        allow create: if mgr() && liveActive() && request.resource.data.status in ['received', 'active'];
+        allow update: if mgr() && liveActive()
           && request.resource.data.status in ['received', 'active', 'settled', 'returned']
           && (
             // forward-only transitions
@@ -93,7 +108,7 @@ service cloud.firestore {
         // Entries are signed: the author's name/id must match the token,
         // employees can only log for their assigned location, and tier-one
         // status fields must start clean (no pre-resolved / pre-disputed rows).
-        allow create: if member()
+        allow create: if member() && liveActive()
           && request.resource.data.by == request.auth.token.name
           && request.resource.data.byId == request.auth.token.userId
           && request.resource.data.byRole == request.auth.token.role
@@ -189,7 +204,8 @@ service cloud.firestore {
                     && resource.data.locationId == request.auth.token.locationId));
         }
 
-        allow update: if verifyOnly() || investigate() || disputeOpen() || disputeManage() || commentBump();
+        allow update: if liveActive()
+          && (verifyOnly() || investigate() || disputeOpen() || disputeManage() || commentBump());
 
         allow delete: if false; // append-only, for trust
 
@@ -202,7 +218,7 @@ service cloud.firestore {
             mgr() || sharedAcrossLocations()
             || (request.auth.token.locationId != null
                 && parentEntry().locationId == request.auth.token.locationId));
-          allow create: if member()
+          allow create: if member() && liveActive()
             && request.resource.data.byId == request.auth.token.userId
             && request.resource.data.by == request.auth.token.name
             && request.resource.data.byRole == request.auth.token.role
@@ -230,7 +246,7 @@ service cloud.firestore {
         allow read: if mgr()
           || (member() && resource.data.subjectId == request.auth.token.userId);
 
-        allow create: if mgr()
+        allow create: if mgr() && liveActive()
           && request.resource.data.by == request.auth.token.name
           && request.resource.data.byId == request.auth.token.userId
           && request.resource.data.title is string
@@ -271,7 +287,7 @@ service cloud.firestore {
             && request.resource.data.closedBy == request.auth.token.name;
         }
 
-        allow update: if ackOwn() || closeIncident();
+        allow update: if liveActive() && (ackOwn() || closeIncident());
         allow delete: if false;
       }
 
@@ -283,7 +299,7 @@ service cloud.firestore {
         allow read: if mgr()
           || (member() && resource.data.userId == request.auth.token.userId);
 
-        allow create: if member()
+        allow create: if member() && liveActive()
           && request.resource.data.userId == request.auth.token.userId
           && request.resource.data.userName == request.auth.token.name
           && request.resource.data.type in ['in', 'out']
@@ -309,7 +325,7 @@ service cloud.firestore {
 
         // A manager creates either an assigned shift (userId is a staff id) or an
         // OPEN shift (userId null, open:true) for anyone to pick up.
-        allow create: if mgr()
+        allow create: if mgr() && liveActive()
           && request.resource.data.by == request.auth.token.name
           && request.resource.data.byId == request.auth.token.userId
           && request.resource.data.date is string
@@ -320,7 +336,7 @@ service cloud.firestore {
             || (request.resource.data.userId == null && request.resource.data.get('open', false) == true)
           );
 
-        allow delete: if mgr();
+        allow delete: if mgr() && liveActive();
 
         function swapOffer() {
           return member()
@@ -371,7 +387,8 @@ service cloud.firestore {
         // Managers may edit anything (incl. approve/reject: an approve reassigns
         // userId to the claimer). Employees may only drive the swap state machine
         // on their own / an offered shift, or grab an open shift — see lib/swaps.js.
-        allow update: if mgr() || swapOffer() || swapCancel() || swapClaim() || swapWithdraw() || claimOpen();
+        allow update: if liveActive()
+          && (mgr() || swapOffer() || swapCancel() || swapClaim() || swapWithdraw() || claimOpen());
       }
 
       // Staff availability — employees mark dates they can't work so managers can
@@ -382,21 +399,21 @@ service cloud.firestore {
         allow read: if mgr()
           || (member() && resource.data.userId == request.auth.token.userId);
 
-        allow create: if member()
+        allow create: if member() && liveActive()
           && request.resource.data.userId == request.auth.token.userId
           && request.resource.data.userName == request.auth.token.name
           && request.resource.data.date is string;
 
         allow update: if false;
-        allow delete: if mgr()
-          || (member() && resource.data.userId == request.auth.token.userId);
+        allow delete: if liveActive() && (mgr()
+          || (member() && resource.data.userId == request.auth.token.userId));
       }
 
       // Week templates — saved roster patterns, a manager-only planning tool.
       // Not employee-facing (they're applied to produce real schedule shifts).
       match /templates/{templateId} {
         allow read: if mgr();
-        allow write: if mgr();
+        allow write: if mgr() && liveActive();
       }
 
       // Schedule publish records — one per week, written only by the publish
@@ -413,14 +430,14 @@ service cloud.firestore {
           mgr() || sharedAcrossLocations()
           || (request.auth.token.locationId != null
               && resource.data.locationId == request.auth.token.locationId));
-        allow create: if member()
+        allow create: if member() && liveActive()
           && request.resource.data.byId == request.auth.token.userId
           && request.resource.data.by == request.auth.token.name
           && request.resource.data.text.size() <= 2000
           && (mgr() || request.resource.data.locationId == request.auth.token.locationId)
           && request.resource.data.pinned == false
           && request.resource.data.active == true;
-        allow update: if mgr()
+        allow update: if mgr() && liveActive()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned', 'active']);
         allow delete: if false;
       }

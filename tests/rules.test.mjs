@@ -74,6 +74,13 @@ beforeEach(async () => {
     const f = c.firestore();
     await setDoc(doc(f, `vendors/${V}`), { name: "Store", slug: "store", sharingMode: "per-location", varianceThreshold: 5 });
     await setDoc(doc(f, `vendors/${V2}`), { name: "Other", slug: "other", sharingMode: "all-locations" });
+    // Live user docs — write rules consult these (liveActive) so a deactivated
+    // user can't write on a still-valid token. All active by default.
+    await setDoc(doc(f, `vendors/${V}/users/u-owner`), { name: "Olive", role: "owner", active: true });
+    await setDoc(doc(f, `vendors/${V}/users/u-mgr`), { name: "Mia", role: "manager", active: true });
+    await setDoc(doc(f, `vendors/${V}/users/u-empA`), { name: "Eve", role: "employee", locationId: "locA", active: true });
+    await setDoc(doc(f, `vendors/${V}/users/u-empB`), { name: "Bob", role: "employee", locationId: "locB", active: true });
+    await setDoc(doc(f, `vendors/${V2}/users/u-oz`), { name: "Oz", role: "owner", active: true });
     await setDoc(doc(f, `vendors/${V}/entries/eA`), entry({ commentCount: 1 }));
     await setDoc(doc(f, `vendors/${V}/entries/eB`), entry({ locationId: "locB", locationName: "B", by: "Bob", byId: "u-empB" }));
     await setDoc(doc(f, `vendors/${V}/entries/eMgr`), entry({ by: "Mia", byId: "u-mgr", byRole: "manager" }));
@@ -191,6 +198,33 @@ test("entries must start clean: no pre-resolved, pre-disputed, or pre-caused sta
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/d2`), entry({ varianceStatus: "resolved" })));
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/d3`), entry({ causeCode: "human-error" })));
   await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/d4`), entry({ flagged: true, varianceStatus: "open" })));
+});
+
+/* ---------- deactivation kill-switch (H2) ---------- */
+
+test("a deactivated user cannot write, even holding a valid token", async () => {
+  // empA still has a valid signed-in token, but their live user doc flips to
+  // active:false — every write must be refused without waiting for the token to
+  // expire. Reads are intentionally left to the token (client force-signs-out).
+  await env.withSecurityRulesDisabled(async (c) =>
+    updateDoc(doc(c.firestore(), `vendors/${V}/users/u-empA`), { active: false }));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/dead1`), entry()));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/dead2`), punch()));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/notes/dead3`),
+    { text: "still here", by: "Eve", byId: "u-empA", byRole: "employee", locationId: "locA", locationName: "A", shift: null, pinned: false, active: true, ts: new Date() }));
+  // Reactivating restores write access — it's the flag, nothing else.
+  await env.withSecurityRulesDisabled(async (c) =>
+    updateDoc(doc(c.firestore(), `vendors/${V}/users/u-empA`), { active: true }));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/live1`), entry()));
+});
+
+test("a deactivated manager cannot manage; a deactivated author cannot resolve", async () => {
+  await env.withSecurityRulesDisabled(async (c) =>
+    updateDoc(doc(c.firestore(), `vendors/${V}/users/u-mgr`), { active: false }));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/packs/deadPack`), pack()));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/flagged`),
+    { varianceStatus: "under-review" }));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/incidents/deadInc`), incident()));
 });
 
 /* ---------- verification ---------- */
