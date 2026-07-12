@@ -73,9 +73,10 @@ turn on an optional **daily email digest** (off by default).
 - **Watch the Dashboard.** Net over/short, short counts, charts by day, employee,
   drawer, and item, plus quiet **pattern alerts** (e.g. "same drawer short under
   three people" — a conversation starter, never a verdict).
-- **Handle flags.** Any count off by more than your threshold (default $5) is
-  flagged; close it by recording *why* (Human error, Register error, Training
-  gap, etc.).
+- **Handle flags.** Any cash count off by more than your threshold (default $5)
+  is flagged; close it by recording *why* (Human error, Register error, Training
+  gap, etc.). You can also set an **inventory** threshold in units (Business
+  settings) to flag stock counts the same way — it's off until you set it.
 - **Disputes & notes.** If an employee disagrees, they open a **dispute** on the
   entry; you resolve it. **Notes** is your shift logbook for handoffs.
 - **Incidents.** File a signed write-up when something happens that isn't a
@@ -142,7 +143,10 @@ Type the **store code** your manager gave you and **your own PIN**, then
 1. Tap **Inventory**, pick the **item**.
 2. Enter **start on hand**, **received**, **sold**, and **removed**, then the
    **counted** amount on the shelf (or **scan** the barcode).
-3. **Save.** A red (negative) result means stock is missing.
+3. **Save.** A red (negative) result means stock is missing. If your store set an
+   **inventory variance threshold**, a count off by that many units or more is
+   flagged for a manager to review — just like a cash short. (Blind mode applies
+   here too, if it's on.)
 
 ### Clock in/out and see your schedule
 

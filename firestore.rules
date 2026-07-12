@@ -140,18 +140,29 @@ service cloud.firestore {
         // A cash count at or beyond the store's variance threshold must be signed
         // as an OPEN variance — a client can't record a real short/over as
         // 'none' and hide it from the review queue, the owner dashboard/digest,
-        // and the theft-pattern detectors. Only cash auto-flags today (scratch
-        // has no diff; inventory flagging is a separate feature), and this fails
-        // OPEN when the threshold is misconfigured so a bad setting can never
-        // reject a legitimate count. Mirrors CashForm's `abs(diff) >= threshold`.
+        // and the theft-pattern detectors. Cash always auto-flags (default $5
+        // threshold); inventory flags only when the owner opts in with a positive
+        // unit threshold (scratch has no diff). Both fail OPEN when the threshold
+        // is unset/misconfigured so a bad setting can never reject a legitimate
+        // count. Mirrors the forms' `abs(diff) >= threshold`.
         function cashVarianceThreshold() {
           return get(/databases/$(database)/documents/vendors/$(vendorId)).data.get('varianceThreshold', 5);
         }
+        function invVarianceThreshold() {
+          return get(/databases/$(database)/documents/vendors/$(vendorId)).data.get('invVarianceThreshold', null);
+        }
         function flagConsistent() {
-          return request.resource.data.kind != 'cash'
-            || !(cashVarianceThreshold() is number)
+          return flagOk('cash', cashVarianceThreshold()) && flagOk('inventory', invVarianceThreshold());
+        }
+        // For the named kind, an at/over-threshold |diff| must be signed as an
+        // open variance. Fail-open when this entry is another kind, the threshold
+        // isn't a positive number, or diff isn't numeric.
+        function flagOk(kind, threshold) {
+          return request.resource.data.kind != kind
+            || !(threshold is number)
+            || !(threshold > 0)
             || !(request.resource.data.diff is number)
-            || math.abs(request.resource.data.diff) < cashVarianceThreshold()
+            || math.abs(request.resource.data.diff) < threshold
             || request.resource.data.get('varianceStatus', 'none') == 'open';
         }
 

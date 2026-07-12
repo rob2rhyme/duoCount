@@ -85,9 +85,11 @@ wasteful/limited for a year. A report is a one-shot snapshot, not a live view, s
   current modal already shows.
 - Two exports:
   - **Download PDF** — formatted for records (via `@react-pdf/renderer`, already a
-    dependency and already used for the EOD PDF): header (business name + logo,
-    period label, location, generated-at, prepared/reviewed signature line),
-    then the summary tables and the trend. Reuse/upgrade the current PDF code.
+    dependency and already used for the EOD PDF): header (business name + a
+    DuoCount **DC** brand mark drawn with PDF primitives — no external image,
+    which can fail to load and blank the render — period label, location,
+    generated-at, prepared/reviewed signature line), then the summary tables and
+    the trend. The print-to-HTML fallback carries the same mark.
   - **Download CSV** — the period's raw rows for a spreadsheet, generalizing
     `exportCSV` (`src/lib/utils.js`) to accept a filtered set. Every cell goes
     through `csvCell`, which guards against **CSV/formula injection** — a value a
