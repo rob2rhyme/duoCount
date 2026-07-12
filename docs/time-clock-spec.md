@@ -102,17 +102,23 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
   **overnight** shift (+24 h).
 - **`scheduledHours`** — hours per employee over a date range.
 - **`findOverlaps`** — ids of shifts that **double-book** one employee on a day
-  (back-to-back does not count).
+  (back-to-back does not count). Compares every pair within the day, so a long
+  shift that swallows a later, non-adjacent one (09:00–17:00 vs a noon shift) is
+  caught, not just neighbours.
 - **`reconcile`** — day-level **attendance**: it lines each scheduled shift up
   against the actual punches *by business `day` string* (so no timezone math),
   over the elapsed days only, and returns worked / no-show / unscheduled. This
   is the payoff of having both halves.
 - **`copyShiftsToWeek`** — shifts a set of shifts by an offset (a week) into new
   specs, **skipping any that already exist** (employee + new date + start), so
-  "copy last week" is idempotent.
+  "copy last week" is idempotent. An **open** (unassigned) shift carries its
+  `open: true` flag into the copy, so the null-user spec still satisfies the
+  create rule.
 - **`weekShiftsToTemplate` / `templateToShifts`** — save a week as a reusable
   pattern (specs keyed by day-of-week 0-6, dates/ids/swap-state stripped) and
   stamp it onto any target week (dedup-aware, so applying twice is idempotent).
+  Open shifts round-trip: the template preserves `open`, and stamping re-emits
+  `open: true` for a null-user spec.
 - **`availabilityConflicts` / `isUnavailable`** — flag scheduled shifts (or a
   form selection) that land on a date the employee marked unavailable.
 

@@ -77,8 +77,17 @@ export function findOverlaps(shifts = []) {
     const iv = list
       .map((s) => { const a = parseHHMM(s.start) ?? 0; return { id: s.id, a, b: a + shiftMinutes(s.start, s.end) }; })
       .sort((x, y) => x.a - y.a);
-    for (let i = 1; i < iv.length; i++) {
-      if (iv[i].a < iv[i - 1].b) { overlap.add(iv[i].id); overlap.add(iv[i - 1].id); }
+    // Full pairwise within the (tiny) per-employee, per-day group. Comparing only
+    // adjacent intervals missed a long shift swallowing a later short one — e.g.
+    // 09:00-17:00 then 09:05-09:20 then 12:00-13:00: the noon shift starts after
+    // the 09:05 one ends, so an adjacent-only check never notices it still sits
+    // inside the 09:00-17:00 shift. Standard interval-overlap test, order-agnostic.
+    for (let i = 0; i < iv.length; i++) {
+      for (let j = i + 1; j < iv.length; j++) {
+        if (iv[i].a < iv[j].b && iv[j].a < iv[i].b) {
+          overlap.add(iv[i].id); overlap.add(iv[j].id);
+        }
+      }
     }
   }
   return overlap;
@@ -101,6 +110,9 @@ export function copyShiftsToWeek(sourceShifts = [], { offsetDays = 7, existing =
       userId: s.userId, userName: s.userName,
       locationId: s.locationId ?? null, locationName: s.locationName ?? null,
       date, start: s.start, end: s.end,
+      // An unassigned (open) shift must carry open:true or the create rule
+      // rejects it (userId null with no open flag). Assigned shifts omit it.
+      ...(s.userId == null ? { open: true } : {}),
     });
   }
   return out;
@@ -123,6 +135,10 @@ export function weekShiftsToTemplate(weekShifts = [], weekStart) {
       userId: s.userId, userName: s.userName,
       start: s.start, end: s.end,
       locationId: s.locationId ?? null, locationName: s.locationName ?? null,
+      // Preserve the open flag so a saved template can hold an open shift and
+      // re-stamp it as one (templateToShifts derives open from a null userId,
+      // but keeping it here makes the stored template self-describing).
+      ...(s.userId == null ? { open: true } : {}),
     }))
     .filter((t) => t.dow >= 0 && t.dow <= 6);
 }
@@ -145,6 +161,8 @@ export function templateToShifts(templateShifts = [], weekStart, { existing = []
       userId: t.userId, userName: t.userName,
       locationId: t.locationId ?? null, locationName: t.locationName ?? null,
       date, start: t.start, end: t.end,
+      // Same open-shift rule as copyShiftsToWeek: a null-user spec must be open.
+      ...(t.userId == null ? { open: true } : {}),
     });
   }
   return out;
