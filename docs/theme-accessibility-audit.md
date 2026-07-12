@@ -28,7 +28,7 @@ The `.pill` status chips are `text-[11px] font-bold` — 11 px bold is **not**
 | --- | --- | --- | --- | --- |
 | 1 | **Inline over/short + status text illegible in dark mode.** `text-green-700` / `text-red-600` are fixed light-palette colours that don't adapt; on the dark card surface they fell to **3.27 / 3.40** (fail 4.5). | 3.27 / 3.40 | **7.65 / 5.94** | New theme-aware `--pos` / `--neg` tokens (`text-pos` / `text-neg`), dark values `#45c877` / `#f87171`. Swapped every **inline** status number/label (cash & inventory over-short, dashboard tables, scratch sold, verify line, pack "unaccounted", login errors, Sign-out). |
 | 2 | **Red status chips failed AA.** `text-red-600` on `bg-red-100` = **3.95** (fail 4.5). | 3.95 | **5.30** | Chip text → `text-red-700`. (Green chip 4.57 and amber chip 4.51 already passed.) |
-| 3 | **`faint` tier failed even large-text contrast** (2.65–3.57) yet was used for real informational text. | 2.65–3.57 | 4.1–5.0 | Darkened `--faint` (light `#7a766c`, dark `#83858f`) so it clears AA-Large everywhere (≈4.5 on surface); and **reclassified genuine content** (help paragraphs, "Awaiting verification", "(units)", owner-only note, status history) from `faint` → `muted`. `faint` now backs only input **placeholders** and one decorative footer line. |
+| 3 | **`faint` tier failed even large-text contrast** (2.65–3.57) yet was used for real informational text. | 2.65–3.57 | 4.1–5.0 | Darkened `--faint` (light `#7a766c`, dark `#83858f`) so it clears AA-Large everywhere (≈4.5 on surface); and **reclassified genuine content** (help paragraphs, "Awaiting verification", "(units)", owner-only note, status history) from `faint` → `muted`. `faint` now backs input **placeholders** and decorative chrome (the two footer lines in `AppShell.js` and the small separators in the keyboard-shortcut sheet). (A help line that later slipped onto `faint` was returned to `muted` — see Post-audit updates.) |
 | 4 | **`muted` on `subtle` chips** at **4.49** — a hair under 4.5. | 4.49 | **4.92** | Darkened light `--muted` `#6d6a61` → `#67645b` (improves every muted pairing). |
 | 5 | **Disabled controls not perceivable.** The custom `var(--field)` background overrode the browser's default graying, so disabled buttons/inputs looked active. | — | opacity .5/.55 + `not-allowed` | Added `.btn:disabled` / `.input:disabled` rules. |
 
@@ -55,6 +55,8 @@ Measured ratios after the fixes (lowest of the relevant backgrounds shown):
 - [x] All inline status text (over/short, verify, errors) theme-aware and ≥ 4.5:1.
 - [x] All status chips ≥ 4.5:1 (red chip fixed).
 - [x] `faint` reserved for placeholders + decoration; all real content on `muted`+.
+- [x] Every form control has a programmatic accessible name (label association / `aria-label`).
+- [x] Modal dialogs are operable: `role="dialog"`, `aria-modal`, Escape-to-close, focus trap + restore.
 - [x] Focus indicator (brass border + ring) ≥ 3:1 vs the field, both themes.
 - [x] Disabled buttons/inputs visually inactive (opacity + `not-allowed`).
 - [x] Native controls (`select`, scrollbars, date pickers) follow the theme via
@@ -62,6 +64,28 @@ Measured ratios after the fixes (lowest of the relevant backgrounds shown):
 - [x] Fixed-colour elements (dark header, brand badges, logo matte) verified
       readable in both themes and intentionally constant.
 - [x] No-flash boot script prevents a light→dark flicker before contrast applies.
+
+## Post-audit updates
+
+This audit was originally contrast-only and predated the time-clock / scheduling
+screens. A later consolidation pass closed the gaps below.
+
+- **Faint help text returned to `muted`.** The Schedule footer note in
+  `src/components/Schedule.js` ("The schedule is a plan — edit it freely…", 11 px
+  normal weight) had been written on `text-faint`, below the 4.5:1 AA this audit
+  holds body text to. It — and the equivalent Time-clock help line — now use
+  `text-muted`, so no real content is left on `faint`.
+- **Programmatic label association (WCAG 1.3.1 / 3.3.2 / 4.1.2).** Form labels
+  were only visually adjacent to their controls. A shared `<Field>` wrapper
+  (`src/components/Field.js`, `useId`) now links every label to its input via
+  `htmlFor`/`id` without changing the rendered layout; standalone controls carry
+  an `aria-label`. This is a name/association fix, not a contrast fix, so it sits
+  outside the ratio table above.
+- **Operable modal dialogs (WCAG 2.1.2 / 4.1.3).** The report and barcode-scanner
+  modals were keyboard traps. A shared `useModalA11y` hook
+  (`src/lib/use-modal-a11y.js`) adds Escape-to-close, focus move-in / trap /
+  restore, and `role="dialog"` + `aria-modal` + `aria-labelledby`, matching the
+  existing accessible help dialog. Icon-only ✕/📷 buttons gained accessible names.
 
 ## Intentional decisions
 

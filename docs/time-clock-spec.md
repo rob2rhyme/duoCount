@@ -138,7 +138,7 @@ sorted, open shifts skipped, employees without an address skipped. The server
 route `POST /api/schedule/publish` (manager/owner; shared `requireManager`
 guard) queries the week, sends via the same **Resend** path as the digest
 (`lib/digest.js`), and records `schedulePublished/{weekStart}`
-(`{ publishedAt, publishedBy, notified, recipients }`) — **manager-read,
+(`{ weekStart, weekEnd, publishedAt, publishedBy, notified, recipients }`) — **manager-read,
 server-write only** (`allow write: if false`, written by the Admin SDK).
 
 **Security** —

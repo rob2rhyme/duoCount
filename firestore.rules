@@ -91,12 +91,30 @@ service cloud.firestore {
         allow create: if member()
           && request.resource.data.by == request.auth.token.name
           && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.byRole == request.auth.token.role
           && request.resource.data.kind in ['cash', 'scratch', 'inventory']
           && request.resource.data.verifiedBy == null
           && (mgr() || request.resource.data.locationId == request.auth.token.locationId)
           && request.resource.data.get('disputeStatus', 'none') == 'none'
           && request.resource.data.get('varianceStatus', 'none') in ['none', 'open']
-          && request.resource.data.get('causeCode', null) == null;
+          && request.resource.data.get('causeCode', null) == null
+          && varianceConsistent();
+
+        // Cash/inventory entries carry counted/expected/diff; the stored diff
+        // must equal counted - expected (±0.01 to absorb float cents) so a
+        // non-manager can't sign a clean-looking count that hides a real short
+        // from the owner digest and the theft-pattern detectors, both of which
+        // trust the stored diff. Scratch entries have no diff and are exempt.
+        function varianceConsistent() {
+          return !(request.resource.data.kind in ['cash', 'inventory'])
+            || (request.resource.data.diff is number
+                && request.resource.data.counted is number
+                && request.resource.data.expected is number
+                && request.resource.data.diff
+                     >= request.resource.data.counted - request.resource.data.expected - 0.01
+                && request.resource.data.diff
+                     <= request.resource.data.counted - request.resource.data.expected + 0.01);
+        }
 
         // Manager verification — never self-verified. (Existing rule, verbatim.)
         function verifyOnly() {
@@ -141,7 +159,10 @@ service cloud.firestore {
           return member()
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['commentCount', 'lastCommentAt'])
-            && request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1;
+            && request.resource.data.commentCount == resource.data.get('commentCount', 0) + 1
+            && (mgr() || sharedAcrossLocations()
+                || (request.auth.token.locationId != null
+                    && resource.data.locationId == request.auth.token.locationId));
         }
 
         allow update: if verifyOnly() || investigate() || disputeOpen() || disputeManage() || commentBump();
@@ -160,7 +181,16 @@ service cloud.firestore {
           allow create: if member()
             && request.resource.data.byId == request.auth.token.userId
             && request.resource.data.by == request.auth.token.name
+            && request.resource.data.byRole == request.auth.token.role
             && request.resource.data.kind in ['comment', 'status']
+            // Only managers may post an authoritative 'status' line (the
+            // resolved-by / dispute-resolved system notes); staff post 'comment'.
+            && (request.resource.data.kind == 'comment' || mgr())
+            // Writing into a thread requires the same location visibility as
+            // reading it — employees can't comment on entries they can't see.
+            && (mgr() || sharedAcrossLocations()
+                || (request.auth.token.locationId != null
+                    && parentEntry().locationId == request.auth.token.locationId))
             && request.resource.data.text is string
             && request.resource.data.text.size() > 0
             && request.resource.data.text.size() <= 2000;

@@ -20,7 +20,9 @@ security rules keyed on server-issued auth claims.
     rate limiting (built)
   - `inventory-tracker-spec.md` — spec for the inventory feature (built)
   - `barcode-scanning-spec.md` — spec for camera scanning (built)
-  - `lottery-pack-lifecycle-spec.md` — spec for pack tracking (built)
+  - `lottery-pack-lifecycle-spec.md` — spec for pack tracking and settlement
+    reconciliation (built)
+  - `time-clock-spec.md` — spec for the time clock & scheduling suite (built)
   - `ui-enhancements-spec.md` — spec for the denomination currency counter,
     scroll-to-top FAB, light/dark theme, and Settings menu (built)
   - `demo-data-spec.md` — owner-only Load/Clear sample data (server-side, so it
@@ -29,6 +31,8 @@ security rules keyed on server-issued auth claims.
     install prompt)
   - `distribution-analysis.md` — AI integration, static-HTML, WordPress, and
     other packaging paths, with effort/trade-offs/recommendations
+  - `theme-accessibility-audit.md` — measured WCAG AA contrast audit across
+    both themes, with the failures found and the token fixes shipped
   - `roadmap.md` — what's shipped, what's next (PWA, distribution analysis,
     audits), and what's deferred
   - `positioning-one-pager.md` — market positioning, competitors, pricing
@@ -145,9 +149,10 @@ values are set.
   agree") with an optional response that lands on the same permanent record;
   managers close. No edits, no deletes — enforced by rules.
 - **Pattern alerts**: a pure detector (`src/lib/patterns.js`) scans the entry
-  log for recurring signals — one person short 3+ times in 14 days, one
-  drawer short under multiple hands (process, not person), a 48-hour
-  verification backlog, an item that keeps counting short. Alerts appear on a
+  log for six recurring signals — one person short 3+ times in 14 days, one
+  person repeatedly over, one drawer short under multiple hands (process, not
+  person), a 48-hour verification backlog, a backlog of flagged variances left
+  open, and an item that keeps counting short. Alerts appear on a
   manager-only Dashboard card and in the daily digest, framed as
   "signals worth a look — not conclusions". Thresholds default to
   `PATTERN_RULES` but are tunable per vendor (Admin → Alert sensitivity); there
@@ -173,7 +178,7 @@ values are set.
   credential work runs — **per IP (10 / 15 min) and per store (50 / 15 min)** —
   using a top-level `loginAttempts` collection only the Admin SDK can touch.
   Both windows auto-expire and any successful login clears them (staff share the
-  shop Wi-Fi IP). New/changed PINs must be **6 digits** (`lib/pin.js`).
+  shop Wi-Fi IP). New/changed PINs must be **6 digits** (`src/lib/pin.js`).
   Optional cleanup: add a Firestore TTL policy on `windowStart`.
 
 ## Barcode scanning
@@ -192,12 +197,15 @@ initial bundle. Camera use requires HTTPS (or localhost) plus permission.
 ## Testing the security rules
 
 The rules are the product's trust boundary, so they have an executable test
-suite (`tests/rules.test.mjs`, 32 tests): tenant isolation, per-location
+suite (`tests/rules.test.mjs`, 55 tests): tenant isolation, per-location
 visibility for entries/comments/notes, the five mutually exclusive entry
 update branches (verify / investigate / dispute-open / dispute-manage /
 comment bump), clean-create guards, the owner settings whitelist, item
-lifecycle, the forward-only pack lifecycle, and the incident lifecycle
-(subject-only visibility and acknowledgment, manager close, immutable text).
+lifecycle, the forward-only pack lifecycle, the incident lifecycle
+(subject-only visibility and acknowledgment, manager close, immutable text),
+and the workforce collections — append-only time-clock punches, the schedule
+roster, shift swaps, open-shift claims, staff availability, `schedulePublished`,
+and week templates.
 Run them against the local Firestore emulator (needs Java):
 
 ```bash

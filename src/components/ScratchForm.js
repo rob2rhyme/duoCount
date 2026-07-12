@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import Field from "./Field";
 import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -16,6 +17,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   });
   const [busy, setBusy] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  const packId = useId();
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   useEffect(() => {
@@ -83,25 +85,25 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Location</label>
+          <Field label={"Location"}>
             <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select></div>
-          <div><label className="label">Drawer</label>
+            </select></Field>
+          <Field label={"Drawer"}>
             <select className="input" value={f.drawerId} onChange={set("drawerId")}>
               {locDrawers.length === 0 && <option value="">No drawers — add in Admin</option>}
               {locDrawers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select></div>
+            </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Date</label><input type="date" className="input" value={f.date} onChange={set("date")} /></div>
-          <div><label className="label">Shift</label>
+          <Field label={"Date"}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
+          <Field label={"Shift"}>
             <select className="input" value={f.shift} onChange={set("shift")}>
               <option value="open">Opening</option><option value="close">Closing</option>
-            </select></div>
+            </select></Field>
         </div>
         {packs.some((p) => p.status === "active" && p.locationId === f.locationId) && (
-          <div><label className="label">Active pack (fills game, price &amp; pack #)</label>
+          <Field label={<>Active pack (fills game, price &amp; pack #)</>}>
             <select className="input" value=""
               onChange={(e) => {
                 const p = packs.find((x) => x.id === e.target.value);
@@ -111,22 +113,22 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
               {packs.filter((p) => p.status === "active" && p.locationId === f.locationId).map((p) => (
                 <option key={p.id} value={p.id}>{p.game} · #{p.packNumber}{p.bin ? ` · bin ${p.bin}` : ""}</option>
               ))}
-            </select></div>
+            </select></Field>
         )}
 
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Game name</label><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></div>
-          <div><label className="label">Pack / book #</label>
+          <Field label={"Game name"}><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></Field>
+          <div><label htmlFor={packId} className="label">Pack / book #</label>
             <div className="flex gap-2">
-              <input className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
+              <input id={packId} className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
               <button type="button" className="btn-ghost px-2.5 flex-shrink-0" title="Scan pack barcode"
                 onClick={() => setScanOpen(true)}>📷</button>
             </div></div>
         </div>
-        <div><label className="label">Ticket price</label><input type="number" inputMode="decimal" className="input" value={f.price} onChange={set("price")} placeholder="0.00" /></div>
+        <Field label={"Ticket price"}><input type="number" inputMode="decimal" className="input" value={f.price} onChange={set("price")} placeholder="0.00" /></Field>
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Start ticket #</label><input type="number" inputMode="numeric" className="input" value={f.startno} onChange={set("startno")} placeholder="0" /></div>
-          <div><label className="label">End ticket #</label><input type="number" inputMode="numeric" className="input" value={f.endno} onChange={set("endno")} placeholder="0" /></div>
+          <Field label={"Start ticket #"}><input type="number" inputMode="numeric" className="input" value={f.startno} onChange={set("startno")} placeholder="0" /></Field>
+          <Field label={"End ticket #"}><input type="number" inputMode="numeric" className="input" value={f.endno} onChange={set("endno")} placeholder="0" /></Field>
         </div>
 
         <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">

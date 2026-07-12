@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useSession } from "./SessionProvider";
 import { PRODUCT } from "@/lib/store";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
@@ -21,6 +21,7 @@ export default function PinLogin() {
   const [logoUrl, setLogoUrl] = useState("https://sh.rob2rhyme.app/smoke-shop-logo.svg");
   const [ownerName, setOwnerName] = useState("");
   const [newPin, setNewPin] = useState("");
+  const ids = { storeCode: useId(), pin: useId(), bizName: useId(), logoUrl: useId(), ownerName: useId(), newPin: useId() };
 
   async function doLogin() {
     setErr(""); setBusy(true);
@@ -52,11 +53,11 @@ export default function PinLogin() {
 
         {mode === "login" ? (
           <>
-            <label className="label">Store code</label>
-            <input className="input mb-4 font-mono lowercase" value={storeCode}
+            <label htmlFor={ids.storeCode} className="label">Store code</label>
+            <input id={ids.storeCode} className="input mb-4 font-mono lowercase" value={storeCode}
               onChange={(e) => setStoreCode(e.target.value)} placeholder="smokers-haven" autoFocus />
-            <label className="label">Your PIN</label>
-            <input className="input text-center text-2xl tracking-[0.4em] font-mono"
+            <label htmlFor={ids.pin} className="label">Your PIN</label>
+            <input id={ids.pin} className="input text-center text-2xl tracking-[0.4em] font-mono"
               inputMode="numeric" maxLength={6} value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && doLogin()} placeholder="••••" />
@@ -69,19 +70,19 @@ export default function PinLogin() {
               New business? Register your store
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">
-              Your store code comes from whoever set up your business. Ask a manager if you don't have it.
+              Your store code comes from whoever set up your business. Ask a manager if you don&apos;t have it.
             </p>
           </>
         ) : (
           <>
-            <label className="label">Business name</label>
-            <input className="input mb-4" value={bizName} onChange={(e) => setBizName(e.target.value)} />
-            <label className="label">Logo URL (optional)</label>
-            <input className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
-            <label className="label">Your name (owner)</label>
-            <input className="input mb-4" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Jordan P." />
-            <label className="label">Choose your PIN ({PIN_LENGTH} digits)</label>
-            <input className="input text-center text-xl tracking-[0.3em] font-mono"
+            <label htmlFor={ids.bizName} className="label">Business name</label>
+            <input id={ids.bizName} className="input mb-4" value={bizName} onChange={(e) => setBizName(e.target.value)} />
+            <label htmlFor={ids.logoUrl} className="label">Logo URL (optional)</label>
+            <input id={ids.logoUrl} className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
+            <label htmlFor={ids.ownerName} className="label">Your name (owner)</label>
+            <input id={ids.ownerName} className="input mb-4" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Jordan P." />
+            <label htmlFor={ids.newPin} className="label">Choose your PIN ({PIN_LENGTH} digits)</label>
+            <input id={ids.newPin} className="input text-center text-xl tracking-[0.3em] font-mono"
               inputMode="numeric" maxLength={PIN_LENGTH} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
             {err && <p className="text-sm text-neg mt-3">{err}</p>}
@@ -93,7 +94,7 @@ export default function PinLogin() {
               Already registered? Sign in
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">
-              You'll get a store code to share with staff. You'll be the owner and can add locations, drawers, and staff in Admin.
+              You&apos;ll get a store code to share with staff. You&apos;ll be the owner and can add locations, drawers, and staff in Admin.
             </p>
           </>
         )}

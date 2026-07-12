@@ -1,6 +1,6 @@
 # DuoCount — Inventory Tracker Spec
 
-**Status:** built — items catalog, Inventory tab, log/dashboard/CSV integration, and rules shipped. (Tier-one extras — flags, disputes, blind mode — apply to inventory entries automatically once tier one lands.)
+**Status:** built — items catalog, Inventory tab, log/dashboard/CSV integration, and rules shipped. Tier one has shipped, and inventory entries inherit its verification, disputes, and comment threads automatically. **Two tier-one extras are specified below but not yet wired to inventory: variance flagging and blind mode** — see the Status note in §1.2.
 
 **Goal.** Extend DuoCount's countersigned-count mechanics to physical stock — cigarette cartons, vape products, and other high-shrink items — so shift counts of merchandise get the same treatment as cash and scratch-offs: signed, timestamped, verified, append-only, disputable.
 
@@ -42,6 +42,8 @@ The math mirrors the cash drawer formula on purpose — staff already understand
 
 **Variance threshold:** cash thresholds are dollars; inventory needs units. Add `vendors.invVarianceThreshold` (number, default `1` — any missing unit flags). Same flag → cause code → resolve flow.
 
+> **Status (not yet implemented).** These two sub-features remain specified but unbuilt for inventory. `InventoryForm` saves entries without `flagged`/`varianceStatus`, so they fall back to the safe defaults (`flagged: false`, `varianceStatus: 'none'`) — the cash form's `abs(diff) >= threshold` flagging has no inventory equivalent, and `invVarianceThreshold` is whitelisted for writes but read by nothing (no Admin UI sets it). The inventory form also renders the expected/over-short readout unconditionally and never checks `vendor.blindCounts`, so **blind mode does not apply to inventory**. Both would need code (not just docs) to ship.
+
 ---
 
 ## 2. Screens
@@ -49,10 +51,10 @@ The math mirrors the cash drawer formula on purpose — staff already understand
 1. **New "Inventory" tab** (form mirrors the cash form): location select, item select (active items at that location, searchable if >15), date/shift, the five quantity fields, readout block showing expected + over/short in units, Save & sign. Post-save behavior identical to cash, including blind mode.
 2. **Admin → Items card** (clone of the Drawers card): add item (name, category, unit, location), disable/enable, edit name/category.
 3. **Log**: inventory entries render with item name + unit chip; existing filters gain "Inventory only"; verification, disputes, and flags need no changes.
-4. **Dashboard**: "By item" table (entries, net unit diff, flagged count) parallel to "By drawer"; missing-units total added to the stat cards.
+4. **Dashboard**: "By item" table (entries, net unit diff, short-counts count) parallel to "By drawer"; missing-units total added to the stat cards. (As built, the third column is **Short counts** — entries with `diff < 0` — since inventory entries are never variance-flagged.)
 5. **EOD report**: gains an Inventory section (item, shift, start, received, sold, removed, expected, counted, diff, verified-by) between scratch-offs and the flagged section.
 
-Tab bar reaches seven tabs (Cash, Scratch-offs, Inventory, Log, Notes, Dashboard, Admin); it already horizontally scrolls on phones. If that feels crowded in practice, merge Cash/Scratch/Inventory into one "New count" tab with a kind switcher — a UI decision to make with real users, not in this spec.
+Tab bar reaches nine tabs (Cash, Scratch-offs, Inventory, Log, Notes, Incidents, Time, Dashboard, Admin — Incidents and Time were added in later tiers); it already horizontally scrolls on phones. If that feels crowded in practice, merge Cash/Scratch/Inventory into one "New count" tab with a kind switcher — a UI decision to make with real users, not in this spec.
 
 ## 3. Rule changes
 

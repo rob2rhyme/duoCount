@@ -14,6 +14,7 @@ import {
 } from "@/lib/schedule";
 import { availableActions, applySwap, swapStatusOf, SWAP_ACTIONS } from "@/lib/swaps";
 import EmptyState, { IconCalendar } from "./EmptyState";
+import Field from "./Field";
 
 const SWAP_TOAST = {
   offer: "Shift offered for swap", "cancel-offer": "Offer canceled",
@@ -284,7 +285,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
             <p className="text-[13px] text-muted">Mark dates you&apos;re unavailable so managers can roster around you.</p>
           </div>
           <div className="flex gap-2">
-            <input type="date" className="input" value={newOff} min={todayStr()} onChange={(e) => setNewOff(e.target.value)} />
+            <input type="date" className="input" value={newOff} min={todayStr()} onChange={(e) => setNewOff(e.target.value)} aria-label="Date you're unavailable" />
             <button className="btn-ghost px-4 whitespace-nowrap" onClick={markUnavailable}>Add</button>
           </div>
           {myOff.length > 0 && (
@@ -333,34 +334,29 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
       <div className="card p-4 space-y-3">
         <h3 className="font-semibold text-[15px]">Schedule a shift</h3>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label">Employee</label>
+          <Field label={"Employee"}>
             <select className="input" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
               <option value="">Select…</option>
               <option value="__open">🟡 Open shift (unassigned)</option>
               {activeStaff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-          </div>
-          <div>
-            <label className="label">Date</label>
+          </Field>
+          <Field label={"Date"}>
             <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">Start</label>
+          </Field>
+          <Field label={"Start"}>
             <input type="time" className="input" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
-          </div>
-          <div>
-            <label className="label">End</label>
+          </Field>
+          <Field label={"End"}>
             <input type="time" className="input" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />
-          </div>
+          </Field>
           {locations.length > 1 && (
-            <div className="col-span-2">
-              <label className="label">Location (optional)</label>
+            <Field label={"Location (optional)"} className="col-span-2">
               <select className="input" value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
                 <option value="">Employee&apos;s default</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-            </div>
+            </Field>
           )}
         </div>
         {formConflict && (
@@ -490,7 +486,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
         </div>
       )}
 
-      <p className="text-center text-[11px] text-faint px-4">
+      <p className="text-center text-[11px] text-muted px-4">
         The schedule is a plan — edit it freely. Attendance compares it to the read-only time-clock punches by business day.
       </p>
     </div>

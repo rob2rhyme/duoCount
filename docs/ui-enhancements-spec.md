@@ -185,7 +185,7 @@ long-press callout — is documented in `pwa-spec.md` → **Native-app feel**.
 A first-run or filtered-empty screen should read as intentional, not broken. A
 shared `EmptyState` component (`components/EmptyState.js`) renders a soft,
 theme-aware icon badge, a title, a supporting line, and an optional call-to-action
-button, with inline line-icon glyphs (receipt / note / shield / chart).
+button, with inline line-icon glyphs (receipt / note / shield / chart / clock / calendar).
 
 - **Log** — distinguishes the two empty cases: *no counts logged yet* (purely
   informational) vs *no entries match these filters* (with a **Clear filters**
@@ -196,6 +196,9 @@ button, with inline line-icon glyphs (receipt / note / shield / chart).
   action that focuses the write-up title; employees get a plain *Nothing on file*.
 - **Dashboard** — *No activity yet* with a **Record a count** action that jumps to
   the Cash tab (`onRecord` prop, wired in `AppShell`).
+- **Time / Schedule** — the time-clock and schedule views (added in a later tier)
+  reuse the same component for their empty periods and rosters, via the `IconClock`
+  and `IconCalendar` glyphs `EmptyState` also exports.
 
 ---
 
@@ -216,7 +219,7 @@ Desktop power-user shortcuts, mounted app-wide in `AppShell`:
 
 | Keys | Action |
 | --- | --- |
-| `1`–`8` | Jump straight to a tab (only the tabs the role can see) |
+| `1`–`9` | Jump straight to a tab (only the tabs the role can see; a manager/owner sees all nine, so `9` reaches Admin) |
 | `[` / `]` | Previous / next tab (wraps) |
 | `⌘/Ctrl` + `Enter` | Save the visible form (clicks the primary button) |
 | `?` | Toggle a shortcuts sheet |

@@ -4,6 +4,7 @@ import { addIncident, ackIncident, closeIncident, watchStaff } from "@/lib/data"
 import { toDate } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconShield } from "./EmptyState";
+import Field from "./Field";
 
 const CATEGORIES = [
   ["cash-handling", "Cash handling"],
@@ -113,52 +114,52 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
           <div className="px-4 py-3.5 border-b border-line">
             <h2 className="font-semibold text-[15px]">File an incident</h2>
             <p className="text-[13px] text-muted mt-0.5">
-              Signed, permanent, and shown to the person it concerns — they can acknowledge and add their side. Write-ups can't be edited after filing.
+              Signed, permanent, and shown to the person it concerns — they can acknowledge and add their side. Write-ups can&apos;t be edited after filing.
             </p>
           </div>
           <div className="p-4 space-y-3">
-            <div><label className="label">Title</label>
+            <Field label={"Title"}>
               <input ref={titleRef} className="input" maxLength={120} value={f.title}
                 placeholder="e.g. Till left unlocked during break"
-                onChange={(e) => setF({ ...f, title: e.target.value })} /></div>
+                onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="label">Concerning</label>
+              <Field label={"Concerning"}>
                 <select className="input" value={f.subjectId} onChange={(e) => setF({ ...f, subjectId: e.target.value })}>
                   <option value="">General — no one specific</option>
                   {staff.filter((s) => s.active !== false).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select></div>
-              <div><label className="label">Severity</label>
+                </select></Field>
+              <Field label={"Severity"}>
                 <select className="input" value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value })}>
                   {SEVERITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select></div>
-              <div><label className="label">Category</label>
+                </select></Field>
+              <Field label={"Category"}>
                 <select className="input" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
                   {CATEGORIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select></div>
-              <div><label className="label">Location</label>
+                </select></Field>
+              <Field label={"Location"}>
                 <select className="input" value={f.locationId} onChange={(e) => setF({ ...f, locationId: e.target.value })}>
                   {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select></div>
+                </select></Field>
             </div>
-            <div><label className="label">What happened</label>
+            <Field label={"What happened"}>
               <textarea className="input min-h-[96px]" maxLength={4000} value={f.text}
                 placeholder="Facts, times, who was present, what was said…"
-                onChange={(e) => setF({ ...f, text: e.target.value })} /></div>
-            <div><label className="label">Evidence links (optional, one per line — camera clips, photos)</label>
+                onChange={(e) => setF({ ...f, text: e.target.value })} /></Field>
+            <Field label={"Evidence links (optional, one per line — camera clips, photos)"}>
               <textarea className="input min-h-[44px] font-mono text-[13px]" value={f.links}
                 placeholder="https://…"
-                onChange={(e) => setF({ ...f, links: e.target.value })} /></div>
+                onChange={(e) => setF({ ...f, links: e.target.value })} /></Field>
             <button className="btn-primary" disabled={busy} onClick={post}>{busy ? "Filing…" : "File incident"}</button>
           </div>
         </div>
       ) : (
         <p className="text-[13px] text-muted px-1">
-          Write-ups that concern you appear here. Acknowledging means "I've seen this" — not "I agree" — and you can add your side to the permanent record.
+          Write-ups that concern you appear here. Acknowledging means &ldquo;I&apos;ve seen this&rdquo; — not &ldquo;I agree&rdquo; — and you can add your side to the permanent record.
         </p>
       )}
 
       {isManager && incidents.length > 0 && (
-        <select className="input w-auto" value={viewStatus} onChange={(e) => setViewStatus(e.target.value)}>
+        <select className="input w-auto" value={viewStatus} onChange={(e) => setViewStatus(e.target.value)} aria-label="Filter incidents by status">
           <option value="all">All statuses</option>
           <option value="open">Open</option>
           <option value="acknowledged">Acknowledged</option>
@@ -218,6 +219,7 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
               ackFor === inc.id ? (
                 <div className="mt-3 space-y-2">
                   <textarea className="input min-h-[64px]" maxLength={1000} value={ackText}
+                    aria-label="Your side of this write-up"
                     placeholder="Your side, on the record (optional)…"
                     onChange={(e) => setAckText(e.target.value)} />
                   <div className="flex gap-2">

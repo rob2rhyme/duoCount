@@ -10,14 +10,14 @@ const money = (n) => {
 };
 
 /** YYYY-MM-DD of `now` in an IANA timezone. */
-export function dateInTz(tz, now = new Date()) {
+function dateInTz(tz, now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(now);
 }
 
 /** The vendor's local "yesterday" as YYYY-MM-DD (their business date). */
-export function yesterdayInTz(tz, now = new Date()) {
+function yesterdayInTz(tz, now = new Date()) {
   const today = dateInTz(tz, now);
   let probe = new Date(now.getTime() - 24 * 3600 * 1000);
   let y = dateInTz(tz, probe);
@@ -29,7 +29,7 @@ export function yesterdayInTz(tz, now = new Date()) {
 }
 
 /** Aggregates for the digest body. Entries = docs whose `date` == yesterday. */
-export function summarizeEntries(entries) {
+function summarizeEntries(entries) {
   const byLoc = {};
   for (const e of entries) {
     const key = e.locationName || "(no location)";
@@ -52,7 +52,7 @@ export function summarizeEntries(entries) {
   };
 }
 
-export function composeEmail(vendor, dateStr, s, appUrl) {
+function composeEmail(vendor, dateStr, s, appUrl) {
   const subject = `DuoCount digest — ${vendor.name} — ${dateStr}`;
   const windowDays = s.windowDays ?? resolvePatternRules().windowDays;
 

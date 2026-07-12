@@ -142,6 +142,28 @@ test("inventory is an accepted entry kind", async () => {
     entry({ kind: "inventory", itemId: "i1", itemName: "Marlboro Red carton", unit: "carton", startQty: 10, received: 0, removed: 0, soldQty: 3, counted: 7, expected: 7, diff: 0 })));
 });
 
+test("a forged diff that hides a real short is rejected; the truthful diff passes", async () => {
+  // counted 100 against expected 150 is a $50 short — signing it as a clean
+  // count (diff 0, unflagged) must be refused; the honest diff must go through.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/forge1`),
+    entry({ counted: 100, expected: 150, diff: 0, flagged: false, varianceStatus: "none" })));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/forge2`),
+    entry({ counted: 100, expected: 150, diff: -50, flagged: true, varianceStatus: "open" })));
+  // Inventory shrink can't be papered over as diff 0 either.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/forge3`),
+    entry({ kind: "inventory", itemId: "i1", itemName: "X", unit: "carton", startQty: 10, received: 0, removed: 0, soldQty: 3, counted: 5, expected: 7, diff: 0 })));
+});
+
+test("cent-level float diffs are accepted within tolerance", async () => {
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/cents`),
+    entry({ counted: 149.99, expected: 150, diff: -0.01 })));
+});
+
+test("byRole must match the token's role (no CSV role self-labeling)", async () => {
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/role1`),
+    entry({ byRole: "manager" })));
+});
+
 test("entries must start clean: no pre-resolved, pre-disputed, or pre-caused state", async () => {
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/d1`), entry({ disputeStatus: "open" })));
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/d2`), entry({ varianceStatus: "resolved" })));
@@ -246,6 +268,21 @@ test("thread visibility inherits the entry's per-location scope", async () => {
   await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/entries/eA/comments/c1`)));
   await assertFails(getDoc(doc(db("empA"), `vendors/${V}/entries/eB/comments/c1`)));
   await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/entries/eB/comments/c1`)));
+});
+
+test("only a manager may post an authoritative 'status' comment", async () => {
+  // A non-manager forging a 'status' line (a fake 'Resolved by a manager') is refused.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/eA/comments/s1`),
+    { text: "Resolved — register error", kind: "status", by: "Eve", byId: "u-empA", byRole: "employee", ts: new Date() }));
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/entries/eA/comments/s2`),
+    { text: "Resolved — register error", kind: "status", by: "Mia", byId: "u-mgr", byRole: "manager", ts: new Date() }));
+});
+
+test("an employee cannot comment into a thread outside their location", async () => {
+  // empA is at locA; eB lives at locB (empA can't even read it), so writing
+  // into its thread must be refused — write scope matches read scope.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/eB/comments/reach`),
+    { text: "reaching across", kind: "comment", by: "Eve", byId: "u-empA", byRole: "employee", ts: new Date() }));
 });
 
 /* ---------- shift notes ---------- */

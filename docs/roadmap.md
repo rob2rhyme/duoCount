@@ -13,7 +13,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | Barcode scanning; scratch-off pack lifecycle | `barcode-scanning-spec.md`, `lottery-pack-lifecycle-spec.md` | ✅ |
 | UI — denomination cash counter, scroll-to-top FAB, light/dark theme, Preferences menu | `ui-enhancements-spec.md` | ✅ |
 | **Configurable scroll-to-top FAB** (per-device toggle in Preferences) | `ui-enhancements-spec.md` §2.2, §4 | ✅ |
-| **Mobile layout audit + polish** (all 8 screens, both themes, 390px) | this file, §"Layout audit" | ✅ |
+| **Mobile layout audit + polish** (all 9 screens, both themes, 390px) | this file, §"Layout audit" | ✅ |
 | **Demo data seed** (owner-only load/clear of tagged sample data) | `demo-data-spec.md` | ✅ |
 | **Mobile-first PWA** (installable, offline app shell, safe-area, install prompt) | `pwa-spec.md` | ✅ |
 | **Distribution / AI-integration analysis** | `distribution-analysis.md` | ✅ |
@@ -82,7 +82,7 @@ Installable + offline app shell + safe-area + install prompt. See `pwa-spec.md`.
 
 ## Layout audit
 
-All eight screens (Cash, Scratch-offs, Inventory, Log, Notes, Incidents,
+All nine screens (Cash, Scratch-offs, Inventory, Log, Notes, Incidents, Time,
 Dashboard, Admin) rendered with representative data at **390 px** in **both
 themes** and checked for overflow, cramping, hierarchy, and contrast.
 

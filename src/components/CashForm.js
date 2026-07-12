@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, expectedCash } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import Field from "./Field";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -21,6 +22,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const countedId = useId();
 
   // Denomination counter — counts of each bill + a coins dollar value. The
   // running total drives "Counted at close" while it's switched on.
@@ -96,38 +98,38 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Location</label>
+          <Field label={"Location"}>
             <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select></div>
-          <div><label className="label">Cash drawer</label>
+            </select></Field>
+          <Field label={"Cash drawer"}>
             <select className="input" value={f.drawerId} onChange={set("drawerId")}>
               {locDrawers.length === 0 && <option value="">No drawers — add in Admin</option>}
               {locDrawers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select></div>
+            </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Date</label><input type="date" className="input" value={f.date} onChange={set("date")} /></div>
-          <div><label className="label">Shift</label>
+          <Field label={"Date"}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
+          <Field label={"Shift"}>
             <select className="input" value={f.shift} onChange={set("shift")}>
               <option value="open">Opening</option><option value="close">Closing</option>
-            </select></div>
+            </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Starting drawer</label><input type="number" inputMode="decimal" className="input" value={f.start} onChange={set("start")} placeholder="0.00" /></div>
-          <div><label className="label">Cash sales</label><input type="number" inputMode="decimal" className="input" value={f.sales} onChange={set("sales")} placeholder="0.00" /></div>
+          <Field label={"Starting drawer"}><input type="number" inputMode="decimal" className="input" value={f.start} onChange={set("start")} placeholder="0.00" /></Field>
+          <Field label={"Cash sales"}><input type="number" inputMode="decimal" className="input" value={f.sales} onChange={set("sales")} placeholder="0.00" /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Paid out / drops</label><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></div>
+          <Field label={"Paid out / drops"}><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></Field>
           <div>
-            <label className="label">Counted at close</label>
+            <label htmlFor={countedId} className="label">Counted at close</label>
             {useCounter ? (
               <div className="input flex items-center justify-between font-mono font-semibold" aria-live="polite">
                 <span>{money(denomTotal)}</span>
                 <span className="text-[10px] uppercase tracking-wide text-muted font-sans">from counter</span>
               </div>
             ) : (
-              <input type="number" inputMode="decimal" className="input" value={f.counted} onChange={set("counted")} placeholder="0.00" />
+              <input id={countedId} type="number" inputMode="decimal" className="input" value={f.counted} onChange={set("counted")} placeholder="0.00" />
             )}
           </div>
         </div>

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { parseCSV, guessColumns, reconcileSettlement } from "@/lib/settlement";
 import { money } from "@/lib/utils";
+import Field from "./Field";
 
 function Stat({ label, value, tone }) {
   const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : tone === "gold" ? "text-gold" : "text-fg";
@@ -56,7 +57,7 @@ export default function SettlementReconcile({ packs = [], onToast }) {
         <p className="text-[13px] text-muted mt-0.5">Upload your state settlement/invoice CSV and match it against your recorded scratch-off packs — no fixed format, you map the columns.</p>
       </div>
       <div className="p-4 space-y-3.5">
-        <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile}
+        <input type="file" accept=".csv,text/csv,text/plain" onChange={onFile} aria-label="Upload settlement CSV"
           className="block w-full text-sm text-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-subtle file:text-fg file:font-semibold file:text-sm file:cursor-pointer" />
 
         {table.length > 0 && (
@@ -67,28 +68,25 @@ export default function SettlementReconcile({ packs = [], onToast }) {
               First row is a header
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Pack-number column</label>
+              <Field label={"Pack-number column"}>
                 <select className="input" value={packCol} onChange={(e) => setPackCol(Number(e.target.value))}>
                   <option value={-1}>Select…</option>
                   {colOptions.map((c) => <option key={c.i} value={c.i}>{c.label}</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="label">Amount column</label>
+              </Field>
+              <Field label={"Amount column"}>
                 <select className="input" value={amountCol} onChange={(e) => setAmountCol(Number(e.target.value))}>
                   <option value={-1}>Select…</option>
                   {colOptions.map((c) => <option key={c.i} value={c.i}>{c.label}</option>)}
                 </select>
-              </div>
+              </Field>
             </div>
-            <div>
-              <label className="label">Compare the amount against</label>
+            <Field label={"Compare the amount against"}>
               <select className="input" value={basis} onChange={(e) => setBasis(e.target.value)}>
                 <option value="dollars">Gross dollars (tickets sold × price)</option>
                 <option value="tickets">Tickets sold</option>
               </select>
-            </div>
+            </Field>
             <button className="btn-primary" onClick={run}>Reconcile</button>
           </>
         )}
@@ -103,7 +101,7 @@ export default function SettlementReconcile({ packs = [], onToast }) {
             </div>
             <div className="text-[13px] text-muted">
               File total <b className="font-mono text-fg">{fmt(result.totals.file)}</b> · net discrepancy{" "}
-              <b className={`font-mono ${result.totals.delta ? "text-neg" : "text-fg"}`}>{fmt(result.totals.delta)}</b>
+              <b className={`font-mono ${result.totals.delta ? "text-neg" : "text-fg"}`}>{result.totals.delta >= 0 ? "+" : ""}{fmt(result.totals.delta)}</b>
             </div>
 
             {result.discrepancies.length > 0 && (
@@ -138,7 +136,13 @@ export default function SettlementReconcile({ packs = [], onToast }) {
             {result.missing.length > 0 && (
               <p className="text-[13px] text-muted"><b className="text-gold">Settled but not on the file:</b> {result.missing.map((m) => m.packNumber).join(", ")}</p>
             )}
-            {result.discrepancies.length === 0 && result.unknown.length === 0 && result.missing.length === 0 && (
+            {result.onFileNotYetSettled?.length > 0 && (
+              <p className="text-[13px] text-muted"><b className="text-gold">On the file, not settled yet:</b> {result.onFileNotYetSettled.map((m) => m.packNumber).join(", ")}</p>
+            )}
+            {result.unparsed?.length > 0 && (
+              <p className="text-[13px] text-neg"><b>Couldn&apos;t read the amount for {result.unparsed.length} row{result.unparsed.length > 1 ? "s" : ""}</b> — check the amount-column mapping or the file&apos;s number format.</p>
+            )}
+            {result.discrepancies.length === 0 && result.unknown.length === 0 && result.missing.length === 0 && !result.onFileNotYetSettled?.length && !result.unparsed?.length && (
               <p className="text-[13px] text-pos font-semibold">✓ Everything reconciles.</p>
             )}
           </div>

@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { expectedStock } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import Field from "./Field";
 import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -17,6 +18,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const [busy, setBusy] = useState(false);
   const [itemSearch, setItemSearch] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
+  const itemFieldId = useId();
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   // default location: locked one, else first active
@@ -84,13 +86,13 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Location</label>
+          <Field label={"Location"}>
             <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select></div>
-          <div><label className="label">Item</label>
+            </select></Field>
+          <div><label htmlFor={itemFieldId} className="label">Item</label>
             <div className="flex gap-2">
-              <select className="input min-w-0" value={f.itemId} onChange={set("itemId")}>
+              <select id={itemFieldId} className="input min-w-0" value={f.itemId} onChange={set("itemId")}>
                 {locItems.length === 0 && <option value="">No items — add in Admin</option>}
                 {shownItems.map((i) => (
                   <option key={i.id} value={i.id}>{i.name}{i.category ? ` · ${i.category}` : ""}</option>
@@ -102,24 +104,24 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
         </div>
         {searchable && (
           <input className="input" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)}
-            placeholder={`Search ${locItems.length} items…`} />
+            placeholder={`Search ${locItems.length} items…`} aria-label="Search items" />
         )}
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Date</label><input type="date" className="input" value={f.date} onChange={set("date")} /></div>
-          <div><label className="label">Shift</label>
+          <Field label={"Date"}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
+          <Field label={"Shift"}>
             <select className="input" value={f.shift} onChange={set("shift")}>
               <option value="open">Opening</option><option value="close">Closing</option>
-            </select></div>
+            </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Start qty (last count)</label><input type="number" inputMode="numeric" className="input" value={f.startQty} onChange={set("startQty")} placeholder="0" /></div>
-          <div><label className="label">Received (deliveries)</label><input type="number" inputMode="numeric" className="input" value={f.received} onChange={set("received")} placeholder="0" /></div>
+          <Field label={"Start qty (last count)"}><input type="number" inputMode="numeric" className="input" value={f.startQty} onChange={set("startQty")} placeholder="0" /></Field>
+          <Field label={"Received (deliveries)"}><input type="number" inputMode="numeric" className="input" value={f.received} onChange={set("received")} placeholder="0" /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <div><label className="label">Sold since last count</label><input type="number" inputMode="numeric" className="input" value={f.soldQty} onChange={set("soldQty")} placeholder="0" /></div>
-          <div><label className="label">Removed (damage/returns)</label><input type="number" inputMode="numeric" className="input" value={f.removed} onChange={set("removed")} placeholder="0" /></div>
+          <Field label={"Sold since last count"}><input type="number" inputMode="numeric" className="input" value={f.soldQty} onChange={set("soldQty")} placeholder="0" /></Field>
+          <Field label={"Removed (damage/returns)"}><input type="number" inputMode="numeric" className="input" value={f.removed} onChange={set("removed")} placeholder="0" /></Field>
         </div>
-        <div><label className="label">Counted on hand</label><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></div>
+        <Field label={"Counted on hand"}><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></Field>
 
         <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
           <div className="bg-panel px-3.5 py-3">

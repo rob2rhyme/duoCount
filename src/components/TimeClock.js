@@ -46,7 +46,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
 
   const now = Date.now();
   const myPunches = useMemo(() => punches.filter((p) => p.userId === profile.id), [punches, profile.id]);
-  const open = useMemo(() => openShiftFor(myPunches, profile.id), [myPunches]);
+  const open = useMemo(() => openShiftFor(myPunches, profile.id), [myPunches, profile.id]);
   const myShifts = useMemo(
     () => computeShifts(myPunches).filter((s) => !s.open).slice(-6).reverse(),
     [myPunches]
@@ -199,7 +199,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
         </div>
       )}
 
-      <p className="text-center text-[11px] text-faint px-4">
+      <p className="text-center text-[11px] text-muted px-4">
         Punches are permanent — a mistake is fixed by punching again, never edited. A forgotten clock-out shows as an open shift and adds no hours until you clock out.
       </p>
       </>
