@@ -102,7 +102,7 @@ export default function AppShell() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 bg-ink text-paper px-4 py-3 pt-safe px-safe flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <Logo src={vendor.logoUrl} alt={`${vendor.name} logo`} size={32} />
+          <Logo src={vendor.logoUrl || "/logo.png"} alt={`${vendor.name} logo`} size={32} />
           <div className="min-w-0">
             <h1 className="text-base font-semibold truncate leading-tight">{vendor.name}</h1>
             <p className="text-[11px] text-[#c9c6bd] font-mono leading-tight truncate">code: {vendor.slug}</p>
