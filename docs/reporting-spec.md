@@ -1,0 +1,111 @@
+---
+title: Reports & records export
+---
+
+# DuoCount — Reports & Records Export Spec
+
+**Status:** planned (not yet built). Captured so the design is ready to implement.
+
+**Goal.** Let an owner/manager generate and **download a report for any period** —
+daily, weekly, monthly, quarterly, semi-annual, annual, or a custom date range —
+to **save for their records** (accountant, franchise, tax, audit). Today the app
+only produces a single-day End-of-Day report (`src/components/ReportModal.js`,
+`buildReport` at lines 10–29). This generalizes that to arbitrary periods with
+PDF and CSV output, without weakening the trust model (reports are read-only
+snapshots of the append-only log).
+
+## What the owner asked for
+
+Presets: **daily · weekly · monthly · quarterly · semi-annual (H1/H2) · annual ·
+custom dates.** A downloadable file to keep on record. Reports should cover
+everything the period contains — cash over/short, sales, scratch settlement,
+inventory shrink, flags/disputes, verification rate, staff hours, incidents.
+
+## Design
+
+### 1. Period math — `src/lib/report-period.js` (pure, unit-tested)
+The one genuinely fiddly piece; isolate and test it first.
+- `periodRange(preset, refDate)` → `{ startISO, endISO, key, label }`, bounds
+  **inclusive**, using the app's existing UTC-date convention (see
+  `weekStartMonday`/`weekDates` in `src/lib/schedule.js`, which are UTC-based).
+  - `day` → the single date. Label `Jul 12, 2026`, key `2026-07-12`.
+  - `week` → Mon–Sun containing ref (reuse `weekStartMonday`). Label `Week of Jul 6–12, 2026`, key `2026-W28`.
+  - `month` → 1st–last. Label `July 2026`, key `2026-07`.
+  - `quarter` → Q1 Jan–Mar … Q4 Oct–Dec. Label `Q3 2026`, key `2026-Q3`.
+  - `half` → H1 Jan–Jun, H2 Jul–Dec. Label `H2 2026`, key `2026-H2`.
+  - `year` → Jan 1–Dec 31. Label `2026`, key `2026`.
+  - `custom` → caller-supplied start/end. Label `Jul 1 – Aug 15, 2026`, key `2026-07-01_2026-08-15`.
+- `stepPeriod(preset, refDate, dir)` → prev/next ref (for a ◀ ▶ stepper).
+- Correctness targets for tests: month lengths, **leap-year** Feb, quarter/half
+  boundaries, year rollover, week spanning a month/year edge, custom start>end
+  rejected. Calendar year only for v1; **fiscal-year offset** is a noted future option.
+
+### 2. Aggregation — `src/lib/report-build.js` (pure, unit-tested)
+Generalize `ReportModal.buildReport` from one date to a range + richer rollups.
+- `buildPeriodReport(entries, { startISO, endISO }, locId, { punches, incidents })`
+  filters by `date` in range (and `locId`), then returns:
+  - **Cash**: sales, paid-out, counted, **net over/short**, count; broken down
+    **by drawer** and **by location**.
+  - **Scratch**: tickets sold, gross dollars; by game.
+  - **Inventory**: units counted, **net shrink** (Σ negative diff); by item.
+  - **Integrity**: flagged, disputed, resolved-with-cause, **verification rate**.
+  - **Trend**: per-sub-period subtotals (per-day for week/month, per-month for
+    quarter+) so the PDF can show a small over/short trend.
+  - **Labor** (optional, if punches passed): hours per employee via
+    `summarizeHours` (`src/lib/timeclock.js`) bounded to the range — a payroll roll-up.
+  - **Incidents**: opened / acknowledged / closed within the range.
+- Empty period is valid: everything zeroes, and the report still downloads with a
+  "No activity in this period" line.
+
+### 3. Data access — bounded range fetch
+`watchEntries` (`src/lib/data.js:123`) streams the **whole** log; fine for a day,
+wasteful/limited for a year. A report is a one-shot snapshot, not a live view, so:
+- Add `fetchEntriesInRange(vendorId, startMs, endMs, locId?)` — a one-shot
+  `getDocs` with `where('ts','>=',start).where('ts','<=',end)` (plus
+  `where('locationId','==',locId)` when scoped). The composite
+  `locationId + ts` index already exists in `firestore.indexes.json`; a plain
+  `ts`-only range needs no extra index. No rules change — it uses the same entry
+  read scope managers already have.
+- For very large ranges, page the fetch and show a soft progress note.
+
+### 4. UI — extend the report surface (`src/components/ReportModal.js` → a Report center)
+- A **period picker**: preset dropdown (Day / Week / Month / Quarter / Half-year
+  / Year / Custom) + a ◀ ▶ stepper for the chosen preset, with two date inputs
+  revealed for Custom. Plus the existing **location scope** select (All / each).
+- A live **"Will include"** preview (counts + net over/short), same pattern the
+  current modal already shows.
+- Two exports:
+  - **Download PDF** — formatted for records (via `@react-pdf/renderer`, already a
+    dependency and already used for the EOD PDF): header (business name + logo,
+    period label, location, generated-at, prepared/reviewed signature line),
+    then the summary tables and the trend. Reuse/upgrade the current PDF code.
+  - **Download CSV** — the period's raw rows for a spreadsheet, generalizing
+    `exportCSV` (`src/lib/utils.js:28`) to accept a filtered set.
+- **Filenames**: `duocount-report-<scope>-<periodKey>.<ext>`, e.g.
+  `duocount-report-all-2026-Q3.pdf`, `duocount-report-main-2026-07.csv`.
+- **Access**: owner + manager (management artifact). Employees don't see it (or,
+  if ever exposed, are locked to their own location). All generation is
+  client-side; no new endpoint or rule.
+
+### 5. Testing
+- `tests/report-period.test.mjs` — every preset, boundary cases above, prev/next.
+- `tests/report-build.test.mjs` — totals/breakdowns on a fixed fixture (the demo
+  seed is a ready fixture), empty period, location scoping, labor roll-up.
+- Both pure (`node --test`), no emulator — same style as `settlement`/`patterns`.
+
+## Phasing
+1. **Period + aggregation libs + tests** (pure; no UI risk). Ships the hard logic first.
+2. **`fetchEntriesInRange`** + wire the aggregation to real data.
+3. **Report UI**: period picker + live preview + **CSV** download.
+4. **PDF** export (period-formatted) + labor/incidents sections + trend sparkline.
+
+## Out of scope (v1) / future
+- Fiscal-year start offset; multi-location side-by-side comparison; scheduled/
+  emailed periodic reports (the digest infra in `src/lib/digest.js` could later
+  drive a monthly PDF email); saved/branded report templates; server-side PDF
+  rendering for very large ranges.
+
+## Why it fits the trust model
+Reports only **read** the append-only log and render client-side — they never
+mutate records, so they need no new Firestore rules and can't compromise the
+signed, verified history. They're a lens over existing data, exportable to keep.

@@ -27,6 +27,8 @@ security rules keyed on server-issued auth claims.
     scroll-to-top FAB, light/dark theme, and Settings menu (built)
   - `demo-data-spec.md` — owner-only Load/Clear sample data (server-side, so it
     respects the append-only trust rules)
+  - `reporting-spec.md` — planned: download reports for any period (daily →
+    annual + custom) to keep for records (PDF + CSV)
   - `pwa-spec.md` — installable mobile-first PWA (offline app shell, safe-area,
     install prompt)
   - `distribution-analysis.md` — AI integration, static-HTML, WordPress, and

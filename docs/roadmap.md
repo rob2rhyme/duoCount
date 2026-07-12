@@ -37,6 +37,17 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 Ordered roughly by value-per-effort. Each item lists acceptance criteria so it
 can be picked up cleanly.
 
+### 0. Reports & records export — 📌 planned (owner-requested)
+Let an owner/manager generate and **download** a report for any period — daily,
+weekly, monthly, quarterly, semi-annual, annual, or custom dates — to keep for
+records (accountant, franchise, tax, audit). Generalizes the current single-day
+EOD report to arbitrary ranges with PDF + CSV output. Full design, phasing, and
+acceptance criteria in **`reporting-spec.md`**.
+- **Acceptance:** period presets + custom range; PDF and CSV download scoped to
+  All / a location; cash over-short, scratch, inventory, integrity, hours, and
+  incidents rolled up for the period; pure, unit-tested period + aggregation
+  libs; read-only (no new rules). Build the pure libs first (Phase 1).
+
 ### 1. Demo data seed — ✅ done (this cycle)
 Owner-only **Load / Clear sample data** in Admin. See `demo-data-spec.md`.
 
