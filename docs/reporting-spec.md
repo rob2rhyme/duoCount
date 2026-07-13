@@ -42,7 +42,15 @@ The one genuinely fiddly piece; isolate and test it first.
 - `stepPeriod(preset, refDate, dir)` → prev/next ref (for a ◀ ▶ stepper).
 - Correctness targets for tests: month lengths, **leap-year** Feb, quarter/half
   boundaries, year rollover, week spanning a month/year edge, custom start>end
-  rejected. Calendar year only for v1; **fiscal-year offset** is a noted future option.
+  rejected.
+- **Fiscal-year offset (shipped).** `periodRange`/`stepPeriod` accept
+  `opts.fiscalStartMonth` (1–12; default 1 = calendar year). It reshapes only
+  **year / quarter / half** — a fiscal year is named by the calendar year it
+  *begins* in (July start ⇒ `FY2026` = Jul 2026 – Jun 2027, key `FY2026`; its
+  quarters are `FY2026-Q1…Q4`), and the year label carries the full span so the
+  naming convention is never ambiguous on a saved report. Day/week/month/custom
+  are calendar units and never shift. The store sets its start month in Admin
+  → Settings (owner-only); the Report center threads it into the period picker.
 
 ### 2. Aggregation — `src/lib/report-build.js` (pure, unit-tested)
 Generalize `ReportModal.buildReport` from one date to a range + richer rollups.
@@ -117,10 +125,10 @@ wasteful/limited for a year. A report is a one-shot snapshot, not a live view, s
 4. ✅ **PDF** export (period-formatted summary tables) + labor/incidents sections + trend sparkline.
 
 ## Out of scope (v1) / future
-- Fiscal-year start offset; multi-location side-by-side comparison; scheduled/
-  emailed periodic reports (the digest infra in `src/lib/digest.js` could later
-  drive a monthly PDF email); saved/branded report templates; server-side PDF
-  rendering for very large ranges.
+- ~~Fiscal-year start offset~~ **(shipped — see §1)**; multi-location
+  side-by-side comparison; scheduled/emailed periodic reports (the digest infra
+  in `src/lib/digest.js` could later drive a monthly PDF email); saved/branded
+  report templates; server-side PDF rendering for very large ranges.
 
 ## Why it fits the trust model
 Reports only **read** the append-only log and render client-side — they never

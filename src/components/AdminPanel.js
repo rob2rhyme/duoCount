@@ -13,6 +13,9 @@ import PacksCard from "./PacksCard";
 import SettlementReconcile from "./SettlementReconcile";
 import Field from "./Field";
 
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"];
+
 export default function AdminPanel({ onToast, locations, drawers, items = [], packs = [], entries = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const [staff, setStaff] = useState([]);
@@ -20,6 +23,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
   const sharingId = useId();
   const varianceId = useId();
   const invVarianceId = useId();
+  const fiscalId = useId();
 
   useEffect(() => watchStaff(vendor.id, setStaff), [vendor.id]);
 
@@ -96,6 +100,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     blindCounts: vendor.blindCounts === true,
     varianceThreshold: vendor.varianceThreshold ?? 5,
     invVarianceThreshold: vendor.invVarianceThreshold ?? "",
+    fiscalStartMonth: vendor.fiscalStartMonth ?? 1,
     digestEnabled: vendor.digest?.enabled === true,
     digestRecipients: (vendor.digest?.recipients || []).join(", "),
     digestTz: vendor.digest?.tz || "America/New_York",
@@ -120,12 +125,17 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
       if (!(n >= 0)) return onToast?.("Inventory variance threshold must be a number (or blank)");
       invThreshold = n;
     }
+    // Fiscal-year start month: 1–12 (1 = plain calendar year).
+    const fiscalStartMonth = Number(settings.fiscalStartMonth);
+    if (!Number.isInteger(fiscalStartMonth) || fiscalStartMonth < 1 || fiscalStartMonth > 12)
+      return onToast?.("Pick a fiscal-year start month");
     const patch = {
       name: settings.name, logoUrl: settings.logoUrl.trim() || null,
       sharingMode: settings.sharingMode,
       blindCounts: settings.blindCounts,
       varianceThreshold: threshold,
       invVarianceThreshold: invThreshold,
+      fiscalStartMonth,
       patternRules: resolvePatternRules(settings.patternRules),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
@@ -425,6 +435,15 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               value={settings.invVarianceThreshold} disabled={!isOwner} placeholder="Off — leave blank"
               onChange={(e) => setSettings({ ...settings, invVarianceThreshold: e.target.value })} />
             <p className="text-xs text-muted mt-1.5 leading-relaxed">Inventory counts off by this many units or more get flagged for review. Leave blank to turn inventory flagging off. Only affects new entries.</p>
+          </div>
+
+          <div>
+            <label htmlFor={fiscalId} className="label">Fiscal year starts</label>
+            <select id={fiscalId} className="input" value={settings.fiscalStartMonth} disabled={!isOwner}
+              onChange={(e) => setSettings({ ...settings, fiscalStartMonth: Number(e.target.value) })}>
+              {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">Sets the Year, Quarter, and Half-year periods in Reports. Leave on January for a calendar year; pick your books&apos; closing month for a fiscal year (e.g. July → FY runs Jul–Jun).</p>
           </div>
 
           <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
