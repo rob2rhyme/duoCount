@@ -10,15 +10,16 @@
 // doc floats to the top. Kept deliberately small: no stemming or fuzzy matching,
 // just honest substring word matching that behaves predictably for a help search.
 
+import { searchTerms } from "./text-match.js";
+
 const WEIGHT = { title: 12, heading: 5, body: 1 };
 const SNIPPET_RADIUS = 90;
 const MAX_BODY_HITS = 5; // cap per-term body contribution so one long doc can't dominate
 
-// Split a query into lowercase word tokens (unicode letters/digits), ≥2 chars,
-// de-duplicated. Single characters are dropped as noise.
+// Query → search terms, using the shared tokenizer with minLength 2 so a
+// knowledge-base search ignores 1-char noise. (List filters use minLength 1.)
 export function tokenize(q) {
-  const words = String(q || "").toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
-  return [...new Set(words)].filter((t) => t.length >= 2);
+  return searchTerms(q, 2);
 }
 
 const countOccurrences = (haystack, needle) => (needle ? haystack.split(needle).length - 1 : 0);

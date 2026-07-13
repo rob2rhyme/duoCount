@@ -45,37 +45,34 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Legal/compliance layer** (LICENSE + privacy notice + disclaimers; "Legal" section on /docs; owner review pending) | `privacy-and-data.md`, `legal-disclaimers.md`, `LICENSE` | ✅ |
 | **Guide flow diagrams** (three theme-adaptive SVG diagrams in the getting-started guide) | `public/diagrams/`, `getting-started.md` | ✅ |
 | **Static marketing page** (self-contained HTML landing page — the distribution-analysis §2 build) | `marketing/index.html`, `distribution-analysis.md` §2 | ✅ |
+| **In-app search everywhere** (search bars on Log / Notes / Incidents with match highlight+underline; shared `text-match` + `Highlight` + `SearchInput`, adopted by the docs search and the inventory item picker) | `src/lib/text-match.js`, `Highlight.js`, `SearchInput.js` | ✅ |
+| **Footer logo fix** (footer showed a hardcoded `₵` glyph; now renders the DuoCount `<Logo>` like the header) | `src/components/AppShell.js` | ✅ |
 
 ## Next up
 
 Ordered roughly by value-per-effort. Each item lists acceptance criteria so it
 can be picked up cleanly.
 
-### A. List-view search bars — requested
-Add a search box to the **Inventory**, **Log**, **Notes**, and **Incidents**
-lists. As the user types, filter the list live and **highlight / underline the
-matching characters** in each result.
-- **Acceptance:** each of the four lists has a labelled search input; typing
-  narrows the list; matched substrings are marked (`<mark>` / underline) in the
-  rendered rows; a "no match — clear" empty state (the Log already has one); the
-  result count is announced (`aria-live`).
+### A. List-view search bars — ✅ done
+Search boxes on the **Log**, **Notes**, and **Incidents** lists filter live and
+**highlight + underline the matching characters** in each result (title, body,
+and the "by" name), with a "no match — clear search" empty state. The
+**Inventory** item picker is a native `<select>` (can't hold highlight markup),
+so it got the shared search box + matcher instead. `SearchInput` is a shared box
+(magnifier, Escape/× to clear); highlighting is the shared `Highlight`.
 
-### B. Project-wide search consistency — requested
-Unify search + match-highlighting everywhere it appears: the new list searches,
-the existing item-picker search in `InventoryForm.js`, and the docs/guide search
-(`DocSearch.js`) should share **one** highlight helper and one interaction
-pattern, so search feels identical across the app.
-- **Acceptance:** a shared highlight utility (extracted from `DocSearch`'s
-  `Highlight`) reused by every search surface; consistent match styling; no
-  duplicated ad-hoc filter/highlight logic left behind.
+### B. Project-wide search consistency — ✅ done
+One shared core: `src/lib/text-match.js` (pure `searchTerms` / `matchesTerms` /
+`highlightSegments`, unit-tested), a shared `Highlight` component, and a shared
+`SearchInput`. The docs search (`doc-search.js` / `DocSearch.js`) and the
+inventory item search now delegate to it, so tokenizing, matching, and match
+styling are identical across every search surface — no ad-hoc filter/highlight
+logic left behind.
 
-### C. Footer logo fix — requested (bug)
-The app footer renders a hardcoded **"₵" glyph** as the brand mark
-(`src/components/AppShell.js`, ~line 168) instead of the intended DuoCount logo;
-the header already uses `<Logo src="/logo.png">`.
-- **Acceptance:** the footer shows the real DuoCount logo via the `<Logo>`
-  component (with the `DC` brass-mark fallback), matching the header — no stray
-  `₵` character.
+### C. Footer logo fix — ✅ done (bug)
+The app footer rendered a hardcoded **"₵" glyph**; it now shows the DuoCount logo
+via the shared `<Logo src="/logo.png">` (with the `DC` brass-mark fallback),
+matching the header. (`src/components/AppShell.js`)
 
 ### 0. Reports & records export — ✅ done
 Owner/manager generates and **downloads** a report for any period — daily,

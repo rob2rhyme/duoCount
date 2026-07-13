@@ -2,8 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addIncident, ackIncident, closeIncident, watchStaff } from "@/lib/data";
 import { toDate } from "@/lib/utils";
+import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconShield } from "./EmptyState";
+import SearchInput from "./SearchInput";
+import Highlight from "./Highlight";
 import Field from "./Field";
 
 const CATEGORIES = [
@@ -52,6 +55,8 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
   const [staff, setStaff] = useState([]);
   const [f, setF] = useState({ title: "", subjectId: "", severity: "note", category: "other", locationId: "", text: "", links: "" });
   const [viewStatus, setViewStatus] = useState("all");
+  const [query, setQuery] = useState("");
+  const terms = useMemo(() => searchTerms(query), [query]);
   const [busy, setBusy] = useState(false);
   const [ackFor, setAckFor] = useState(null); // incident id with the ack composer open
   const [ackText, setAckText] = useState("");
@@ -64,9 +69,12 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
     if (!f.locationId && locations[0]) setF((p) => ({ ...p, locationId: locations[0].id }));
   }, [locations]); // eslint-disable-line
 
-  const visible = useMemo(
+  const base = useMemo(
     () => (viewStatus === "all" ? incidents : incidents.filter((i) => i.status === viewStatus)),
     [incidents, viewStatus]);
+  const visible = useMemo(() => (terms.length
+    ? base.filter((i) => matchesTerms(`${i.title} ${i.text} ${i.by} ${i.subjectName || ""} ${i.category} ${i.severity} ${i.locationName || ""}`, terms))
+    : base), [base, terms]);
 
   async function post() {
     const title = f.title.trim(), text = f.text.trim();
@@ -158,18 +166,27 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
         </p>
       )}
 
-      {isManager && incidents.length > 0 && (
-        <select className="input w-auto" value={viewStatus} onChange={(e) => setViewStatus(e.target.value)} aria-label="Filter incidents by status">
-          <option value="all">All statuses</option>
-          <option value="open">Open</option>
-          <option value="acknowledged">Acknowledged</option>
-          <option value="closed">Closed</option>
-        </select>
+      {incidents.length > 0 && (
+        <div className="flex gap-2 flex-wrap items-center">
+          <SearchInput value={query} onChange={setQuery} placeholder="Search incidents…" label="Search incidents" className="flex-1 min-w-[160px]" />
+          {isManager && (
+            <select className="input w-auto" value={viewStatus} onChange={(e) => setViewStatus(e.target.value)} aria-label="Filter incidents by status">
+              <option value="all">All statuses</option>
+              <option value="open">Open</option>
+              <option value="acknowledged">Acknowledged</option>
+              <option value="closed">Closed</option>
+            </select>
+          )}
+        </div>
       )}
 
       <div className="card overflow-hidden">
         {visible.length === 0 ? (
-          isManager ? (
+          terms.length ? (
+            <EmptyState icon={<IconShield />} title="No incidents match your search"
+              subtitle={`Nothing matches “${query.trim()}”. Try fewer or different words.`}
+              action={{ label: "Clear search", onClick: () => setQuery("") }} />
+          ) : isManager ? (
             <EmptyState icon={<IconShield />} title="No incidents on file"
               subtitle="A clean record. If something needs documenting, file a signed write-up above — it can't be edited after filing."
               action={{ label: "File an incident", onClick: () => titleRef.current?.focus() }} />
@@ -181,14 +198,14 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
           <div key={inc.id} className="px-4 py-3.5 border-b border-line last:border-0">
             <div className="flex justify-between items-start gap-3">
               <div className="min-w-0">
-                <div className="font-medium text-sm">{inc.title}</div>
+                <div className="font-medium text-sm"><Highlight text={inc.title} terms={terms} /></div>
                 <div className="mt-1.5 flex gap-2 flex-wrap items-center">
                   <span className={`pill ${sevPill(inc.severity)}`}>{inc.severity}</span>
                   <span className={`pill ${statusPill(inc.status)}`}>{inc.status}</span>
                   {inc.subjectName && <span className="pill bg-subtle text-muted">re: {inc.subjectName}</span>}
                   {inc.locationName && <span className="pill bg-subtle text-muted">{inc.locationName}</span>}
                 </div>
-                <div className="mt-2 text-sm whitespace-pre-wrap">{inc.text}</div>
+                <div className="mt-2 text-sm whitespace-pre-wrap"><Highlight text={inc.text} terms={terms} /></div>
                 {(inc.links || []).length > 0 && (
                   <div className="mt-1.5 space-y-0.5">
                     {inc.links.map((u, i) => (

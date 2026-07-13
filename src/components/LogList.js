@@ -4,8 +4,11 @@ import {
   verifyEntry, investigateEntry, setDisputeStatus, addComment, watchComments,
 } from "@/lib/data";
 import { money, toDate, exportCSV } from "@/lib/utils";
+import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
+import SearchInput from "./SearchInput";
+import Highlight from "./Highlight";
 
 export const CAUSE_CODES = [
   ["human-error", "Human error"],
@@ -183,10 +186,15 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
   const [fWho, setFWho] = useState("all");
   const [fDrawer, setFDrawer] = useState("all");
   const [fStatus, setFStatus] = useState("all");
+  const [query, setQuery] = useState("");
   const [expandedId, setExpandedId] = useState(null);
+  const terms = useMemo(() => searchTerms(query), [query]);
 
   const names = useMemo(() => [...new Set(entries.map((e) => e.by))].sort(), [entries]);
   const drawerNames = useMemo(() => [...new Set(entries.map((e) => e.drawerName).filter(Boolean))].sort(), [entries]);
+  const searchable = (e) =>
+    `${e.by} ${e.drawerName || ""} ${e.itemName || ""} ${e.game || ""} ${e.pack || ""} ${e.locationName || ""} ${e.shift || ""} ${causeLabel(e.causeCode)}`;
+  const clearAll = () => { setFType("all"); setFStatus("all"); setFWho("all"); setFDrawer("all"); setQuery(""); };
   const rows = entries.filter((e) =>
     (fType === "all" || e.kind === fType) &&
     (fWho === "all" || e.by === fWho) &&
@@ -195,7 +203,8 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
       || (fStatus === "needs-review" && e.varianceStatus === "open")
       || (fStatus === "under-review" && e.varianceStatus === "under-review")
       || (fStatus === "resolved" && e.varianceStatus === "resolved")
-      || (fStatus === "disputed" && ["open", "under-review"].includes(e.disputeStatus))));
+      || (fStatus === "disputed" && ["open", "under-review"].includes(e.disputeStatus))) &&
+    matchesTerms(searchable(e), terms));
 
   async function doVerify(e) {
     if (!isManager) return onToast?.("Managers only");
@@ -206,6 +215,7 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
 
   return (
     <div className="space-y-4">
+      <SearchInput value={query} onChange={setQuery} placeholder="Search counts — drawer, item, game, person…" label="Search counts" />
       <div className="flex gap-2 flex-wrap">
         <select className="input w-auto flex-1 min-w-[110px]" value={fType} onChange={(e) => setFType(e.target.value)}>
           <option value="all">All entries</option>
@@ -239,13 +249,14 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
             <EmptyState icon={<IconReceipt />} title="No counts logged yet"
               subtitle="Saved cash, scratch-off, and inventory counts show up here for your whole team — newest first." />
           ) : (
-            <EmptyState icon={<IconReceipt />} title="No entries match these filters"
-              subtitle="Try a different type, status, or person — or clear the filters to see everything."
-              action={{ label: "Clear filters", onClick: () => { setFType("all"); setFStatus("all"); setFWho("all"); setFDrawer("all"); } }} />
+            <EmptyState icon={<IconReceipt />} title="No entries match"
+              subtitle="Try a different search, type, status, or person — or clear everything to see all counts."
+              action={{ label: "Clear filters", onClick: clearAll }} />
           )
         ) : rows.map((e) => {
           const t = toDate(e.ts);
-          const stamp = `${e.by} · ${t ? t.toLocaleDateString() : "…"} ${t ? t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`;
+          const when = `${t ? t.toLocaleDateString() : "…"} ${t ? t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`;
+          const byStamp = <><Highlight text={e.by} terms={terms} /> · {when}</>;
           const locChip = showLocation && e.locationName
             ? <span className="pill bg-subtle text-muted">{e.locationName}</span> : null;
           const drawerChip = e.drawerName
@@ -266,8 +277,8 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                 <div className="min-w-0">
                   {e.kind === "cash" ? (
                     <>
-                      <div className="font-semibold text-[15px]">{e.drawerName || "Drawer"} — {e.shift === "open" ? "Opening" : "Closing"}</div>
-                      <div className="text-[13px] text-muted font-mono mt-0.5">{stamp}</div>
+                      <div className="font-semibold text-[15px]"><Highlight text={e.drawerName || "Drawer"} terms={terms} /> — {e.shift === "open" ? "Opening" : "Closing"}</div>
+                      <div className="text-[13px] text-muted font-mono mt-0.5">{byStamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
                         {Math.abs(e.diff) < 0.005
                           ? <span className="pill bg-subtle text-muted">Balanced</span>
@@ -279,8 +290,8 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                     </>
                   ) : e.kind === "inventory" ? (
                     <>
-                      <div className="font-semibold text-[15px]">{e.itemName || "Item"} — {e.shift === "open" ? "Opening" : "Closing"}</div>
-                      <div className="text-[13px] text-muted font-mono mt-0.5">{stamp}</div>
+                      <div className="font-semibold text-[15px]"><Highlight text={e.itemName || "Item"} terms={terms} /> — {e.shift === "open" ? "Opening" : "Closing"}</div>
+                      <div className="text-[13px] text-muted font-mono mt-0.5">{byStamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
                         {e.diff === 0
                           ? <span className="pill bg-subtle text-muted">Exact count</span>
@@ -293,9 +304,9 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                     </>
                   ) : (
                     <>
-                      <div className="font-semibold text-[15px]">{e.game} · ${e.price} tickets</div>
+                      <div className="font-semibold text-[15px]"><Highlight text={e.game} terms={terms} /> · ${e.price} tickets</div>
                       <div className="text-[13px] text-muted font-mono mt-0.5">Pack {e.pack || "—"} · #{e.startno}→{e.endno}</div>
-                      <div className="text-[13px] text-muted font-mono">{stamp}</div>
+                      <div className="text-[13px] text-muted font-mono">{byStamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
                         <span className="pill bg-subtle text-muted">{e.sold} sold</span>
                         {statusChips}{drawerChip}{locChip}

@@ -2,8 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addNote, updateNote } from "@/lib/data";
 import { toDate } from "@/lib/utils";
+import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconNote } from "./EmptyState";
+import SearchInput from "./SearchInput";
+import Highlight from "./Highlight";
 import Field from "./Field";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -19,6 +22,8 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
   const [viewLoc, setViewLoc] = useState("all");
   const [busy, setBusy] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [query, setQuery] = useState("");
+  const terms = useMemo(() => searchTerms(query), [query]);
 
   useEffect(() => {
     if (!f.locationId && (lockedLoc || locations[0]))
@@ -26,12 +31,15 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
   }, [locations, lockedLoc]); // eslint-disable-line
 
   const canFilter = !lockedLoc && locations.length > 1;
-  const visible = useMemo(() => {
+  const base = useMemo(() => {
     let list = notes.filter((n) => (showArchived ? true : n.active !== false));
     if (!lockedLoc && viewLoc !== "all") list = list.filter((n) => n.locationId === viewLoc);
     // pinned first, then newest first (notes arrive newest-first already)
     return [...list.filter((n) => n.pinned), ...list.filter((n) => !n.pinned)];
   }, [notes, viewLoc, lockedLoc, showArchived]);
+  const visible = useMemo(() => (terms.length
+    ? base.filter((n) => matchesTerms(`${n.text} ${n.by} ${n.locationName || ""}`, terms))
+    : base), [base, terms]);
 
   async function post() {
     const body = text.trim();
@@ -84,6 +92,9 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
         </div>
       </div>
 
+      {/* search */}
+      <SearchInput value={query} onChange={setQuery} placeholder="Search notes…" label="Search notes" />
+
       {/* filters */}
       {(canFilter || isManager) && (
         <div className="flex gap-2 flex-wrap items-center">
@@ -105,16 +116,22 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
       {/* feed */}
       <div className="card overflow-hidden">
         {visible.length === 0 ? (
-          <EmptyState icon={<IconNote />} title="No notes yet"
-            subtitle="The counter notebook, digitized — printer jams, IOUs, till swaps. Anything the next shift should know goes here."
-            action={{ label: "Write a note", onClick: focusComposer }} />
+          terms.length ? (
+            <EmptyState icon={<IconNote />} title="No notes match your search"
+              subtitle={`Nothing matches “${query.trim()}”. Try fewer or different words.`}
+              action={{ label: "Clear search", onClick: () => setQuery("") }} />
+          ) : (
+            <EmptyState icon={<IconNote />} title="No notes yet"
+              subtitle="The counter notebook, digitized — printer jams, IOUs, till swaps. Anything the next shift should know goes here."
+              action={{ label: "Write a note", onClick: focusComposer }} />
+          )
         ) : visible.map((n) => {
           const t = toDate(n.ts);
           return (
             <div key={n.id} className={`px-4 py-3.5 border-b border-line last:border-0 ${n.active === false ? "opacity-50" : ""}`}>
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm whitespace-pre-wrap">{n.pinned && <span title="Pinned">📌 </span>}{n.text}</div>
+                  <div className="text-sm whitespace-pre-wrap">{n.pinned && <span title="Pinned">📌 </span>}<Highlight text={n.text} terms={terms} /></div>
                   <div className="mt-2 flex gap-2 flex-wrap items-center">
                     <span className="text-[12px] text-muted font-mono">
                       {n.by} · {t ? `${t.toLocaleDateString()} ${t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "…"}
