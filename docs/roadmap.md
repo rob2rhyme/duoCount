@@ -50,6 +50,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Theme-contrast CI guard** (parses live `globals.css` tokens, asserts all 46 WCAG-AA pairings in both themes; catches a token regression) | `scripts/contrast-check.mjs`, `tests/contrast.test.mjs` | ✅ |
 | **Low-severity security fixes** (separation-of-duties on `investigate()` so a manager can't self-resolve their own flag; login/signup IP derivation resistant to a spoofed `X-Forwarded-For`) | `firestore.rules`, `src/lib/login-throttle.js` | ✅ |
 | **Escalating-trend & scratch settle-shortfall detectors** (patterns 7–8: a person whose shorts are materially worse in the recent half of the window; a game that repeatedly settles with tickets unaccounted — surfaced on the Dashboard and in the digest) | `src/lib/patterns.js`, `tier-two-build-spec.md` §2.1 | ✅ |
+| **Manager punch correction** (append-only supersede: a manager edits a punch time, adds a forgotten in/out, or voids a stray punch via a signed correction record — the original is never mutated; folds into hours/reports via `applyCorrections`) | `src/lib/timeclock.js`, `firestore.rules`, `time-clock-spec.md` §Punch corrections | ✅ |
 
 ## Next up
 
@@ -266,7 +267,7 @@ From `tier-two-build-spec.md` §7 — revisit on customer pull:
 - **Time clock + payroll CSV + shift scheduling + rostering polish** — ✅ done
   (see Shipped; `time-clock-spec.md`): punches, payroll export, weekly roster,
   copy-last-week, week templates, employee availability, shift swaps, open-shift
-  claim, and publish/notify. Still deferred: manager punch correction.
+  claim, publish/notify, and **manager punch correction** (append-only supersede).
 - ✅ **Per-vendor pattern thresholds and extra detectors** — done (see Shipped),
   including the former remaining slice: the **escalating short-trend** (person)
   and **scratch settle-shortfall** detectors (`patterns.js` detectors 7–8).

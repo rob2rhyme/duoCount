@@ -57,10 +57,37 @@ aggregation is unit-tested under plain `node` with no emulator:
   over a window (a shift counts if it *started* in range); open shifts add
   nothing. Hours are rounded to 2 dp.
 - **`openShiftFor`**, **`formatDuration`**, **`hoursDecimal`** support the UI.
+- **`applyCorrections(rows)`** folds manager corrections into an effective punch
+  list *without mutating the originals* (see "Punch corrections" below);
+  `computeShifts` runs it first, so shifts, hours, and the report all reflect a
+  correction automatically. Each shift also carries `inId` / `outId` (the effective
+  punches, for targeting a correction) and a `corrected` flag.
 
 Unit tests: `tests/timeclock.test.mjs` (`npm run test:timeclock`) — clean pairing,
 forgotten clock-out, orphan out, per-user isolation, out-of-order punches, window
-filtering, malformed-punch tolerance, and Firestore-style timestamp coercion.
+filtering, malformed-punch tolerance, Firestore-style timestamp coercion, and the
+correction cases (edit a time, add a forgotten in/out, void a stray punch,
+newest-wins re-correction, void-after-edit, harmless no-ops, payroll reflects it).
+
+## Punch corrections — append-only supersede
+
+Punches are immutable, so a manager never *edits* one. Instead they file a
+separate **correction record** in the same `timeclock` collection that supersedes
+a punch — the original and the correction both stay on the record (the same
+resolve-by-append pattern as variances and incidents). A correction carries
+`kind:"correction"` and one of:
+
+- **`edit`** (`targetId` + `at` [+ `type`]) — override a punch's effective time
+  (an employee clocked out at the wrong minute);
+- **`add`** (`type` + `at`) — introduce a punch the employee missed (a forgotten
+  clock-in or clock-out);
+- **`void`** (`targetId`) — drop a stray punch (an accidental double clock-in).
+
+`at` is the manager-chosen *effective* time; `ts` is the server audit clock (when
+the correction was filed) and also the apply order, so a later correction to the
+same punch wins. `applyCorrections` folds them in oldest-first. Nothing is ever
+mutated or deleted, so the audit trail is intact and the change is fully
+attributed (who corrected, when, why).
 
 ## UI — the "Time" tab
 
@@ -73,17 +100,30 @@ filtering, malformed-punch tolerance, and Firestore-style timestamp coercion.
   one anchored to *now*, so it keeps sliding as the live-duration tick re-renders
   — a shift that ages out of the window drops off without a manual refresh. The
   payroll CSV runs every cell through the shared `csvCell` formula-injection guard.
+- **Managers / owners — *Timesheet & corrections*:** the store-wide shifts over
+  the same window, each with a **Correct** action (adjust the clock-in / clock-out
+  time, or **Void** the shift) and a top-level **+ Add punch** (pick employee,
+  in/out, time) for a fully missed punch. Every action requires a **reason** and
+  files an append-only correction (`TimesheetCorrections` in `TimeClock.js` →
+  `addPunchCorrection`); a corrected shift shows a **corrected** pill.
 
 ## Security — `firestore.rules`
 
 `match /timeclock/{punchId}`:
 - **read:** managers/owners see the whole store; an employee sees only rows where
   `userId == token.userId`.
-- **create:** `member()` and the punch must be self-signed
-  (`userId`/`userName` == token), `type in ['in','out']`, and — for employees —
-  at their own `locationId` (managers may punch at any location). Mirrors the
-  entries authorship rule.
-- **update / delete:** `false` (append-only).
+- **create — two branches:**
+  - *(a) self-punch:* `member()`, self-signed (`userId`/`userName` == token),
+    `type in ['in','out']`, `ts == request.time`, and — for employees — at their
+    own `locationId` (managers may punch anywhere). Must carry **no** `kind`.
+    Mirrors the entries authorship rule.
+  - *(b) manager correction:* `mgr()` and `kind == 'correction'`,
+    `action in ['edit','add','void']`, manager-signed (`byId`/`byName` == token),
+    a non-empty `reason`, and `ts == request.time`. The effective time `at` is
+    manager-chosen (that is the point of a correction) — safe because it's
+    manager-only, signed, reasoned, and append-only; the audit `ts` is still
+    server-pinned so it can't be back-dated.
+- **update / delete:** `false` (append-only — corrections included).
 
 A composite index `timeclock(userId ASC, ts DESC)` backs the employee's
 own-punches query (`firestore.indexes.json`).
@@ -226,12 +266,10 @@ both the UI and the Firestore rules mirror, so they can't disagree:
 
 ## Deliberately out of scope (future)
 
-Copy-last-week, week templates, availability, shift swaps, open-shift claim, and
-publish/notify are all built (see above). Still deferred:
+Copy-last-week, week templates, availability, shift swaps, open-shift claim,
+publish/notify, and **manager punch correction** are all built (see above). Still
+deferred:
 
-- **Manager punch correction** — an admin editing/inserting a *punch* for someone
-  who forgot. Kept out to preserve the append-only guarantee; the clean path is a
-  manager-signed corrective punch (a create, not an edit).
 - **Time-level lateness** and overnight shifts that straddle two calendar days in
   the overlap check (reconciliation and overlap are day-scoped).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real

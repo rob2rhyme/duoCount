@@ -323,22 +323,41 @@ service cloud.firestore {
 
       // Time clock — append-only in/out punches, signed by the employee.
       // Managers/owners see the whole store; an employee sees only their own.
-      // Immutable: a mistaken punch is corrected by punching again, never by
-      // editing the record (same trust model as entries and incidents).
+      // Records are immutable (no update/delete). A wrong punch is fixed one of
+      // two ways, both append-only: an employee re-punches, or a MANAGER files a
+      // correction record that supersedes a punch (the original is never edited —
+      // the audit trail keeps both). Same trust model as entries and incidents.
       match /timeclock/{punchId} {
         allow read: if mgr()
           || (member() && resource.data.userId == request.auth.token.userId);
 
-        allow create: if member() && liveActive()
-          && request.resource.data.userId == request.auth.token.userId
-          && request.resource.data.userName == request.auth.token.name
-          && request.resource.data.type in ['in', 'out']
-          // The punch time is the hours-bearing field, so it must be the server's
-          // clock, not a client-chosen value — otherwise an employee could
-          // back/forward-date a punch to inflate paid hours. (`day` stays the
-          // client's business-day label for reconciliation.)
-          && request.resource.data.ts == request.time
-          && (mgr() || request.resource.data.locationId == request.auth.token.locationId);
+        allow create: if liveActive() && (
+          // (a) an ordinary self-punch. The punch time is the hours-bearing field,
+          // so it must be the server's clock, not a client value — otherwise an
+          // employee could back/forward-date a punch to inflate paid hours.
+          // (`day` stays the client's business-day label for reconciliation.)
+          ( member()
+            && !('kind' in request.resource.data)   // corrections take branch (b)
+            && request.resource.data.userId == request.auth.token.userId
+            && request.resource.data.userName == request.auth.token.name
+            && request.resource.data.type in ['in', 'out']
+            && request.resource.data.ts == request.time
+            && (mgr() || request.resource.data.locationId == request.auth.token.locationId) )
+          ||
+          // (b) a MANAGER correction that supersedes a punch. `at` (the effective
+          // punch time) is manager-chosen — that is the whole point of a
+          // correction — which is safe because it's manager-only, signed
+          // (byId/byName), carries a reason, and never mutates the original. `ts`
+          // is still pinned to the server clock as the tamper-proof audit time.
+          ( mgr()
+            && request.resource.data.kind == 'correction'
+            && request.resource.data.action in ['edit', 'add', 'void']
+            && request.resource.data.byId == request.auth.token.userId
+            && request.resource.data.byName == request.auth.token.name
+            && request.resource.data.ts == request.time
+            && request.resource.data.reason is string
+            && request.resource.data.reason.size() > 0 )
+        );
 
         allow update, delete: if false;
       }
