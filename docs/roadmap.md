@@ -158,20 +158,23 @@ what remains, ordered by priority:
 - ✅ **Stored XSS in report Print** — `printReport` interpolated raw entry fields
   (`sold`, `startQty`, `counted`, `diff`) that Firestore rules don't type-check.
   Fixed: those fields now go through `esc()` (`src/components/ReportModal.js`).
-- **Session revocation on deactivate/demote (medium).** Admin-SDK routes verify
-  ID tokens with no `checkRevoked` and never re-read the caller's live user doc
-  (`src/lib/require-manager.js`, `src/app/api/seed/route.js`,
-  `src/app/api/digest/test/route.js`); read rules gate on token claims, not
-  `liveActive()`. So a deactivated/demoted user keeps API + read access until
-  their token expires. Fix: `adminAuth.revokeRefreshTokens(uid)` on
-  deactivate/demote + `verifyIdToken(token, true)` on privileged routes; consider
-  `liveActive()` on sensitive reads. Needs emulator/app verification, so it's
-  staged rather than hot-patched.
+- ✅ **Session revocation on deactivate/demote (medium).** Privileged routes now
+  verify with `checkRevoked` via a single shared `verifyBearer`
+  (`src/lib/require-manager.js` — `requireManager`/`requireOwner`, adopted by the
+  staff, schedule-publish, seed, and digest-test routes), and the staff route
+  calls `adminAuth.revokeRefreshTokens(uid)` on deactivate/role-change. A revoked
+  user is forced to re-authenticate, and login only matches `active==true` users,
+  so a deactivated user can't get back in. **Verify against a live project /
+  emulator** before relying on it (auth can't be exercised in this repo).
+  Remaining slice (low): read rules still gate on token claims, not
+  `liveActive()`, so client *reads* persist until the ID token expires (≤1h);
+  revoked refresh means the client can't renew past that.
+- ✅ **`CRON_SECRET` constant-time compare** — the digest cron now uses
+  `crypto.timingSafeEqual` (`src/app/api/cron/digest/route.js`).
 - **Lower-severity notes (defer/low):** login per-IP counter trusts the leftmost
   `X-Forwarded-For` (Vercel appends the real IP on the right — validate against
   the platform's trusted position); per-store attempt counter resets on any
-  success (sliding window mostly covers it); `CRON_SECRET` uses non-constant-time
-  comparison (`crypto.timingSafeEqual`); signed-entry `ts` is client-set; a
+  success (sliding window mostly covers it); signed-entry `ts` is client-set; a
   manager can self-resolve a self-authored flagged variance (add the
   `byId != caller` self-check to `investigate()` that `verifyOnly()` already has).
 
@@ -184,10 +187,16 @@ what remains, ordered by priority:
   needs a running app + Firebase. Plan: run the app against the demo seed, capture
   the key flows (sign-in, cash count, variance flag, report center), commit them
   under `public/`, and embed via Markdown. Interim option: inline SVG diagrams.
-- **Rejection-proof legal/compliance layer (partial).** Product/technical docs are
-  strong, but a strict marketplace/franchise/legal review would want: a `LICENSE`,
-  a privacy/data-handling policy, a non-affiliation disclaimer (state lottery /
-  brands), and citations for any market claims. Draft these (owner to review).
+- ✅ **Rejection-proof legal/compliance layer (drafted; owner review pending).**
+  Added `LICENSE` (proprietary "all rights reserved" default — swap for
+  MIT/Apache if you want a self-host template), `docs/privacy-and-data.md`
+  (accurate to the app: Firebase storage, salted-hash PINs, no analytics/tracking,
+  append-only retention), and `docs/legal-disclaimers.md` (non-affiliation with
+  lotteries/brands, "not tax/legal advice", demo-data + no-warranty), surfaced
+  under a new "Legal" section on `/docs`. **Still yours to do:** pick the license,
+  fill in the real copyright holder + a contact point, and have a professional
+  review the privacy notice for your jurisdiction (GDPR/CCPA/etc.). Citations for
+  the market claims in `positioning-one-pager.md` remain to be added.
 - **Alternate builds — HTML / WordPress / etc. (missing).** Only the written
   `distribution-analysis.md` exists; no static-HTML export or WordPress artifact is
   built. Scope + build the recommended path (self-host template) if pursued.

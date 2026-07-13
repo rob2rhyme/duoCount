@@ -13,6 +13,7 @@ export const metadata = {
 // getting-started is the hero (its own /guide route); these read as overviews.
 const HERO = "getting-started";
 const OVERVIEW = ["app-summary-spec", "positioning-one-pager", "roadmap"];
+const LEGAL = ["privacy-and-data", "legal-disclaimers"];
 
 function DocCard({ doc }) {
   return (
@@ -48,10 +49,12 @@ export default function DocsIndex() {
   const index = searchIndex();
   const bySlug = Object.fromEntries(all.map((d) => [d.slug, d]));
 
+  const legalSet = new Set(LEGAL);
   const overviewSet = new Set([HERO, ...OVERVIEW]);
   const overview = OVERVIEW.map((s) => bySlug[s]).filter(Boolean);
+  const legal = LEGAL.map((s) => bySlug[s]).filter(Boolean);
   const specs = all.filter((d) => !overviewSet.has(d.slug) && d.slug.endsWith("-spec"));
-  const more = all.filter((d) => !overviewSet.has(d.slug) && !d.slug.endsWith("-spec"));
+  const more = all.filter((d) => !overviewSet.has(d.slug) && !legalSet.has(d.slug) && !d.slug.endsWith("-spec"));
 
   return (
     <main className="min-h-screen px-5 py-10">
@@ -84,6 +87,7 @@ export default function DocsIndex() {
         <Section title="Overview" docs={overview} />
         <Section title="Feature specs" docs={specs} />
         <Section title="Analysis & reference" docs={more} />
+        <Section title="Legal" docs={legal} />
 
         <p className="text-[12px] text-muted mt-4 pt-5 border-t border-line">
           <Link href="/guide" className="underline underline-offset-2 hover:text-fg">User guide</Link>

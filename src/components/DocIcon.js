@@ -39,6 +39,8 @@ const SLUG_ICON = {
   "distribution-analysis": "share",
   "theme-accessibility-audit": "eye",
   "ui-enhancements-spec": "zap",
+  "privacy-and-data": "shield",
+  "legal-disclaimers": "file-text",
 };
 
 export default function DocIcon({ slug, size = 20, className = "" }) {

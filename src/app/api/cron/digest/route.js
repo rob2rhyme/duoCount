@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { sendDigestForVendor } from "@/lib/digest";
@@ -5,12 +6,19 @@ import { sendDigestForVendor } from "@/lib/digest";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Constant-time string compare so matching the cron secret can't be teased out
+// by response-timing. Length differing is fine to short-circuit (not secret).
+function safeEqual(a, b) {
+  const ba = Buffer.from(String(a)), bb = Buffer.from(String(b));
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+}
+
 // Daily digest cron (see vercel.json). Vercel sends
 // `Authorization: Bearer ${CRON_SECRET}` automatically when the env var is set.
 export async function GET(req) {
   const secret = process.env.CRON_SECRET;
   const authz = req.headers.get("authorization") || "";
-  if (!secret || authz !== `Bearer ${secret}`) {
+  if (!secret || !safeEqual(authz, `Bearer ${secret}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
