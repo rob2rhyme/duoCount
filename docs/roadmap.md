@@ -182,11 +182,12 @@ what remains, ordered by priority:
 - ✅ **Doc-accuracy drift** — README called the shipped Reports feature "planned",
   mislabeled shipped roadmap items as "next", and cited a stale rules-test count
   (55→64); the reporting spec referenced a removed `buildReport`. All reconciled.
-- **Screenshots in the complex guides (missing).** `getting-started.md` and other
-  step-heavy guides embed no images. Blocked here: capturing real screenshots
-  needs a running app + Firebase. Plan: run the app against the demo seed, capture
-  the key flows (sign-in, cash count, variance flag, report center), commit them
-  under `public/`, and embed via Markdown. Interim option: inline SVG diagrams.
+- ✅ **Guide diagrams (done; live-app screenshots still optional).** The
+  getting-started guide now embeds three theme-adaptive SVG flow diagrams
+  (`public/diagrams/`: daily flow, cash-count math, report flow), rendered and
+  visually verified in headless Chromium. Real *photo* screenshots of the running
+  app (sign-in, cash count, variance flag, report center) remain a nice-to-have
+  and still need a live app + Firebase to capture.
 - ✅ **Rejection-proof legal/compliance layer (drafted; owner review pending).**
   Added `LICENSE` (proprietary "all rights reserved" default — swap for
   MIT/Apache if you want a self-host template), `docs/privacy-and-data.md`
