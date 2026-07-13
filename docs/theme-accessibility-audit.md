@@ -98,9 +98,18 @@ screens. A later consolidation pass closed the gaps below.
 - **Recharts** colours are resolved per-theme in JS (Recharts paints literal SVG
   colour strings), so they're covered by the chart palette, not these tokens.
 
-## Reproducing
+## Reproducing — automated
 
-The contrast calculation is a plain WCAG relative-luminance function over the
-token hex values; re-run it whenever a token or a fixed status colour changes,
-and keep this table honest. Any new text role must be checked on the darkest
+This is no longer a hand check. **`scripts/contrast-check.mjs`** parses the live
+theme tokens straight out of `globals.css` and runs the WCAG relative-luminance
+calculation over every pairing above, in both themes; **`tests/contrast.test.mjs`**
+asserts they all clear their threshold (and that a deliberately-broken token is
+caught, so the guard is proven to guard). The script reproduces the measured
+table above exactly — 46 pairings, all passing.
+
+- `npm run check:contrast` — prints the full table (exits non-zero on any fail).
+- `npm run test:contrast` — the assertion, for CI.
+
+A token edit that drops any pairing below AA now fails the suite. When you add a
+new text role, add its pairing to `PAIRS` in the script, checked on the darkest
 background it can land on (usually `bg` in light, `surface`/`panel` in dark).
