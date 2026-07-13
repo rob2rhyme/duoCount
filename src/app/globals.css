@@ -58,6 +58,12 @@ body {
 .input { @apply w-full px-3 py-2.5 rounded-lg outline-none transition border; background: var(--field); color: var(--fg); border-color: var(--line); }
 .input::placeholder { color: var(--faint); }
 .input:focus { @apply ring-2 ring-brass/20; border-color: #b8863b; }
+/* The search boxes render their own magnifier + clear (×) button; WebKit's
+   native search-cancel/decoration pseudo-elements would double them up. */
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration { -webkit-appearance: none; appearance: none; display: none; }
 .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition active:scale-[.98]; }
 .btn-primary { @apply btn w-full; background: var(--btn-bg); color: var(--btn-fg); }
 .btn-ghost { @apply btn border; background: var(--subtle); color: var(--fg); border-color: var(--line); }
