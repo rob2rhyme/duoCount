@@ -29,7 +29,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], onOpenLog, onRecord, onToast }) {
+export default function Dashboard({ entries, packs = [], locations = [], locName = () => "—", incidents = [], onOpenLog, onRecord, onToast }) {
   const { isManager, vendor } = useSession();
   const { theme } = useTheme();
   const ch = CHART[theme] || CHART.light;
@@ -38,8 +38,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink
   // streaks) — manager-facing only, so employees never see them computed.
   const patterns = useMemo(
-    () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules }) : []),
-    [entries, isManager, vendor?.patternRules]);
+    () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules, packs }) : []),
+    [entries, packs, isManager, vendor?.patternRules]);
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
     const scratch = entries.filter((e) => e.kind === "scratch");

@@ -168,3 +168,94 @@ test("high-severity alerts sort first", () => {
   assert.ok(alerts.length >= 2);
   assert.equal(alerts[0].severity, "high");
 });
+
+// ---- 7. escalating short trend (person) ----------------------------------
+// midCut for the default 14-day window is 7 days ago: dates >= dstr(7) are the
+// "recent" half, older ones the "earlier" half.
+
+test("shorts materially worse in the recent half raise a person-trend alert", () => {
+  const esc = [
+    cash({ diff: -2, date: dstr(10), ts: daysAgo(10) }), // earlier half: $2 short
+    cash({ diff: -5, date: dstr(1) }),                    // recent half: $10 short over 2 counts
+    cash({ diff: -5, date: dstr(2) }),
+  ];
+  const t = detectPatterns(esc, { now: NOW }).find((a) => a.kind === "person-trend");
+  assert.ok(t, "escalation ($10 recent vs $2 earlier, >=2x) should flag");
+  assert.equal(t.severity, "medium");        // recent $10 < highShortDollars ($20)
+  assert.equal(t.id, "person-trend:u1");
+});
+
+test("person-trend goes high when the recent half is big", () => {
+  const big = [
+    cash({ diff: -5, date: dstr(10), ts: daysAgo(10) }),
+    cash({ diff: -15, date: dstr(1) }), cash({ diff: -15, date: dstr(2) }), // $30 recent
+  ];
+  assert.equal(detectPatterns(big, { now: NOW }).find((a) => a.kind === "person-trend").severity, "high");
+});
+
+test("a flat short rate across both halves is not a trend", () => {
+  const flat = [
+    cash({ diff: -5, date: dstr(9), ts: daysAgo(9) }), cash({ diff: -5, date: dstr(10), ts: daysAgo(10) }),
+    cash({ diff: -5, date: dstr(1) }), cash({ diff: -5, date: dstr(2) }),
+  ];
+  assert.ok(!detectPatterns(flat, { now: NOW }).some((a) => a.kind === "person-trend"));
+});
+
+test("a fresh streak (nothing earlier) is a person-shorts signal, not a trend", () => {
+  const fresh = [cash({ diff: -5 }), cash({ diff: -5, date: dstr(2) }), cash({ diff: -5, date: dstr(3) })];
+  const a = detectPatterns(fresh, { now: NOW });
+  assert.ok(a.some((x) => x.kind === "person-shorts"));
+  assert.ok(!a.some((x) => x.kind === "person-trend"), "no earlier shorts => not an escalation");
+});
+
+test("a single recent short over a small earlier one is not a trend (blip guard)", () => {
+  const blip = [cash({ diff: -1, date: dstr(10), ts: daysAgo(10) }), cash({ diff: -9, date: dstr(1) })];
+  assert.ok(!detectPatterns(blip, { now: NOW }).some((a) => a.kind === "person-trend"));
+});
+
+// ---- 8. scratch settle-shortfall streak ----------------------------------
+const pack = (over = {}) => ({
+  status: "settled", game: "$5 Diamond", price: 2, shortAtSettle: 2,
+  settledAt: daysAgo(2), locationId: "loc1", ...over,
+});
+
+test("a game that keeps settling short raises a scratch-shortfall alert", () => {
+  const ps = [pack(), pack({ settledAt: daysAgo(4) }), pack({ settledAt: daysAgo(6) })];
+  const s = detectPatterns([], { now: NOW, packs: ps }).find((a) => a.kind === "scratch-shortfall");
+  assert.ok(s);
+  assert.equal(s.severity, "medium");          // 3 * 2 tickets * $2 = $12 < $20
+  assert.equal(s.id, "scratch-shortfall:$5 Diamond");
+  assert.match(s.title, /3 packs settled short/);
+  assert.match(s.detail, /6 tickets/);
+});
+
+test("scratch-shortfall goes high when the unaccounted dollars are large", () => {
+  const big = [pack({ price: 20 }), pack({ price: 20, settledAt: daysAgo(4) }), pack({ price: 20, settledAt: daysAgo(6) })];
+  assert.equal(detectPatterns([], { now: NOW, packs: big }).find((a) => a.kind === "scratch-shortfall").severity, "high");
+});
+
+test("scratch-shortfall ignores balanced, unsettled, and out-of-window packs", () => {
+  const noise = [
+    pack({ shortAtSettle: 0 }),                      // settled clean
+    pack({ status: "active", settledAt: null }),     // not settled yet
+    pack({ settledAt: daysAgo(40) }),                // settled outside the window
+  ];
+  assert.ok(!detectPatterns([], { now: NOW, packs: noise }).some((a) => a.kind === "scratch-shortfall"));
+  // two of the same game is under the streak threshold
+  assert.ok(!detectPatterns([], { now: NOW, packs: [pack(), pack({ settledAt: daysAgo(4) })] })
+    .some((a) => a.kind === "scratch-shortfall"));
+  // different games don't pool into one streak
+  const mixed = [pack({ game: "A" }), pack({ game: "A", settledAt: daysAgo(4) }), pack({ game: "B", settledAt: daysAgo(6) })];
+  assert.ok(!detectPatterns([], { now: NOW, packs: mixed }).some((a) => a.kind === "scratch-shortfall"));
+});
+
+test("scratch-shortfall reads a Firestore Timestamp settledAt (the shape the digest passes)", () => {
+  const tsPack = (d) => pack({ settledAt: { seconds: Math.floor(daysAgo(d).getTime() / 1000) } });
+  const ps = [tsPack(2), tsPack(4), tsPack(6)];
+  assert.ok(detectPatterns([], { now: NOW, packs: ps }).some((a) => a.kind === "scratch-shortfall"));
+});
+
+test("no packs argument leaves behavior unchanged (backward compatible)", () => {
+  assert.ok(!detectPatterns([cash({ diff: -1 })], { now: NOW }).some((a) => a.kind === "scratch-shortfall"));
+  assert.deepEqual(detectPatterns([cash()], { now: NOW }), []); // still a quiet book
+});

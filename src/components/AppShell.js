@@ -73,6 +73,13 @@ export default function AppShell() {
     return entries.filter((e) => e.locationId === viewLoc);
   }, [entries, viewLoc, lockedLoc]);
 
+  // Packs scoped to the same view as the entries, so the Dashboard's scratch
+  // settle-shortfall signal matches the location the manager is looking at.
+  const visiblePacks = useMemo(() => {
+    const loc = lockedLoc || (viewLoc === "all" ? null : viewLoc);
+    return loc ? packs.filter((p) => p.locationId === loc) : packs;
+  }, [packs, viewLoc, lockedLoc]);
+
   function ping(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
   const tabs = TABS.filter((t) => !t.managerOnly || isManager);
@@ -156,7 +163,7 @@ export default function AppShell() {
         {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
-          <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
+          <Dashboard entries={visibleEntries} packs={visiblePacks} locations={activeLocations} locName={locName} incidents={incidents}
             onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
         )}
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}

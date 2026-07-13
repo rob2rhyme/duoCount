@@ -145,6 +145,16 @@ thresholds below.
 | **Verification backlog** | all | ≥ 5 unverified entries older than 48 h | `medium` |
 | **Open-variance backlog** | all | ≥ 5 entries flagged `open` and older than 48 h | `medium` (already flagged — nobody's closing them) |
 | **Inventory shrink streak** | 14 days | ≥ 3 short counts of the same item | `medium`, with total units missing |
+| **Escalating short trend — person** | 14 days | a person short in **both** halves of the window, with the recent half ≥ 2× the earlier half (≥ 2 recent shorts) | `high` if recent-half short ≥ $20, else `medium` |
+| **Scratch settle-shortfall streak** | 14 days | ≥ 3 packs of the same game settled with tickets unaccounted (`shortAtSettle`) | `high` if unaccounted ≥ $20, else `medium` |
+
+Detectors 7–8 extend the original six. The trend detector uses module constants
+(`TREND_FACTOR`, `TREND_MIN_RECENT`) rather than new Admin knobs, so the tunable
+surface stays at the documented five; it reuses the vendor's `windowDays` and
+`highShortDollars`. The shortfall detector takes an optional `packs` argument
+(default `[]`, so callers that pass none are unaffected) and windows them by
+`settledAt`; the Dashboard passes the packs it already subscribes to, the digest
+route fetches settled packs with a single-field query.
 
 ### 2.1a Per-vendor thresholds (tier-3)
 
@@ -389,8 +399,13 @@ Rules-emulator additions (`npm run test:rules`):
   if customers pull for it.
 - ~~**Per-vendor pattern thresholds** and additional detectors~~ — **done**
   (§2.1 / §2.1a): five tunable thresholds in Admin, plus the repeat-overs and
-  open-variance-backlog detectors. Still deferred: escalating variance *trends*
-  and scratch settle-shortfall patterns.
+  open-variance-backlog detectors. ~~Still deferred: escalating variance *trends*
+  and scratch settle-shortfall patterns.~~ **Also done** (§2.1, detectors 7–8):
+  a person **escalating-short-trend** detector (shorts materially worse in the
+  recent half of the window than the earlier half) and a **scratch
+  settle-shortfall** detector (a game that repeatedly settles with tickets
+  unaccounted). Both pure and unit-tested; the shortfall detector runs on the
+  settled packs the Dashboard already subscribes to and the digest now fetches.
 - ~~**Per-user login lockout + 6-digit PIN default**~~ — **done** (§3): 6-digit
   PIN policy on all new/changed pins, plus a per-store failure limiter alongside
   the per-IP one. ("Per-user" is realized as per-store, since the login can't
