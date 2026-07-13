@@ -28,6 +28,10 @@ If you work a shift and just need to log your counts, jump to
 - The app does the arithmetic and shows **over/short** in green (over) or red
   (short) so you don't add anything up by hand.
 
+![The daily flow: an employee logs a signed count; a manager verifies it (never their own); anything off by more than the threshold is flagged or disputed; and it all rolls up into the dashboard and reports.](/diagrams/daily-flow.svg)
+
+*How a count travels from the shift floor to your records.*
+
 ---
 
 ## For owners & managers
@@ -86,6 +90,10 @@ turn on an optional **daily email digest** (off by default).
 ### 5. Pull a report for your records
 
 This is how you save numbers for the accountant, the franchise, or taxes.
+
+![Pulling a report: pick a period (Day through Year, or custom dates), pick a location, preview what it includes, then export as PDF, CSV, or a printout.](/diagrams/report-flow.svg)
+
+*Four steps to a record you can keep — nothing about the saved counts changes.*
 
 1. Go to the **Dashboard** tab and tap **📄 Reports**.
 2. Pick a **period** — Day, Week, Month, Quarter, Half-year, Year, or **Custom**
@@ -172,6 +180,10 @@ bin 4 running low." Managers can pin the important ones.
 - **Verified** means a manager double-checked it. **Flagged** means it's off by
   more than the store's threshold and needs a reason. **Disputed** means someone
   formally disagreed — and the whole conversation is kept.
+
+![How a cash count adds up: expected equals starting cash plus sales minus paid-outs; over or short equals counted minus expected; if the over/short is at least the store threshold, the count is flagged for review.](/diagrams/cash-count-math.svg)
+
+*The arithmetic the app does for every closing count.*
 
 ---
 

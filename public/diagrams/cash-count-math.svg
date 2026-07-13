@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 210" role="img" aria-label="How a cash count adds up: expected equals starting cash plus sales minus paid-outs; over or short equals counted minus expected; if the absolute over/short is at least the store threshold, the count is flagged for review.">
+  <style>
+    .bg{fill:#faf7f0}.chip{fill:#fff;stroke:#dcd4c2;stroke-width:1.5}.gold{fill:#f3e9d6;stroke:#b8863b;stroke-width:1.5}
+    .t{fill:#1a1c2e;font-family:ui-sans-serif,system-ui,Segoe UI,Helvetica,Arial,sans-serif;font-weight:600}
+    .op{fill:#b8863b;font-family:ui-sans-serif,system-ui,Helvetica,Arial,sans-serif;font-weight:700}
+    .m{fill:#6f6a5f;font-family:ui-sans-serif,system-ui,Helvetica,Arial,sans-serif}
+    @media (prefers-color-scheme:dark){.bg{fill:#1e2028}.chip{fill:#262932;stroke:#3a3d49}.gold{fill:#33302a;stroke:#c59a4e}.t{fill:#e8e6df}.op{fill:#c59a4e}.m{fill:#a2a09a}}
+  </style>
+  <rect class="bg" x="0" y="0" width="760" height="210" rx="12"/>
+  <g text-anchor="middle" font-size="13">
+    <text class="m" x="40" y="44" text-anchor="start" font-size="11" font-weight="700" letter-spacing="1">1 · EXPECTED (closing count)</text>
+    <rect class="gold" x="40" y="54" width="120" height="40" rx="8"/><text class="t" x="100" y="79">Expected</text>
+    <text class="op" x="178" y="79">=</text>
+    <rect class="chip" x="196" y="54" width="104" height="40" rx="8"/><text class="t" x="248" y="79">Start</text>
+    <text class="op" x="316" y="79">+</text>
+    <rect class="chip" x="332" y="54" width="104" height="40" rx="8"/><text class="t" x="384" y="79">Sales</text>
+    <text class="op" x="452" y="79">−</text>
+    <rect class="chip" x="468" y="54" width="128" height="40" rx="8"/><text class="t" x="532" y="79">Paid-outs</text>
+
+    <text class="m" x="40" y="132" text-anchor="start" font-size="11" font-weight="700" letter-spacing="1">2 · OVER / SHORT</text>
+    <rect class="gold" x="40" y="142" width="132" height="40" rx="8"/><text class="t" x="106" y="167">Over/short</text>
+    <text class="op" x="190" y="167">=</text>
+    <rect class="chip" x="208" y="142" width="112" height="40" rx="8"/><text class="t" x="264" y="167">Counted</text>
+    <text class="op" x="336" y="167">−</text>
+    <rect class="chip" x="352" y="142" width="120" height="40" rx="8"/><text class="t" x="412" y="167">Expected</text>
+  </g>
+  <g text-anchor="start">
+    <text class="m" x="500" y="150" font-size="11.5">| over/short | ≥ threshold</text>
+    <text class="op" x="500" y="170" font-size="12.5" font-weight="700">→ Flagged for review</text>
+  </g>
+</svg>
