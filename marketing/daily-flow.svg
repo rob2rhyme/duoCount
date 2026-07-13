@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 172" role="img" aria-label="The daily flow: an employee logs a signed count, a manager verifies it, anything off by more than the threshold is flagged or disputed, and it all rolls up into the dashboard and reports.">
+  <style>
+    .bg{fill:#faf7f0}.box{fill:#fff;stroke:#dcd4c2;stroke-width:1.5}
+    .t{fill:#1a1c2e;font-family:ui-sans-serif,system-ui,Segoe UI,Helvetica,Arial,sans-serif;font-weight:600}
+    .m{fill:#6f6a5f;font-family:ui-sans-serif,system-ui,Segoe UI,Helvetica,Arial,sans-serif}
+    .a{stroke:#b8863b;stroke-width:1.75;fill:none}.ah{fill:#b8863b}
+    @media (prefers-color-scheme:dark){.bg{fill:#1e2028}.box{fill:#262932;stroke:#3a3d49}.t{fill:#e8e6df}.m{fill:#a2a09a}}
+  </style>
+  <rect class="bg" x="0" y="0" width="760" height="172" rx="12"/>
+  <marker id="ah" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path class="ah" d="M0,0 L6,3 L0,6 Z"/></marker>
+  <g text-anchor="middle" font-size="13.5">
+    <rect class="box" x="16" y="40" width="162" height="74" rx="9"/>
+    <text class="t" x="97" y="70">Employee logs</text><text class="t" x="97" y="87">a count</text>
+    <text class="m" x="97" y="104" font-size="10.5">signed · name + time</text>
+
+    <rect class="box" x="208" y="40" width="162" height="74" rx="9"/>
+    <text class="t" x="289" y="70">Manager verifies</text><text class="t" x="289" y="87">(not their own)</text>
+
+    <rect class="box" x="400" y="40" width="162" height="74" rx="9"/>
+    <text class="t" x="481" y="70">Off &gt; threshold?</text><text class="t" x="481" y="87">flag · dispute</text>
+    <text class="m" x="481" y="104" font-size="10.5">close it with a reason</text>
+
+    <rect class="box" x="592" y="40" width="152" height="74" rx="9"/>
+    <text class="t" x="668" y="70">Dashboard</text><text class="t" x="668" y="87">&amp; Reports</text>
+  </g>
+  <g>
+    <line class="a" x1="180" y1="77" x2="204" y2="77" marker-end="url(#ah)"/>
+    <line class="a" x1="372" y1="77" x2="396" y2="77" marker-end="url(#ah)"/>
+    <line class="a" x1="564" y1="77" x2="588" y2="77" marker-end="url(#ah)"/>
+  </g>
+  <text class="m" x="380" y="150" text-anchor="middle" font-size="11">Once saved, a count is locked — never edited or deleted.</text>
+</svg>
