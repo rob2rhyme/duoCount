@@ -51,6 +51,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Low-severity security fixes** (separation-of-duties on `investigate()` so a manager can't self-resolve their own flag; login/signup IP derivation resistant to a spoofed `X-Forwarded-For`) | `firestore.rules`, `src/lib/login-throttle.js` | ✅ |
 | **Escalating-trend & scratch settle-shortfall detectors** (patterns 7–8: a person whose shorts are materially worse in the recent half of the window; a game that repeatedly settles with tickets unaccounted — surfaced on the Dashboard and in the digest) | `src/lib/patterns.js`, `tier-two-build-spec.md` §2.1 | ✅ |
 | **Manager punch correction** (append-only supersede: a manager edits a punch time, adds a forgotten in/out, or voids a stray punch via a signed correction record — the original is never mutated; folds into hours/reports via `applyCorrections`) | `src/lib/timeclock.js`, `firestore.rules`, `time-clock-spec.md` §Punch corrections | ✅ |
+| **Server-enforced count baseline** (rules now require `expected` == its own components for cash/inventory, so a client can't forge the baseline to hide a short — the tractable core of "server-computed blind counts") | `firestore.rules` `expectedConsistent()`, `tests/entry-consistency.test.mjs` | ✅ |
 
 ## Next up
 
@@ -277,6 +278,14 @@ From `tier-two-build-spec.md` §7 — revisit on customer pull:
   flexible CSV importer (map your columns — no fixed state format) that matches a
   settlement file against recorded scratch-off packs and flags discrepancies,
   unknown packs, and settled-but-unbilled packs. `lib/settlement.js` (unit-tested).
-- Server-computed blind counts (the one remaining tier-3 item — deferred: it
-  needs the cash-entry write path moved server-side, and its value is partial
-  since the counter enters start/sales/paid-out themselves).
+- ✅ **Server-enforced count baseline** — the tractable, high-value core of
+  "server-computed blind counts", done via the rules rather than a server-side
+  write path. `expectedConsistent()` in `firestore.rules` now requires the stored
+  `expected` to equal its own components (cash: `start+sales−paidout`; inventory:
+  `startQty+received−soldQty−removed`, ±0.01), closing a gap where a client could
+  forge `expected` to net a real short to a clean diff. A pure test locks the
+  client and rule formulas together (`tests/entry-consistency.test.mjs`); rules
+  tests cover the forged-baseline rejection. **Honest residual (unchanged):** the
+  *components* are still counter-entered — truly tamper-proof sales need a POS
+  integration, and moving the whole write server-side stays deferred (partial
+  value for the added complexity).

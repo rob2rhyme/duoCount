@@ -120,6 +120,7 @@ service cloud.firestore {
           && request.resource.data.get('varianceStatus', 'none') in ['none', 'open']
           && request.resource.data.get('causeCode', null) == null
           && varianceConsistent()
+          && expectedConsistent()
           && flagConsistent();
 
         // Cash/inventory entries carry counted/expected/diff; the stored diff
@@ -136,6 +137,42 @@ service cloud.firestore {
                      >= request.resource.data.counted - request.resource.data.expected - 0.01
                 && request.resource.data.diff
                      <= request.resource.data.counted - request.resource.data.expected + 0.01);
+        }
+
+        // The stored `expected` must equal its own components — cash:
+        // start + sales − paidout, inventory: startQty + received − soldQty −
+        // removed (±0.01 for float cents). varianceConsistent() alone only pins
+        // diff to counted−expected, so a client could forge `expected` to net a
+        // real short to a clean diff and slip it past the digest and the
+        // theft-pattern detectors, which trust the stored numbers. This pins the
+        // count *baseline* server-side too, so `expected` can't be fabricated
+        // independent of the components on the same record. (Scratch has no
+        // expected and is exempt. The components are still counter-entered — an
+        // opening count stores sales/paidout as 0, so one formula covers both.)
+        function expectedConsistent() {
+          return !(request.resource.data.kind in ['cash', 'inventory'])
+            || (request.resource.data.expected is number
+                && (request.resource.data.kind != 'cash' || cashExpectedOK())
+                && (request.resource.data.kind != 'inventory' || invExpectedOK()));
+        }
+        function cashExpectedOK() {
+          return request.resource.data.get('start', 0) is number
+            && request.resource.data.get('sales', 0) is number
+            && request.resource.data.get('paidout', 0) is number
+            && request.resource.data.expected
+                 >= request.resource.data.get('start', 0) + request.resource.data.get('sales', 0) - request.resource.data.get('paidout', 0) - 0.01
+            && request.resource.data.expected
+                 <= request.resource.data.get('start', 0) + request.resource.data.get('sales', 0) - request.resource.data.get('paidout', 0) + 0.01;
+        }
+        function invExpectedOK() {
+          return request.resource.data.get('startQty', 0) is number
+            && request.resource.data.get('received', 0) is number
+            && request.resource.data.get('soldQty', 0) is number
+            && request.resource.data.get('removed', 0) is number
+            && request.resource.data.expected
+                 >= request.resource.data.get('startQty', 0) + request.resource.data.get('received', 0) - request.resource.data.get('soldQty', 0) - request.resource.data.get('removed', 0) - 0.01
+            && request.resource.data.expected
+                 <= request.resource.data.get('startQty', 0) + request.resource.data.get('received', 0) - request.resource.data.get('soldQty', 0) - request.resource.data.get('removed', 0) + 0.01;
         }
 
         // A cash count at or beyond the store's variance threshold must be signed
