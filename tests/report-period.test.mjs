@@ -90,6 +90,97 @@ test("year: Jan 1 – Dec 31", () => {
   assert.deepEqual(periodRange("year", "2026-07-12"), { startISO: "2026-01-01", endISO: "2026-12-31", key: "2026", label: "2026" });
 });
 
+// ------------------------------------------------------- fiscal year ----
+// fiscalStartMonth (1–12) reshapes year/quarter/half only; a fiscal year is
+// named by the calendar year it BEGINS in. fs=7 ⇒ FY2026 = Jul 2026 – Jun 2027.
+test("fiscal: default (Jan / omitted / 1) is the plain calendar year", () => {
+  const cal = periodRange("year", "2026-07-12");
+  assert.deepEqual(cal, { startISO: "2026-01-01", endISO: "2026-12-31", key: "2026", label: "2026" });
+  assert.deepEqual(periodRange("year", "2026-07-12", { fiscalStartMonth: 1 }), cal);
+  assert.deepEqual(periodRange("quarter", "2026-07-12", { fiscalStartMonth: 1 }), periodRange("quarter", "2026-07-12"));
+  assert.deepEqual(periodRange("half", "2026-06-30", { fiscalStartMonth: 1 }), periodRange("half", "2026-06-30"));
+});
+
+test("fiscal: day / week / month ignore the offset (they are calendar units)", () => {
+  const fs = { fiscalStartMonth: 7 };
+  assert.deepEqual(periodRange("day", "2026-03-15", fs), periodRange("day", "2026-03-15"));
+  assert.deepEqual(periodRange("week", "2026-03-15", fs), periodRange("week", "2026-03-15"));
+  assert.deepEqual(periodRange("month", "2026-03-15", fs), periodRange("month", "2026-03-15"));
+});
+
+test("fiscal year (start July): named by start year, span carried in the label", () => {
+  const r = periodRange("year", "2026-08-01", { fiscalStartMonth: 7 });
+  assert.deepEqual(r, { startISO: "2026-07-01", endISO: "2027-06-30", key: "FY2026", label: "FY2026 (Jul 2026 – Jun 2027)" });
+  // a date before the fiscal start falls in the PRIOR fiscal year
+  const prior = periodRange("year", "2026-06-30", { fiscalStartMonth: 7 });
+  assert.deepEqual(prior, { startISO: "2025-07-01", endISO: "2026-06-30", key: "FY2025", label: "FY2025 (Jul 2025 – Jun 2026)" });
+  // the boundary day itself opens the new fiscal year
+  assert.equal(periodRange("year", "2026-07-01", { fiscalStartMonth: 7 }).key, "FY2026");
+});
+
+test("fiscal quarter (start July): Q1 Jul–Sep … Q4 Apr–Jun, rolling the year", () => {
+  const fs = { fiscalStartMonth: 7 };
+  assert.deepEqual(periodRange("quarter", "2026-08-01", fs), { startISO: "2026-07-01", endISO: "2026-09-30", key: "FY2026-Q1", label: "Q1 FY2026" });
+  assert.deepEqual(periodRange("quarter", "2026-11-15", fs), { startISO: "2026-10-01", endISO: "2026-12-31", key: "FY2026-Q2", label: "Q2 FY2026" });
+  assert.deepEqual(periodRange("quarter", "2027-02-10", fs), { startISO: "2027-01-01", endISO: "2027-03-31", key: "FY2026-Q3", label: "Q3 FY2026" });
+  assert.deepEqual(periodRange("quarter", "2027-05-20", fs), { startISO: "2027-04-01", endISO: "2027-06-30", key: "FY2026-Q4", label: "Q4 FY2026" });
+});
+
+test("fiscal half (start July): H1 Jul–Dec, H2 Jan–Jun", () => {
+  const fs = { fiscalStartMonth: 7 };
+  assert.deepEqual(periodRange("half", "2026-09-01", fs), { startISO: "2026-07-01", endISO: "2026-12-31", key: "FY2026-H1", label: "H1 FY2026" });
+  assert.deepEqual(periodRange("half", "2027-02-01", fs), { startISO: "2027-01-01", endISO: "2027-06-30", key: "FY2026-H2", label: "H2 FY2026" });
+});
+
+test("fiscal year (start April, UK-style): Apr 1 – Mar 31", () => {
+  const r = periodRange("year", "2026-05-01", { fiscalStartMonth: 4 });
+  assert.deepEqual(r, { startISO: "2026-04-01", endISO: "2027-03-31", key: "FY2026", label: "FY2026 (Apr 2026 – Mar 2027)" });
+  // Q4 of an April fiscal year is the following Jan–Mar
+  assert.deepEqual(periodRange("quarter", "2027-01-15", { fiscalStartMonth: 4 }), { startISO: "2027-01-01", endISO: "2027-03-31", key: "FY2026-Q4", label: "Q4 FY2026" });
+});
+
+test("fiscal: every offset yields start <= end and clean FY keys, all year", () => {
+  const keyPat = { year: /^FY\d{4}$/, quarter: /^FY\d{4}-Q[1-4]$/, half: /^FY\d{4}-H[12]$/ };
+  for (let fsm = 2; fsm <= 12; fsm++) {
+    for (let m = 1; m <= 12; m++) {
+      const ref = `2026-${String(m).padStart(2, "0")}-15`;
+      for (const preset of Object.keys(keyPat)) {
+        const r = periodRange(preset, ref, { fiscalStartMonth: fsm });
+        assert.ok(r.startISO <= r.endISO, `${preset} fsm=${fsm} ${ref}: start after end`);
+        assert.match(r.key, keyPat[preset], `${preset} fsm=${fsm}: key ${r.key}`);
+      }
+    }
+  }
+});
+
+test("fiscal: an invalid fiscalStartMonth throws", () => {
+  assert.throws(() => periodRange("year", "2026-01-01", { fiscalStartMonth: 0 }), /Invalid fiscalStartMonth/);
+  assert.throws(() => periodRange("year", "2026-01-01", { fiscalStartMonth: 13 }), /Invalid fiscalStartMonth/);
+  assert.throws(() => periodRange("quarter", "2026-01-01", { fiscalStartMonth: 6.5 }), /Invalid fiscalStartMonth/);
+});
+
+test("stepPeriod: fiscal year/quarter/half walk fiscal boundaries", () => {
+  const fs = { fiscalStartMonth: 7 };
+  // year: Aug 2026 (FY2026) → next lands in FY2027, prev in FY2025
+  assert.equal(periodRange("year", stepPeriod("year", "2026-08-01", 1, fs), fs).key, "FY2027");
+  assert.equal(periodRange("year", stepPeriod("year", "2026-08-01", -1, fs), fs).key, "FY2025");
+  // quarter: Q1 FY2026 → Q2, and Q4 FY2026 → Q1 FY2027 (crosses the fiscal-year edge)
+  assert.equal(periodRange("quarter", stepPeriod("quarter", "2026-08-01", 1, fs), fs).key, "FY2026-Q2");
+  assert.equal(periodRange("quarter", stepPeriod("quarter", "2027-05-20", 1, fs), fs).key, "FY2027-Q1");
+  // half: H1 FY2026 → H2 FY2026
+  assert.equal(periodRange("half", stepPeriod("half", "2026-09-01", 1, fs), fs).key, "FY2026-H2");
+});
+
+test("stepPeriod: fiscal forward-then-back returns to the same period", () => {
+  const fs = { fiscalStartMonth: 7 };
+  for (const preset of ["year", "quarter", "half"]) {
+    const ref = "2026-08-15";
+    const there = stepPeriod(preset, ref, 1, fs);
+    const back = stepPeriod(preset, there, -1, fs);
+    assert.equal(periodRange(preset, back, fs).key, periodRange(preset, ref, fs).key, `${preset} fiscal round-trip`);
+  }
+});
+
 // ---------------------------------------------------------------- custom ----
 test("custom: caller-supplied bounds; ref is the start, opts.end the end", () => {
   const r = periodRange("custom", "2026-07-01", { end: "2026-08-15" });

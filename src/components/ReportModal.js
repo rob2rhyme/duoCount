@@ -10,6 +10,9 @@ import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const slug = (s) => String(s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "x";
+const MONTHS = ["January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"];
+const FISCAL_PRESETS = new Set(["year", "quarter", "half"]); // periods the fiscal start reshapes
 
 // The Reports center: pick any period (day … year, or custom dates) and a
 // location scope, preview what it contains, and export it for the record.
@@ -29,17 +32,22 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  // The store's fiscal-year start (1–12; 1 = calendar year) shapes the Year /
+  // Quarter / Half-year periods so reports match the books an accountant keeps.
+  const fiscalStartMonth = vendor.fiscalStartMonth ?? 1;
+  const fiscalOpts = useMemo(() => ({ fiscalStartMonth }), [fiscalStartMonth]);
+
   // Resolve the selected period; an invalid custom range (end before start)
   // yields null so the UI can flag it and disable the exports.
   const range = useMemo(() => {
     try {
       return preset === "custom"
         ? periodRange("custom", null, { start: customStart, end: customEnd })
-        : periodRange(preset, refDate);
+        : periodRange(preset, refDate, fiscalOpts);
     } catch {
       return null;
     }
-  }, [preset, refDate, customStart, customEnd]);
+  }, [preset, refDate, customStart, customEnd, fiscalOpts]);
 
   const startISO = range ? range.startISO : null;
   const endISO = range ? range.endISO : null;
@@ -280,13 +288,17 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, -1))} aria-label="Previous period"><span aria-hidden="true">◀</span></button>
+              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, -1, fiscalOpts))} aria-label="Previous period"><span aria-hidden="true">◀</span></button>
               <div className="flex-1 text-center">
                 <div className="font-semibold text-sm">{range ? range.label : "—"}</div>
                 {range && <div className="text-[11px] text-muted font-mono">{range.startISO} → {range.endISO}</div>}
               </div>
-              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, 1))} aria-label="Next period"><span aria-hidden="true">▶</span></button>
+              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, 1, fiscalOpts))} aria-label="Next period"><span aria-hidden="true">▶</span></button>
             </div>
+          )}
+
+          {fiscalStartMonth !== 1 && preset !== "custom" && FISCAL_PRESETS.has(preset) && (
+            <p className="text-[11px] text-muted -mt-1">Fiscal year starts {MONTHS[fiscalStartMonth - 1]}.</p>
           )}
 
           <div className="bg-panel border border-line rounded-xl p-3.5 text-sm space-y-1" aria-live="polite">

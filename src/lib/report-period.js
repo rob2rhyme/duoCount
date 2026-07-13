@@ -9,7 +9,14 @@
 // `periodRange` turns a preset + reference date into that range; `stepPeriod`
 // walks the reference date to the previous/next period for a ◀ ▶ stepper.
 //
-// Calendar year only for v1; a fiscal-year start offset is a noted future option.
+// Fiscal-year support: pass `opts.fiscalStartMonth` (1–12; default 1 = January,
+// which is the plain calendar year). It reshapes only the YEAR and its
+// subdivisions — year / quarter / half — so a franchise whose books close on,
+// say, June 30 reports fiscal periods for tax/accountant records. Day, week,
+// month, and custom are calendar units and never shift. A fiscal year is named
+// by the calendar year in which it BEGINS (fiscalStartMonth = 7 ⇒ "FY2026" runs
+// Jul 2026 – Jun 2027), and the year label carries the full span so the naming
+// convention is never ambiguous on a saved report.
 
 import { weekStartMonday, addDays } from "./schedule.js";
 
@@ -57,6 +64,34 @@ function addMonths(dateStr, n) {
   return fmt(Date.UTC(ny, nm0, Math.min(d, dim)));
 }
 
+// Normalize a fiscal-year start month to a 0-based index. Accepts 1–12 (Jan–Dec),
+// or null/undefined/"" meaning "calendar year" (January, index 0). A bad value
+// throws so a misconfigured setting fails loudly rather than skewing a report.
+function normFiscalStart(m) {
+  if (m == null || m === "") return 0;
+  const n = Number(m);
+  if (!Number.isInteger(n) || n < 1 || n > 12) throw new Error(`Invalid fiscalStartMonth: ${m}`);
+  return n - 1;
+}
+
+// The fiscal period (of `span` months: 12 year / 6 half / 3 quarter) that
+// CONTAINS the calendar date y/m0, given a 0-based fiscal-start month `fs0`.
+// Returns the containing fiscal year (named by its start year), the 0-based
+// sub-period index within that year, and the inclusive ISO bounds. All math is
+// on absolute month counts (year*12 + month), so year rollovers are automatic.
+function fiscalPeriod(y, m0, fs0, span) {
+  const fyStartYear = m0 >= fs0 ? y : y - 1;               // FY starting this year, or last
+  const idx = Math.floor((((m0 - fs0) + 12) % 12) / span); // which quarter/half within the FY
+  const total = fyStartYear * 12 + fs0 + idx * span;        // absolute month of the period start
+  const startISO = fmt(Date.UTC(Math.floor(total / 12), total % 12, 1));
+  const endTot = total + span;                              // first month after the period
+  const endISO = fmt(Date.UTC(Math.floor(endTot / 12), endTot % 12, 1) - DAY_MS);
+  return { fyStartYear, idx, startISO, endISO };
+}
+
+// Presets whose span shifts with the fiscal-year start (calendar presets are absent).
+const FISCAL_SPAN = { year: 12, half: 6, quarter: 3 };
+
 // ISO-8601 week number + week-numbering year for the week containing dateStr.
 // The week-year is fixed by the week's Thursday, so a week straddling Dec/Jan
 // keys to whichever year owns four-or-more of its days (e.g. 2025-12-29 -> W01
@@ -102,7 +137,9 @@ export function isPreset(preset) {
  * @param {string} preset  one of PRESETS' values.
  * @param {string|Date} refDate  any date within the desired period (YYYY-MM-DD
  *   or a Date). For "custom" it is the start unless opts.start is given.
- * @param {{start?: string|Date, end?: string|Date}} [opts]  custom bounds.
+ * @param {{start?: string|Date, end?: string|Date, fiscalStartMonth?: number}} [opts]
+ *   custom bounds; and fiscalStartMonth (1–12, default 1) which shifts the
+ *   year/quarter/half boundaries — see the module header.
  * @returns {{ startISO: string, endISO: string, key: string, label: string }}
  *   bounds INCLUSIVE.
  */
@@ -118,6 +155,16 @@ export function periodRange(preset, refDate, opts = {}) {
 
   const ref = toISODate(refDate, "refDate");
   const { y, m0, d } = partsOf(ref);
+  const fs0 = normFiscalStart(opts.fiscalStartMonth);
+
+  // Fiscal year / quarter / half: only when the books don't close in December.
+  if (fs0 !== 0 && FISCAL_SPAN[preset]) {
+    const { fyStartYear, idx, startISO, endISO } = fiscalPeriod(y, m0, fs0, FISCAL_SPAN[preset]);
+    if (preset === "quarter") return { startISO, endISO, key: `FY${fyStartYear}-Q${idx + 1}`, label: `Q${idx + 1} FY${fyStartYear}` };
+    if (preset === "half") return { startISO, endISO, key: `FY${fyStartYear}-H${idx + 1}`, label: `H${idx + 1} FY${fyStartYear}` };
+    const s = partsOf(startISO), e = partsOf(endISO);
+    return { startISO, endISO, key: `FY${fyStartYear}`, label: `FY${fyStartYear} (${MON[s.m0]} ${s.y} – ${MON[e.m0]} ${e.y})` };
+  }
 
   if (preset === "day") {
     return { startISO: ref, endISO: ref, key: ref, label: `${MON[m0]} ${d}, ${y}` };
@@ -162,15 +209,26 @@ export function periodRange(preset, refDate, opts = {}) {
  * month-aligned) and always lands squarely inside the neighbouring period; day
  * and week just shift by 1 day / 7 days (periodRange re-normalizes the week).
  * Custom has no stepper (its bounds are entered directly), so it returns
- * refDate unchanged.
+ * refDate unchanged. With opts.fiscalStartMonth set, year/quarter/half step
+ * along fiscal boundaries so ◀ ▶ walks fiscal periods, not calendar ones.
  */
-export function stepPeriod(preset, refDate, dir) {
+export function stepPeriod(preset, refDate, dir, opts = {}) {
   if (!KNOWN.has(preset)) throw new Error(`Unknown period preset: ${preset}`);
   const step = dir >= 0 ? 1 : -1;
   if (preset === "custom") return toISODate(refDate, "refDate");
 
   const ref = toISODate(refDate, "refDate");
   const { y, m0 } = partsOf(ref);
+  const fs0 = normFiscalStart(opts.fiscalStartMonth);
+
+  // Fiscal year/quarter/half: normalize to this period's fiscal start, then jump
+  // one whole span so repeated stepping stays fiscal-aligned and drift-free.
+  if (fs0 !== 0 && FISCAL_SPAN[preset]) {
+    const span = FISCAL_SPAN[preset];
+    const { startISO } = fiscalPeriod(y, m0, fs0, span);
+    return addMonths(startISO, step * span);
+  }
+
   switch (preset) {
     case "day": return addDays(ref, step);
     case "week": return addDays(ref, step * 7);

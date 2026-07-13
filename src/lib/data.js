@@ -12,7 +12,7 @@ const vcol = (vendorId, name) => collection(db, "vendors", vendorId, name);
 /* ---------- vendor ---------- */
 export async function updateVendorSettings(vendorId, patch) {
   const allowed = {};
-  const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold", "patternRules"];
+  const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold", "patternRules", "fiscalStartMonth"];
   for (const k of keys) if (k in patch) allowed[k] = patch[k];
   await updateDoc(doc(db, "vendors", vendorId), allowed);
 }
