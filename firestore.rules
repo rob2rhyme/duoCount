@@ -180,8 +180,12 @@ service cloud.firestore {
         // Resolving requires a cause code and stamps the resolver. The entry must
         // already BE in the queue (open/under-review) — a manager can't fabricate a
         // resolution on a clean 'none' count, or re-open a 'resolved' one (L9).
+        // Separation of duties: a manager can't investigate/resolve their OWN
+        // flagged count, mirroring verifyOnly() — clearing your own short needs an
+        // independent reviewer (a single-manager store leaves it open, by design).
         function investigate() {
           return mgr()
+            && resource.data.byId != request.auth.token.userId
             && resource.data.get('varianceStatus', 'none') in ['open', 'under-review']
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['varianceStatus', 'causeCode', 'causeNote', 'resolvedBy', 'resolvedAt'])
