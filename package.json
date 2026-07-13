@@ -21,7 +21,8 @@
     "test:api": "node --test tests/api.test.mjs",
     "test:report-period": "node --test tests/report-period.test.mjs",
     "test:report-build": "node --test tests/report-build.test.mjs",
-    "test:report-csv": "node --test tests/report-csv.test.mjs"
+    "test:report-csv": "node --test tests/report-csv.test.mjs",
+    "test:doc-search": "node --test tests/doc-search.test.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
