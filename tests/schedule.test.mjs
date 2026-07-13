@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  addDays, weekStartMonday, weekDates, parseHHMM, shiftMinutes,
+  addDays, weekStartMonday, weekDates, parseHHMM, shiftMinutes, crossesMidnight,
   scheduledHours, findOverlaps, groupByDate, reconcile,
   copyShiftsToWeek, availabilityConflicts, isUnavailable,
   dayOffset, weekShiftsToTemplate, templateToShifts,
@@ -49,7 +49,7 @@ test("scheduledHours totals per employee and honors the date range", () => {
   assert.equal(rows.find((r) => r.userId === "u2").hours, 8);
 });
 
-test("findOverlaps flags an employee double-booked on the same day only", () => {
+test("findOverlaps flags a double-booked employee; other days/people don't collide", () => {
   const shifts = [
     shift("u1", "2026-07-06", "09:00", "13:00"),
     shift("u1", "2026-07-06", "12:00", "17:00"), // overlaps the first
@@ -240,4 +240,77 @@ test("availabilityConflicts flags shifts on an employee's unavailable day", () =
   assert.equal(isUnavailable(unavailable, "u1", "2026-07-06"), true);
   assert.equal(isUnavailable(unavailable, "u1", "2026-07-07"), false);
   assert.equal(isUnavailable(unavailable, "u2", "2026-07-06"), false);
+});
+
+/* ---------- overnight shifts straddling two calendar days ---------- */
+
+test("crossesMidnight matches shiftMinutes' end<=start convention", () => {
+  assert.equal(crossesMidnight({ start: "22:00", end: "06:00" }), true);
+  assert.equal(crossesMidnight({ start: "09:00", end: "09:00" }), true);  // full 24h
+  assert.equal(crossesMidnight({ start: "09:00", end: "17:00" }), false);
+  assert.equal(crossesMidnight({ start: "bad", end: "17:00" }), false);   // unparseable -> not overnight
+});
+
+test("findOverlaps catches an overnight shift colliding with the next morning", () => {
+  const shifts = [
+    shift("u1", "2026-07-06", "22:00", "06:00"), // Mon night, runs to Tue 06:00
+    shift("u1", "2026-07-07", "05:00", "13:00"), // Tue morning — overlaps 05:00–06:00
+    shift("u2", "2026-07-07", "05:00", "13:00"), // other person, no conflict
+  ];
+  const ov = findOverlaps(shifts);
+  assert.equal(ov.size, 2);
+  assert.ok(ov.has("u1-2026-07-06-22:00"));
+  assert.ok(ov.has("u1-2026-07-07-05:00"));
+
+  // abutting across midnight (out 06:00, in 06:00) is NOT an overlap
+  const abut = [shift("u1", "2026-07-06", "22:00", "06:00"), shift("u1", "2026-07-07", "06:00", "14:00")];
+  assert.equal(findOverlaps(abut).size, 0);
+
+  // two clean nights in a row are fine
+  const nights = [shift("u1", "2026-07-06", "22:00", "06:00"), shift("u1", "2026-07-07", "22:00", "06:00")];
+  assert.equal(findOverlaps(nights).size, 0);
+});
+
+test("reconcile: an overnight shift accepts its punches landing on the next day", () => {
+  const scheduled = [shift("u1", "2026-07-06", "22:00", "06:00")];
+  // clocked in a few minutes past midnight — the punch day is already the 7th
+  const r = reconcile(scheduled, [{ userId: "u1", day: "2026-07-07", type: "in" }],
+    { dates: ["2026-07-06", "2026-07-07"] });
+  assert.equal(r.worked, 1);
+  assert.equal(r.noShow.length, 0);
+  assert.equal(r.unscheduled.length, 0); // the spill punch isn't "unscheduled" on the 7th
+});
+
+test("reconcile: an overnight clock-out next morning isn't an unscheduled day", () => {
+  // The everyday overnight case: in-punch stamps Mon, out-punch stamps Tue.
+  const scheduled = [shift("u1", "2026-07-06", "22:00", "06:00")];
+  const punches = [
+    { userId: "u1", day: "2026-07-06", type: "in" },
+    { userId: "u1", day: "2026-07-07", type: "out" },
+  ];
+  const r = reconcile(scheduled, punches, { dates: ["2026-07-06", "2026-07-07"] });
+  assert.equal(r.worked, 1);
+  assert.equal(r.noShow.length, 0);
+  assert.equal(r.unscheduled.length, 0); // Tue's out-punch belongs to Mon's shift
+});
+
+test("reconcile: a DAY shift still never matches a punch from the following day", () => {
+  const scheduled = [shift("u1", "2026-07-06", "09:00", "17:00")];
+  const r = reconcile(scheduled, [{ userId: "u1", day: "2026-07-07", type: "in" }],
+    { dates: ["2026-07-06", "2026-07-07"] });
+  assert.equal(r.worked, 0);
+  assert.equal(r.noShow.length, 1);      // the 6th really was missed
+  assert.equal(r.unscheduled.length, 1); // and the 7th really is unscheduled
+});
+
+test("availabilityConflicts flags an overnight shift spilling into an unavailable day", () => {
+  const shifts = [
+    shift("u1", "2026-07-06", "22:00", "06:00"), // spills into the 7th — conflict
+    shift("u1", "2026-07-08", "22:00", "06:00"), // spills into the 9th — fine
+    shift("u2", "2026-07-06", "22:00", "06:00"), // other person — fine
+  ];
+  const unavailable = [{ userId: "u1", date: "2026-07-07" }];
+  const ids = availabilityConflicts(shifts, unavailable);
+  assert.equal(ids.size, 1);
+  assert.ok(ids.has("u1-2026-07-06-22:00"));
 });
