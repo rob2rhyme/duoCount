@@ -47,6 +47,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Static marketing page** (self-contained HTML landing page — the distribution-analysis §2 build) | `marketing/index.html`, `distribution-analysis.md` §2 | ✅ |
 | **In-app search everywhere** (search bars on Log / Notes / Incidents with match highlight+underline; shared `text-match` + `Highlight` + `SearchInput`, adopted by the docs search and the inventory item picker) | `src/lib/text-match.js`, `Highlight.js`, `SearchInput.js` | ✅ |
 | **Footer logo fix** (footer showed a hardcoded `₵` glyph; now renders the DuoCount `<Logo>` like the header) | `src/components/AppShell.js` | ✅ |
+| **Theme-contrast CI guard** (parses live `globals.css` tokens, asserts all 46 WCAG-AA pairings in both themes; catches a token regression) | `scripts/contrast-check.mjs`, `tests/contrast.test.mjs` | ✅ |
 
 ## Next up
 
@@ -230,9 +231,11 @@ what remains, ordered by priority:
   hero flow diagram shipped alongside; rendered/verified desktop + mobile. Still
   deferred: the **WordPress** brochure path (§3a) and self-host-template polish
   (§4).
-- **Theme-contrast CI guard (nice-to-have).** The WCAG AA ratios live in a
-  hand-maintained doc table; add a script/test that recomputes contrast from the
-  token hex values so a future token change is auto-checked.
+- ✅ **Theme-contrast CI guard (done).** `scripts/contrast-check.mjs` parses the
+  live `globals.css` tokens and recomputes WCAG contrast for all 46 documented
+  pairings in both themes; `tests/contrast.test.mjs` asserts they pass (and that a
+  bad token is caught). Reproduces the hand-audited table exactly, so a token edit
+  that fails AA now fails the suite. `npm run check:contrast` / `test:contrast`.
 
 ## Deferred (tier 3)
 
