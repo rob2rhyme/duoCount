@@ -2,19 +2,7 @@
 import { useMemo, useState, useId } from "react";
 import Link from "next/link";
 import { searchDocs } from "@/lib/doc-search";
-
-const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// Wrap the matched query words in <mark> so hits stand out in titles + snippets.
-function Highlight({ text, terms }) {
-  if (!terms || !terms.length || !text) return text || null;
-  const set = new Set(terms.map((t) => t.toLowerCase()));
-  const re = new RegExp(`(${terms.map(escapeRe).join("|")})`, "gi");
-  return String(text).split(re).map((part, i) =>
-    set.has(part.toLowerCase())
-      ? <mark key={i} className="rounded bg-highlight px-0.5 font-semibold text-fg">{part}</mark>
-      : <span key={i}>{part}</span>);
-}
+import Highlight from "./Highlight";
 
 // A live search box over the whole documentation set (all of /docs and the
 // /guide). Ranking is the pure searchDocs() over a build-time index passed in as

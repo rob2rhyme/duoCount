@@ -2,8 +2,10 @@
 import { useEffect, useMemo, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { expectedStock } from "@/lib/utils";
+import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useSession } from "./SessionProvider";
 import Field from "./Field";
+import SearchInput from "./SearchInput";
 import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -32,9 +34,9 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
     [items, f.locationId]
   );
   const searchable = locItems.length > 15;
-  const shownItems = searchable && itemSearch.trim()
-    ? locItems.filter((i) =>
-        `${i.name} ${i.category || ""}`.toLowerCase().includes(itemSearch.trim().toLowerCase()))
+  const itemTerms = useMemo(() => searchTerms(itemSearch), [itemSearch]);
+  const shownItems = searchable && itemTerms.length
+    ? locItems.filter((i) => matchesTerms(`${i.name} ${i.category || ""}`, itemTerms))
     : locItems;
 
   // default item: first available at this location
@@ -115,8 +117,8 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
             </div></div>
         </div>
         {searchable && (
-          <input className="input" value={itemSearch} onChange={(e) => setItemSearch(e.target.value)}
-            placeholder={`Search ${locItems.length} items…`} aria-label="Search items" />
+          <SearchInput value={itemSearch} onChange={setItemSearch}
+            placeholder={`Search ${locItems.length} items…`} label="Search items" />
         )}
         <div className="grid grid-cols-2 gap-3.5">
           <Field label={"Date"}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
