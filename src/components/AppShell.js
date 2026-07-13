@@ -165,8 +165,7 @@ export default function AppShell() {
       <footer className="mt-10 border-t border-line-soft">
         <div className="max-w-3xl mx-auto px-4 px-safe pb-safe pt-6 pb-6">
           <div className="flex items-center justify-center gap-2.5 mb-5">
-            <div className="rounded-lg bg-brass grid place-items-center text-ink font-bold flex-shrink-0"
-              style={{ width: 28, height: 28, fontSize: 15 }} aria-hidden="true">₵</div>
+            <Logo src="/logo.png" alt="DuoCount" size={28} />
             <div className="text-center leading-tight">
               <p className="text-sm font-semibold text-fg">DuoCount</p>
               <p className="text-[11px] text-muted italic">{PRODUCT.tagline}</p>
