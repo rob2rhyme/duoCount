@@ -35,3 +35,21 @@ export function throttleDecision(record, now, { windowMs, maxFails }) {
 export function attemptKey(raw) {
   return String(raw ?? "").replace(/[^a-zA-Z0-9:._-]/g, "_").slice(0, 200) || "unknown";
 }
+
+// Best-effort client IP for the rate limiters, resistant to a spoofed
+// `X-Forwarded-For`. `getHeader(name)` returns a request header (or null/"").
+// Preference order:
+//   1. `x-real-ip` — the hosting platform (e.g. Vercel) sets this to the IP it
+//      actually observed and overwrites any client-sent value, so it can't be forged.
+//   2. the RIGHTMOST `x-forwarded-for` entry — the hop appended by the trusted
+//      proxy, not the leftmost value a client can inject to dodge the per-IP cap
+//      (the old code took [0], which an attacker fully controls).
+// Falls back to "unknown", so unattributable requests share one bucket rather
+// than each getting a fresh allowance.
+export function clientIp(getHeader) {
+  const real = String(getHeader("x-real-ip") || "").trim();
+  if (real) return real;
+  const parts = String(getHeader("x-forwarded-for") || "")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : "unknown";
+}

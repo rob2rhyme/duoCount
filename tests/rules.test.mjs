@@ -85,6 +85,7 @@ beforeEach(async () => {
     await setDoc(doc(f, `vendors/${V}/entries/eB`), entry({ locationId: "locB", locationName: "B", by: "Bob", byId: "u-empB" }));
     await setDoc(doc(f, `vendors/${V}/entries/eMgr`), entry({ by: "Mia", byId: "u-mgr", byRole: "manager" }));
     await setDoc(doc(f, `vendors/${V}/entries/flagged`), entry({ flagged: true, varianceStatus: "open", counted: 140, diff: -10 }));
+    await setDoc(doc(f, `vendors/${V}/entries/flaggedMgr`), entry({ by: "Mia", byId: "u-mgr", byRole: "manager", flagged: true, varianceStatus: "open", counted: 140, diff: -10 }));
     await setDoc(doc(f, `vendors/${V}/entries/eA/comments/c1`), { text: "first", kind: "comment", by: "Eve", byId: "u-empA", byRole: "employee", ts: new Date() });
     await setDoc(doc(f, `vendors/${V}/entries/eB/comments/c1`), { text: "other loc", kind: "comment", by: "Bob", byId: "u-empB", byRole: "employee", ts: new Date() });
     await setDoc(doc(f, `vendors/${V}/notes/nA`), { text: "note A", by: "Eve", byId: "u-empA", byRole: "employee", locationId: "locA", locationName: "A", shift: null, pinned: false, active: true, ts: new Date() });
@@ -288,6 +289,17 @@ test("resolving requires a cause code and the resolver's own name", async () => 
 test("employees cannot work the variance queue", async () => {
   await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/entries/flagged`),
     { varianceStatus: "under-review" }));
+});
+
+test("a manager can't investigate or resolve their OWN flagged count (separation of duties)", async () => {
+  // flaggedMgr is the manager's own flagged entry — self-clearing is blocked...
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/flaggedMgr`),
+    { varianceStatus: "under-review" }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/flaggedMgr`),
+    { varianceStatus: "resolved", causeCode: "training-gap", resolvedBy: "Mia", resolvedAt: new Date() }));
+  // ...but an independent reviewer (the owner) can resolve it.
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}/entries/flaggedMgr`),
+    { varianceStatus: "resolved", causeCode: "training-gap", resolvedBy: "Olive", resolvedAt: new Date() }));
 });
 
 test("a manager can't fabricate a resolution on a never-flagged entry (L9)", async () => {

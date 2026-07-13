@@ -48,6 +48,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **In-app search everywhere** (search bars on Log / Notes / Incidents with match highlight+underline; shared `text-match` + `Highlight` + `SearchInput`, adopted by the docs search and the inventory item picker) | `src/lib/text-match.js`, `Highlight.js`, `SearchInput.js` | ✅ |
 | **Footer logo fix** (footer showed a hardcoded `₵` glyph; now renders the DuoCount `<Logo>` like the header) | `src/components/AppShell.js` | ✅ |
 | **Theme-contrast CI guard** (parses live `globals.css` tokens, asserts all 46 WCAG-AA pairings in both themes; catches a token regression) | `scripts/contrast-check.mjs`, `tests/contrast.test.mjs` | ✅ |
+| **Low-severity security fixes** (separation-of-duties on `investigate()` so a manager can't self-resolve their own flag; login/signup IP derivation resistant to a spoofed `X-Forwarded-For`) | `firestore.rules`, `src/lib/login-throttle.js` | ✅ |
 
 ## Next up
 
@@ -199,12 +200,18 @@ what remains, ordered by priority:
   revoked refresh means the client can't renew past that.
 - ✅ **`CRON_SECRET` constant-time compare** — the digest cron now uses
   `crypto.timingSafeEqual` (`src/app/api/cron/digest/route.js`).
-- **Lower-severity notes (defer/low):** login per-IP counter trusts the leftmost
-  `X-Forwarded-For` (Vercel appends the real IP on the right — validate against
-  the platform's trusted position); per-store attempt counter resets on any
-  success (sliding window mostly covers it); signed-entry `ts` is client-set; a
-  manager can self-resolve a self-authored flagged variance (add the
-  `byId != caller` self-check to `investigate()` that `verifyOnly()` already has).
+- ✅ **Manager self-resolve variance (fixed).** `investigate()` in
+  `firestore.rules` now carries the same `byId != caller` self-check as
+  `verifyOnly()`, so a manager can't clear their own flagged count; an independent
+  reviewer still can. Covered by a new rules test — run `npm run test:rules`
+  (Firestore emulator) to verify, as it can't run in the plain unit suite.
+- ✅ **Spoofable client IP (fixed).** The login + signup rate limiters now derive
+  the client IP via a shared, unit-tested `clientIp()` (`login-throttle.js`) that
+  prefers the un-spoofable `x-real-ip`, else the rightmost `X-Forwarded-For` hop —
+  not the attacker-controllable leftmost value.
+- **Remaining low notes (defer):** the per-store attempt counter resets on any
+  success (the 15-min sliding window mostly covers it); the signed-entry `ts` is
+  client-set (server-pinning it means moving the cash-entry write server-side).
 
 ### Documentation & packaging
 - ✅ **Doc-accuracy drift** — README called the shipped Reports feature "planned",

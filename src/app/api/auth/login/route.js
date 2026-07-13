@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { verifyPin } from "@/lib/hash";
-import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT } from "@/lib/login-throttle";
+import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp } from "@/lib/login-throttle";
 
 export const runtime = "nodejs";
 
@@ -9,12 +9,9 @@ export const runtime = "nodejs";
 // client IP (one machine hammering) and per store slug (a distributed attack
 // rotating IPs). Either tripping => 429. Counters live in a top-level collection
 // only the Admin SDK can touch (the rules match nothing outside /vendors, so
-// Firestore default-denies clients). Decision logic is pure + unit-tested in
-// lib/login-throttle.js; both windows auto-expire and clear on success.
-function clientIp(req) {
-  const fwd = req.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0].trim() : "") || "unknown";
-}
+// Firestore default-denies clients). Decision + client-IP logic are pure +
+// unit-tested in lib/login-throttle.js; both windows auto-expire and clear on success.
+const ipOf = (req) => clientIp((n) => req.headers.get(n));
 
 export async function POST(req) {
   try {
@@ -27,7 +24,7 @@ export async function POST(req) {
     const slug = String(storeCode).trim().toLowerCase();
 
     const attempts = adminDb.collection("loginAttempts");
-    const ipRef = attempts.doc(`ip_${attemptKey(clientIp(req))}`);
+    const ipRef = attempts.doc(`ip_${attemptKey(ipOf(req))}`);
     const storeRef = attempts.doc(`store_${attemptKey(slug)}`);
     const [ipSnap, storeSnap] = await Promise.all([ipRef.get(), storeRef.get()]);
     const ipDec = throttleDecision(ipSnap.exists ? ipSnap.data() : null, now, IP_LIMIT);
