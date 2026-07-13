@@ -21,9 +21,14 @@ export default function DocSearch({ index = [], placeholder = "Search the docume
           viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
         </svg>
+        {/* Inline padding for the same cascade reason as SearchInput: `.input`'s
+            px-3 is declared later and beats the pl-9 utility, sliding the text
+            under the magnifier. The native search-cancel is hidden globally; the
+            × below matches the shared SearchInput's clear control. */}
         <input
           type="search"
-          className="input pl-9"
+          className="input"
+          style={{ paddingLeft: "2.25rem", paddingRight: "2rem" }}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Escape") setQ(""); }}
@@ -34,6 +39,10 @@ export default function DocSearch({ index = [], placeholder = "Search the docume
           role="combobox"
           autoComplete="off"
         />
+        {q && (
+          <button type="button" aria-label="Clear search" onClick={() => setQ("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-lg leading-none text-muted hover:text-fg">×</button>
+        )}
       </div>
 
       {active && (

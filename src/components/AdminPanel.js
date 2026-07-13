@@ -8,6 +8,7 @@ import {
 import { useSession } from "./SessionProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { PIN_LENGTH, PIN_HELP, isValidNewPin } from "@/lib/pin";
+import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
 import PacksCard from "./PacksCard";
 import SettlementReconcile from "./SettlementReconcile";
@@ -220,6 +221,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
             return (
               <div key={u.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
+                  <Avatar name={u.name} inactive={!active} className="mb-1.5" />
                   <div className="font-medium flex items-center gap-2">
                     {u.name}
                     {isMe && <span className="pill bg-subtle text-muted">You</span>}
