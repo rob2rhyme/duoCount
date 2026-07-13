@@ -6,7 +6,7 @@
 // grouping bug can't hide behind matching-but-wrong internals.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildPeriodReport } from "../src/lib/report-build.js";
+import { buildPeriodReport, buildLocationComparison } from "../src/lib/report-build.js";
 import { buildDemoData } from "../src/lib/seed-data.js";
 
 const round2 = (n) => Math.round(n * 100) / 100;
@@ -207,6 +207,55 @@ test("buildPeriodReport rejects a missing or inverted range", () => {
   assert.throws(() => buildPeriodReport(entries, { startISO: "2026-03-11", endISO: "2026-03-10" }), /after end/);
 });
 
+// --------------------------------------------------- location comparison ----
+const LOCS = [{ id: "loc_a", name: "Store A" }, { id: "loc_b", name: "Store B" }];
+
+test("comparison: one KPI row per location (input order) + an all-locations total", () => {
+  const c = buildLocationComparison(entries, RANGE, LOCS);
+  assert.deepEqual(c.locations.map((l) => l.locId), ["loc_a", "loc_b"]);
+  const a = pick(c.locations, "locId", "loc_a");
+  assert.deepEqual([a.cashCount, a.cashSales, a.cashNet], [2, 700, 0]);
+  assert.deepEqual([a.scratchCount, a.scratchDollars], [2, 70]);
+  assert.deepEqual([a.invCount, a.invShrink], [2, -2]);
+  assert.deepEqual([a.total, a.verified, a.flagged, a.disputed], [6, 2, 2, 0]);
+  assert.equal(a.verificationRate, 0.3333);
+  const b = pick(c.locations, "locId", "loc_b");
+  assert.deepEqual([b.cashCount, b.cashSales, b.cashNet], [1, 200, 0]);
+  assert.deepEqual([b.scratchDollars, b.invShrink], [30, 0]);
+  assert.deepEqual([b.total, b.verified, b.flagged, b.disputed], [3, 1, 0, 1]);
+});
+
+test("comparison: the total row equals the all-scope report and rows sum back", () => {
+  const c = buildLocationComparison(entries, RANGE, LOCS);
+  const all = buildPeriodReport(entries, RANGE, "all");
+  assert.equal(c.total.locId, "all");
+  assert.deepEqual([c.total.cashCount, c.total.cashSales, c.total.cashNet], [all.counts.cash, all.cash.sales, all.cash.netDiff]);
+  assert.equal(c.total.total, all.integrity.total);
+  // no orphan entries in this fixture, so per-location rows sum to the total
+  assert.equal(c.locations.reduce((s, l) => s + l.cashCount, 0), c.total.cashCount);
+  assert.equal(round2(c.locations.reduce((s, l) => s + l.cashSales, 0)), c.total.cashSales);
+  assert.equal(c.locations.reduce((s, l) => s + l.total, 0), c.total.total);
+});
+
+test("comparison: each row is identical to that location's own report", () => {
+  const c = buildLocationComparison(entries, RANGE, LOCS);
+  for (const l of LOCS) {
+    const r = buildPeriodReport(entries, RANGE, l.id);
+    const cr = pick(c.locations, "locId", l.id);
+    assert.equal(cr.cashNet, r.cash.netDiff);
+    assert.equal(cr.scratchDollars, r.scratch.dollars);
+    assert.equal(cr.invShrink, r.inventory.netShrink);
+    assert.equal(cr.verificationRate, r.integrity.verificationRate);
+  }
+});
+
+test("comparison: no locations → just the total; a bad range throws", () => {
+  const c = buildLocationComparison(entries, RANGE, []);
+  assert.deepEqual(c.locations, []);
+  assert.equal(c.total.cashCount, 3);
+  assert.throws(() => buildLocationComparison(entries, {}, LOCS), /needs \{ startISO, endISO \}/);
+});
+
 // =================================================================================
 // Demo seed as a realistic fixture — independent oracles recomputed from raw docs
 // =================================================================================
@@ -270,6 +319,23 @@ test("demo seed: labor roll-up sums each employee's in-range punches", () => {
   for (const u of r.labor) assert.ok(u.hours > 0 && u.shifts > 0);
   const names = r.labor.map((u) => u.userName);
   assert.ok(names.includes("Sam Rivera") && names.includes("Alex Kim"));
+});
+
+test("demo seed: location comparison reconciles with per-location reports", () => {
+  const d = buildDemoData({ owner, now: NOW });
+  const locs = d.locations.map((l) => ({ id: l.id, name: l.name }));
+  const c = buildLocationComparison(d.entries, WHOLE, locs);
+  assert.equal(c.locations.length, locs.length);
+  for (const l of locs) {
+    const r = buildPeriodReport(d.entries, WHOLE, l.id);
+    const cr = pick(c.locations, "locId", l.id);
+    assert.equal(cr.cashNet, r.cash.netDiff);
+    assert.equal(cr.scratchDollars, r.scratch.dollars);
+    assert.equal(cr.total, r.integrity.total);
+  }
+  // every seed entry belongs to a known location, so the rows sum to the total
+  assert.equal(c.locations.reduce((s, l) => s + l.total, 0), c.total.total);
+  assert.equal(round2(c.locations.reduce((s, l) => s + l.cashSales, 0)), c.total.cashSales);
 });
 
 test("demo seed: incident tally matches the seed's own statuses", () => {

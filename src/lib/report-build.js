@@ -243,3 +243,46 @@ export function buildPeriodReport(entries = [], range = {}, locId = "all", opts 
     incidents,
   };
 }
+
+// A compact per-location KPI slice of a full period report — the unit of the
+// side-by-side comparison table.
+function comparisonRow(locId, locName, r) {
+  return {
+    locId,
+    locName,
+    cashCount: r.counts.cash,
+    cashSales: r.cash.sales,
+    cashNet: r.cash.netDiff,
+    scratchCount: r.counts.scratch,
+    scratchDollars: r.scratch.dollars,
+    invCount: r.counts.inventory,
+    invShrink: r.inventory.netShrink,
+    total: r.integrity.total,
+    verified: r.integrity.verified,
+    verificationRate: r.integrity.verificationRate,
+    flagged: r.integrity.flagged,
+    disputed: r.integrity.disputed,
+  };
+}
+
+/**
+ * Side-by-side KPI comparison across locations for one period. Runs the tested
+ * buildPeriodReport once per location (plus an all-locations total), so every
+ * number is identical to that location's own single-location report. Feed it the
+ * *unscoped* period entries (scope = "all") — comparison only makes sense across
+ * locations. Input order of `locations` is preserved.
+ * @param {Array} entries  period entries, unscoped.
+ * @param {{ startISO: string, endISO: string }} range  inclusive bounds.
+ * @param {Array<{id: string, name?: string}>} locations  columns to compare.
+ * @param {object} [opts]  forwarded to buildPeriodReport (labor/incidents unused here).
+ * @returns {{ range: {startISO,endISO}, locations: Array<object>, total: object }}
+ */
+export function buildLocationComparison(entries = [], range = {}, locations = [], opts = {}) {
+  const { startISO, endISO } = range;
+  if (!startISO || !endISO) throw new Error("buildLocationComparison needs { startISO, endISO }");
+  const rows = (locations || [])
+    .filter((l) => l && l.id)
+    .map((l) => comparisonRow(l.id, l.name || "—", buildPeriodReport(entries, range, l.id, opts)));
+  const total = comparisonRow("all", "All locations", buildPeriodReport(entries, range, "all", opts));
+  return { range: { startISO, endISO }, locations: rows, total };
+}

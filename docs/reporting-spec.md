@@ -67,6 +67,14 @@ Generalize `ReportModal.buildReport` from one date to a range + richer rollups.
   - **Labor** (optional, if punches passed): hours per employee via
     `summarizeHours` (`src/lib/timeclock.js`) bounded to the range — a payroll roll-up.
   - **Incidents**: opened / acknowledged / closed within the range.
+- **Multi-location comparison (shipped).** `buildLocationComparison(entries,
+  {startISO,endISO}, locations, opts)` runs `buildPeriodReport` once per location
+  plus an all-locations total, returning a compact per-location KPI row
+  (over/short, scratch $, net shrink, verification rate, counts) — so every
+  number matches that location's own report exactly. The Report center renders it
+  as a **By location** table (preview + PDF + print) whenever the scope is *All*
+  and the store has two or more locations. Read-only; no new fetch (reuses the
+  period's already-fetched rows).
 - Empty period is valid: everything zeroes, and the report still downloads with a
   "No activity in this period" line.
 
@@ -125,10 +133,11 @@ wasteful/limited for a year. A report is a one-shot snapshot, not a live view, s
 4. ✅ **PDF** export (period-formatted summary tables) + labor/incidents sections + trend sparkline.
 
 ## Out of scope (v1) / future
-- ~~Fiscal-year start offset~~ **(shipped — see §1)**; multi-location
-  side-by-side comparison; scheduled/emailed periodic reports (the digest infra
-  in `src/lib/digest.js` could later drive a monthly PDF email); saved/branded
-  report templates; server-side PDF rendering for very large ranges.
+- ~~Fiscal-year start offset~~ **(shipped — see §1)**; ~~multi-location
+  side-by-side comparison~~ **(shipped — see §2)**; scheduled/emailed periodic
+  reports (the digest infra in `src/lib/digest.js` could later drive a monthly
+  PDF email); saved/branded report templates; server-side PDF rendering for very
+  large ranges.
 
 ## Why it fits the trust model
 Reports only **read** the append-only log and render client-side — they never
