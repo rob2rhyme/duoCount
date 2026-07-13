@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
-import { throttleDecision, attemptKey } from "@/lib/login-throttle";
+import { throttleDecision, attemptKey, clientIp } from "@/lib/login-throttle";
 
 export const runtime = "nodejs";
 
@@ -12,10 +12,7 @@ export const runtime = "nodejs";
 // pattern as loginAttempts (default-denied to clients).
 const SIGNUP_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 5 };
 
-function clientIp(req) {
-  const fwd = req.headers.get("x-forwarded-for");
-  return (fwd ? fwd.split(",")[0].trim() : "") || "unknown";
-}
+const ipOf = (req) => clientIp((n) => req.headers.get(n));
 
 function slugify(name) {
   return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "store";
@@ -35,7 +32,7 @@ export async function POST(req) {
     const now = new Date();
 
     // Per-IP rate limit before any writes.
-    const ipRef = adminDb.collection("signupAttempts").doc(`ip_${attemptKey(clientIp(req))}`);
+    const ipRef = adminDb.collection("signupAttempts").doc(`ip_${attemptKey(ipOf(req))}`);
     const ipSnap = await ipRef.get();
     const dec = throttleDecision(ipSnap.exists ? ipSnap.data() : null, now.getTime(), SIGNUP_LIMIT);
     if (dec.blocked)

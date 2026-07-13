@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isValidNewPin, PIN_LENGTH, PIN_RE } from "../src/lib/pin.js";
-import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT } from "../src/lib/login-throttle.js";
+import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp } from "../src/lib/login-throttle.js";
 
 test("PIN policy: new pins must be exactly 6 digits", () => {
   assert.equal(PIN_LENGTH, 6);
@@ -66,4 +66,24 @@ test("attemptKey sanitizes and bounds doc ids", () => {
   assert.equal(attemptKey(""), "unknown");
   assert.equal(attemptKey(null), "unknown");
   assert.equal(attemptKey("x".repeat(500)).length, 200);
+});
+
+// clientIp — resilient to a spoofed X-Forwarded-For (see login-throttle.js).
+const hdr = (m) => (name) => m[name] ?? null;
+
+test("clientIp prefers the un-spoofable x-real-ip", () => {
+  assert.equal(
+    clientIp(hdr({ "x-real-ip": "203.0.113.7", "x-forwarded-for": "9.9.9.9, 203.0.113.7" })),
+    "203.0.113.7");
+});
+
+test("clientIp uses the rightmost XFF hop, not the spoofable leftmost", () => {
+  // attacker injects a fake leftmost value; the trusted proxy appends the real IP
+  assert.equal(clientIp(hdr({ "x-forwarded-for": "9.9.9.9, 203.0.113.7" })), "203.0.113.7");
+  assert.equal(clientIp(hdr({ "x-forwarded-for": "203.0.113.7" })), "203.0.113.7");
+});
+
+test("clientIp falls back to 'unknown' with no usable forwarding headers", () => {
+  assert.equal(clientIp(() => null), "unknown");
+  assert.equal(clientIp(hdr({ "x-forwarded-for": "  , ,  " })), "unknown");
 });
