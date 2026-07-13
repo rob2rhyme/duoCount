@@ -136,6 +136,20 @@ best-value AI feature at negligible cost, gated on a per-vendor privacy opt-in.
 ### 6. Mobile-first PWA — ✅ done (this cycle)
 Installable + offline app shell + safe-area + install prompt. See `pwa-spec.md`.
 
+### 7. AI digest narrative — 📄 spec ready (analysis only, not built)
+The first AI feature from `distribution-analysis.md` §1, now specified end-to-end
+in **`ai-features-spec.md`** (integration point, API design, privacy guardrails,
+failure handling, tests, phasing) — **no application code yet**. Adds 2–3
+plain-English sentences + a "what to watch tomorrow" list to the top of the
+existing daily digest, generated on the aggregates the digest already computes.
+- **Design headlines:** slots between `summarizeEntries` and `composeEmail` in
+  `src/lib/digest.js`; server-side `@anthropic-ai/sdk` on `claude-haiku-4-5` with
+  structured output + prompt caching; **opt-in per vendor, off by default**;
+  names pseudonymized before egress; **additive** — any model failure sends the
+  plain digest unchanged; `claude-fable-5` excluded (30-day retention).
+- **When built:** phase it per the spec (mechanics dark → owner toggle + privacy
+  note → later NL log search / features 4–5 as their own specs).
+
 ## Layout audit
 
 All nine screens (Cash, Scratch-offs, Inventory, Log, Notes, Incidents, Time,
