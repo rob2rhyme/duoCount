@@ -41,11 +41,41 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Docs & guide search** (live word search across all `/docs` + `/guide` content; build-time index, pure ranking lib, deep-links to the matching doc + heading) | `src/lib/doc-search.js`, `src/components/DocSearch.js` | ✅ |
 | **Premium doc-card icons** (curated inline-SVG line icon per documentation card — no external assets, theme-aware) | `src/components/DocIcon.js` | ✅ |
 | **Security hardening (audit fixes)** (blocked manager→owner PIN-reset takeover; escaped the report Print path against stored XSS from raw entry fields) | this file, §"Security follow-ups" | ✅ |
+| **Session-revocation hardening** (checkRevoked on all privileged routes; revoke refresh tokens on deactivate/demote; constant-time cron secret) | `src/lib/require-manager.js`, §"Security follow-ups" | ✅ |
+| **Legal/compliance layer** (LICENSE + privacy notice + disclaimers; "Legal" section on /docs; owner review pending) | `privacy-and-data.md`, `legal-disclaimers.md`, `LICENSE` | ✅ |
+| **Guide flow diagrams** (three theme-adaptive SVG diagrams in the getting-started guide) | `public/diagrams/`, `getting-started.md` | ✅ |
+| **Static marketing page** (self-contained HTML landing page — the distribution-analysis §2 build) | `marketing/index.html`, `distribution-analysis.md` §2 | ✅ |
 
 ## Next up
 
 Ordered roughly by value-per-effort. Each item lists acceptance criteria so it
 can be picked up cleanly.
+
+### A. List-view search bars — requested
+Add a search box to the **Inventory**, **Log**, **Notes**, and **Incidents**
+lists. As the user types, filter the list live and **highlight / underline the
+matching characters** in each result.
+- **Acceptance:** each of the four lists has a labelled search input; typing
+  narrows the list; matched substrings are marked (`<mark>` / underline) in the
+  rendered rows; a "no match — clear" empty state (the Log already has one); the
+  result count is announced (`aria-live`).
+
+### B. Project-wide search consistency — requested
+Unify search + match-highlighting everywhere it appears: the new list searches,
+the existing item-picker search in `InventoryForm.js`, and the docs/guide search
+(`DocSearch.js`) should share **one** highlight helper and one interaction
+pattern, so search feels identical across the app.
+- **Acceptance:** a shared highlight utility (extracted from `DocSearch`'s
+  `Highlight`) reused by every search surface; consistent match styling; no
+  duplicated ad-hoc filter/highlight logic left behind.
+
+### C. Footer logo fix — requested (bug)
+The app footer renders a hardcoded **"₵" glyph** as the brand mark
+(`src/components/AppShell.js`, ~line 168) instead of the intended DuoCount logo;
+the header already uses `<Logo src="/logo.png">`.
+- **Acceptance:** the footer shows the real DuoCount logo via the `<Logo>`
+  component (with the `DC` brass-mark fallback), matching the header — no stray
+  `₵` character.
 
 ### 0. Reports & records export — ✅ done
 Owner/manager generates and **downloads** a report for any period — daily,
@@ -198,9 +228,11 @@ what remains, ordered by priority:
   fill in the real copyright holder + a contact point, and have a professional
   review the privacy notice for your jurisdiction (GDPR/CCPA/etc.). Citations for
   the market claims in `positioning-one-pager.md` remain to be added.
-- **Alternate builds — HTML / WordPress / etc. (missing).** Only the written
-  `distribution-analysis.md` exists; no static-HTML export or WordPress artifact is
-  built. Scope + build the recommended path (self-host template) if pursued.
+- ✅ **Static HTML marketing page (done).** `marketing/index.html` — a
+  self-contained, theme-aware landing page (the recommended §2 build), with the
+  hero flow diagram shipped alongside; rendered/verified desktop + mobile. Still
+  deferred: the **WordPress** brochure path (§3a) and self-host-template polish
+  (§4).
 - **Theme-contrast CI guard (nice-to-have).** The WCAG AA ratios live in a
   hand-maintained doc table; add a script/test that recomputes contrast from the
   token hex values so a future token change is auto-checked.
