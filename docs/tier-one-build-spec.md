@@ -71,7 +71,7 @@ Append-only thread. No edits, no deletes — same trust posture as entries.
 
 **Why reveal-after-commit is sound here:** entries are append-only (delete/edit blocked by rules), so the count is locked before the counter sees the target. That is the entire point of a blind count. No stricter "hide until manager verifies" mode in v1.
 
-**Honest limitation to record in the README:** expected/diff are computed client-side at save (there is no server write path for entries). Blind mode is a UI-level control; a determined employee with dev tools could compute expected. The mitigation is the same as today — manager verification and append-only history. A server-computed variant is a tier-2 option if ever needed.
+**Honest limitation to record in the README:** expected/diff are computed client-side at save (there is no server write path for entries), so blind mode is a UI-level control — a determined employee with dev tools could still compute expected from the numbers they enter. What the rules **do** enforce (see `expectedConsistent()`/`varianceConsistent()`) is that the stored `expected` and `diff` are internally consistent with the entry's own components, so a forged baseline can't slip a real short past the digest and detectors. The residual gap is the *components themselves* (`start`/`sales`/`paid-out`) being counter-entered — closing that needs a POS/sales integration, not just a server write path. Manager verification + append-only history remain the backstop.
 
 **Scratch form:** unchanged. Ticket counts have no "expected" to fudge toward; blindness doesn't apply.
 
@@ -278,10 +278,18 @@ allow update: if verifyOnly() || investigate() || disputeOpen() || disputeManage
 && request.resource.data.get('varianceStatus','none') in ['none','open']
 && request.resource.data.get('causeCode', null) == null
 && varianceConsistent()   // diff must equal counted - expected (±0.01)
+&& expectedConsistent()   // expected must equal its own components (baseline pin)
 && flagConsistent()       // an over-threshold cash/inventory count must be signed 'open'
 ```
 
-`varianceConsistent()` and `flagConsistent()` close the gap where a non-manager could sign a clean-looking count that hides a real short from the review queue, the owner digest, and the theft-pattern detectors — all of which trust the stored `diff`/`varianceStatus`:
+`varianceConsistent()`, `expectedConsistent()`, and `flagConsistent()` close the
+gap where a non-manager could sign a clean-looking count that hides a real short
+from the review queue, the owner digest, and the theft-pattern detectors — all of
+which trust the stored `diff`/`varianceStatus`. `varianceConsistent` pins `diff`
+to `counted − expected`; `expectedConsistent` pins `expected` to its own
+components (cash `start+sales−paidout`, inventory
+`startQty+received−soldQty−removed`), so `expected` can't be forged independent of
+the components to net a short to a clean diff:
 ```
 // Cash/inventory entries carry counted/expected/diff; the stored diff must
 // equal counted - expected (±0.01 to absorb float cents). Scratch is exempt.
@@ -293,6 +301,12 @@ function varianceConsistent() {
         && request.resource.data.diff >= request.resource.data.counted - request.resource.data.expected - 0.01
         && request.resource.data.diff <= request.resource.data.counted - request.resource.data.expected + 0.01);
 }
+
+// The stored `expected` must equal its own components (cash: start+sales−paidout,
+// inventory: startQty+received−soldQty−removed, ±0.01) — so a client can't fake
+// the baseline the diff is measured against. Opening counts store sales/paidout
+// as 0, so one formula covers open and close.
+function expectedConsistent() { /* cashExpectedOK() / invExpectedOK() by kind */ }
 
 // A count at/beyond the store's threshold must be signed as an OPEN variance —
 // a client can't record a real short/over as 'none' and hide it from review.

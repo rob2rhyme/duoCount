@@ -221,6 +221,29 @@ test("inventory flagging is opt-in: off by default, enforced once a unit thresho
     invEntry({ soldQty: 8, counted: 1, expected: 2, diff: -1, varianceStatus: "none" })));
 });
 
+test("the stored expected must match its own components (no forged baseline)", async () => {
+  // The exploit expectedConsistent() closes: a real $50 short made to look
+  // balanced by forging `expected` down to the counted amount. varianceConsistent
+  // (diff == counted−expected) and the flag rule BOTH pass here — only the
+  // baseline check catches it (start+sales−paidout = 150, not the forged 100).
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/forge1`),
+    entry({ start: 100, sales: 50, paidout: 0, expected: 100, counted: 100, diff: 0 })));
+  // the honest baseline (expected == start + sales − paidout) goes through
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/base1`),
+    entry({ start: 100, sales: 50, paidout: 0, expected: 150, counted: 150, diff: 0 })));
+  // an opening count stores sales/paidout as 0, so one formula covers it (expected == start)
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/base2`),
+    entry({ shift: "open", start: 200, sales: 0, paidout: 0, expected: 200, counted: 200, diff: 0 })));
+  // a paid-out is subtracted from the baseline
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/base3`),
+    entry({ start: 100, sales: 50, paidout: 20, expected: 130, counted: 130, diff: 0 })));
+  // inventory baseline: expected == startQty + received − soldQty − removed
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/forgeInv`),
+    invEntry({ startQty: 10, received: 5, soldQty: 3, removed: 0, expected: 10, counted: 10, diff: 0 })));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/baseInv`),
+    invEntry({ startQty: 10, received: 5, soldQty: 3, removed: 0, expected: 12, counted: 12, diff: 0 })));
+});
+
 test("byRole must match the token's role (no CSV role self-labeling)", async () => {
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/role1`),
     entry({ byRole: "manager" })));
