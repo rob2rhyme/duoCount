@@ -158,20 +158,23 @@ what remains, ordered by priority:
 - ✅ **Stored XSS in report Print** — `printReport` interpolated raw entry fields
   (`sold`, `startQty`, `counted`, `diff`) that Firestore rules don't type-check.
   Fixed: those fields now go through `esc()` (`src/components/ReportModal.js`).
-- **Session revocation on deactivate/demote (medium).** Admin-SDK routes verify
-  ID tokens with no `checkRevoked` and never re-read the caller's live user doc
-  (`src/lib/require-manager.js`, `src/app/api/seed/route.js`,
-  `src/app/api/digest/test/route.js`); read rules gate on token claims, not
-  `liveActive()`. So a deactivated/demoted user keeps API + read access until
-  their token expires. Fix: `adminAuth.revokeRefreshTokens(uid)` on
-  deactivate/demote + `verifyIdToken(token, true)` on privileged routes; consider
-  `liveActive()` on sensitive reads. Needs emulator/app verification, so it's
-  staged rather than hot-patched.
+- ✅ **Session revocation on deactivate/demote (medium).** Privileged routes now
+  verify with `checkRevoked` via a single shared `verifyBearer`
+  (`src/lib/require-manager.js` — `requireManager`/`requireOwner`, adopted by the
+  staff, schedule-publish, seed, and digest-test routes), and the staff route
+  calls `adminAuth.revokeRefreshTokens(uid)` on deactivate/role-change. A revoked
+  user is forced to re-authenticate, and login only matches `active==true` users,
+  so a deactivated user can't get back in. **Verify against a live project /
+  emulator** before relying on it (auth can't be exercised in this repo).
+  Remaining slice (low): read rules still gate on token claims, not
+  `liveActive()`, so client *reads* persist until the ID token expires (≤1h);
+  revoked refresh means the client can't renew past that.
+- ✅ **`CRON_SECRET` constant-time compare** — the digest cron now uses
+  `crypto.timingSafeEqual` (`src/app/api/cron/digest/route.js`).
 - **Lower-severity notes (defer/low):** login per-IP counter trusts the leftmost
   `X-Forwarded-For` (Vercel appends the real IP on the right — validate against
   the platform's trusted position); per-store attempt counter resets on any
-  success (sliding window mostly covers it); `CRON_SECRET` uses non-constant-time
-  comparison (`crypto.timingSafeEqual`); signed-entry `ts` is client-set; a
+  success (sliding window mostly covers it); signed-entry `ts` is client-set; a
   manager can self-resolve a self-authored flagged variance (add the
   `byId != caller` self-check to `investigate()` that `verifyOnly()` already has).
 

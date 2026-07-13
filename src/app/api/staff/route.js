@@ -84,7 +84,7 @@ export async function PATCH(req) {
     if (userId === claims.userId)
       return NextResponse.json({ error: "You can't modify your own account here." }, { status: 400 });
 
-    const { adminDb } = await getAdmin();
+    const { adminDb, adminAuth } = await getAdmin();
     const ref = adminDb.collection("vendors").doc(claims.vendorId).collection("users").doc(userId);
     const snap = await ref.get();
     if (!snap.exists) return NextResponse.json({ error: "Staff member not found." }, { status: 404 });
@@ -132,6 +132,20 @@ export async function PATCH(req) {
     }
 
     if (Object.keys(patch).length) await ref.update(patch);
+
+    // Deactivating or changing a user's role must take effect now, not whenever
+    // their ID token happens to expire. Revoke their refresh tokens so the next
+    // privileged call (verified with checkRevoked) is rejected and the client is
+    // forced to re-authenticate — at which point login re-reads their live role
+    // and won't sign in a now-inactive user at all. No-op-safe before first
+    // sign-in (no Firebase Auth user exists yet).
+    if (patch.active === false || patch.role !== undefined) {
+      try {
+        await adminAuth.revokeRefreshTokens(`${claims.vendorId}_${userId}`);
+      } catch (e) {
+        if (e.code !== "auth/user-not-found") throw e;
+      }
+    }
 
     if (pin !== undefined) {
       // Only an owner may reset an owner's PIN — otherwise a manager could reset

@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
+import { requireOwner } from "@/lib/require-manager";
 import { buildDemoData } from "@/lib/seed-data";
 
 export const runtime = "nodejs";
 
 // Demo data is powerful (it writes and deletes vendor records), so it's
-// owner-only and always scoped to the caller's own vendor.
-async function requireOwner(req) {
-  const authz = req.headers.get("authorization") || "";
-  const idToken = authz.startsWith("Bearer ") ? authz.slice(7) : null;
-  if (!idToken) throw Object.assign(new Error("Not signed in."), { status: 401 });
-  const { adminAuth } = await getAdmin();
-  const claims = await adminAuth.verifyIdToken(idToken);
-  if (!claims.vendorId || claims.role !== "owner")
-    throw Object.assign(new Error("Only the owner can manage demo data."), { status: 403 });
-  return claims;
-}
+// owner-only (requireOwner verifies the Bearer token with checkRevoked) and
+// always scoped to the caller's own vendor.
 
 // A batch that auto-flushes every 400 ops, so the seed — which runs to hundreds
 // of docs on a long history window — never hits Firestore's 500-op batch limit.

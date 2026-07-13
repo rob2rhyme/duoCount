@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
+import { requireOwner } from "@/lib/require-manager";
 import { sendDigestForVendor } from "@/lib/digest";
 
 export const runtime = "nodejs";
@@ -8,14 +9,8 @@ export const runtime = "nodejs";
 // testing never suppresses the real morning digest.
 export async function POST(req) {
   try {
-    const authz = req.headers.get("authorization") || "";
-    const idToken = authz.startsWith("Bearer ") ? authz.slice(7) : null;
-    if (!idToken) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-
-    const { adminAuth, adminDb } = await getAdmin();
-    const claims = await adminAuth.verifyIdToken(idToken);
-    if (!claims.vendorId || claims.role !== "owner")
-      return NextResponse.json({ error: "Owners only." }, { status: 403 });
+    const claims = await requireOwner(req);
+    const { adminDb } = await getAdmin();
 
     const vendorSnap = await adminDb.collection("vendors").doc(claims.vendorId).get();
     if (!vendorSnap.exists) return NextResponse.json({ error: "Vendor not found." }, { status: 404 });
