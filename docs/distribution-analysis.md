@@ -100,6 +100,12 @@ Gate it behind an owner opt-in with a clear data-handling note. Then add
 the opt-in/consent UX is proven. Write it up as its own `ai-features-spec.md`
 when it graduates from analysis to build.
 
+> **Graduated to a build spec:** the digest narrative is now specified
+> end-to-end in **`ai-features-spec.md`** (integration point in `digest.js`,
+> Haiku + structured-output + prompt-caching API design, privacy guardrails,
+> additive failure handling, tests, phasing). Still analysis/design only — no
+> application code — but ready to pick up.
+
 ---
 
 ## 2. Static HTML recreation
