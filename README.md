@@ -29,16 +29,16 @@ security rules keyed on server-issued auth claims.
     scroll-to-top FAB, light/dark theme, and Settings menu (built)
   - `demo-data-spec.md` — owner-only Load/Clear sample data (server-side, so it
     respects the append-only trust rules)
-  - `reporting-spec.md` — planned: download reports for any period (daily →
-    annual + custom) to keep for records (PDF + CSV)
+  - `reporting-spec.md` — download reports for any period (daily → annual,
+    custom, and fiscal-year) to keep for records (PDF + CSV + print), with a
+    side-by-side multi-location comparison (shipped)
   - `pwa-spec.md` — installable mobile-first PWA (offline app shell, safe-area,
     install prompt)
   - `distribution-analysis.md` — AI integration, static-HTML, WordPress, and
     other packaging paths, with effort/trade-offs/recommendations
   - `theme-accessibility-audit.md` — measured WCAG AA contrast audit across
     both themes, with the failures found and the token fixes shipped
-  - `roadmap.md` — what's shipped, what's next (PWA, distribution analysis,
-    audits), and what's deferred
+  - `roadmap.md` — what's shipped, what's next, and what's deferred
   - `positioning-one-pager.md` — market positioning, competitors, pricing
 - `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
   branded for Smokers Haven, useful as backup or during onboarding. The app
@@ -201,7 +201,7 @@ initial bundle. Camera use requires HTTPS (or localhost) plus permission.
 ## Testing the security rules
 
 The rules are the product's trust boundary, so they have an executable test
-suite (`tests/rules.test.mjs`, 55 tests): tenant isolation, per-location
+suite (`tests/rules.test.mjs`, 64 tests): tenant isolation, per-location
 visibility for entries/comments/notes, the five mutually exclusive entry
 update branches (verify / investigate / dispute-open / dispute-manage /
 comment bump), clean-create guards, the owner settings whitelist, item
