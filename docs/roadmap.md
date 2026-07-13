@@ -187,10 +187,16 @@ what remains, ordered by priority:
   needs a running app + Firebase. Plan: run the app against the demo seed, capture
   the key flows (sign-in, cash count, variance flag, report center), commit them
   under `public/`, and embed via Markdown. Interim option: inline SVG diagrams.
-- **Rejection-proof legal/compliance layer (partial).** Product/technical docs are
-  strong, but a strict marketplace/franchise/legal review would want: a `LICENSE`,
-  a privacy/data-handling policy, a non-affiliation disclaimer (state lottery /
-  brands), and citations for any market claims. Draft these (owner to review).
+- ✅ **Rejection-proof legal/compliance layer (drafted; owner review pending).**
+  Added `LICENSE` (proprietary "all rights reserved" default — swap for
+  MIT/Apache if you want a self-host template), `docs/privacy-and-data.md`
+  (accurate to the app: Firebase storage, salted-hash PINs, no analytics/tracking,
+  append-only retention), and `docs/legal-disclaimers.md` (non-affiliation with
+  lotteries/brands, "not tax/legal advice", demo-data + no-warranty), surfaced
+  under a new "Legal" section on `/docs`. **Still yours to do:** pick the license,
+  fill in the real copyright holder + a contact point, and have a professional
+  review the privacy notice for your jurisdiction (GDPR/CCPA/etc.). Citations for
+  the market claims in `positioning-one-pager.md` remain to be added.
 - **Alternate builds — HTML / WordPress / etc. (missing).** Only the written
   `distribution-analysis.md` exists; no static-HTML export or WordPress artifact is
   built. Scope + build the recommended path (self-host template) if pursued.

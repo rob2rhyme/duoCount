@@ -40,6 +40,11 @@ security rules keyed on server-issued auth claims.
     both themes, with the failures found and the token fixes shipped
   - `roadmap.md` — what's shipped, what's next, and what's deferred
   - `positioning-one-pager.md` — market positioning, competitors, pricing
+  - `privacy-and-data.md` — how DuoCount handles data, as a template to adapt
+    (not legal advice; review before publishing)
+  - `legal-disclaimers.md` — non-affiliation, not-advice, and warranty notices
+- `LICENSE` — proprietary "all rights reserved" by default; swap for MIT/Apache
+  if you intend a self-host/open-source template (see `distribution-analysis.md`)
 - `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
   branded for Smokers Haven, useful as backup or during onboarding. The app
   also serves them from its footer (`public/forms/`).
