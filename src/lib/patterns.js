@@ -14,6 +14,13 @@ export const PATTERN_RULES = {
   minBacklog: 5,         // backlog size that triggers the alert
 };
 
+// Escalation detector constants. Kept as module constants rather than per-vendor
+// knobs so the Admin "Alert sensitivity" surface stays at the documented five;
+// the trend detector reuses the tunable windowDays / highShortDollars for the
+// rest of its behavior.
+const TREND_FACTOR = 2;      // recent-half shorts must be >= this x the earlier half
+const TREND_MIN_RECENT = 2;  // and at least this many recent shorts (not one blip)
+
 // Per-vendor overrides live on the vendor doc as `patternRules`. Owners can tune
 // them in Admin; this coerces the stored/entered values into safe bounds so a
 // bad number can never disable a detector or explode a query window. Anything
@@ -57,7 +64,7 @@ const isoDaysAgo = (days, now) =>
  * detail }] with severity 'high' | 'medium', worst first. Windows use the
  * entry's business `date` (YYYY-MM-DD); entries without one fall back to ts.
  */
-export function detectPatterns(entries, { now = new Date(), rules } = {}) {
+export function detectPatterns(entries, { now = new Date(), rules, packs = [] } = {}) {
   const R = resolvePatternRules(rules);
   const cutoff = isoDaysAgo(R.windowDays, now);
   const dateOf = (e) => e.date || coerceDate(e.ts)?.toISOString().slice(0, 10) || "";
@@ -176,6 +183,61 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
       id: `item-shrink:${it.key}`, kind: "item-shrink", severity: "medium",
       title: `${it.name}: short on ${it.count} counts in ${R.windowDays} days`,
       detail: `${it.units} ${it.unit}${it.units === 1 ? "" : "s"} missing in total.`,
+    });
+  }
+
+  // 7. Escalating short trend (person): shorts present in BOTH halves of the
+  //    window AND materially larger in the recent half — a problem getting worse,
+  //    not just present. Distinct from #1, which flags a fresh streak; this only
+  //    fires when there were shorts earlier too and the gap is widening, so a new
+  //    streak (nothing earlier) stays a #1 signal and doesn't double-report here.
+  const midCut = isoDaysAgo(Math.ceil(R.windowDays / 2), now);
+  const byTrend = {};
+  for (const e of recent) {
+    if (e.kind !== "cash" || !((e.diff || 0) < -0.005)) continue;
+    const k = e.byId || e.by;
+    byTrend[k] = byTrend[k] || { key: k, name: e.by, earlier: 0, recentTotal: 0, recentCount: 0 };
+    if (dateOf(e) >= midCut) { byTrend[k].recentTotal += e.diff || 0; byTrend[k].recentCount++; }
+    else byTrend[k].earlier += e.diff || 0;
+  }
+  for (const p of Object.values(byTrend)) {
+    const earlierMag = -p.earlier, recentMag = -p.recentTotal;
+    if (earlierMag < 0.005 || recentMag < 0.005) continue;   // need shorts in both halves
+    if (p.recentCount < TREND_MIN_RECENT) continue;           // not a single recent blip
+    if (recentMag < TREND_FACTOR * earlierMag) continue;      // must be materially worse
+    alerts.push({
+      id: `person-trend:${p.key}`, kind: "person-trend",
+      severity: recentMag >= R.highShortDollars ? "high" : "medium",
+      title: `${p.name}: shorts trending up`,
+      detail: `${money(p.recentTotal)} short in the recent half of the window vs ${money(p.earlier)} earlier — the gap is widening. Look at what changed before anything else.`,
+    });
+  }
+
+  // 8. Scratch settle-shortfall streak: the same game keeps settling with tickets
+  //    unaccounted (shortAtSettle). Like the drawer hot-spot, it points at the
+  //    settle count, the safe, or the pack before a person. Runs on settled packs
+  //    in the window; callers that pass no packs get identical behavior.
+  const settleCut = isoDaysAgo(R.windowDays, now);
+  const byGame = {};
+  for (const p of packs) {
+    if (p.status !== "settled") continue;
+    const short = Number(p.shortAtSettle) || 0;
+    if (short <= 0) continue;
+    const d = coerceDate(p.settledAt);
+    if (!d || d.toISOString().slice(0, 10) < settleCut) continue;
+    const k = p.game || "(game)";
+    byGame[k] = byGame[k] || { key: k, name: p.game || "(game)", count: 0, tickets: 0, dollars: 0 };
+    byGame[k].count++;
+    byGame[k].tickets += short;
+    byGame[k].dollars += short * (Number(p.price) || 0);
+  }
+  for (const g of Object.values(byGame)) {
+    if (g.count < R.minShorts) continue;
+    alerts.push({
+      id: `scratch-shortfall:${g.key}`, kind: "scratch-shortfall",
+      severity: g.dollars >= R.highShortDollars ? "high" : "medium",
+      title: `${g.name}: ${g.count} packs settled short in ${R.windowDays} days`,
+      detail: `${g.tickets} ticket${g.tickets === 1 ? "" : "s"} (~${money(g.dollars)}) unaccounted across ${g.count} packs — check the settle counts and the safe before anything else.`,
     });
   }
 

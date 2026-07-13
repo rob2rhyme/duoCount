@@ -172,8 +172,14 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   const incidentsSnap = await vendorRef
     .collection("incidents").where("status", "==", "open").get();
 
+  // Settled packs feed the scratch settle-shortfall detector. Single-field
+  // equality query (no composite index); detectPatterns windows them by settledAt.
+  const packsSnap = await vendorRef
+    .collection("packs").where("status", "==", "settled").get();
+  const packs = packsSnap.docs.map((d) => d.data());
+
   const summary = summarizeEntries(entries);
-  summary.patterns = detectPatterns(windowEntries, { now, rules });
+  summary.patterns = detectPatterns(windowEntries, { now, rules, packs });
   summary.windowDays = rules.windowDays;
   summary.openIncidents = incidentsSnap.size;
   const appUrl = process.env.APP_URL || "";
