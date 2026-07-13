@@ -256,6 +256,23 @@ export async function addPunch(vendorId, punch) {
   });
 }
 
+// Manager-only append-only correction that supersedes a punch (see the rules'
+// timeclock branch (b) and `applyCorrections` in lib/timeclock). The original
+// punch is never touched. `atMs` is the manager-chosen effective punch time
+// (for edit/add); `ts` is the server audit clock (rules pin it to request.time).
+// `day` is stamped from the effective time so the report's by-`day` fetch finds it.
+export async function addPunchCorrection(vendorId, { action, targetId = null, type = null, atMs = null, userId, userName, locationId = null, locationName = null, byId, byName, reason }) {
+  const effective = atMs != null ? new Date(atMs) : null;
+  await addDoc(vcol(vendorId, "timeclock"), {
+    kind: "correction", action, targetId, type,
+    at: effective,
+    userId, userName, locationId, locationName,
+    byId, byName, reason,
+    ts: serverTimestamp(),
+    day: (effective || new Date()).toISOString().slice(0, 10),
+  });
+}
+
 /* ---------- shift scheduling (manager-managed roster) ---------- */
 // A schedule is a plan, not an audit trail: managers create/delete shifts.
 // Managers watch the whole roster (selfId=null); employees see only their own.

@@ -53,6 +53,15 @@ const punch = (over = {}) => ({
   userId: "u-empA", userName: "Eve", locationId: "locA", locationName: "A",
   type: "in", ts: serverTimestamp(), day: "2026-07-10", ...over,
 });
+// a manager punch correction (branch (b)): supersedes a punch, signed by the
+// manager, ts pinned to the server clock, but `at` (effective time) is chosen.
+const correction = (over = {}) => ({
+  kind: "correction", action: "edit", targetId: "tcA", type: "out",
+  at: new Date("2026-07-10T17:00:00Z"),
+  userId: "u-empA", userName: "Eve", locationId: "locA", locationName: "A",
+  byId: "u-mgr", byName: "Mia", reason: "left at 5, mis-punched",
+  ts: serverTimestamp(), day: "2026-07-10", ...over,
+});
 // a rostered shift (owned by empA, created by the manager)
 const sched = (over = {}) => ({
   userId: "u-empA", userName: "Eve", locationId: "locA", locationName: "A",
@@ -587,6 +596,23 @@ test("timeclock: managers see all, employees only their own; punches are immutab
   await assertFails(getDoc(doc(db("empB"), `vendors/${V}/timeclock/tcA`)));            // not theirs
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/timeclock/tcA`), { type: "out" })); // no edits
   await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/timeclock/tcA`)));          // no deletes
+});
+
+test("timeclock: a manager files an append-only correction; employees cannot", async () => {
+  // manager correction with a chosen `at`, server ts, signed, with a reason
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c1`), correction()));
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c2`), correction({ action: "add", targetId: null })));
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c3`), correction({ action: "void" })));
+  // an employee can't file a correction (not a manager)
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeclock/c4`), correction({ byId: "u-empA", byName: "Eve" })));
+  // a correction must be manager-signed, carry a valid action, and a reason
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c5`), correction({ byId: "u-empA", byName: "Eve" }))); // signer mismatch
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c6`), correction({ action: "delete" })));             // bad action
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c7`), correction({ reason: "" })));                   // empty reason
+  // the audit ts is still pinned to the server clock, even for a manager
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c8`), correction({ ts: new Date("2020-01-01T00:00:00Z") })));
+  // and corrections stay immutable once written
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/timeclock/c1`), { at: new Date() }));
 });
 
 /* ---------- schedule (roster) ---------- */

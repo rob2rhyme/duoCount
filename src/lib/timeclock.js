@@ -32,7 +32,64 @@ function shift(inP, outP) {
     outMs,
     ms: outMs != null ? Math.max(0, outMs - inMs) : null,
     open: outMs == null,
+    // Ids of the effective in/out punches, so a manager UI can target them for a
+    // correction. `corrected` marks a shift that a correction touched.
+    inId: inP.id ?? null,
+    outId: outP ? outP.id ?? null : null,
+    corrected: !!(inP._corrected || (outP && outP._corrected)),
   };
+}
+
+/**
+ * Fold append-only manager corrections into an effective list of base punches,
+ * WITHOUT mutating the originals. Punches are immutable (rules forbid
+ * update/delete), so a manager "correction" is a separate signed record that
+ * supersedes a punch — the audit trail keeps both. Correction records carry
+ * `kind:"correction"` and one of:
+ *   • action:"edit"  targetId + at [+ type]  — override a punch's time (and type)
+ *   • action:"add"   type + at               — introduce a punch the employee missed
+ *   • action:"void"  targetId                — drop a punch (e.g. a double clock-in)
+ * `at` is the manager-chosen effective time; `ts` is the server audit time and
+ * also the apply order, so a later correction to the same punch wins.
+ * Rows without `kind:"correction"` are ordinary punches and pass through.
+ */
+export function applyCorrections(rows = []) {
+  const base = [], corrections = [];
+  for (const r of rows) (r?.kind === "correction" ? corrections : base).push(r);
+
+  let auto = 0;
+  const eff = new Map();
+  for (const p of base) {
+    if (p?.type !== "in" && p?.type !== "out") continue; // non-punch rows drop out
+    eff.set(p.id ?? `base:${auto++}`, { ...p });
+  }
+
+  corrections
+    .slice()
+    .sort((a, b) => (toMs(a.ts) ?? 0) - (toMs(b.ts) ?? 0)) // oldest first: newest wins
+    .forEach((c) => {
+      if (c.action === "void") {
+        if (c.targetId != null) eff.delete(c.targetId);
+      } else if (c.action === "edit") {
+        const t = c.targetId != null ? eff.get(c.targetId) : null;
+        if (t) {
+          if (c.at != null) t.ts = c.at;
+          if (c.type === "in" || c.type === "out") t.type = c.type;
+          t._corrected = true;
+        }
+      } else if (c.action === "add") {
+        if ((c.type === "in" || c.type === "out") && c.at != null) {
+          eff.set(c.id ?? `add:${auto++}`, {
+            id: c.id ?? null, ts: c.at, type: c.type,
+            userId: c.userId ?? null, userName: c.userName ?? "",
+            locationId: c.locationId ?? null, locationName: c.locationName ?? "",
+            _corrected: true,
+          });
+        }
+      }
+    });
+
+  return [...eff.values()];
 }
 
 /**
@@ -42,7 +99,7 @@ function shift(inP, outP) {
  */
 export function computeShifts(punches = []) {
   const byUser = new Map();
-  for (const p of punches) {
+  for (const p of applyCorrections(punches)) {
     const ms = toMs(p.ts);
     if (ms == null || (p.type !== "in" && p.type !== "out")) continue;
     const k = keyOf(p);

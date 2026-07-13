@@ -1,7 +1,7 @@
 // Pure time-clock aggregation. No emulator needed. Run: npm run test:timeclock
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeShifts, summarizeHours, openShiftFor, hoursDecimal, formatDuration } from "../src/lib/timeclock.js";
+import { computeShifts, summarizeHours, openShiftFor, hoursDecimal, formatDuration, applyCorrections } from "../src/lib/timeclock.js";
 
 const H = 3_600_000;
 // fixed epoch base (Date.now not used — literals keep tests deterministic)
@@ -117,4 +117,106 @@ test("Firestore-style timestamps ({seconds} / {toDate}) are accepted", () => {
   ]);
   assert.equal(s.length, 1);
   assert.equal(s[0].ms, 2 * H);
+});
+
+// ---- manager punch corrections (append-only supersede) -------------------
+const idPunch = (id, userId, type, hours, over = {}) =>
+  ({ id, userId, userName: userId === "u1" ? "Eve" : "Bob", type, ts: at(hours), ...over });
+// audit time `ts` defaults late so a correction applies after the base punches
+const corr = (over = {}) => ({ kind: "correction", ts: at(100), byId: "m1", byName: "Mgr", reason: "fix", ...over });
+
+test("a plain punch list passes through applyCorrections unchanged", () => {
+  const base = [idPunch("p1", "u1", "in", 9), idPunch("p2", "u1", "out", 17)];
+  assert.equal(applyCorrections(base).length, 2);
+  const s = computeShifts(base);
+  assert.equal(s[0].inId, "p1");
+  assert.equal(s[0].outId, "p2");
+  assert.equal(s[0].corrected, false);
+});
+
+test("edit correction overrides a punch's time and marks the shift corrected", () => {
+  const s = computeShifts([
+    idPunch("p1", "u1", "in", 9),
+    idPunch("p2", "u1", "out", 18),   // mis-punched; really left at 17:00
+    corr({ action: "edit", targetId: "p2", type: "out", at: at(17), userId: "u1" }),
+  ]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].ms, 8 * H);        // 9 -> 17, not 9 -> 18
+  assert.equal(s[0].corrected, true);
+  assert.equal(s[0].outId, "p2");      // still the same original punch, superseded
+});
+
+test("add correction supplies a forgotten clock-out and closes the open shift", () => {
+  const s = computeShifts([
+    idPunch("p1", "u1", "in", 9),      // open shift, no hours on its own
+    corr({ id: "c1", action: "add", type: "out", at: at(17), userId: "u1", userName: "Eve" }),
+  ]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].open, false);
+  assert.equal(s[0].ms, 8 * H);
+  assert.equal(s[0].corrected, true);
+  assert.equal(s[0].outId, "c1");
+});
+
+test("add correction supplies a forgotten clock-IN for an orphan out", () => {
+  const s = computeShifts([
+    idPunch("p1", "u1", "out", 17),    // orphan out — ignored on its own
+    corr({ id: "c1", action: "add", type: "in", at: at(9), userId: "u1", userName: "Eve" }),
+  ]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].ms, 8 * H);
+  assert.equal(s[0].inId, "c1");
+});
+
+test("void correction drops an accidental double clock-in", () => {
+  const withDouble = [
+    idPunch("p1", "u1", "in", 9),
+    idPunch("p2", "u1", "in", 9.1),    // accidental second punch
+    idPunch("p3", "u1", "out", 17),
+  ];
+  // without the void: an open 9:00 shift + a 7.9h shift
+  assert.equal(computeShifts(withDouble).length, 2);
+  const s = computeShifts([...withDouble, corr({ action: "void", targetId: "p2", userId: "u1" })]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].ms, 8 * H);        // clean 9 -> 17
+});
+
+test("the newest correction to a punch wins (ordered by audit ts)", () => {
+  const s = computeShifts([
+    idPunch("p1", "u1", "in", 9), idPunch("p2", "u1", "out", 18),
+    corr({ action: "edit", targetId: "p2", at: at(17), userId: "u1", ts: at(50) }),
+    corr({ action: "edit", targetId: "p2", at: at(16), userId: "u1", ts: at(60) }), // later
+  ]);
+  assert.equal(s[0].ms, 7 * H);        // final override: 9 -> 16
+});
+
+test("a void after an edit still removes the punch (open shift, no hours)", () => {
+  const s = computeShifts([
+    idPunch("p1", "u1", "in", 9), idPunch("p2", "u1", "out", 18),
+    corr({ action: "edit", targetId: "p2", at: at(17), userId: "u1", ts: at(50) }),
+    corr({ action: "void", targetId: "p2", userId: "u1", ts: at(60) }),
+  ]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].open, true);
+  assert.equal(s[0].ms, null);
+});
+
+test("corrections targeting nothing, or missing a time, are harmless no-ops", () => {
+  const s = computeShifts([
+    idPunch("p1", "u1", "in", 9), idPunch("p2", "u1", "out", 17),
+    corr({ action: "edit", targetId: "ghost", at: at(5), userId: "u1" }),
+    corr({ action: "void", targetId: "ghost", userId: "u1" }),
+    corr({ action: "add", type: "in", at: null, userId: "u1" }),        // no time -> ignored
+    corr({ action: "add", type: "bogus", at: at(3), userId: "u1" }),    // bad type -> ignored
+  ]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].ms, 8 * H);
+});
+
+test("corrections flow through summarizeHours (payroll reflects the fix)", () => {
+  const rows = summarizeHours([
+    idPunch("p1", "u1", "in", 9), idPunch("p2", "u1", "out", 18),
+    corr({ action: "edit", targetId: "p2", at: at(17), userId: "u1" }),
+  ]);
+  assert.equal(rows.find((r) => r.userId === "u1").hours, 8); // corrected 8h, not 9h
 });
