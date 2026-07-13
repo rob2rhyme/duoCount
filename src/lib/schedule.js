@@ -43,6 +43,11 @@ export function shiftMinutes(start, end) {
   const d = b - a;
   return d > 0 ? d : d + 24 * 60;
 }
+/** True when a shift crosses midnight (same end<=start convention as shiftMinutes). */
+export function crossesMidnight(s) {
+  const a = parseHHMM(s?.start), b = parseHHMM(s?.end);
+  return a != null && b != null && b <= a;
+}
 
 /* ---------- aggregation ---------- */
 /** Scheduled hours per employee over an optional inclusive [from,to] date range. */
@@ -63,21 +68,28 @@ export function scheduledHours(shifts = [], { from = null, to = null } = {}) {
     .sort((a, b) => (a.userName || "").localeCompare(b.userName || ""));
 }
 
-/** Ids of shifts that double-book one employee (overlapping times, same date). */
+/**
+ * Ids of shifts that double-book one employee. Shifts are compared as ABSOLUTE
+ * intervals (date + time), grouped per employee rather than per day, so an
+ * overnight shift is checked across the midnight boundary too — Mon 22:00–06:00
+ * collides with Tue 05:00–13:00, which a per-day grouping could never see.
+ */
 export function findOverlaps(shifts = []) {
   const groups = new Map();
   for (const s of shifts) {
     if (!s.userId) continue; // two open shifts on a day aren't a double-booking
-    const k = `${s.userId}|${s.date}`;
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(s);
+    if (!groups.has(s.userId)) groups.set(s.userId, []);
+    groups.get(s.userId).push(s);
   }
   const overlap = new Set();
   for (const list of groups.values()) {
     const iv = list
-      .map((s) => { const a = parseHHMM(s.start) ?? 0; return { id: s.id, a, b: a + shiftMinutes(s.start, s.end) }; })
+      .map((s) => {
+        const a = parseDay(s.date) / 60000 + (parseHHMM(s.start) ?? 0); // absolute minutes
+        return { id: s.id, a, b: a + shiftMinutes(s.start, s.end) };
+      })
       .sort((x, y) => x.a - y.a);
-    // Full pairwise within the (tiny) per-employee, per-day group. Comparing only
+    // Full pairwise within the (tiny) per-employee group. Comparing only
     // adjacent intervals missed a long shift swallowing a later short one — e.g.
     // 09:00-17:00 then 09:05-09:20 then 12:00-13:00: the noon shift starts after
     // the 09:05 one ends, so an adjacent-only check never notices it still sits
@@ -170,12 +182,17 @@ export function templateToShifts(templateShifts = [], weekStart, { existing = []
 
 /**
  * Ids of scheduled shifts that land on a date the employee marked unavailable.
- * `unavailable` is a list of { userId, date }.
+ * `unavailable` is a list of { userId, date }. An overnight shift also conflicts
+ * when it SPILLS into an unavailable day — Mon 22:00–06:00 runs into Tuesday,
+ * so a Tuesday day-off blocks it too.
  */
 export function availabilityConflicts(shifts = [], unavailable = []) {
   const off = new Set(unavailable.map((u) => `${u.userId}|${u.date}`));
   const ids = new Set();
-  for (const s of shifts) if (off.has(`${s.userId}|${s.date}`)) ids.add(s.id);
+  for (const s of shifts) {
+    if (off.has(`${s.userId}|${s.date}`)
+      || (crossesMidnight(s) && off.has(`${s.userId}|${addDays(s.date, 1)}`))) ids.add(s.id);
+  }
   return ids;
 }
 
@@ -200,11 +217,24 @@ export function groupByDate(shifts = []) {
  * `day` string is compared directly to a shift's `date`, so no timezone math is
  * needed. Pass only ELAPSED dates (<= today) — a future scheduled shift isn't a
  * no-show. Returns totals + the no-show and unscheduled lists.
+ *
+ * Overnight shifts (end <= start) straddle two business days: the clock-out —
+ * and, for someone who starts a few minutes past midnight, even the clock-in —
+ * gets stamped with the NEXT day's `day`. So an overnight shift also accepts a
+ * next-day punch as attendance, and the next day itself is treated as covered
+ * by the shift rather than reported as "worked but not scheduled". (Day-level
+ * granularity: a next-day punch can't be told apart from the night shift's own
+ * spill, so the forgiving reading wins — consistent with the rest of this file.)
  */
 export function reconcile(scheduled = [], punches = [], { dates = [] } = {}) {
   const inRange = new Set(dates);
   const sched = new Map(); // `${userId}|${date}` -> {userId, userName, date}
-  for (const s of scheduled) if (s.userId && inRange.has(s.date)) sched.set(`${s.userId}|${s.date}`, s);
+  const spillCovered = new Set(); // next-day keys an overnight shift accounts for
+  for (const s of scheduled) {
+    if (!s.userId || !inRange.has(s.date)) continue;
+    sched.set(`${s.userId}|${s.date}`, s);
+    if (crossesMidnight(s)) spillCovered.add(`${s.userId}|${addDays(s.date, 1)}`);
+  }
 
   const worked = new Set(); // `${userId}|${day}`
   for (const p of punches) if (p.userId && p.day) worked.add(`${p.userId}|${p.day}`);
@@ -212,13 +242,15 @@ export function reconcile(scheduled = [], punches = [], { dates = [] } = {}) {
   const noShow = [];
   let workedCount = 0;
   for (const [key, s] of sched) {
-    if (worked.has(key)) workedCount += 1;
+    const spill = crossesMidnight(s) && worked.has(`${s.userId}|${addDays(s.date, 1)}`);
+    if (worked.has(key) || spill) workedCount += 1;
     else noShow.push({ userId: s.userId, userName: s.userName, date: s.date });
   }
   const unscheduled = [];
   for (const key of worked) {
     const [userId, day] = key.split("|");
-    if (inRange.has(day) && !sched.has(key)) unscheduled.push({ userId, date: day });
+    if (inRange.has(day) && !sched.has(key) && !spillCovered.has(key))
+      unscheduled.push({ userId, date: day });
   }
   return { scheduled: sched.size, worked: workedCount, noShow, unscheduled };
 }

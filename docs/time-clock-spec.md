@@ -144,14 +144,21 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
 - **`shiftMinutes`** — duration from `HH:MM`, treating `end <= start` as an
   **overnight** shift (+24 h).
 - **`scheduledHours`** — hours per employee over a date range.
-- **`findOverlaps`** — ids of shifts that **double-book** one employee on a day
-  (back-to-back does not count). Compares every pair within the day, so a long
-  shift that swallows a later, non-adjacent one (09:00–17:00 vs a noon shift) is
-  caught, not just neighbours.
+- **`findOverlaps`** — ids of shifts that **double-book** one employee
+  (back-to-back does not count). Shifts are compared as **absolute intervals**
+  (date + time) per employee — not per day — so a long shift that swallows a
+  later, non-adjacent one is caught, and an **overnight** shift is checked across
+  midnight too (Mon 22:00–06:00 collides with Tue 05:00–13:00).
+- **`crossesMidnight`** — does a shift straddle two calendar days (`end <=
+  start`, the same convention `shiftMinutes` uses for +24 h)?
 - **`reconcile`** — day-level **attendance**: it lines each scheduled shift up
   against the actual punches *by business `day` string* (so no timezone math),
   over the elapsed days only, and returns worked / no-show / unscheduled. This
-  is the payoff of having both halves.
+  is the payoff of having both halves. **Overnight shifts** straddle two business
+  days — the clock-out (and a past-midnight clock-in) stamps the *next* day — so
+  an overnight shift also accepts a next-day punch as attendance, and that next
+  day isn't reported as "worked but not scheduled". Day shifts still never match
+  a following-day punch.
 - **`copyShiftsToWeek`** — shifts a set of shifts by an offset (a week) into new
   specs, **skipping any that already exist** (employee + new date + start), so
   "copy last week" is idempotent. An **open** (unassigned) shift carries its
@@ -163,7 +170,9 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
   Open shifts round-trip: the template preserves `open`, and stamping re-emits
   `open: true` for a null-user spec.
 - **`availabilityConflicts` / `isUnavailable`** — flag scheduled shifts (or a
-  form selection) that land on a date the employee marked unavailable.
+  form selection) that land on a date the employee marked unavailable. An
+  overnight shift also conflicts when it **spills into** an unavailable next day
+  (Mon 22:00–06:00 runs into Tuesday, so a Tuesday day-off blocks it).
 
 **UI** — the **Schedule** view:
 - **Managers:** a week navigator; an add-a-shift form (employee — or **Open shift
@@ -270,8 +279,12 @@ Copy-last-week, week templates, availability, shift swaps, open-shift claim,
 publish/notify, and **manager punch correction** are all built (see above). Still
 deferred:
 
-- **Time-level lateness** and overnight shifts that straddle two calendar days in
-  the overlap check (reconciliation and overlap are day-scoped).
+- **Time-level lateness** (comparing a punch-in's clock time against the
+  scheduled start needs shift↔punch pairing rules and a grace policy — day-level
+  attendance stays the granularity for now). ~~Overnight shifts straddling two
+  calendar days in the overlap check / reconciliation~~ — **done**: overlap runs
+  on absolute intervals, reconciliation accepts an overnight shift's next-day
+  punches, and availability sees the spill day (see the lib section above).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real
   payroll math is jurisdiction- and employer-specific; the CSV exports raw
   paired hours for a payroll system to apply its own rules.
