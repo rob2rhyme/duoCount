@@ -252,8 +252,8 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     const w = window.open("", "_blank", "width=800,height=900");
     if (!w) return onToast?.("Allow pop-ups to print");
     const cashRows = cash.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.drawerName)}</td><td>${esc(e.by)}</td><td>${money(e.sales)}</td><td>${money(e.paidout)}</td><td>${money(e.expected)}</td><td>${money(e.counted)}</td><td>${e.diff >= 0 ? "+" : ""}${money(e.diff)}</td><td>${esc(e.verifiedBy || "")}</td></tr>`).join("");
-    const scratchRows = scratch.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.game)}</td><td>${esc(e.pack)}</td><td>${money(e.price)}</td><td>${e.sold}</td><td>${money(e.dollars)}</td><td>${esc(e.by)}</td></tr>`).join("");
-    const invRows = inv.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.itemName)}</td><td>${e.startQty ?? ""}</td><td>${e.counted}</td><td>${e.diff >= 0 ? "+" : ""}${e.diff}</td></tr>`).join("");
+    const scratchRows = scratch.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.game)}</td><td>${esc(e.pack)}</td><td>${money(e.price)}</td><td>${esc(e.sold)}</td><td>${money(e.dollars)}</td><td>${esc(e.by)}</td></tr>`).join("");
+    const invRows = inv.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.itemName)}</td><td>${esc(e.startQty ?? "")}</td><td>${esc(e.counted)}</td><td>${e.diff >= 0 ? "+" : ""}${esc(e.diff)}</td></tr>`).join("");
     const pct = (l) => (l.total ? `${Math.round(l.verificationRate * 100)}%` : "—");
     const cmpRow = (name, l, cell = "td") => `<tr><${cell}>${esc(name)}</${cell}><${cell}>${l.total}</${cell}><${cell}>${l.cashNet >= 0 ? "+" : ""}${money(l.cashNet)}</${cell}><${cell}>${money(l.scratchDollars)}</${cell}><${cell}>${l.invShrink}</${cell}><${cell}>${pct(l)}</${cell}></tr>`;
     const cmpTable = comparison
