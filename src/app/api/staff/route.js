@@ -134,6 +134,11 @@ export async function PATCH(req) {
     if (Object.keys(patch).length) await ref.update(patch);
 
     if (pin !== undefined) {
+      // Only an owner may reset an owner's PIN — otherwise a manager could reset
+      // the owner's PIN and sign in as the owner (privilege escalation). Mirrors
+      // the owner-guard on the role/active branches above.
+      if (target.role === "owner" && claims.role !== "owner")
+        return NextResponse.json({ error: "Only an owner can reset an owner's PIN." }, { status: 403 });
       if (!isValidNewPin(pin))
         return NextResponse.json({ error: PIN_ERROR }, { status: 400 });
       // A reset PIN must stay unique within the store (excluding this user).

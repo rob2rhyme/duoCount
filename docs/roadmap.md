@@ -38,6 +38,9 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Trust-model & consistency hardening** (server-pinned punches, frozen settled packs, honest-count enforcement, unambiguous PINs, immediate deactivation, overlap + open-shift fixes, unified "unresolved" metrics, tamper-proof comment counter) | `tier-one/two-build-spec.md`, `time-clock-spec.md`, `lottery-pack-lifecycle-spec.md` | ✅ |
 | **Inventory variance flagging + blind mode** (opt-in per-store unit threshold; rules-enforced honest counts; blind readout; surfaces in the shared queues) | `inventory-tracker-spec.md` | ✅ |
 | **Report PDF brand mark** (DuoCount "DC" mark drawn with PDF primitives in the report/print header) | `reporting-spec.md` | ✅ |
+| **Docs & guide search** (live word search across all `/docs` + `/guide` content; build-time index, pure ranking lib, deep-links to the matching doc + heading) | `src/lib/doc-search.js`, `src/components/DocSearch.js` | ✅ |
+| **Premium doc-card icons** (curated inline-SVG line icon per documentation card — no external assets, theme-aware) | `src/components/DocIcon.js` | ✅ |
+| **Security hardening (audit fixes)** (blocked manager→owner PIN-reset takeover; escaped the report Print path against stored XSS from raw entry fields) | this file, §"Security follow-ups" | ✅ |
 
 ## Next up
 
@@ -141,6 +144,56 @@ Tables scroll/wrap instead of overflowing; forms collapse cleanly; chips wrap.
 - ✅ **Keyboard shortcuts** for power users — digits jump to a tab, `[` / `]`
   step, `⌘/Ctrl`+`Enter` saves the visible form, `?` toggles a shortcuts sheet.
   Pure decision logic in `lib/shortcuts.js` (unit-tested). (`ui-enhancements-spec.md` §9)
+
+## Audit follow-ups
+
+From a full feature + security audit (each item verified against source; security
+findings adversarially re-checked). Done items are folded into "Shipped" above;
+what remains, ordered by priority:
+
+### Security follow-ups
+- ✅ **Manager→owner PIN-reset takeover** — the staff PATCH PIN-reset branch had no
+  target-role guard, so a manager could reset an owner's PIN and sign in as owner.
+  Fixed: only an owner may reset an owner's PIN (`src/app/api/staff/route.js`).
+- ✅ **Stored XSS in report Print** — `printReport` interpolated raw entry fields
+  (`sold`, `startQty`, `counted`, `diff`) that Firestore rules don't type-check.
+  Fixed: those fields now go through `esc()` (`src/components/ReportModal.js`).
+- **Session revocation on deactivate/demote (medium).** Admin-SDK routes verify
+  ID tokens with no `checkRevoked` and never re-read the caller's live user doc
+  (`src/lib/require-manager.js`, `src/app/api/seed/route.js`,
+  `src/app/api/digest/test/route.js`); read rules gate on token claims, not
+  `liveActive()`. So a deactivated/demoted user keeps API + read access until
+  their token expires. Fix: `adminAuth.revokeRefreshTokens(uid)` on
+  deactivate/demote + `verifyIdToken(token, true)` on privileged routes; consider
+  `liveActive()` on sensitive reads. Needs emulator/app verification, so it's
+  staged rather than hot-patched.
+- **Lower-severity notes (defer/low):** login per-IP counter trusts the leftmost
+  `X-Forwarded-For` (Vercel appends the real IP on the right — validate against
+  the platform's trusted position); per-store attempt counter resets on any
+  success (sliding window mostly covers it); `CRON_SECRET` uses non-constant-time
+  comparison (`crypto.timingSafeEqual`); signed-entry `ts` is client-set; a
+  manager can self-resolve a self-authored flagged variance (add the
+  `byId != caller` self-check to `investigate()` that `verifyOnly()` already has).
+
+### Documentation & packaging
+- ✅ **Doc-accuracy drift** — README called the shipped Reports feature "planned",
+  mislabeled shipped roadmap items as "next", and cited a stale rules-test count
+  (55→64); the reporting spec referenced a removed `buildReport`. All reconciled.
+- **Screenshots in the complex guides (missing).** `getting-started.md` and other
+  step-heavy guides embed no images. Blocked here: capturing real screenshots
+  needs a running app + Firebase. Plan: run the app against the demo seed, capture
+  the key flows (sign-in, cash count, variance flag, report center), commit them
+  under `public/`, and embed via Markdown. Interim option: inline SVG diagrams.
+- **Rejection-proof legal/compliance layer (partial).** Product/technical docs are
+  strong, but a strict marketplace/franchise/legal review would want: a `LICENSE`,
+  a privacy/data-handling policy, a non-affiliation disclaimer (state lottery /
+  brands), and citations for any market claims. Draft these (owner to review).
+- **Alternate builds — HTML / WordPress / etc. (missing).** Only the written
+  `distribution-analysis.md` exists; no static-HTML export or WordPress artifact is
+  built. Scope + build the recommended path (self-host template) if pursued.
+- **Theme-contrast CI guard (nice-to-have).** The WCAG AA ratios live in a
+  hand-maintained doc table; add a script/test that recomputes contrast from the
+  token hex values so a future token change is auto-checked.
 
 ## Deferred (tier 3)
 

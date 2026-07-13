@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import DocSearch from "@/components/DocSearch";
+import DocIcon from "@/components/DocIcon";
 import { PRODUCT } from "@/lib/store";
-import { listDocs } from "@/lib/docs";
+import { listDocs, searchIndex } from "@/lib/docs";
 
 export const metadata = {
   title: "DuoCount — Documentation",
@@ -16,10 +18,15 @@ function DocCard({ doc }) {
   return (
     <Link
       href={`/docs/${doc.slug}`}
-      className="card block px-4 py-3.5 hover:bg-panel hover:border-brass/40 transition group"
+      className="card flex items-start gap-3 px-4 py-3.5 hover:bg-panel hover:border-brass/40 transition group"
     >
-      <div className="font-semibold text-[14.5px] group-hover:text-gold transition">{doc.title}</div>
-      {doc.blurb && <div className="text-[12.5px] text-muted mt-1 leading-snug">{doc.blurb}</div>}
+      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-highlight text-gold" aria-hidden="true">
+        <DocIcon slug={doc.slug} />
+      </span>
+      <span className="min-w-0">
+        <span className="block font-semibold text-[14.5px] group-hover:text-gold transition">{doc.title}</span>
+        {doc.blurb && <span className="block text-[12.5px] text-muted mt-1 leading-snug">{doc.blurb}</span>}
+      </span>
     </Link>
   );
 }
@@ -38,6 +45,7 @@ function Section({ title, docs }) {
 
 export default function DocsIndex() {
   const all = listDocs();
+  const index = searchIndex();
   const bySlug = Object.fromEntries(all.map((d) => [d.slug, d]));
 
   const overviewSet = new Set([HERO, ...OVERVIEW]);
@@ -58,6 +66,8 @@ export default function DocsIndex() {
 
         <h1 className="text-xl font-semibold">Documentation</h1>
         <p className="text-sm text-muted mt-1 mb-6">Plain-language guides and the product specs behind DuoCount.</p>
+
+        <DocSearch index={index} />
 
         <Link
           href="/guide"

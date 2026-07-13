@@ -12,11 +12,12 @@ labor roll-up, incident tally, and an over/short sparkline), plus a line-by-line
 
 **Goal.** Let an owner/manager generate and **download a report for any period** —
 daily, weekly, monthly, quarterly, semi-annual, annual, or a custom date range —
-to **save for their records** (accountant, franchise, tax, audit). Today the app
-only produces a single-day End-of-Day report (`src/components/ReportModal.js`,
-`buildReport` at lines 10–29). This generalizes that to arbitrary periods with
-PDF and CSV output, without weakening the trust model (reports are read-only
-snapshots of the append-only log).
+to **save for their records** (accountant, franchise, tax, audit). This
+generalized the original single-day End-of-Day report to arbitrary periods with
+PDF, CSV, and print output — the aggregation now lives in the pure, unit-tested
+`buildPeriodReport` (`src/lib/report-build.js`), driven by `ReportModal.js` —
+without weakening the trust model (reports are read-only snapshots of the
+append-only log).
 
 ## What the owner asked for
 
@@ -53,7 +54,7 @@ The one genuinely fiddly piece; isolate and test it first.
   → Settings (owner-only); the Report center threads it into the period picker.
 
 ### 2. Aggregation — `src/lib/report-build.js` (pure, unit-tested)
-Generalize `ReportModal.buildReport` from one date to a range + richer rollups.
+Generalized the original single-day EOD rollup into `buildPeriodReport` — a range + richer rollups.
 - `buildPeriodReport(entries, { startISO, endISO }, locId, { punches, incidents })`
   filters by `date` in range (and `locId`), then returns:
   - **Cash**: sales, paid-out, counted, **net over/short**, count; broken down

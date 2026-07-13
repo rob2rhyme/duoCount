@@ -120,3 +120,30 @@ export function listDocs() {
     })
     .sort((a, b) => a.title.localeCompare(b.title));
 }
+
+// Plain, searchable text from rendered HTML: drop tags, decode entities, collapse
+// whitespace, and cap length so the shipped index stays small.
+function htmlToText(html) {
+  return decodeEntities(String(html).replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 12000);
+}
+
+// A build-time search index shipped to the client for the /docs + /guide search
+// box: one entry per doc with its title, heading anchors, and plain body text.
+// Pure ranking over this index lives in ./doc-search.js.
+export function searchIndex() {
+  return docSlugs()
+    .map((slug) => {
+      const doc = getDoc(slug);
+      if (!doc) return null;
+      return {
+        slug,
+        title: doc.title,
+        headings: doc.toc.map((h) => ({ id: h.id, text: h.text })),
+        text: htmlToText(doc.html),
+      };
+    })
+    .filter(Boolean);
+}
