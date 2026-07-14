@@ -1,5 +1,6 @@
 import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
+import { weekDates } from "./schedule";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, onSnapshot, getDocs, serverTimestamp, increment,
@@ -271,6 +272,42 @@ export async function addPunchCorrection(vendorId, { action, targetId = null, ty
     ts: serverTimestamp(),
     day: (effective || new Date()).toISOString().slice(0, 10),
   });
+}
+
+/* ---------- payroll locks (pay-period approval) ---------- */
+// One doc per locked business day, doc id == YYYY-MM-DD (see lib/payroll-lock
+// and the payrollLocks rules). Manager-only reads per the rules.
+export function watchPayrollLocks(vendorId, cb) {
+  return onSnapshot(vcol(vendorId, "payrollLocks"), (s) =>
+    cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+// Approve a Mon–Sun week: create fresh day docs, or flip a previously released
+// day back to locked via the restricted re-approve update the rules allow.
+// Already-active days are left alone, so re-running is idempotent.
+export async function approvePayrollWeek(vendorId, weekStart, locks, by) {
+  const batch = writeBatch(db);
+  const byDay = new Map(locks.map((l) => [l.day, l]));
+  for (const day of weekDates(weekStart)) {
+    const ref = doc(db, "vendors", vendorId, "payrollLocks", day);
+    const cur = byDay.get(day);
+    if (!cur) batch.set(ref, { day, weekStart, byId: by.byId, byName: by.byName, ts: serverTimestamp() });
+    else if (cur.released === true)
+      batch.update(ref, { released: false, byId: by.byId, byName: by.byName, ts: serverTimestamp() });
+  }
+  await batch.commit();
+}
+// Owner-only (rules-enforced): release a week's locks so corrections are
+// possible again. The approval record stays; release is audited on the doc.
+export async function releasePayrollWeek(vendorId, weekStart, locks, by) {
+  const batch = writeBatch(db);
+  const days = new Set(weekDates(weekStart));
+  for (const l of locks) {
+    if (!days.has(l.day) || l.released === true) continue;
+    batch.update(doc(db, "vendors", vendorId, "payrollLocks", l.day), {
+      released: true, releasedById: by.byId, releasedBy: by.byName, releasedAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
 }
 
 /* ---------- shift scheduling (manager-managed roster) ---------- */

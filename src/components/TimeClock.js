@@ -1,10 +1,15 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchPunches, addPunch, addPunchCorrection } from "@/lib/data";
+import {
+  watchPunches, addPunch, addPunchCorrection,
+  watchPayrollLocks, approvePayrollWeek, releasePayrollWeek,
+} from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import {
   computeShifts, summarizeHours, openShiftFor, formatDuration,
 } from "@/lib/timeclock";
+import { weekStartMonday, weekDates, addDays } from "@/lib/schedule";
+import { activeLockDays, weekLockInfo } from "@/lib/payroll-lock";
 import EmptyState, { IconClock } from "./EmptyState";
 import Schedule from "./Schedule";
 import { csvCell } from "@/lib/utils";
@@ -17,6 +22,11 @@ const PERIODS = [
 ];
 const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const fmtDay = (ms) => new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+// A punch's business day is stamped as the UTC date of the moment (see addPunch);
+// derive the same label from a shift's ms so lock checks line up with the docs.
+const dayOfMs = (ms) => new Date(ms).toISOString().slice(0, 10);
+const fmtDateStr = (d) =>
+  new Date(`${d}T00:00:00Z`).toLocaleDateString([], { month: "short", day: "numeric", timeZone: "UTC" });
 
 // <input type="datetime-local"> speaks local "YYYY-MM-DDTHH:mm"; convert both ways.
 const toLocalInput = (ms) => {
@@ -35,7 +45,9 @@ function downloadCSV(lines, name) {
 
 export default function TimeClock({ locations = [], locName, onToast }) {
   const { profile, vendor, isManager } = useSession();
+  const isOwner = profile.role === "owner";
   const [punches, setPunches] = useState([]);
+  const [locks, setLocks] = useState([]);
   const [busy, setBusy] = useState(false);
   const [days, setDays] = useState(7);
   const [view, setView] = useState("clock"); // "clock" | "schedule"
@@ -46,6 +58,12 @@ export default function TimeClock({ locations = [], locName, onToast }) {
     () => watchPunches(vendor.id, isManager ? null : profile.id, setPunches),
     [vendor.id, isManager, profile.id]
   );
+  // Pay-period locks (manager-only reads per the rules).
+  useEffect(() => {
+    if (!isManager) return;
+    return watchPayrollLocks(vendor.id, setLocks);
+  }, [vendor.id, isManager]);
+  const lockedDays = useMemo(() => activeLockDays(locks), [locks]);
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 30_000);
     return () => clearInterval(t);
@@ -209,10 +227,17 @@ export default function TimeClock({ locations = [], locName, onToast }) {
         </div>
       )}
 
+      {/* manager: pay-period approval (lock a week's timesheet) */}
+      {isManager && (
+        <PayrollApproval
+          locks={locks} vendorId={vendor.id} actor={profile} isOwner={isOwner} onToast={onToast}
+        />
+      )}
+
       {/* manager: append-only timesheet corrections */}
       {isManager && (
         <TimesheetCorrections
-          punches={punches} days={days} now={now}
+          punches={punches} days={days} now={now} lockedDays={lockedDays}
           vendorId={vendor.id} actor={profile} onToast={onToast}
         />
       )}
@@ -228,11 +253,85 @@ export default function TimeClock({ locations = [], locName, onToast }) {
   );
 }
 
+// Manager-only. Approve (lock) a Mon–Sun payroll week: freezes timesheet
+// corrections for those days (rules-enforced via one lock doc per day), so the
+// reviewed hours can't drift after export. Owner can release a lock (audited);
+// a released week can be re-approved. Punches themselves are already immutable.
+function PayrollApproval({ locks, vendorId, actor, isOwner, onToast }) {
+  const todayISO = dayOfMs(Date.now());
+  // Default to LAST week — the natural approval target once a week has ended.
+  const [weekStart, setWeekStart] = useState(() => weekStartMonday(addDays(todayISO, -7)));
+  const [busy, setBusy] = useState(false);
+  const week = weekDates(weekStart);
+  const info = weekLockInfo(locks, weekStart);
+  const finished = week[6] < todayISO;
+  const label = `${fmtDateStr(week[0])} – ${fmtDateStr(week[6])}`;
+
+  async function run(job, ok, fail) {
+    setBusy(true);
+    try { await job(); onToast?.(ok); }
+    catch (e) { console.error(e); onToast?.(fail); }
+    setBusy(false);
+  }
+  const approve = () => {
+    if (!confirm(`Approve payroll for ${label}?\n\nThis locks timesheet corrections for that week. ${isOwner ? "You" : "The owner"} can release the lock later if something needs fixing.`)) return;
+    run(() => approvePayrollWeek(vendorId, weekStart, locks, { byId: actor.id, byName: actor.name }),
+      "Week approved — timesheet locked", "Approve failed — try again");
+  };
+  const release = () => {
+    if (!confirm(`Release the payroll lock for ${label}?\n\nCorrections become possible again for that week; re-approve once it's fixed.`)) return;
+    run(() => releasePayrollWeek(vendorId, weekStart, locks, { byId: actor.id, byName: actor.name }),
+      "Lock released — corrections open again", "Release failed — try again");
+  };
+
+  return (
+    <div className="card p-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="font-semibold text-[15px]">Payroll approval</h3>
+          <p className="text-[13px] text-muted mt-0.5">Approve a finished week to lock its timesheet — the record your export stands on.</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label="Previous week"
+            onClick={() => setWeekStart(addDays(weekStart, -7))}>‹</button>
+          <span className="text-sm font-semibold min-w-[130px] text-center">{label}</span>
+          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label="Next week"
+            onClick={() => setWeekStart(addDays(weekStart, 7))}>›</button>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-3 flex-wrap text-sm">
+        {info.state === "approved" && (
+          <>
+            <span className="pill bg-highlight text-gold border border-brass/30">Approved</span>
+            <span className="text-muted text-[13px]">by {info.byName || "a manager"} — corrections locked</span>
+            {isOwner && <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={busy} onClick={release}>Release lock</button>}
+          </>
+        )}
+        {info.state === "partial" && (
+          <span className="text-[13px] text-muted">Partially locked — approve to lock the whole week.</span>
+        )}
+        {(info.state === "open" || info.state === "released" || info.state === "partial") && (
+          <>
+            {info.state === "released" && (
+              <span className="text-[13px] text-muted">Lock released by {info.byName || "the owner"} — re-approve when fixed.</span>
+            )}
+            <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={busy || !finished}
+              title={finished ? undefined : "The week isn't over yet"} onClick={approve}>
+              {busy ? "Saving…" : info.state === "released" ? "Re-approve week" : "Approve week"}
+            </button>
+            {!finished && <span className="text-[12px] text-faint">Available once the week ends.</span>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Manager-only. Lists store-wide shifts over the period and files append-only
 // corrections (edit a punch time, add a forgotten punch, void a stray one).
 // Nothing here mutates a punch — each action writes a signed correction record
 // that `computeShifts` folds in (see lib/timeclock `applyCorrections`).
-function TimesheetCorrections({ punches, days, now, vendorId, actor, onToast }) {
+function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vendorId, actor, onToast }) {
   const shifts = useMemo(
     () => computeShifts(punches).filter((s) => s.inMs >= now - days * DAY).sort((a, b) => b.inMs - a.inMs),
     [punches, days, now]
@@ -300,6 +399,8 @@ function TimesheetCorrections({ punches, days, now, vendorId, actor, onToast }) 
     const emp = employees.find((e) => e.id === addForm.userId);
     if (!emp) return onToast?.("Pick an employee");
     if (atMs == null) return onToast?.("Pick a date and time");
+    if (lockedDays.has(dayOfMs(atMs)))
+      return onToast?.("That day is payroll-approved — release the lock first");
     if (!reason) return onToast?.("Add a reason");
     const ok = await run(() => addPunchCorrection(vendorId, {
       action: "add", type: addForm.type, atMs,
@@ -352,6 +453,8 @@ function TimesheetCorrections({ punches, days, now, vendorId, actor, onToast }) 
         <div className="max-h-[26rem] overflow-auto divide-y divide-line">
           {shifts.map((s) => {
             const isEditing = editing && editing.inId === s.inId && editing.outId === s.outId && editing.inMs === s.inMs;
+            // Any day the shift touches being payroll-approved locks it here too.
+            const locked = lockedDays.has(dayOfMs(s.inMs)) || (s.outMs && lockedDays.has(dayOfMs(s.outMs)));
             return (
               <div key={`${s.inId}:${s.outId}:${s.inMs}`} className="px-4 py-2.5">
                 <div className="flex items-center justify-between gap-3 text-sm">
@@ -364,13 +467,17 @@ function TimesheetCorrections({ punches, days, now, vendorId, actor, onToast }) 
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="font-mono font-semibold">{formatDuration(s.ms)}</span>
-                    <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => (isEditing ? setEditing(null) : openEdit(s))}>
-                      {isEditing ? "Cancel" : "Correct"}
-                    </button>
+                    {locked ? (
+                      <span className="pill bg-subtle text-muted" title="Payroll-approved — release the week's lock to correct">locked</span>
+                    ) : (
+                      <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => (isEditing ? setEditing(null) : openEdit(s))}>
+                        {isEditing ? "Cancel" : "Correct"}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {isEditing && (
+                {isEditing && !locked && (
                   <div className="mt-3 space-y-3 bg-panel rounded-lg p-3">
                     <div className="grid grid-cols-2 gap-2">
                       <label className="text-[12px] text-muted">Clock in
