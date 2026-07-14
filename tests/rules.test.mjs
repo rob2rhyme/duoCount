@@ -478,7 +478,10 @@ test("note text is immutable; managers may only pin/archive; no deletes", async 
 test("only the owner edits settings, and only whitelisted keys", async () => {
   await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}`),
     { blindCounts: true, varianceThreshold: 10, digest: { enabled: true, recipients: ["o@x.com"], tz: "America/New_York", lastSentDate: null } }));
+  // opt-in AI feature flags are owner-writable (ai-*-spec.md)
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}`), { aiSearch: true, aiInsights: true }));
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { blindCounts: true }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { aiInsights: true }));
   await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { slug: "stolen-code" }));
 });
 
