@@ -226,6 +226,11 @@ bin 4 running low." Managers can pin the important ones.
 
 ## Handy tips
 
+- **Your saves are safe.** The **Save** button stays off until the count is
+  actually filled in (so you can't save an empty drawer by accident), and if a
+  save ever fails — a dead spot, a dropped signal — a red **"Couldn't save"** bar
+  stays on screen with a **Retry** button instead of a message that flashes and
+  disappears. Your entry isn't recorded until you see the success note.
 - **Install it like an app.** DuoCount is a PWA — your phone/browser can "Add to
   Home Screen," and it opens full-screen and works offline for the basics.
 - **Light or dark.** On the sign-in screen, tap the sun/moon. Once you're signed

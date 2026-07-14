@@ -57,6 +57,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Pay-period approval / payroll lock** (manager approves a finished week — freezes timesheet corrections via per-day lock docs enforced in the rules; owner-audited release, manager re-approve; Payroll approval card + locked pills in the timesheet) | `firestore.rules` `payrollLocks`, `src/lib/payroll-lock.js`, `time-clock-spec.md` §Pay-period approval | ✅ |
 | **AI digest narrative — Phases 1 & 2 (shipped dark)** (opt-in per vendor, off by default; redacts/pseudonymizes names before egress, builds a cacheable prompt, calls `claude-haiku-4-5` server-side, renders an escaped narrative block above the digest table; additive — any failure sends the plain digest. **Phase 2:** owner toggle in Admin → Business settings + `privacy-and-data.md` disclosure) | `src/lib/digest-narrative.js`, `src/lib/digest.js`, `src/components/AdminPanel.js`, `ai-features-spec.md` | ✅ |
 | **First-run onboarding + zero-config empty states** (Tier 1: dismissible manager-only setup checklist tracking location + drawer essentials plus an optional items step, with guiding EmptyState cards on the Cash/Scratch/Inventory tabs that route managers to Admin and reassure employees; pure `setupProgress` derivation, unit-tested; empty states gated on first-snapshot load so existing stores never flash one; no schema/rules change) | `src/lib/setup-progress.js`, `src/components/SetupChecklist.js`, `EmptyState.js`, `AppShell.js`, `competitive-gap-analysis.md` | ✅ |
+| **Trustworthy saves** (Tier 1 usability: every count form disables **Save** until its required inputs are entered — pure, unit-tested `count-validation.js` shared by cash/scratch/inventory — and a failed save becomes a *persistent, retryable* error bar via `useSaveState` + `SaveError`, replacing the ~2.2s toast that could hide a lost save on flaky wifi; a "0" count stays valid, the denomination counter satisfies the cash requirement) | `src/lib/count-validation.js`, `src/lib/use-save-state.js`, `src/components/SaveError.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
 
 ## Next up
 
@@ -245,10 +246,14 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
   `src/lib/setup-progress.js` (unit-tested); no schema or rules change; empty
   states only appear once the snapshots have loaded, so an existing store never
   flashes one. `SetupChecklist.js`, `EmptyState.js`, `AppShell.js`.
-- **Everyday-usability bundle** — mobile bottom nav, inline validation
-  (disable-until-valid + focus the bad field), persistent/retryable save errors,
-  smart shift default + remembered location/drawer, inventory fast-path, 44px scan
-  targets.
+- **Everyday-usability bundle** — shipping in slices:
+  - **Trustworthy saves — ✅ done** — every count form now disables **Save** until
+    the required inputs are filled (pure `count-validation.js`, unit-tested) and
+    turns a failed save into a *persistent, retryable* error bar instead of a
+    vanishing toast (`useSaveState` + `SaveError`).
+  - *Next slices:* mobile bottom nav; smart shift default + remembered
+    location/drawer; inventory fast-path; 44px scan targets + promoted power
+    features.
 - **Manager attention-badges** on Log / Incidents / Time from existing
   subscriptions.
 

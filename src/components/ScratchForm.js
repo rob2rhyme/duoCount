@@ -2,7 +2,10 @@
 import { useEffect, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
+import { validateScratch } from "@/lib/count-validation";
+import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
+import SaveError from "./SaveError";
 import Field from "./Field";
 import BarcodeScanner from "./BarcodeScanner";
 
@@ -15,7 +18,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     date: today(), shift: "open", locationId: "", drawerId: "",
     game: "", pack: "", price: "", startno: "", endno: "",
   });
-  const [busy, setBusy] = useState(false);
+  const { busy, error, run } = useSaveState();
   const [scanOpen, setScanOpen] = useState(false);
   const packId = useId();
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -59,23 +62,21 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   const dollars = sold * (Number(f.price) || 0);
   const drawer = locDrawers.find((d) => d.id === f.drawerId);
 
+  const valid = validateScratch(f);
+
+  // Throws on failure so useSaveState can hold a persistent, retryable error
+  // instead of a toast that could vanish before the clerk sees the save failed.
   async function save() {
-    if (!f.locationId) return onSaved?.("Pick a location first");
-    if (!drawer) return onSaved?.("Pick a drawer first");
-    setBusy(true);
-    try {
-      await addEntry(vendor.id, {
-        kind: "scratch", date: f.date, shift: f.shift,
-        locationId: f.locationId, locationName: locName(f.locationId),
-        drawerId: drawer.id, drawerName: drawer.name,
-        game: f.game.trim() || "Game", pack: f.pack.trim(),
-        price: Number(f.price) || 0, startno: Number(f.startno) || 0, endno: Number(f.endno) || 0,
-        sold, dollars, by: profile.name, byId: profile.id, byRole: profile.role,
-      });
-      setF((p) => ({ ...p, pack: "", startno: "", endno: "" }));
-      onSaved?.("Scratch-off entry signed & saved");
-    } catch (e) { console.error(e); onSaved?.("Save failed — check connection"); }
-    setBusy(false);
+    await addEntry(vendor.id, {
+      kind: "scratch", date: f.date, shift: f.shift,
+      locationId: f.locationId, locationName: locName(f.locationId),
+      drawerId: drawer.id, drawerName: drawer.name,
+      game: f.game.trim() || "Game", pack: f.pack.trim(),
+      price: Number(f.price) || 0, startno: Number(f.startno) || 0, endno: Number(f.endno) || 0,
+      sold, dollars, by: profile.name, byId: profile.id, byRole: profile.role,
+    });
+    setF((p) => ({ ...p, pack: "", startno: "", endno: "" }));
+    onSaved?.("Scratch-off entry signed & saved");
   }
 
   return (
@@ -142,7 +143,9 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           </div>
         </div>
 
-        <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
+        <SaveError message={error} onRetry={() => run(save)} busy={busy} />
+        <button className="btn-primary" disabled={busy || !valid.ok || !drawer} onClick={() => run(save)}>{busy ? "Saving…" : "Save & sign entry"}</button>
+        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{valid.message}</p>}
         <p className="text-xs text-muted leading-relaxed">End # − start # = tickets sold. That × price must match the drawer — this makes the log self-auditing.</p>
       </div>
 
