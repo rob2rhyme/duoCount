@@ -167,6 +167,27 @@ existing daily digest, generated on the aggregates the digest already computes.
   test-digest button (needs a real key + deploy). Later: NL log search /
   features 4–5 as their own specs.
 
+### 8. AI natural-language log search — 📄 spec ready (analysis only, not built)
+The second AI feature (`distribution-analysis.md` §1.1, feature 2), now specified
+end-to-end in **`ai-log-search-spec.md`** — **no application code yet**. Turns a
+plain-English question in the Log search box (*"Eve's shorts last week"*,
+*"unverified cash over $20"*) into the **same filters the Log tab already
+exposes**, applied to the entries already in the browser.
+- **Design headlines:** the model returns a **filter object, not prose** — it
+  routes a query to the existing `kind/who/drawer/status` filters plus a date
+  range and over/short predicate; the app does the filtering locally, so **count
+  records never leave** (only the typed query + the label vocabulary do).
+  Server-side `claude-haiku-4-5` with a stable, cacheable schema (values
+  client-validated against the store's real vocabulary); **opt-in per vendor via
+  a new `vendor.aiSearch` flag, off by default and separate from the digest
+  flag**; **additive** — any failure or an un-routable query falls back to
+  today's keyword search. Honest residual: the typed query is user-authored and
+  egresses as-is (resolving a named person needs the name), documented in the
+  spec's Privacy section.
+- **When built:** phase it per the spec — refactor the Log filter into a shared
+  pure `applyLogFilter` (dark) → owner toggle + privacy note → later features as
+  their own specs.
+
 ## Layout audit
 
 All nine screens (Cash, Scratch-offs, Inventory, Log, Notes, Incidents, Time,

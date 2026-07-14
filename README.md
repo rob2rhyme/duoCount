@@ -36,6 +36,10 @@ security rules keyed on server-issued auth claims.
     install prompt)
   - `distribution-analysis.md` — AI integration, static-HTML, WordPress, and
     other packaging paths, with effort/trade-offs/recommendations
+  - `ai-features-spec.md` — spec for the opt-in AI digest narrative (Phases 1 & 2
+    built, shipped dark)
+  - `ai-log-search-spec.md` — spec for opt-in natural-language log search
+    (analysis/design only, not built)
   - `theme-accessibility-audit.md` — measured WCAG AA contrast audit across
     both themes, with the failures found and the token fixes shipped
   - `roadmap.md` — what's shipped, what's next, and what's deferred
