@@ -9,7 +9,7 @@ import {
 import { useSession } from "./SessionProvider";
 import {
   weekStartMonday, weekDates, addDays, groupByDate, scheduledHours, findOverlaps, reconcile,
-  shiftMinutes, copyShiftsToWeek, availabilityConflicts, isUnavailable,
+  lateArrivals, shiftMinutes, copyShiftsToWeek, availabilityConflicts, isUnavailable,
   weekShiftsToTemplate, templateToShifts,
 } from "@/lib/schedule";
 import { availableActions, applySwap, swapStatusOf, SWAP_ACTIONS } from "@/lib/swaps";
@@ -109,6 +109,12 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const elapsed = useMemo(() => days.filter((d) => d <= todayStr()), [days]);
   const attendance = useMemo(
     () => (isManager ? reconcile(weekShifts, punches, { dates: elapsed }) : null),
+    [isManager, weekShifts, punches, elapsed]
+  );
+  // Arrivals more than the grace period past the scheduled start (paired to the
+  // nearest in-punch; pure lib, see lateArrivals). Manager-facing only.
+  const late = useMemo(
+    () => (isManager ? lateArrivals(weekShifts, punches, { dates: elapsed }) : []),
     [isManager, weekShifts, punches, elapsed]
   );
 
@@ -480,10 +486,17 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
             <span><b className="font-mono">{attendance.worked}</b>/<span className="font-mono">{attendance.scheduled}</span> <span className="text-muted">worked as scheduled</span></span>
             {attendance.noShow.length > 0 && <span className="text-neg"><b className="font-mono">{attendance.noShow.length}</b> no-show{attendance.noShow.length === 1 ? "" : "s"}</span>}
             {attendance.unscheduled.length > 0 && <span className="text-gold"><b className="font-mono">{attendance.unscheduled.length}</b> unscheduled</span>}
+            {late.length > 0 && <span className="text-gold"><b className="font-mono">{late.length}</b> late arrival{late.length === 1 ? "" : "s"}</span>}
           </div>
           {attendance.noShow.length > 0 && (
             <div className="mt-2.5 text-[13px] text-muted">
               No-shows: {attendance.noShow.map((n) => `${n.userName || nameOf(n.userId)} (${dayLabel(n.date)})`).join(", ")}
+            </div>
+          )}
+          {late.length > 0 && (
+            <div className="mt-2.5 text-[13px] text-muted">
+              Late (&gt;10 min past start): {late.map((l) =>
+                `${l.userName || nameOf(l.userId)} (${dayLabel(l.date)} ${l.start}, +${l.lateMin}m)`).join(", ")}
             </div>
           )}
         </div>

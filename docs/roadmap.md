@@ -53,6 +53,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Manager punch correction** (append-only supersede: a manager edits a punch time, adds a forgotten in/out, or voids a stray punch via a signed correction record — the original is never mutated; folds into hours/reports via `applyCorrections`) | `src/lib/timeclock.js`, `firestore.rules`, `time-clock-spec.md` §Punch corrections | ✅ |
 | **Server-enforced count baseline** (rules now require `expected` == its own components for cash/inventory, so a client can't forge the baseline to hide a short — the tractable core of "server-computed blind counts") | `firestore.rules` `expectedConsistent()`, `tests/entry-consistency.test.mjs` | ✅ |
 | **Overnight-shift correctness** (overlap check runs on absolute date+time intervals so Mon 22:00–06:00 collides with Tue 05:00–13:00; attendance reconciliation accepts an overnight shift's next-day punches — no more false no-shows / phantom "unscheduled" mornings; availability warnings see the spill day) | `src/lib/schedule.js`, `time-clock-spec.md` §lib | ✅ |
+| **Time-level lateness** (arrivals >10 min past the scheduled start on the Attendance card, with minutes; nearest-in-punch pairing bounded by the shift's duration, overnight-safe, pure + unit-tested) | `src/lib/schedule.js` `lateArrivals`, `time-clock-spec.md` §lib | ✅ |
 
 ## Next up
 

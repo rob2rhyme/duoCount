@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   addDays, weekStartMonday, weekDates, parseHHMM, shiftMinutes, crossesMidnight,
-  scheduledHours, findOverlaps, groupByDate, reconcile,
+  scheduledHours, findOverlaps, groupByDate, reconcile, lateArrivals,
   copyShiftsToWeek, availabilityConflicts, isUnavailable,
   dayOffset, weekShiftsToTemplate, templateToShifts,
 } from "../src/lib/schedule.js";
@@ -313,4 +313,62 @@ test("availabilityConflicts flags an overnight shift spilling into an unavailabl
   const ids = availabilityConflicts(shifts, unavailable);
   assert.equal(ids.size, 1);
   assert.ok(ids.has("u1-2026-07-06-22:00"));
+});
+
+/* ---------- time-level lateness ---------- */
+
+const inPunch = (userId, day, h, m) =>
+  ({ userId, day, type: "in", ts: new Date(...day.split("-").map(Number).map((v, i) => (i === 1 ? v - 1 : v)), h, m) });
+const DATES = ["2026-07-06", "2026-07-07"];
+
+test("lateArrivals: on-time and within-grace arrivals are not flagged", () => {
+  const sched = [shift("u1", "2026-07-06", "10:00", "18:00")];
+  assert.deepEqual(lateArrivals(sched, [inPunch("u1", "2026-07-06", 9, 58)], { dates: DATES }), []);
+  assert.deepEqual(lateArrivals(sched, [inPunch("u1", "2026-07-06", 10, 7)], { dates: DATES }), []);
+});
+
+test("lateArrivals flags an arrival beyond the grace period, with the minutes", () => {
+  const sched = [shift("u1", "2026-07-06", "09:00", "17:00")];
+  const late = lateArrivals(sched, [inPunch("u1", "2026-07-06", 9, 25)], { dates: DATES });
+  assert.equal(late.length, 1);
+  assert.deepEqual(late[0], { userId: "u1", userName: "Eve", date: "2026-07-06", start: "09:00", lateMin: 25 });
+  // a tighter custom grace flags the 7-minute arrival too
+  assert.equal(lateArrivals(sched, [inPunch("u1", "2026-07-06", 9, 7)], { dates: DATES, graceMin: 5 }).length, 1);
+});
+
+test("lateArrivals: an overnight shift's past-midnight arrival needs no special case", () => {
+  // scheduled Mon 22:00; walked in Tue 00:30 (punch day stamps the 7th) -> 150 min late
+  const sched = [shift("u1", "2026-07-06", "22:00", "06:00")];
+  const late = lateArrivals(sched, [inPunch("u1", "2026-07-07", 0, 30)], { dates: DATES });
+  assert.equal(late.length, 1);
+  assert.equal(late[0].lateMin, 150);
+});
+
+test("lateArrivals: no plausible punch means no-show territory, not 'late'", () => {
+  const sched = [shift("u1", "2026-07-06", "09:00", "13:00")]; // 4h window
+  // no punches at all
+  assert.deepEqual(lateArrivals(sched, [], { dates: DATES }), []);
+  // an unrelated punch far outside the shift's window never pairs
+  assert.deepEqual(lateArrivals(sched, [inPunch("u1", "2026-07-06", 16, 55)], { dates: DATES }), []);
+});
+
+test("lateArrivals pairs each punch once across a double-shift day", () => {
+  const sched = [
+    shift("u1", "2026-07-06", "09:00", "13:00"),
+    shift("u1", "2026-07-06", "17:00", "21:00"),
+  ];
+  // morning on time; evening 40 late — the 09:05 punch can't excuse the evening
+  const late = lateArrivals(sched,
+    [inPunch("u1", "2026-07-06", 9, 5), inPunch("u1", "2026-07-06", 17, 40)], { dates: DATES });
+  assert.equal(late.length, 1);
+  assert.equal(late[0].start, "17:00");
+  assert.equal(late[0].lateMin, 40);
+});
+
+test("lateArrivals honors the elapsed-dates range and skips open shifts", () => {
+  const sched = [
+    shift("u1", "2026-07-20", "09:00", "17:00"), // outside dates
+    { id: "o1", userId: null, userName: null, date: "2026-07-06", start: "09:00", end: "17:00", open: true },
+  ];
+  assert.deepEqual(lateArrivals(sched, [inPunch("u1", "2026-07-20", 9, 45)], { dates: DATES }), []);
 });

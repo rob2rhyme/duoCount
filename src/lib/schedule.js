@@ -201,6 +201,86 @@ export function isUnavailable(unavailable = [], userId, date) {
   return unavailable.some((u) => u.userId === userId && u.date === date);
 }
 
+/* ---------- time-level lateness ---------- */
+
+// Local-clock minutes-of-day of a punch timestamp (Date / Firestore Timestamp /
+// {seconds} / ms). LOCAL getters on purpose: the punch's `day` label is stamped
+// from the client's local date at write time, so local time-of-day is the
+// consistent companion — and the store's staff and the reviewing manager share
+// a timezone in practice.
+function minutesOfDay(ts) {
+  if (ts == null) return null;
+  const d = ts instanceof Date ? ts
+    : typeof ts.toDate === "function" ? ts.toDate()
+    : typeof ts.seconds === "number" ? new Date(ts.seconds * 1000)
+    : new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+/**
+ * Late arrivals: scheduled shifts whose paired clock-IN ran more than
+ * `graceMin` minutes past the scheduled start. Pure, over the given elapsed
+ * `dates` (same contract as `reconcile`).
+ *
+ * Pairing rule — deliberately simple and forgiving:
+ *   • Everything is compared in ABSOLUTE minutes (business day + time), so an
+ *     overnight shift whose in-punch lands after midnight needs no special case.
+ *   • Each shift takes the employee's nearest unused in-punch, shifts in
+ *     chronological order; a punch pairs at most once (a morning punch can't
+ *     also excuse the evening shift).
+ *   • A punch only pairs if it's within the shift's own duration (min 60 min)
+ *     of the scheduled start — an unrelated punch never pairs, and a shift with
+ *     no plausible punch is skipped here (it's `reconcile`'s no-show, not
+ *     "late"). Early arrivals are never flagged.
+ */
+export function lateArrivals(scheduled = [], punches = [], { dates = [], graceMin = 10 } = {}) {
+  const inRange = new Set(dates);
+
+  const insByUser = new Map(); // userId -> sorted absolute in-punch minutes
+  for (const p of punches) {
+    if (p?.type !== "in" || !p.userId || !p.day) continue;
+    const mod = minutesOfDay(p.ts);
+    if (mod == null) continue;
+    if (!insByUser.has(p.userId)) insByUser.set(p.userId, []);
+    insByUser.get(p.userId).push(parseDay(p.day) / 60000 + mod);
+  }
+  for (const list of insByUser.values()) list.sort((a, b) => a - b);
+
+  const shiftsByUser = new Map();
+  for (const s of scheduled) {
+    if (!s.userId || !inRange.has(s.date)) continue;
+    const start = parseHHMM(s.start);
+    if (start == null) continue;
+    if (!shiftsByUser.has(s.userId)) shiftsByUser.set(s.userId, []);
+    shiftsByUser.get(s.userId).push({
+      s, abs: parseDay(s.date) / 60000 + start, window: Math.max(shiftMinutes(s.start, s.end), 60),
+    });
+  }
+
+  const late = [];
+  for (const [userId, list] of shiftsByUser) {
+    list.sort((a, b) => a.abs - b.abs);
+    const ins = insByUser.get(userId) || [];
+    const used = new Set();
+    for (const { s, abs, window } of list) {
+      let best = -1, bestGap = Infinity;
+      for (let i = 0; i < ins.length; i++) {
+        if (used.has(i)) continue;
+        const gap = Math.abs(ins[i] - abs);
+        if (gap < bestGap) { bestGap = gap; best = i; }
+      }
+      if (best < 0 || bestGap > window) continue; // no plausible punch -> reconcile's territory
+      used.add(best);
+      const lateMin = Math.round(ins[best] - abs);
+      if (lateMin > graceMin) late.push({
+        userId, userName: s.userName, date: s.date, start: s.start, lateMin,
+      });
+    }
+  }
+  return late.sort((a, b) => b.lateMin - a.lateMin);
+}
+
 /** date -> shifts on that date, each list sorted by start time. */
 export function groupByDate(shifts = []) {
   const by = new Map();
