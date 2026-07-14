@@ -34,6 +34,7 @@
     "test:count-validation": "node --test tests/count-validation.test.mjs",
     "test:count-context": "node --test tests/count-context.test.mjs",
     "test:attention": "node --test tests/attention.test.mjs",
+    "test:import": "node --test tests/import-parse.test.mjs",
     "test:contrast": "node --test tests/contrast.test.mjs",
     "check:contrast": "node scripts/contrast-check.mjs"
   },

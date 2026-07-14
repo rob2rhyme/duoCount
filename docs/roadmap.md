@@ -63,6 +63,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Mobile bottom nav** (Tier 1 usability: on < sm the nine-tab sideways strip becomes a thumb-reachable bottom bar grouping screens into Count / Team / Insights / Admin — tap a group for a sheet of its screens; the top strip returns at ≥ sm; content, toast, and the scroll-to-top FAB all lift clear of it; driven purely by the shell's visible-tabs list so an employee just sees one fewer group) | `src/components/BottomNav.js`, `AppShell.js`, `ScrollTopFab.js`, `globals.css` | ✅ |
 | **Bigger touch targets + promoted power features** (Tier 1 usability, completing the everyday bundle: barcode scan buttons are 44px targets with aria-labels; the cash denomination counter is a full-width labelled toggle instead of a tiny text link; the Dashboard **Reports & export** is a 44px button) | `CashForm.js`, `ScratchForm.js`, `InventoryForm.js`, `Dashboard.js` | ✅ |
 | **Manager attention-badges** (Tier 1, completes the tier: ambient amber counts on Log — unresolved variances/disputes — Incidents — open write-ups — and Time — swaps awaiting approval — shown on both the top strip and the bottom-nav groups; pure, unit-tested `attentionCounts` over already-watched data plus a manager-only swap-board subscription; employees see none) | `src/lib/attention.js`, `AppShell.js`, `BottomNav.js` | ✅ |
+| **CSV bulk import — Phase 1 (items)** (Tier 2, first unit: owner-only "Import / migrate" card that parses a CSV in the browser, fuzzy-guesses the column mapping, shows a live per-row dry-run preview, and commits through `POST /api/import` on the Admin SDK — which re-validates against live state, so the preview never gates a write. Idempotent: matches existing items by name/barcode+location → update or skip, never duplicates; `source`/`importBatchId` tagged; pure, unit-tested `parseCsv`/`guessMapping`/`validateItems`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js`, `AdminPanel.js`, `bulk-import-spec.md` | ✅ |
 
 ## Next up
 
@@ -280,8 +281,14 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
   manager-only swap-board subscription); employees see none. **Tier 1 complete.**
 
 ### Tier 2 — strategic (spec'd; build after Tier 1)
-- **Multi-store owner rollup** — `multi-store-rollup-spec.md`
 - **CSV bulk import + migration** — `bulk-import-spec.md`
+  - **Phase 1 — items — ✅ done** — owner-only "Import / migrate" card: parse a
+    CSV, map columns, live per-row dry-run preview, commit through
+    `POST /api/import` (Admin SDK, re-validated server-side). Idempotent
+    (matches existing items → update/skip, never duplicates); no rules change.
+  - *Next:* Phase 2 staff (via the `/api/staff` write path), Phase 3 opening
+    baselines (write-once-per-item, append-only-safe).
+- **Multi-store owner rollup** — `multi-store-rollup-spec.md`
 - **Accountant / franchise exports** — `accountant-export-spec.md`
 - **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`
 - **In-app notification center** (defer web push) — the real-time

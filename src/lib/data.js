@@ -117,6 +117,16 @@ export async function apiSeedDemo(action) {
     body: JSON.stringify({ action }),
   });
 }
+// Owner-only bulk import: type "items", mode "preview" (validate, no writes) or
+// "commit" (validate again server-side, then write). `mapping` is the confirmed
+// column→field map; `rows` is the parsed CSV ({ line, values }[]).
+export async function apiImport({ type, mode, mapping, rows }) {
+  return fetchJson("/api/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify({ type, mode, mapping, rows }),
+  });
+}
 // Manager-only natural-language log search: turns a query into a filter object
 // (ai-log-search-spec.md). Returns { filter } or { filter: null } — the caller
 // falls back to keyword search on null.

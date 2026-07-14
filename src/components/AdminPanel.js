@@ -12,6 +12,7 @@ import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
 import PacksCard from "./PacksCard";
 import SettlementReconcile from "./SettlementReconcile";
+import ImportCard from "./ImportCard";
 import Field from "./Field";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
@@ -560,6 +561,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
             : <p className="text-[13px] text-muted italic">Only the owner can change these settings.</p>}
         </div>
       </div>
+
+      {isOwner && <ImportCard locations={locations} items={items} onToast={onToast} />}
 
       {isOwner && (
         <div className="card overflow-hidden">

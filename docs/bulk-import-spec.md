@@ -4,13 +4,16 @@ title: Owner-only CSV bulk import & migration
 
 # DuoCount — Bulk Import Spec
 
-**Status: analysis / design only — NOT built.** This is the design for a
-one-time-per-store, owner-only CSV importer that migrates a shop off paper,
-Excel, or another tool into DuoCount. Nothing here ships yet; there is no
-`/api/import` route, no importer lib, no Admin UI. The trust model, column
-mappings, validation, and phasing below are the contract to build against — and,
-just as importantly, the record of what the importer is deliberately **not**
-allowed to do (it never writes or edits a sealed count entry retroactively).
+**Status: Phase 1 (items) shipped; Phases 2–3 (staff, baselines) designed, not
+built.** This is the design for a one-time-per-store, owner-only CSV importer
+that migrates a shop off paper, Excel, or another tool into DuoCount. Phase 1
+ships the whole scaffold — `POST /api/import` on the Admin SDK, the pure
+`src/lib/import-parse.js` (`parseCsv` / `guessMapping` / `validateItems`), the
+`apiImport` client helper, and the owner-only "Import / migrate" card in
+`AdminPanel.js` — for the **items** catalog. The staff and baseline branches
+below are the contract for the next two phases, and — just as importantly — the
+record of what the importer is deliberately **not** allowed to do (it never
+writes or edits a sealed count entry retroactively).
 
 It reuses, verbatim where possible, the trusted server path the seed and signup
 routes already prove out: an Admin-SDK route gated by `requireOwner`, scoped to
@@ -369,11 +372,14 @@ Build in the order the data depends and the risk climbs. Each phase is an
 independent importer (its own `type`, mapping, preview, commit), so it ships and
 is usable on its own.
 
-1. **Phase 1 — Items.** The catalog first: it's the lowest-risk write (items are
-   soft-disable-only, fully idempotent, and baselines depend on them existing),
-   and it's the most-typed-in part of setup today. Ships with `parseCsv`,
-   `guessMapping`, `validateItems`, the route's `items` branch, and the Admin card
-   + mapping/preview UI — the whole scaffold the next two phases reuse.
+1. **Phase 1 — Items. ✅ shipped.** The catalog first: it's the lowest-risk write
+   (items are soft-disable-only, fully idempotent, and baselines depend on them
+   existing), and it's the most-typed-in part of setup today. Shipped with
+   `parseCsv`, `guessMapping`, `validateItems` (all pure + unit-tested in
+   `tests/import-parse.test.mjs`), the route's `items` branch (create/update,
+   `source: "import"` + `importBatchId`, chunked writes), the `apiImport` client
+   helper, and the owner-only "Import / migrate" card with the mapping step +
+   live dry-run preview — the whole scaffold the next two phases reuse.
 2. **Phase 2 — Staff.** Adds `validateStaff` and the route's `staff` branch on the
    `/api/staff` write path (`hashPin`, PIN uniqueness, location resolution, role
    cap). Carries the PIN-policy UX (optional PINs, the "sets a sign-in PIN"
