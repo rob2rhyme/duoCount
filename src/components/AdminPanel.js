@@ -103,6 +103,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     invVarianceThreshold: vendor.invVarianceThreshold ?? "",
     fiscalStartMonth: vendor.fiscalStartMonth ?? 1,
     digestEnabled: vendor.digest?.enabled === true,
+    digestNarrative: vendor.digest?.narrative === true,
     digestRecipients: (vendor.digest?.recipients || []).join(", "),
     digestTz: vendor.digest?.tz || "America/New_York",
     patternRules: { ...PATTERN_RULES, ...(vendor.patternRules || {}) },
@@ -140,6 +141,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
       patternRules: resolvePatternRules(settings.patternRules),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
+        narrative: settings.digestNarrative, // opt-in AI summary; off by default
         lastSentDate: vendor.digest?.lastSentDate ?? null, // preserved; cron owns it
       },
     };
@@ -504,6 +506,15 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                 ))}
               </select>
             </Field>
+            <div className="flex items-start gap-3 border-t border-line pt-3">
+              <input id="digestNarrative" type="checkbox" className="mt-1" checked={settings.digestNarrative}
+                disabled={!isOwner}
+                onChange={(e) => setSettings({ ...settings, digestNarrative: e.target.checked })} />
+              <label htmlFor="digestNarrative" className="min-w-0">
+                <span className="font-medium text-[14px]">AI summary in the daily digest <span className="text-muted font-normal">— off by default</span></span>
+                <p className="text-xs text-muted leading-relaxed">Adds a few plain-English sentences and a &quot;what to watch tomorrow&quot; list to the top of the digest. To write it, the day&apos;s already-totaled figures are sent to Anthropic&apos;s API with employee names replaced by &quot;Employee A/B&quot; first — your logged counts are never changed, and it stays off unless you turn it on. Requires the server AI key; otherwise it has no effect.</p>
+              </label>
+            </div>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <span className="text-xs text-muted">
                 Last sent: <b className="font-mono">{vendor.digest?.lastSentDate || "never"}</b>
