@@ -27,6 +27,7 @@
     "test:doc-search": "node --test tests/doc-search.test.mjs",
     "test:text-match": "node --test tests/text-match.test.mjs",
     "test:narrative": "node --test tests/digest-narrative.test.mjs",
+    "test:insight": "node --test tests/insight.test.mjs",
     "test:log-filter": "node --test tests/log-filter.test.mjs",
     "test:log-search": "node --test tests/log-search.test.mjs",
     "test:contrast": "node --test tests/contrast.test.mjs",

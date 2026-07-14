@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { money, toDate, isUnresolved } from "@/lib/utils";
 import { detectPatterns } from "@/lib/patterns";
+import { apiPatternNarrative } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
 import ReportModal from "./ReportModal";
@@ -130,6 +131,28 @@ export default function Dashboard({ entries, packs = [], locations = [], locName
     return { count: entries.length, netDiff, shorts, overs, scratchDollars, cashSales, verifyRate, missingUnits, invCount: inv.length, openVariances, openDisputes, unverified, attention, dayRows, empRows, gameRows, drawerRows, itemRows };
   }, [entries]);
 
+  // On-demand AI narrative over the pattern alerts (ai-pattern-narrative-spec.md).
+  // Opt-in per vendor; the server route re-checks the flag + key. Cached per
+  // pattern-set so re-reads don't re-call; it regenerates when the signals change.
+  const aiInsights = vendor?.aiInsights === true;
+  const patternsKey = useMemo(() => patterns.map((p) => `${p.id}:${p.severity}`).join("|"), [patterns]);
+  const [insight, setInsight] = useState(null);
+  const [insightFor, setInsightFor] = useState(null);
+  const [insightBusy, setInsightBusy] = useState(false);
+  const insightShown = insight && insightFor === patternsKey;
+  async function runInsight() {
+    if (insightBusy || !patterns.length) return;
+    setInsightBusy(true);
+    try {
+      const { narrative } = await apiPatternNarrative({
+        patterns, openVariances: a.openVariances, openDisputes: a.openDisputes, unverified: a.unverified,
+      });
+      if (narrative) { setInsight(narrative); setInsightFor(patternsKey); }
+      else onToast?.("No summary available right now");
+    } catch (err) { console.error(err); onToast?.("Couldn't generate a summary"); }
+    finally { setInsightBusy(false); }
+  }
+
   const reportButton = isManager && (
     <div className="flex justify-end">
       <button className="btn-ghost text-[13px] px-3.5 py-2" onClick={() => setReportOpen(true)}>📄 Reports</button>
@@ -171,10 +194,31 @@ export default function Dashboard({ entries, packs = [], locations = [], locName
 
       {isManager && patterns.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-line">
-            <h3 className="font-semibold text-[15px]">Patterns</h3>
-            <p className="text-[12px] text-muted mt-0.5">Signals worth a look — not conclusions.</p>
+          <div className="px-4 py-3.5 border-b border-line flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-[15px]">Patterns</h3>
+              <p className="text-[12px] text-muted mt-0.5">Signals worth a look — not conclusions.</p>
+            </div>
+            {aiInsights && (
+              <button className="btn-ghost text-[13px] px-3 py-1.5 whitespace-nowrap" disabled={insightBusy} onClick={runInsight}>
+                {insightBusy ? "Thinking…" : insightShown ? "↻ Refresh" : "✨ Explain these signals"}
+              </button>
+            )}
           </div>
+          {aiInsights && insightShown && (
+            <div className="px-4 py-3 border-b border-line bg-highlight">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">AI summary — a read on the signals above</div>
+              {insight.summary && <p className="text-sm leading-relaxed">{insight.summary}</p>}
+              {insight.watch?.length > 0 && (
+                <>
+                  <p className="text-[12px] text-muted mt-2 mb-1">What to watch:</p>
+                  <ul className="list-disc pl-5 text-[13px] space-y-0.5">
+                    {insight.watch.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
           {patterns.map((p) => (
             <div key={p.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3">
               <span className={`pill flex-shrink-0 mt-0.5 ${p.severity === "high" ? "bg-red-100 text-red-700" : "bg-highlight text-gold border border-brass/30"}`}>

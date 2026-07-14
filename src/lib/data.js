@@ -127,6 +127,15 @@ export async function apiLogSearch(query, vocabulary) {
     body: JSON.stringify({ query, vocabulary }),
   });
 }
+// Manager-only on-demand narrative over the Dashboard's pattern alerts
+// (ai-pattern-narrative-spec.md). Returns { narrative } or { narrative: null }.
+export async function apiPatternNarrative(payload) {
+  return fetchJson("/api/pattern-narrative", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
+  });
+}
 
 /* ---------- entries ---------- */
 // lockedLocationId: pass an id to query only that location (required for

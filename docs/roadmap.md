@@ -197,12 +197,12 @@ browser.
   key + deploy); the one-key `firestore.rules` allow-list addition wants an
   emulator/staging check (`npm run test:rules`).
 
-### 9. AI in-app pattern narrative — 📄 spec ready (analysis only, not built)
-The third AI feature (`distribution-analysis.md` §1.1, feature 3), now specified
-in **`ai-pattern-narrative-spec.md`** — **no application code yet**. The **in-app
-twin of the digest narrative**: an "Explain these signals" button on the
-Dashboard's Patterns card that turns the on-screen `detectPatterns` alerts into a
-2–3 sentence "what to look at first" readout.
+### 9. AI in-app pattern narrative — 🔨 Phase 1 built (dark); owner toggle next
+The third AI feature (`distribution-analysis.md` §1.1, feature 3), specified in
+**`ai-pattern-narrative-spec.md`**. The **in-app twin of the digest narrative**:
+an "Explain these signals" button on the Dashboard's Patterns card that turns the
+on-screen `detectPatterns` alerts into a 2–3 sentence "what to look at first"
+readout.
 - **Design headlines:** **reuses the digest narrative's pure core**
   (`redactForModel` + `buildNarrativePrompt`) rather than re-deriving the
   pseudonymization/prompt — one narrative core, two surfaces (cron email +
@@ -212,9 +212,16 @@ Dashboard's Patterns card that turns the on-screen `detectPatterns` alerts into 
   digest and search flags); **additive** — the Patterns card is untouched and any
   failure just means no block. Names pseudonymized before egress; display-only,
   no writes.
-- **When built:** phase per the spec — mechanics + button (dark, extract a shared
-  `runNarrative` from the cron path) → owner toggle + privacy note → features 4–5
-  once the opt-in UX is proven on a pilot.
+- **Built (dark):** the shared `runNarrative` extraction (behavior-preserving —
+  the digest's tests still pass), the pure `buildInsightSummary` +
+  `aiInsightsEnabled` gate, the manager-gated `/api/pattern-narrative` route
+  (redacts names server-side), and the "Explain these signals" button on the
+  Patterns card (cached per pattern-set). Tests: `npm run test:insight`. Flag off
+  ⇒ the Dashboard is unchanged.
+- **Remaining:** the `vendor.aiInsights` owner toggle in Admin + the one-key
+  `firestore.rules` allow-list entry + the `privacy-and-data.md` disclosure
+  (Phase 2); live model-call verification on a pilot. Then features 4–5 once the
+  opt-in UX is proven.
 
 ## Layout audit
 
