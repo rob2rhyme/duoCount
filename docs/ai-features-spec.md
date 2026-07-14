@@ -4,18 +4,19 @@ title: AI features — digest narrative
 
 # DuoCount — AI Features Spec (digest narrative first)
 
-**Status: Phase 1 built (shipped dark).** The mechanics below are implemented —
+**Status: Phases 1 & 2 built (shipped dark).** Implemented —
 `src/lib/digest-narrative.js` (redact + prompt builder + generate), the
 `composeEmail` narrative block, the `vendor.digest.narrative` opt-in gate, the
-`ANTHROPIC_API_KEY` wiring, and the unit tests (`tests/digest-narrative.test.mjs`,
-`npm run test:narrative`). The flag defaults **off** and no vendor's digest
-changes until an owner sets `vendor.digest.narrative === true` **and**
-`ANTHROPIC_API_KEY` is configured; every failure path degrades to today's digest.
-**Still open — Phase 2:** the owner-facing toggle in Business settings and the
-matching `docs/privacy-and-data.md` paragraph; live end-to-end verification
-against one pilot vendor via the "send test digest" button (can't be exercised
-in this repo). This remains the build spec the distribution analysis asked for
-(`distribution-analysis.md` §1.5).
+`ANTHROPIC_API_KEY` wiring, the unit tests (`tests/digest-narrative.test.mjs`,
+`npm run test:narrative`), **the owner-facing "AI summary in the daily digest"
+toggle in Admin → Business settings (off by default) with its data-handling
+note, and the matching `docs/privacy-and-data.md` disclosure.** The flag
+defaults **off** and no vendor's digest changes until an owner turns the toggle
+on **and** `ANTHROPIC_API_KEY` is configured; every failure path degrades to
+today's digest. **Still open:** live end-to-end verification against one pilot
+vendor via the "send test digest" button (needs a real key + deploy, can't be
+exercised in this repo). This remains the build spec the distribution analysis
+asked for (`distribution-analysis.md` §1.5).
 
 **Scope.** Feature 1 from `distribution-analysis.md` §1.1 — the digest narrative
 — specified end-to-end. Features 2–5 (NL log search, pattern narratives,
@@ -251,9 +252,13 @@ Same posture as the rest of the digest code — the pure cores are unit-tested w
    output were exercised locally; **still to do — verify the live model call
    end-to-end against one pilot vendor via the test-digest button** (needs a real
    `ANTHROPIC_API_KEY` + deployment).
-2. **Phase 2 — owner UX + disclosure.** A toggle in Business settings ("AI
-   summary in the daily digest — off by default") with the one-line data-handling
-   note, and the matching paragraph in `docs/privacy-and-data.md`.
+2. **Phase 2 — owner UX + disclosure. ✅ built.** A toggle in Admin → Business
+   settings ("AI summary in the daily digest — off by default") with the
+   data-handling note (what is sent, to whom, names pseudonymized, off unless
+   enabled), wired through `updateVendorSettings` into `vendor.digest.narrative`,
+   and the matching paragraph in `docs/privacy-and-data.md`. No rules change
+   needed — the vendor-update rule already allows the whole `digest` map, so the
+   inner `narrative` flag rides along.
 3. **Phase 3 — later features, separate specs.** NL log search (feature 2, output
    is a *filter object* not prose, name-pseudonymized) is the natural next AI
    build; then in-app pattern narratives (feature 3). Each gets its own spec.
