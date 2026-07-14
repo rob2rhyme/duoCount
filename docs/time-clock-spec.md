@@ -303,4 +303,36 @@ deferred:
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real
   payroll math is jurisdiction- and employer-specific; the CSV exports raw
   paired hours for a payroll system to apply its own rules.
-- **Approval / lock of a pay period.**
+- ~~**Approval / lock of a pay period.**~~ — **done**, see "Pay-period approval"
+  below.
+
+## Pay-period approval (payroll lock)
+
+A manager **approves** a finished Mon–Sun week from the *Payroll approval* card
+(Time tab): the reviewed timesheet is frozen so the hours an export stands on
+can't drift afterward. Punches were already immutable and server-timed — the
+one write that can change approved hours after the fact is a **manager
+correction**, so that's exactly what a lock blocks.
+
+- **Model:** one doc per locked business day under `vendors/{v}/payrollLocks/`,
+  doc id == the `YYYY-MM-DD` day, written in week batches. Each transition is
+  signed and server-timestamped. Pure UI helpers in `lib/payroll-lock.js`
+  (`activeLockDays`, `weekLockInfo` — unit-tested, `npm run test:payroll`).
+- **Enforcement (rules):** the timeclock correction branch requires
+  `correctionUnlocked()` — an `edit`/`void` keys off the **target punch's stored
+  day** (a forged `day` label on the correction can't dodge it); an `add` keys
+  off its own day label. An active lock doc on that day ⇒ denied.
+- **Release / re-approve:** the **owner** may release a week's lock (an audited
+  update adding `released:true` + releaser fields — the original approval stays
+  on the record); corrections reopen; a **manager** re-approves with a fresh
+  signature. Lock docs are never deleted, and no other field can ever change.
+- **UI:** week navigator defaulting to last week; *Approved by X* pill with an
+  owner-only **Release lock**; approve is disabled until the week has ended.
+  Locked days show a **locked** pill in *Timesheet & corrections* instead of
+  the Correct button, and *+ Add punch* refuses a locked day with a toast.
+- **Honest residual:** rules can't string-format a timestamp, so an `add`
+  correction's `day`-vs-`at` consistency isn't cross-checked server-side — a
+  hostile manager could mislabel an add's day to slip an added punch past a
+  lock. It still lands signed, reasoned, attributed, and visible in the
+  timesheet; edits/voids of real punches (the actual tamper vector for approved
+  hours) are hard-blocked.

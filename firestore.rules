@@ -368,6 +368,26 @@ service cloud.firestore {
         allow read: if mgr()
           || (member() && resource.data.userId == request.auth.token.userId);
 
+        // Pay-period approval gate (see /payrollLocks): a day under an active
+        // lock rejects manager corrections — the one write that can change
+        // approved hours after the fact. Edits/voids key off the TARGET punch's
+        // stored day (a client-sent label can't dodge it); adds key off the
+        // correction's own day label. Honest residual: rules can't string-format
+        // a timestamp, so an add's day-vs-`at` consistency isn't cross-checked —
+        // a mislabeled add still shows up signed, reasoned, and attributed.
+        function dayLocked(day) {
+          return exists(/databases/$(database)/documents/vendors/$(vendorId)/payrollLocks/$(day))
+            && get(/databases/$(database)/documents/vendors/$(vendorId)/payrollLocks/$(day))
+                 .data.get('released', false) != true;
+        }
+        function correctionUnlocked() {
+          return (request.resource.data.action == 'add'
+                    && request.resource.data.day is string
+                    && !dayLocked(request.resource.data.day))
+              || (request.resource.data.action in ['edit', 'void']
+                    && !dayLocked(get(/databases/$(database)/documents/vendors/$(vendorId)/timeclock/$(request.resource.data.targetId)).data.day));
+        }
+
         allow create: if liveActive() && (
           // (a) an ordinary self-punch. The punch time is the hours-bearing field,
           // so it must be the server's clock, not a client value — otherwise an
@@ -393,10 +413,55 @@ service cloud.firestore {
             && request.resource.data.byName == request.auth.token.name
             && request.resource.data.ts == request.time
             && request.resource.data.reason is string
-            && request.resource.data.reason.size() > 0 )
+            && request.resource.data.reason.size() > 0
+            && correctionUnlocked() )
         );
 
         allow update, delete: if false;
+      }
+
+      // Pay-period approval — one doc per LOCKED business day (doc id == the
+      // YYYY-MM-DD day), written in Mon–Sun week batches by the client. An
+      // active lock freezes manager punch-corrections for that day (enforced in
+      // the timeclock rules above); punches themselves are already immutable and
+      // server-timed, so approval only needs to pin the corrections. Two audited
+      // transitions and nothing else: the OWNER releases a lock (audit fields,
+      // original approval kept), a MANAGER re-approves a released day with a
+      // fresh signature. Never deleted.
+      match /payrollLocks/{day} {
+        allow read: if mgr();
+
+        allow create: if mgr() && liveActive()
+          && day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+          && request.resource.data.day == day
+          && request.resource.data.weekStart.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+          && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.byName == request.auth.token.name
+          && request.resource.data.ts == request.time
+          && !('released' in request.resource.data);
+
+        allow update: if liveActive() && (
+          // release (owner): only the release fields change, all audited
+          ( owner()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['released', 'releasedBy', 'releasedById', 'releasedAt'])
+            && request.resource.data.released == true
+            && request.resource.data.releasedById == request.auth.token.userId
+            && request.resource.data.releasedBy == request.auth.token.name
+            && request.resource.data.releasedAt == request.time )
+          ||
+          // re-approve (manager, only after a release): fresh approval signature
+          ( mgr()
+            && resource.data.get('released', false) == true
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['released', 'byId', 'byName', 'ts'])
+            && request.resource.data.released == false
+            && request.resource.data.byId == request.auth.token.userId
+            && request.resource.data.byName == request.auth.token.name
+            && request.resource.data.ts == request.time )
+        );
+
+        allow delete: if false;
       }
 
       // Shift schedule — a manager-managed roster (a plan, not an audit trail,

@@ -104,6 +104,10 @@ beforeEach(async () => {
     await setDoc(doc(f, `vendors/${V}/incidents/incGeneral`), incident({ subjectId: null, subjectName: null, title: "Back door found unlocked" }));
     // time clock, schedule (incl. swap states), availability
     await setDoc(doc(f, `vendors/${V}/timeclock/tcA`), punch());
+    // a punch on a payroll-locked day + the lock doc itself (pay-period approval)
+    await setDoc(doc(f, `vendors/${V}/timeclock/tcLocked`), punch({ day: "2026-07-11" }));
+    await setDoc(doc(f, `vendors/${V}/payrollLocks/2026-07-11`),
+      { day: "2026-07-11", weekStart: "2026-07-06", byId: "u-mgr", byName: "Mia", ts: new Date() });
     await setDoc(doc(f, `vendors/${V}/schedule/sA`), sched());
     await setDoc(doc(f, `vendors/${V}/schedule/sOffered`), sched({ date: "2026-07-13", swapStatus: "offered" }));
     await setDoc(doc(f, `vendors/${V}/schedule/sClaimed`), sched({ date: "2026-07-14", swapStatus: "claimed", claimedById: "u-empB", claimedByName: "Bob" }));
@@ -636,6 +640,64 @@ test("timeclock: a manager files an append-only correction; employees cannot", a
   await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/c8`), correction({ ts: new Date("2020-01-01T00:00:00Z") })));
   // and corrections stay immutable once written
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/timeclock/c1`), { at: new Date() }));
+});
+
+/* ---------- payroll locks (pay-period approval) ---------- */
+
+test("payrollLocks: manager approves a day; signed, server-timed, id == day", async () => {
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/payrollLocks/2026-07-04`),
+    { day: "2026-07-04", weekStart: "2026-06-29", byId: "u-mgr", byName: "Mia", ts: serverTimestamp() }));
+  // employees can't approve payroll
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/payrollLocks/2026-07-05`),
+    { day: "2026-07-05", weekStart: "2026-06-29", byId: "u-empA", byName: "Eve", ts: serverTimestamp() }));
+  // the stored day must equal the doc id
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/payrollLocks/2026-07-05`),
+    { day: "2026-07-06", weekStart: "2026-06-29", byId: "u-mgr", byName: "Mia", ts: serverTimestamp() }));
+  // client-chosen approval time refused
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/payrollLocks/2026-07-05`),
+    { day: "2026-07-05", weekStart: "2026-06-29", byId: "u-mgr", byName: "Mia", ts: new Date("2020-01-01T00:00:00Z") }));
+  // signer mismatch refused
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/payrollLocks/2026-07-05`),
+    { day: "2026-07-05", weekStart: "2026-06-29", byId: "u-owner", byName: "Olive", ts: serverTimestamp() }));
+});
+
+test("payrollLocks: a locked day rejects corrections; unlocked days still accept", async () => {
+  // tcLocked sits on 2026-07-11 (locked in the seed). The edit's `day` label
+  // says 2026-07-10 — the rules key off the TARGET punch's stored day, so a
+  // forged label can't dodge the lock.
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/lc1`),
+    correction({ targetId: "tcLocked", at: new Date("2026-07-11T17:00:00Z") })));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/lc2`),
+    correction({ action: "void", targetId: "tcLocked" })));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/lc3`),
+    correction({ action: "add", targetId: null, day: "2026-07-11", at: new Date("2026-07-11T09:00:00Z") })));
+  // the unlocked 2026-07-10 keeps accepting corrections
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/lc4`),
+    correction({ action: "add", targetId: null })));
+});
+
+test("payrollLocks: owner releases (audited), corrections reopen, manager re-approves", async () => {
+  // a manager may NOT release
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/payrollLocks/2026-07-11`),
+    { released: true, releasedById: "u-mgr", releasedBy: "Mia", releasedAt: serverTimestamp() }));
+  // the owner releases with exactly the audited fields
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}/payrollLocks/2026-07-11`),
+    { released: true, releasedById: "u-owner", releasedBy: "Olive", releasedAt: serverTimestamp() }));
+  // a released day accepts corrections again
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/lc5`),
+    correction({ action: "void", targetId: "tcLocked" })));
+  // a manager re-approves with a fresh signature (restricted keys only)
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/payrollLocks/2026-07-11`),
+    { released: false, byId: "u-mgr", byName: "Mia", ts: serverTimestamp() }));
+  // ...and the day is locked again
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/timeclock/lc6`),
+    correction({ action: "void", targetId: "tcLocked" })));
+});
+
+test("payrollLocks: never deleted, and the approval record itself can't be edited", async () => {
+  await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/payrollLocks/2026-07-11`)));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/payrollLocks/2026-07-11`), { byName: "Someone Else" }));
+  await assertFails(getDoc(doc(db("empA"), `vendors/${V}/payrollLocks/2026-07-11`))); // manager-only reads
 });
 
 /* ---------- schedule (roster) ---------- */

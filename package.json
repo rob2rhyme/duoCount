@@ -20,6 +20,7 @@
     "test:settlement": "node --test tests/settlement.test.mjs",
     "test:api": "node --test tests/api.test.mjs",
     "test:entry": "node --test tests/entry-consistency.test.mjs",
+    "test:payroll": "node --test tests/payroll-lock.test.mjs",
     "test:report-period": "node --test tests/report-period.test.mjs",
     "test:report-build": "node --test tests/report-build.test.mjs",
     "test:report-csv": "node --test tests/report-csv.test.mjs",
