@@ -70,6 +70,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Multi-store rollup — Phase 2 (owner Portfolio surface)** (Tier 2: an owner-only **Portfolio** tab — the multi-store cockpit. Reused fiscal-aware period picker (day…year + custom, ◀ ▶ stepping); consolidated-close KPI header that equals the report's scope-All numbers by construction; the **attention-ranked leaderboard** with per-column sort/flip/reset, idle stores labeled, "—" for zero-denominator rates, and a units-not-dollars shrink caption; **drill-down** opens the existing `ReportModal` pre-scoped to the store *and* the viewed period (new initial-state props). One bounded unscoped fetch per window with Retry; <2 active locations shows an add-a-location empty state; owner-only is a product affordance, not a new security boundary — no rules change) | `src/components/PortfolioView.js`, `AppShell.js`, `BottomNav.js`, `ReportModal.js` | ✅ |
 | **Multi-store rollup — Phase 3 (people panel + exports) — feature complete** (Tier 2: the **People across stores** panel — one row per person from `buildEmployeeRollup`, most-short first, a brass dot marking anyone who worked 2+ stores, expandable to the per-store split that a single store's Dashboard can't show, with a "conversation, not a verdict" caption; and the **portfolio PDF/CSV export** — `entriesToCSV` for the raw window, a one-page PDF in the records report's visual language (DC mark, KPIs, the leaderboard exactly as sorted on screen, people table with per-store sub-rows, signature block). Labor-across-stores deferred; still read-only, no rules change) | `src/components/PortfolioView.js`, `multi-store-rollup-spec.md` | ✅ |
 | **Accountant export — QuickBooks journal CSV** (Tier 2: `report-accounting.js` reshapes the period into a **balanced double-entry general journal** — one entry per day×location with cash sales / lottery / paid-outs / over-short (shortage debits, overage credits) and a computed **deposit plug**, so every `JournalNo` balances to the cent *by construction* (the plug flips sides if paid-outs + shortage exceed sales). Raw `.toFixed(2)` amounts (never `money()`), `csvCell` injection guard, MM/DD/YYYY or ISO dates, baked-in account map (overridable per call — no vendor write, no rules change). Wired into Reports as **"For the bookkeeper"**, framed as a draft the bookkeeper reviews — DuoCount is the count-of-record, never the ledger. 14 unit tests incl. a reconciliation pin to `buildPeriodReport`) | `src/lib/report-accounting.js`, `tests/report-accounting.test.mjs`, `ReportModal.js`, `accountant-export-spec.md` | ✅ |
+| **Accountant export — close-of-day bookkeeper PDF** (Tier 2: a one-tap single-day reconciliation sheet on the existing `@react-pdf/renderer` path — DC mark, cash reconciliation (sales − paid-outs = expected vs counted, OVER/(SHORT)/BALANCED verdict in the app's tone convention), other sales, and a **journal-entry preview rendered from the same tested `buildJournalEntries` groups the CSV exports** with per-entry Debit = Credit totals, so the paper the bookkeeper signs and the file they import always agree. Pins to the picker's day (or today) and fetches that one day on demand — bounded read, independent of the on-screen period; signature block; read-only, no rules change) | `src/components/ReportModal.js`, `accountant-export-spec.md` | ✅ |
 
 ## Next up
 
@@ -327,8 +328,12 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     deposit line is the computed plug, so every entry balances to the cent by
     construction), wired into Reports as "For the bookkeeper". Unit-tested,
     incl. a reconciliation pin to `buildPeriodReport`.
-  - *Next:* the close-of-day bookkeeper PDF (with the journal preview), then
-    the franchise-format scaffold.
+  - **Close-of-day bookkeeper PDF — ✅ done** — one tap produces a single-day
+    reconciliation sheet (sales − paid-outs = expected vs counted, with the
+    OVER/(SHORT) verdict) whose journal preview renders the same
+    `buildJournalEntries` rows the CSV exports — paper and file always agree.
+  - *Next:* the franchise-format scaffold (generic profile, export-time
+    choice, no persistence).
 - **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`
 - **In-app notification center** (defer web push) — the real-time
   loss-prevention story at a fraction of push's complexity.

@@ -6,7 +6,7 @@ import { useModalA11y } from "@/lib/use-modal-a11y";
 import Field from "./Field";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPeriodReport, buildLocationComparison } from "@/lib/report-build";
-import { buildJournalCSV } from "@/lib/report-accounting";
+import { buildJournalCSV, buildJournalEntries } from "@/lib/report-accounting";
 import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -94,6 +94,128 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   // (buildJournalCSV is pure and unit-tested) — one entry per day×location.
   function downloadJournalCsv() {
     downloadCSV(buildJournalCSV(rows, range), `${fileBase}-journal.csv`);
+  }
+
+  // One-tap close-of-day sheet for whoever does the books: a single-day cash
+  // reconciliation plus a journal-entry preview built by the SAME tested
+  // buildJournalEntries the CSV uses — so the paper the bookkeeper signs and
+  // the file they import show identical numbers. Pins to a single day: the
+  // picker's day when the preset is Day, otherwise today. Always fetches that
+  // one day on demand (a bounded single-day read, like the PDF's punch fetch),
+  // so it never depends on which period happens to be on screen.
+  async function downloadBookkeeperPdf() {
+    setBusy(true);
+    try {
+      const day = preset === "day" && range ? range.startISO : today();
+      const dayRange = { startISO: day, endISO: day };
+      const dayRows = await fetchEntriesInRange(vendor.id, day, day, scopeLocId);
+      const r = buildPeriodReport(dayRows, dayRange, locId);
+      const journal = buildJournalEntries(dayRows, dayRange);
+      const expected = Math.round((r.cash.counted - r.cash.netDiff) * 100) / 100;
+
+      const { pdf, Document, Page, Text, View, StyleSheet } = await import("@react-pdf/renderer");
+      const s = StyleSheet.create({
+        page: { padding: 28, fontSize: 10, fontFamily: "Helvetica", color: "#1a1c2e" },
+        brandRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#b8863b", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        markText: { color: "#1a1c2e", fontFamily: "Helvetica-Bold", fontSize: 11 },
+        h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
+        meta: { color: "#666", marginBottom: 2, fontSize: 8 },
+        section: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 16, marginBottom: 5, borderBottomWidth: 1, borderBottomColor: "#1a1c2e", paddingBottom: 2 },
+        line: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: "#e2e0d8" },
+        lineLabel: { color: "#333" },
+        lineValue: { fontFamily: "Helvetica" },
+        result: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4, fontFamily: "Helvetica-Bold", borderTopWidth: 1, borderTopColor: "#1a1c2e" },
+        neg: { color: "#b03a3a" }, pos: { color: "#2f7d5b" },
+        jHead: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#1a1c2e", paddingVertical: 3, fontFamily: "Helvetica-Bold", fontSize: 9 },
+        jRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#ccc", paddingVertical: 3, fontSize: 9 },
+        jTotals: { flexDirection: "row", paddingVertical: 4, fontFamily: "Helvetica-Bold", borderTopWidth: 1, borderTopColor: "#1a1c2e", fontSize: 9 },
+        jLoc: { fontSize: 9, fontFamily: "Helvetica-Bold", marginTop: 8, marginBottom: 2, color: "#555" },
+        sig: { flexDirection: "row", justifyContent: "space-between", marginTop: 34 },
+        sigLine: { width: "44%", borderTopWidth: 1, borderTopColor: "#1a1c2e", paddingTop: 3, fontSize: 8, color: "#666" },
+        empty: { marginTop: 8, color: "#666", fontStyle: "italic" },
+        cap: { fontSize: 7, color: "#888", marginTop: 4 },
+      });
+      const C = ({ w, children, style }) => (
+        <Text style={[{ width: w }, ...(Array.isArray(style) ? style : style ? [style] : [])]}>{children}</Text>
+      );
+      const Line = ({ label, value, tone, bold }) => (
+        <View style={bold ? s.result : s.line}>
+          <Text style={s.lineLabel}>{label}</Text>
+          <Text style={tone}>{value}</Text>
+        </View>
+      );
+      const osTone = r.cash.netDiff < -0.005 ? s.neg : r.cash.netDiff > 0.005 ? s.pos : null;
+      const osLabel = r.cash.netDiff < -0.005 ? "SHORT" : r.cash.netDiff > 0.005 ? "OVER" : "BALANCED";
+
+      const doc = (
+        <Document title={`duocount-closeofday-${locId === "all" ? "all" : slug(locName(locId))}-${day}`}>
+          <Page size="A4" style={s.page}>
+            <View style={s.brandRow}>
+              <View style={s.mark}><Text style={s.markText}>DC</Text></View>
+              <Text style={s.h1}>{vendor.name} — Close-of-Day Summary</Text>
+            </View>
+            <Text style={s.meta}>Store code: {vendor.slug} · {locLabel} · {day}</Text>
+            <Text style={s.meta}>Prepared by {profile.name} at {new Date().toLocaleString()}</Text>
+
+            {r.empty && <Text style={s.empty}>No activity recorded on {day}.</Text>}
+
+            <Text style={s.section}>Cash reconciliation</Text>
+            <Line label={`Cash sales (${r.counts.cash} count${r.counts.cash === 1 ? "" : "s"})`} value={money(r.cash.sales)} />
+            <Line label="Paid-outs / drops" value={`− ${money(r.cash.paidout)}`} />
+            <Line label="Expected in drawer(s)" value={money(expected)} />
+            <Line label="Counted" value={money(r.cash.counted)} />
+            <Line bold label={`${osLabel} (counted − expected)`} tone={osTone}
+              value={`${r.cash.netDiff >= 0 ? "+" : ""}${money(r.cash.netDiff)}`} />
+
+            <Text style={s.section}>Other sales</Text>
+            <Line label={`Lottery / scratch sales (${r.counts.scratch} count${r.counts.scratch === 1 ? "" : "s"})`} value={money(r.scratch.dollars)} />
+
+            <Text style={s.section}>Journal entry preview — matches the QuickBooks CSV</Text>
+            {journal.length === 0 && <Text style={s.empty}>Nothing to journal for this day.</Text>}
+            {journal.map((entry) => {
+              const debits = entry.lines.reduce((sum, l) => sum + (l.debit || 0), 0);
+              const credits = entry.lines.reduce((sum, l) => sum + (l.credit || 0), 0);
+              return (
+                <View key={entry.journalNo}>
+                  <Text style={s.jLoc}>{entry.journalNo} · {entry.locationName}</Text>
+                  <View style={s.jHead}><C w="46%">Account</C><C w="18%">Description</C><C w="18%" style={{ textAlign: "right" }}>Debit</C><C w="18%" style={{ textAlign: "right" }}>Credit</C></View>
+                  {entry.lines.map((l, i) => (
+                    <View key={i} style={s.jRow}>
+                      <C w="46%">{l.account}</C>
+                      <C w="18%">{l.description}</C>
+                      <C w="18%" style={{ textAlign: "right" }}>{l.debit != null ? l.debit.toFixed(2) : ""}</C>
+                      <C w="18%" style={{ textAlign: "right" }}>{l.credit != null ? l.credit.toFixed(2) : ""}</C>
+                    </View>
+                  ))}
+                  <View style={s.jTotals}>
+                    <C w="46%">Totals</C><C w="18%">balanced</C>
+                    <C w="18%" style={{ textAlign: "right" }}>{debits.toFixed(2)}</C>
+                    <C w="18%" style={{ textAlign: "right" }}>{credits.toFixed(2)}</C>
+                  </View>
+                </View>
+              );
+            })}
+            <Text style={s.cap}>A draft for review — import the matching journal CSV instead of re-keying. DuoCount is the count-of-record; your accounting software remains the ledger.</Text>
+
+            <View style={s.sig}>
+              <View style={s.sigLine}><Text>Prepared by · date</Text></View>
+              <View style={s.sigLine}><Text>Reviewed by (manager) · date</Text></View>
+            </View>
+          </Page>
+        </Document>
+      );
+      const blob = await pdf(doc).toBlob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `duocount-closeofday-${locId === "all" ? "all" : slug(locName(locId))}-${day}.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      console.error(err);
+      onToast?.("PDF failed — try the journal CSV");
+    }
+    setBusy(false);
   }
 
   // Period-native PDF for records: bounded SUMMARY tables (by location / drawer /
@@ -403,13 +525,19 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
 
           <div className="border-t border-line-soft pt-3 space-y-2">
             <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">For the bookkeeper</div>
-            <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={downloadJournalCsv}>
-              QuickBooks journal CSV
-            </button>
+            <div className="flex gap-2">
+              <button className="btn-ghost flex-1 text-[13px]" disabled={busy} onClick={downloadBookkeeperPdf}>
+                {busy ? "Working…" : `Close-of-day PDF${preset === "day" && range ? "" : " (today)"}`}
+              </button>
+              <button className="btn-ghost flex-1 text-[13px]" disabled={!ready || busy} onClick={downloadJournalCsv}>
+                QuickBooks journal CSV
+              </button>
+            </div>
             <p className="text-[11px] text-muted leading-relaxed">
-              A balanced, double-entry journal — one entry per day and location (cash sales, lottery, paid-outs,
-              over/short, cash to deposit) — ready to import instead of re-keying the day. It&apos;s a <b>draft</b> your
-              bookkeeper reviews and posts; DuoCount is the count-of-record, never the ledger.
+              The close-of-day sheet reconciles one day&apos;s cash{preset === "day" && range ? ` (${range.startISO})` : " (today)"} and
+              previews the exact journal entry the CSV exports — paper and file always agree. The journal CSV covers the
+              selected period, one balanced entry per day and location, ready to import instead of re-keying. Both are
+              <b> drafts</b> your bookkeeper reviews and posts; DuoCount is the count-of-record, never the ledger.
             </p>
           </div>
 

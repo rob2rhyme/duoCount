@@ -4,8 +4,8 @@ title: Accountant & franchise export
 
 # DuoCount — Accountant & Franchise Export Spec
 
-**Status: journal CSV shipped (phasing steps 1–2); bookkeeper PDF and franchise
-scaffold designed, not built.** `src/lib/report-accounting.js` ships
+**Status: journal CSV + close-of-day bookkeeper PDF shipped (phasing steps 1–3);
+franchise scaffold designed, not built.** `src/lib/report-accounting.js` ships
 `buildJournalEntries` / `buildJournalCSV` (pure, unit-tested in
 `tests/report-accounting.test.mjs`) and the Reports center has the **"For the
 bookkeeper" → QuickBooks journal CSV** button, driven by the rows already in
@@ -380,10 +380,17 @@ produced by the tested `buildJournalCSV` shaping, so the numbers are covered.
 2. **Wire the QuickBooks CSV button. ✅ shipped.** The "For the bookkeeper"
    group in `ReportModal` (reusing `downloadCSV` + the in-memory rows), with the
    draft-not-ledger framing; filename `…-journal.csv`.
-3. **Close-of-day bookkeeper PDF.** `downloadBookkeeperPdf()` reusing the existing
-   `@react-pdf/renderer` path with the reconciliation + JE-preview layout; the
-   optional `Σ start` opening-float aggregate in `buildPeriodReport` if we want that
-   line. *~1–1.5 days — new layout on a known rendering path.*
+3. **Close-of-day bookkeeper PDF. ✅ shipped.** `downloadBookkeeperPdf()` on the
+   existing `@react-pdf/renderer` path (DC mark, styles, signature block): the
+   cash-reconciliation block (sales − paid-outs = expected vs counted, with the
+   OVER/(SHORT)/BALANCED verdict in the app's tone convention), other sales, and
+   a journal-entry preview rendered from the SAME `buildJournalEntries` groups
+   the CSV exports — paper and file agree by construction, with per-entry
+   Debit = Credit totals shown. Pins to a single day (the picker's day when the
+   preset is Day, else today) and always fetches that one day on demand — a
+   bounded single-day read, like the report PDF's punch fetch — so it never
+   depends on which period is on screen. The optional `Σ start` opening-float
+   line was skipped (the reconciliation is coherent without it, as designed).
 4. **Franchise scaffold.** `buildFranchiseCSV` + the generic profile + the
    export-time profile dropdown (no persistence, no rules change). *~1 day for the
    mechanism; per-brand profiles are open-ended and gated on a real spec.*
