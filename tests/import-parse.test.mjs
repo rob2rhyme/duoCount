@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCsv, guessMapping, validateItems, validateStaff, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
+import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
 
 /* ------------------------------ parseCsv ------------------------------ */
 
@@ -244,4 +244,114 @@ test("validateStaff: duplicate name within the file skips the second, citing the
 test("missingRequired: name is required for staff too", () => {
   assert.deepEqual(missingRequired({}, "staff"), ["name"]);
   assert.deepEqual(missingRequired({ name: "Name" }, "staff"), []);
+});
+
+/* --------------------------- validateBaselines --------------------------- */
+
+const baseCtx = {
+  locations: [{ id: "l1", name: "Main St", active: true }],
+  items: [
+    { id: "i1", name: "Marlboro", unit: "carton", barcode: "012345", locationId: "l1", active: true },
+    { id: "i2", name: "Juul Pods", unit: "pack", barcode: null, locationId: "l1", active: true },
+  ],
+  existingStaff: [{ id: "u1", name: "Sam Rivera", role: "employee", active: true }],
+  baselinedItemIds: [],
+  defaultBy: { id: "own1", name: "The Owner", role: "owner" },
+  today: "2026-07-14",
+};
+const baseMap = { item: "item", quantity: "quantity", location: "location", date: "date", countedBy: "countedBy" };
+
+test("validateBaselines: a clean row creates, attributed to the owner by default", () => {
+  const { rows, summary } = validateBaselines(rowsOf({ item: "Marlboro", quantity: "12" }), { item: "item", quantity: "quantity" }, baseCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.itemId, "i1");
+  assert.equal(rows[0].fields.quantity, 12);
+  assert.equal(rows[0].fields.unit, "carton");
+  assert.equal(rows[0].fields.date, "2026-07-14"); // today default
+  assert.equal(rows[0].fields.byId, "own1");
+  assert.equal(rows[0].fields.byRole, "owner");
+  assert.deepEqual(summary, { create: 1, update: 0, skip: 0, error: 0 });
+});
+
+test("validateBaselines: resolves an item by barcode too", () => {
+  const { rows } = validateBaselines(rowsOf({ item: "012345", quantity: "3" }), { item: "item", quantity: "quantity" }, baseCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.itemId, "i1");
+});
+
+test("validateBaselines: quantity 0 is a real, valid opening count", () => {
+  const { rows } = validateBaselines(rowsOf({ item: "Juul Pods", quantity: "0" }), { item: "item", quantity: "quantity" }, baseCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.quantity, 0);
+});
+
+test("validateBaselines: unknown item / negative or non-numeric quantity are errors", () => {
+  const noItem = validateBaselines(rowsOf({ item: "Ghost", quantity: "5" }), { item: "item", quantity: "quantity" }, baseCtx);
+  assert.equal(noItem.rows[0].status, "error");
+  assert.match(noItem.rows[0].messages.join(" "), /catalog/i);
+  const badQty = validateBaselines(rowsOf({ item: "Marlboro", quantity: "-2" }, { item: "Juul Pods", quantity: "lots" }), { item: "item", quantity: "quantity" }, baseCtx);
+  assert.equal(badQty.rows[0].status, "error");
+  assert.equal(badQty.rows[1].status, "error");
+});
+
+test("validateBaselines: a same-named item at two locations is ambiguous without a location column", () => {
+  const ctx = {
+    ...baseCtx,
+    locations: [{ id: "l1", name: "A", active: true }, { id: "l2", name: "B", active: true }],
+    items: [
+      { id: "i1", name: "Gum", unit: "unit", locationId: "l1", active: true },
+      { id: "i9", name: "Gum", unit: "unit", locationId: "l2", active: true },
+    ],
+  };
+  const ambiguous = validateBaselines(rowsOf({ item: "Gum", quantity: "4" }), { item: "item", quantity: "quantity" }, ctx);
+  assert.equal(ambiguous.rows[0].status, "error");
+  assert.match(ambiguous.rows[0].messages.join(" "), /location/i);
+  const narrowed = validateBaselines(rowsOf({ item: "Gum", quantity: "4", location: "B" }), baseMap, ctx);
+  assert.equal(narrowed.rows[0].status, "create");
+  assert.equal(narrowed.rows[0].fields.itemId, "i9");
+});
+
+test("validateBaselines: a bad date errors; a valid one is used", () => {
+  const bad = validateBaselines(rowsOf({ item: "Marlboro", quantity: "1", date: "07/14/2026" }), baseMap, baseCtx);
+  assert.equal(bad.rows[0].status, "error");
+  const good = validateBaselines(rowsOf({ item: "Marlboro", quantity: "1", date: "2026-07-01" }), baseMap, baseCtx);
+  assert.equal(good.rows[0].status, "create");
+  assert.equal(good.rows[0].fields.date, "2026-07-01");
+});
+
+test("validateBaselines: countedBy resolves to the roster, or errors when unknown", () => {
+  const known = validateBaselines(rowsOf({ item: "Marlboro", quantity: "1", countedBy: "sam rivera" }), baseMap, baseCtx);
+  assert.equal(known.rows[0].status, "create");
+  assert.equal(known.rows[0].fields.byId, "u1");
+  assert.equal(known.rows[0].fields.byRole, "employee");
+  const unknown = validateBaselines(rowsOf({ item: "Marlboro", quantity: "1", countedBy: "Nobody" }), baseMap, baseCtx);
+  assert.equal(unknown.rows[0].status, "error");
+  assert.match(unknown.rows[0].messages.join(" "), /roster/i);
+});
+
+test("validateBaselines: write-once — an item with any inventory entry is skipped", () => {
+  const ctx = { ...baseCtx, baselinedItemIds: ["i1"] };
+  const { rows, summary } = validateBaselines(rowsOf({ item: "Marlboro", quantity: "9" }), { item: "item", quantity: "quantity" }, ctx);
+  assert.equal(rows[0].status, "skip");
+  assert.match(rows[0].messages.join(" "), /already has/i);
+  assert.equal(summary.skip, 1);
+});
+
+test("validateBaselines: in-file duplicate item skips the second row, citing the first line", () => {
+  const { rows } = validateBaselines(rowsOf({ item: "Marlboro", quantity: "9" }, { item: "Marlboro", quantity: "11" }), { item: "item", quantity: "quantity" }, baseCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[1].status, "skip");
+  assert.match(rows[1].messages.join(" "), /line 2/);
+});
+
+test("validateBaselines: baselines never report update", () => {
+  const ctx = { ...baseCtx, baselinedItemIds: ["i1", "i2"] };
+  const { summary } = validateBaselines(rowsOf({ item: "Marlboro", quantity: "9" }, { item: "Juul Pods", quantity: "2" }), { item: "item", quantity: "quantity" }, ctx);
+  assert.equal(summary.update, 0);
+  assert.equal(summary.skip, 2);
+});
+
+test("missingRequired: item and quantity are required for baselines", () => {
+  assert.deepEqual(missingRequired({}, "baselines"), ["item", "quantity"]);
+  assert.deepEqual(missingRequired({ item: "Item", quantity: "Qty" }, "baselines"), []);
 });

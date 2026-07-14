@@ -4,20 +4,25 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { requireOwner } from "@/lib/require-manager";
 import { hashPin, verifyPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
-import { validateItems, validateStaff } from "@/lib/import-parse";
+import { validateItems, validateStaff, validateBaselines } from "@/lib/import-parse";
 
 export const runtime = "nodejs";
 
-// Owner-only CSV bulk import (Phase 1: items, Phase 2: staff). Same trusted
-// posture as /api/seed: requireOwner verifies the Bearer token with checkRevoked
-// and scopes every read and write to the caller's own vendor. The browser sends
-// already-parsed rows + the confirmed column mapping; the route re-runs the SAME
-// pure validators against live Firestore state, so a commit is never gated on the
-// client's word.
+// Owner-only CSV bulk import (Phase 1: items, Phase 2: staff, Phase 3: opening
+// inventory baselines). Same trusted posture as /api/seed: requireOwner verifies
+// the Bearer token with checkRevoked and scopes every read and write to the
+// caller's own vendor. The browser sends already-parsed rows + the confirmed
+// column mapping; the route re-runs the SAME pure validators against live
+// Firestore state, so a commit is never gated on the client's word.
 //
-//   body: { type: "items" | "staff", mode: "preview" | "commit", mapping, rows }
+//   body: { type: "items" | "staff" | "baselines", mode: "preview" | "commit",
+//           mapping, rows, allowPartial? }
 //   • preview → validate only, write nothing
-//   • commit  → validate, then write the create/update rows
+//   • commit  → validate, then write the surviving rows
+//
+// Baselines append to the append-only entries log and can't be un-written, so
+// their commit default is all-or-nothing: any error blocks the whole commit
+// unless the owner explicitly opts into a partial import (allowPartial).
 
 // A batch that auto-flushes every 400 ops so a large import never trips
 // Firestore's 500-op limit (mirrors the seed route).
@@ -129,12 +134,45 @@ async function commitStaff(adminDb, adminAuth, vendorRef, claims, report, mappin
   return { create: created, update: updated, skip: report.summary.skip, error: report.summary.error + extraErrors };
 }
 
+// Opening baselines: one clean, signed, unverified inventory entry per item —
+// the exact shape addEntry + the inventory form would produce for a count with
+// nothing sold/received yet, so an imported baseline is indistinguishable from
+// an honestly-entered one. diff is 0 by construction; nothing flags. This is the
+// ONLY entry type the importer ever writes (never cash/scratch, never an update
+// or delete of any existing entry).
+async function commitBaselines(adminDb, vendorRef, report) {
+  const entriesCol = vendorRef.collection("entries");
+  const importBatchId = randomUUID();
+  const writer = chunkedWriter(adminDb);
+  let created = 0;
+  for (const r of report.rows) {
+    if (r.status !== "create") continue;
+    const f = r.fields;
+    writer.set(entriesCol.doc(), {
+      kind: "inventory", date: f.date, shift: "open",
+      locationId: f.locationId, locationName: f.locationName,
+      itemId: f.itemId, itemName: f.itemName, unit: f.unit,
+      startQty: f.quantity, received: 0, soldQty: 0, removed: 0,
+      expected: f.quantity, counted: f.quantity, diff: 0,
+      flagged: false, varianceStatus: "none", disputeStatus: "none",
+      causeCode: null, causeNote: null, blind: false,
+      commentCount: 0, lastCommentAt: null,
+      by: f.by, byId: f.byId, byRole: f.byRole,
+      verifiedBy: null, verifiedAt: null, ts: new Date(),
+      source: "import", importBatchId,
+    });
+    created += 1;
+  }
+  await writer.done();
+  return { create: created, update: 0, skip: report.summary.skip, error: report.summary.error };
+}
+
 export async function POST(req) {
   try {
     const claims = await requireOwner(req);
-    const { type, mode, mapping = {}, rows = [] } = await req.json();
-    if (!["items", "staff"].includes(type))
-      return NextResponse.json({ error: "Only item and staff import are available." }, { status: 400 });
+    const { type, mode, mapping = {}, rows = [], allowPartial = false } = await req.json();
+    if (!["items", "staff", "baselines"].includes(type))
+      return NextResponse.json({ error: "Unknown import type." }, { status: 400 });
     if (!Array.isArray(rows))
       return NextResponse.json({ error: "No rows to import." }, { status: 400 });
 
@@ -151,15 +189,40 @@ export async function POST(req) {
       return NextResponse.json({ ok: true, type, mode: "commit", counts });
     }
 
-    // staff
-    const store = await readStore(vendorRef, ["users"]);
-    const userSnap = store.snaps[0];
-    const existingStaff = userSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const existingById = new Map(existingStaff.map((u) => [u.id, u]));
-    const report = validateStaff(rows, mapping, { locations: store.locations, existingStaff, defaultLocationId: store.defaultLocationId });
+    if (type === "staff") {
+      const store = await readStore(vendorRef, ["users"]);
+      const userSnap = store.snaps[0];
+      const existingStaff = userSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const existingById = new Map(existingStaff.map((u) => [u.id, u]));
+      const report = validateStaff(rows, mapping, { locations: store.locations, existingStaff, defaultLocationId: store.defaultLocationId });
+      if (mode !== "commit")
+        return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
+      const counts = await commitStaff(adminDb, adminAuth, vendorRef, claims, report, mapping, rows, userSnap, existingById);
+      return NextResponse.json({ ok: true, type, mode: "commit", counts });
+    }
+
+    // baselines — needs the catalog, the roster (countedBy), and the write-once
+    // guard: every item that already has ANY inventory entry.
+    const store = await readStore(vendorRef, ["items", "users"]);
+    const items = store.snaps[0].docs.map((d) => ({ id: d.id, ...d.data() }));
+    const existingStaff = store.snaps[1].docs.map((d) => ({ id: d.id, ...d.data() }));
+    const invSnap = await vendorRef.collection("entries")
+      .where("kind", "==", "inventory").select("itemId").get();
+    const baselinedItemIds = [...new Set(invSnap.docs.map((d) => d.data().itemId).filter(Boolean))];
+    const report = validateBaselines(rows, mapping, {
+      locations: store.locations, items, existingStaff, baselinedItemIds,
+      defaultBy: { id: claims.userId, name: claims.name || "Owner", role: "owner" },
+    });
     if (mode !== "commit")
       return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
-    const counts = await commitStaff(adminDb, adminAuth, vendorRef, claims, report, mapping, rows, userSnap, existingById);
+    // All-or-nothing by default: an opening count can't be un-written, so any
+    // error blocks the whole commit unless the owner explicitly opted out.
+    if (report.summary.error > 0 && !allowPartial)
+      return NextResponse.json({
+        error: `${report.summary.error} row(s) have errors — fix the CSV and re-preview, or confirm a partial import.`,
+        summary: report.summary,
+      }, { status: 409 });
+    const counts = await commitBaselines(adminDb, vendorRef, report);
     return NextResponse.json({ ok: true, type, mode: "commit", counts });
   } catch (e) {
     return NextResponse.json({ error: e.message || "Import failed." }, { status: e.status || 500 });

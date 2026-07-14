@@ -4,18 +4,19 @@ title: Owner-only CSV bulk import & migration
 
 # DuoCount — Bulk Import Spec
 
-**Status: Phases 1–2 (items, staff) shipped; Phase 3 (baselines) designed, not
-built.** This is the design for a one-time-per-store, owner-only CSV importer
-that migrates a shop off paper, Excel, or another tool into DuoCount. Phases 1–2
-ship the whole scaffold — `POST /api/import` on the Admin SDK, the pure
-`src/lib/import-parse.js` (`parseCsv` / `guessMapping` / `validateItems` /
-`validateStaff`), the `apiImport` client helper, and the owner-only,
-type-switching "Import / migrate" card in `AdminPanel.js` — for the **items**
-catalog and the **staff** roster (via the same `/api/staff` write path:
-`hashPin`, store-wide PIN uniqueness, optional PINs, owner-cap, same-name match).
-The baseline branch below is the contract for the last phase, and — just as
-importantly — the record of what the importer is deliberately **not** allowed to
-do (it never writes or edits a sealed count entry retroactively).
+**Status: all three phases shipped (items, staff, opening baselines).** This is
+the design — now the record — of the one-time-per-store, owner-only CSV importer
+that migrates a shop off paper, Excel, or another tool into DuoCount:
+`POST /api/import` on the Admin SDK, the pure `src/lib/import-parse.js`
+(`parseCsv` / `guessMapping` / `validateItems` / `validateStaff` /
+`validateBaselines`, all unit-tested), the `apiImport` client helper, and the
+owner-only, type-switching "Import / migrate" card in `AdminPanel.js` covering
+the **items** catalog, the **staff** roster (via the same `/api/staff` write
+path: `hashPin`, store-wide PIN uniqueness, optional PINs, owner-cap, same-name
+match), and **opening inventory baselines** (clean signed `diff: 0` entries,
+write-once per item, all-or-nothing commit default). Just as importantly, this
+doc records what the importer is deliberately **not** allowed to do (it never
+writes or edits a sealed count entry retroactively).
 
 It reuses, verbatim where possible, the trusted server path the seed and signup
 routes already prove out: an Admin-SDK route gated by `requireOwner`, scoped to
@@ -391,11 +392,19 @@ is usable on its own.
    role/location/email, never re-hashes a PIN, and skips any row matching an
    existing owner), and a refresh-token revoke on an imported role change (mirrors
    the staff PATCH). The Admin card gains an Items/Staff type switch.
-3. **Phase 3 — Baselines.** Last, because it's the only phase that appends to the
-   append-only log and the only one that isn't cleanly reversible. Adds
-   `validateBaselines`, the clean-signed-entry writer, the write-once-per-item
-   guard, the `source`/`importBatchId` tags, and the stricter all-or-nothing
-   commit default.
+3. **Phase 3 — Baselines. ✅ shipped.** Last, because it's the only phase that
+   appends to the append-only log and the only one that isn't cleanly reversible.
+   Adds `validateBaselines` (pure + unit-tested: resolve-exactly-one-item by name
+   or barcode with location disambiguation, quantity ≥ 0 with "0 is a real
+   count", `YYYY-MM-DD` date or today, `countedBy` resolved against the roster or
+   defaulting to the owner), the clean-signed-entry writer (the exact
+   `addEntry` + inventory-form shape: `diff: 0`, `varianceStatus: "none"`,
+   `verifiedBy: null` — nothing flags), the write-once-per-item guard (any item
+   with an existing inventory entry is skipped, checked client-side for the
+   preview and re-checked server-side at commit), the `source`/`importBatchId`
+   tags, and the stricter all-or-nothing commit default — errors block the whole
+   commit with a 409 unless the owner explicitly ticks "import the valid rows
+   anyway" (`allowPartial`).
 
 ---
 

@@ -117,14 +117,16 @@ export async function apiSeedDemo(action) {
     body: JSON.stringify({ action }),
   });
 }
-// Owner-only bulk import: type "items", mode "preview" (validate, no writes) or
-// "commit" (validate again server-side, then write). `mapping` is the confirmed
-// column→field map; `rows` is the parsed CSV ({ line, values }[]).
-export async function apiImport({ type, mode, mapping, rows }) {
+// Owner-only bulk import: type "items" | "staff" | "baselines", mode "preview"
+// (validate, no writes) or "commit" (validate again server-side, then write).
+// `mapping` is the confirmed column→field map; `rows` is the parsed CSV
+// ({ line, values }[]). Baselines are all-or-nothing on error unless
+// allowPartial is set (the owner's explicit opt-in).
+export async function apiImport({ type, mode, mapping, rows, allowPartial }) {
   return fetchJson("/api/import", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
-    body: JSON.stringify({ type, mode, mapping, rows }),
+    body: JSON.stringify({ type, mode, mapping, rows, allowPartial: !!allowPartial }),
   });
 }
 // Manager-only natural-language log search: turns a query into a filter object
