@@ -146,6 +146,14 @@ values are set.
   button sends immediately without consuming the daily guard.
   Requires env vars: `RESEND_API_KEY`, `DIGEST_FROM`, `CRON_SECRET`
   (and optional `APP_URL`) — see `.env.local.example`.
+- **Optional AI narrative** (see `docs/ai-features-spec.md`): when
+  `ANTHROPIC_API_KEY` is set **and** a vendor has opted in
+  (`vendor.digest.narrative === true`), the digest gains a short AI-written
+  summary + "what to watch tomorrow" list, built from the aggregates the digest
+  already computes (employee names pseudonymized before egress). **Off by
+  default and additive** — with no key, no opt-in, or any model failure the
+  digest sends exactly as it does today. Server-side only (`claude-haiku-4-5`);
+  the key never reaches the browser.
 
 ## Tier two: incidents, patterns & hardening
 

@@ -4,6 +4,7 @@
 
 import { detectPatterns, resolvePatternRules } from "./patterns";
 import { isUnresolved } from "./utils";
+import { aiNarrativeEnabled, generateNarrative } from "./digest-narrative";
 
 const money = (n) => {
   const v = Math.round((Number(n) || 0) * 100) / 100;
@@ -53,9 +54,16 @@ function summarizeEntries(entries) {
   };
 }
 
-function composeEmail(vendor, dateStr, s, appUrl) {
+function composeEmail(vendor, dateStr, s, appUrl, narrative = null) {
   const subject = `DuoCount digest — ${vendor.name} — ${dateStr}`;
   const windowDays = s.windowDays ?? resolvePatternRules().windowDays;
+
+  // Optional AI narrative block, rendered above the location table. Additive:
+  // absent (null) when the feature is off or the model call failed, and the
+  // digest reads exactly as it did before. Model output is untrusted text, so
+  // every string goes through esc() in the HTML path below.
+  const nWatch = (narrative?.watch || []).filter(Boolean);
+  const hasNarrative = !!(narrative && (narrative.summary || nWatch.length));
 
   const locLinesText = s.locations.map((l) =>
     `  ${l.name}: ${l.count} entries · cash sales ${money(l.cashSales)} · net ${l.netDiff >= 0 ? "+" : ""}${money(l.netDiff)} · ${l.shorts} short · scratch ${money(l.scratchDollars)}`
@@ -64,6 +72,10 @@ function composeEmail(vendor, dateStr, s, appUrl) {
   const text = [
     `${vendor.name} — daily count digest for ${dateStr}`,
     "",
+    ...(hasNarrative ? [
+      ...(narrative.summary ? [narrative.summary, ""] : []),
+      ...(nWatch.length ? ["What to watch tomorrow:", ...nWatch.map((w) => `  - ${w}`), ""] : []),
+    ] : []),
     locLinesText,
     "",
     `Open variances: ${s.openVariances}`,
@@ -80,6 +92,17 @@ function composeEmail(vendor, dateStr, s, appUrl) {
   ].join("\n");
 
   const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+  const narrativeHtml = hasNarrative ? `
+    <div style="margin:0 0 16px;padding:12px 14px;background:#f2f6fb;border:1px solid #d9e2ef;border-radius:8px">
+      ${narrative.summary ? `<p style="margin:0;font-size:14px;line-height:1.5">${esc(narrative.summary)}</p>` : ""}
+      ${nWatch.length ? `
+      <p style="margin:${narrative.summary ? "8px 0 4px" : "0 0 4px"};font-size:13px;color:#666">What to watch tomorrow:</p>
+      <ul style="margin:0;padding-left:18px;font-size:14px">
+        ${nWatch.map((w) => `<li style="margin:0 0 2px">${esc(w)}</li>`).join("")}
+      </ul>` : ""}
+    </div>` : "";
+
   const locRows = s.locations.map((l) => `
     <tr>
       <td style="padding:6px 10px;border-bottom:1px solid #e5e2d9">${esc(l.name)}</td>
@@ -93,7 +116,7 @@ function composeEmail(vendor, dateStr, s, appUrl) {
   const html = `
   <div style="font-family:Helvetica,Arial,sans-serif;color:#1a1c2e;max-width:640px">
     <h2 style="margin:0 0 2px">${esc(vendor.name)} — daily digest</h2>
-    <p style="margin:0 0 14px;color:#666">${dateStr}</p>
+    <p style="margin:0 0 14px;color:#666">${dateStr}</p>${narrativeHtml}
     ${s.locations.length ? `
     <table style="border-collapse:collapse;width:100%;font-size:14px">
       <tr style="text-align:left">
@@ -182,8 +205,17 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   summary.patterns = detectPatterns(windowEntries, { now, rules, packs });
   summary.windowDays = rules.windowDays;
   summary.openIncidents = incidentsSnap.size;
+
+  // Optional AI narrative (ai-features-spec.md). Off by default and additive:
+  // stays null when the vendor hasn't opted in, no key is configured, or the
+  // model call fails/times out — the digest then sends unchanged.
+  let narrative = null;
+  if (aiNarrativeEnabled(vendor)) {
+    narrative = await generateNarrative(summary, vendor, { date: yesterday, signal: AbortSignal.timeout(8000) });
+  }
+
   const appUrl = process.env.APP_URL || "";
-  const { subject, text, html } = composeEmail(vendor, yesterday, summary, appUrl);
+  const { subject, text, html } = composeEmail(vendor, yesterday, summary, appUrl, narrative);
   await sendEmail({ to: recipients, subject, text, html });
 
   if (!force) {

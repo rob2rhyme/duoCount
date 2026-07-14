@@ -4,13 +4,18 @@ title: AI features — digest narrative
 
 # DuoCount — AI Features Spec (digest narrative first)
 
-**Status:** analysis / design only — **no application code in this item.** This
-is the build spec the distribution analysis asked for: *"Write it up as its own
-`ai-features-spec.md` when it graduates from analysis to build"*
-(`distribution-analysis.md` §1.5). It turns that analysis into concrete
-integration points, data shapes, guardrails, and a phased plan, so the first AI
-feature — the **digest narrative** — can be picked up cleanly and built behind
-an owner opt-in. Nothing here changes app behavior yet.
+**Status: Phase 1 built (shipped dark).** The mechanics below are implemented —
+`src/lib/digest-narrative.js` (redact + prompt builder + generate), the
+`composeEmail` narrative block, the `vendor.digest.narrative` opt-in gate, the
+`ANTHROPIC_API_KEY` wiring, and the unit tests (`tests/digest-narrative.test.mjs`,
+`npm run test:narrative`). The flag defaults **off** and no vendor's digest
+changes until an owner sets `vendor.digest.narrative === true` **and**
+`ANTHROPIC_API_KEY` is configured; every failure path degrades to today's digest.
+**Still open — Phase 2:** the owner-facing toggle in Business settings and the
+matching `docs/privacy-and-data.md` paragraph; live end-to-end verification
+against one pilot vendor via the "send test digest" button (can't be exercised
+in this repo). This remains the build spec the distribution analysis asked for
+(`distribution-analysis.md` §1.5).
 
 **Scope.** Feature 1 from `distribution-analysis.md` §1.1 — the digest narrative
 — specified end-to-end. Features 2–5 (NL log search, pattern narratives,
@@ -238,11 +243,14 @@ Same posture as the rest of the digest code — the pure cores are unit-tested w
 
 ## Phasing
 
-1. **Phase 1 — mechanics, shipped dark.** `digest-narrative.js` (redact + prompt
-   builder + generate), the `composeEmail` block, the `vendor.digest.narrative`
-   gate, `ANTHROPIC_API_KEY` wiring, and the unit tests. Flag defaults off, so
-   nothing changes for any vendor. Verify end-to-end against one pilot vendor via
-   the test-digest button.
+1. **Phase 1 — mechanics, shipped dark. ✅ built.** `digest-narrative.js` (redact
+   + prompt builder + generate), the `composeEmail` block, the
+   `vendor.digest.narrative` gate, `ANTHROPIC_API_KEY` wiring, and the unit tests
+   (`npm run test:narrative`). Flag defaults off, so nothing changes for any
+   vendor. The redaction, gating, email rendering, and HTML-escaping of model
+   output were exercised locally; **still to do — verify the live model call
+   end-to-end against one pilot vendor via the test-digest button** (needs a real
+   `ANTHROPIC_API_KEY` + deployment).
 2. **Phase 2 — owner UX + disclosure.** A toggle in Business settings ("AI
    summary in the daily digest — off by default") with the one-line data-handling
    note, and the matching paragraph in `docs/privacy-and-data.md`.
