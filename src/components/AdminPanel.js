@@ -103,6 +103,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     invVarianceThreshold: vendor.invVarianceThreshold ?? "",
     fiscalStartMonth: vendor.fiscalStartMonth ?? 1,
     aiSearch: vendor.aiSearch === true,
+    aiInsights: vendor.aiInsights === true,
     digestEnabled: vendor.digest?.enabled === true,
     digestNarrative: vendor.digest?.narrative === true,
     digestRecipients: (vendor.digest?.recipients || []).join(", "),
@@ -140,6 +141,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
       invVarianceThreshold: invThreshold,
       fiscalStartMonth,
       aiSearch: settings.aiSearch, // opt-in NL log search; off by default
+      aiInsights: settings.aiInsights, // opt-in Dashboard AI insight; off by default
       patternRules: resolvePatternRules(settings.patternRules),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
@@ -537,6 +539,18 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
               <label htmlFor="aiSearch" className="min-w-0">
                 <span className="font-medium text-[14px]">Natural-language log search <span className="text-muted font-normal">— off by default</span></span>
                 <p className="text-xs text-muted leading-relaxed">Adds an &quot;Ask&quot; button to the Log search so staff can type plain-English questions (&quot;Eve&apos;s shorts last week&quot;). The typed question and the names/drawers/items currently in view are sent to Anthropic to turn it into a filter — your count amounts and records never leave the app, and the filtering happens in the browser. Off unless you turn it on; needs the server AI key.</p>
+              </label>
+            </div>
+          </div>
+
+          <div className="border border-line rounded-xl p-3.5 bg-panel">
+            <div className="flex items-start gap-3">
+              <input id="aiInsights" type="checkbox" className="mt-1" checked={settings.aiInsights}
+                disabled={!isOwner}
+                onChange={(e) => setSettings({ ...settings, aiInsights: e.target.checked })} />
+              <label htmlFor="aiInsights" className="min-w-0">
+                <span className="font-medium text-[14px]">AI insight on the Dashboard <span className="text-muted font-normal">— off by default</span></span>
+                <p className="text-xs text-muted leading-relaxed">Adds an &quot;Explain these signals&quot; button to the Dashboard&apos;s pattern-alerts card. On a click it reads the on-screen signals back in a sentence or two and flags what to look at first. The pattern signals are sent to Anthropic with employee names replaced by &quot;Employee A/B&quot; first; your count records never leave, and the summary is display-only. Off unless you turn it on; needs the server AI key.</p>
               </label>
             </div>
           </div>
