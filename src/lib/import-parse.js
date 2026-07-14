@@ -6,8 +6,8 @@
 // Firestore state; the browser preview is advisory and never gates a write on
 // its own.
 //
-// Phase 1 covers items and Phase 2 staff; baseline validation lands in Phase 3
-// against the same parser and report shape.
+// Phase 1 covers items, Phase 2 staff, Phase 3 opening inventory baselines —
+// all against the same parser and report shape.
 
 import { isValidNewPin } from "./pin.js";
 
@@ -31,6 +31,13 @@ const TARGETS = {
     { field: "pin", label: "PIN", required: false, aliases: ["pin", "passcode", "pincode", "code", "password"] },
     { field: "location", label: "Location", required: false, aliases: ["location", "store", "site", "loc", "branch", "shop"] },
     { field: "email", label: "Email", required: false, aliases: ["email", "emailaddress", "mail"] },
+  ],
+  baselines: [
+    { field: "item", label: "Item", required: true, aliases: ["item", "itemname", "name", "product", "productname", "barcode", "upc", "sku"] },
+    { field: "quantity", label: "Quantity on hand", required: true, aliases: ["quantity", "qty", "onhand", "count", "counted", "stock", "amount"] },
+    { field: "location", label: "Location", required: false, aliases: ["location", "store", "site", "loc", "branch", "shop"] },
+    { field: "date", label: "Count date", required: false, aliases: ["date", "countdate", "asof", "day"] },
+    { field: "countedBy", label: "Counted by", required: false, aliases: ["countedby", "by", "counter", "employee", "person", "staff"] },
   ],
 };
 
@@ -316,6 +323,104 @@ export function validateStaff(rows = [], mapping = {}, ctx = {}) {
     }
 
     messages.push(fields.hasPin ? "Sets a sign-in PIN." : "No PIN — set one in Admin or at first sign-in.");
+    push("create", messages);
+  }
+
+  return { rows: reports, summary };
+}
+
+/* --------------------------- validateBaselines --------------------------- */
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const isRealDate = (s) => {
+  if (!DATE_RE.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
+
+// Validate opening-inventory-baseline rows. Statuses are create / skip / error
+// only — a baseline never updates (opening counts are append-only entries).
+// ctx: { items, locations, existingStaff, baselinedItemIds, defaultBy, today }.
+// `baselinedItemIds` is the write-once guard: any item that already has an
+// inventory entry (imported or real) is skipped, so a re-run after a partial
+// failure resumes on exactly the un-baselined items and can't double-write.
+export function validateBaselines(rows = [], mapping = {}, ctx = {}) {
+  const items = (ctx.items || []).filter((i) => i && i.active !== false);
+  const staff = (ctx.existingStaff || []).filter((u) => u && u.active !== false);
+  const baselined = new Set(ctx.baselinedItemIds || []);
+  const locName = (id) => (ctx.locations || []).find((l) => l && l.id === id)?.name || null;
+  const today = ctx.today || new Date().toISOString().slice(0, 10);
+  const seenItems = new Map(); // itemId -> line (in-file dedup)
+  const reports = [];
+  const summary = { create: 0, update: 0, skip: 0, error: 0 };
+
+  for (const row of rows) {
+    const v = row.values || {};
+    const messages = [];
+    const get = (field) => (mapping[field] ? v[mapping[field]] : undefined);
+    const itemCell = String(get("item") ?? "").trim();
+    const fields = {
+      itemId: null, itemName: itemCell || null, unit: "unit",
+      locationId: null, locationName: null,
+      quantity: null, date: today, by: null, byId: null, byRole: null,
+    };
+    const push = (status, msgs) => {
+      summary[status] += 1;
+      reports.push({ line: row.line, status, fields: { ...fields }, messages: msgs });
+    };
+
+    // item — must resolve to exactly one active item (by name or barcode),
+    // optionally narrowed by a location column
+    if (!itemCell) { push("error", ["Item is missing."]); continue; }
+    let matches = items.filter((i) => normName(i.name) === normName(itemCell) || (i.barcode && i.barcode === itemCell));
+    const locCell = String(get("location") ?? "").trim();
+    if (locCell) {
+      const r = resolveLocation(locCell, ctx);
+      if (r.error) { push("error", [r.error]); continue; }
+      matches = matches.filter((i) => i.locationId === r.id);
+    }
+    if (matches.length === 0) { push("error", [`No tracked item matching "${itemCell}"${locCell ? ` at ${locCell}` : ""} — import the item catalog first.`]); continue; }
+    if (matches.length > 1) { push("error", [`"${itemCell}" matches ${matches.length} items — add a location column to say which.`]); continue; }
+    const item = matches[0];
+    fields.itemId = item.id;
+    fields.itemName = item.name;
+    fields.unit = item.unit || "unit";
+    fields.locationId = item.locationId;
+    fields.locationName = locName(item.locationId);
+
+    // quantity — a finite number ≥ 0 ("0" is a real, meaningful opening count)
+    const qRaw = String(get("quantity") ?? "").trim();
+    if (qRaw === "") { push("error", ["Quantity is missing."]); continue; }
+    const q = Number(qRaw);
+    if (!Number.isFinite(q) || q < 0) { push("error", [`Quantity "${qRaw}" must be a number ≥ 0.`]); continue; }
+    fields.quantity = q;
+
+    // date — blank means today; otherwise a real YYYY-MM-DD
+    if (mapping.date) {
+      const d = String(get("date") ?? "").trim();
+      if (d) {
+        if (!isRealDate(d)) { push("error", [`Date "${d}" must be YYYY-MM-DD.`]); continue; }
+        fields.date = d;
+      }
+    }
+
+    // countedBy — blank means the owner; otherwise must resolve to a roster name
+    const byCell = String(get("countedBy") ?? "").trim();
+    if (byCell) {
+      const person = staff.find((u) => normName(u.name) === normName(byCell));
+      if (!person) { push("error", [`"${byCell}" isn't on the staff roster — import staff first, or leave the column blank.`]); continue; }
+      fields.by = person.name; fields.byId = person.id; fields.byRole = person.role;
+    } else if (ctx.defaultBy) {
+      fields.by = ctx.defaultBy.name; fields.byId = ctx.defaultBy.id; fields.byRole = ctx.defaultBy.role;
+    }
+
+    // write-once-per-item: an item with ANY inventory entry never gets a baseline
+    if (baselined.has(item.id)) { push("skip", ["Already has an inventory count — a baseline would double-write. Correct with a fresh count instead."]); continue; }
+
+    // in-file duplicate item
+    if (seenItems.has(item.id)) { push("skip", [`Same item as line ${seenItems.get(item.id)} in this file.`]); continue; }
+    seenItems.set(item.id, row.line);
+
     push("create", messages);
   }
 

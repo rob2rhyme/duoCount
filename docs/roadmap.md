@@ -65,6 +65,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Manager attention-badges** (Tier 1, completes the tier: ambient amber counts on Log — unresolved variances/disputes — Incidents — open write-ups — and Time — swaps awaiting approval — shown on both the top strip and the bottom-nav groups; pure, unit-tested `attentionCounts` over already-watched data plus a manager-only swap-board subscription; employees see none) | `src/lib/attention.js`, `AppShell.js`, `BottomNav.js` | ✅ |
 | **CSV bulk import — Phase 1 (items)** (Tier 2, first unit: owner-only "Import / migrate" card that parses a CSV in the browser, fuzzy-guesses the column mapping, shows a live per-row dry-run preview, and commits through `POST /api/import` on the Admin SDK — which re-validates against live state, so the preview never gates a write. Idempotent: matches existing items by name/barcode+location → update or skip, never duplicates; `source`/`importBatchId` tagged; pure, unit-tested `parseCsv`/`guessMapping`/`validateItems`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js`, `AdminPanel.js`, `bulk-import-spec.md` | ✅ |
 | **CSV bulk import — Phase 2 (staff)** (Tier 2: the Import card gains an Items/Staff switch and a `validateStaff` path — names/roles/locations/emails with **optional** 6-digit PINs. The route reuses the `/api/staff` write path: store-wide PIN uniqueness re-checked at commit (hashed), owner rows rejected, employees require a location, an existing person matched by name is updated (role/location/email) but never duplicated and their PIN never re-hashed, and an imported role change revokes refresh tokens. Pure, unit-tested `validateStaff`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js` | ✅ |
+| **CSV bulk import — Phase 3 (opening counts) — feature complete** (Tier 2: an "Opening counts" type writes one clean, signed, `diff: 0` opening inventory entry per item — the exact honest-count shape, nothing flags — attributed to a `countedBy` roster name or the owner. Resolve-exactly-one-item by name/barcode with location disambiguation; quantity ≥ 0 ("0" is a real count); **write-once per item** (existing inventory count → skip, re-checked server-side); **all-or-nothing on errors** unless the owner opts into partial (`allowPartial`, HTTP 409 otherwise). The only entry type the importer will ever write — never cash/scratch, never an update/delete of any existing entry. Pure, unit-tested `validateBaselines`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js`, `bulk-import-spec.md` | ✅ |
 
 ## Next up
 
@@ -292,7 +293,13 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     (6-digit, store-wide unique, re-checked server-side; blank = no creds set),
     owner rows rejected, employees need a location, and an existing person
     (matched by name) is updated — never duplicated, PIN never re-hashed.
-  - *Next:* Phase 3 opening baselines (write-once-per-item, append-only-safe).
+  - **Phase 3 — opening counts — ✅ done. Feature complete.** — a third
+    "Opening counts" type: each row resolves to exactly one tracked item (name or
+    barcode, location disambiguation) and writes one clean, signed, `diff: 0`
+    opening inventory entry attributed to a `countedBy` roster name (or the
+    owner). **Write-once per item** (any item with an existing inventory count is
+    skipped — never double-written) and **all-or-nothing on errors** unless the
+    owner explicitly opts into a partial import.
 - **Multi-store owner rollup** — `multi-store-rollup-spec.md`
 - **Accountant / franchise exports** — `accountant-export-spec.md`
 - **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`
