@@ -27,13 +27,18 @@ const GROUPS = [
   { key: "admin", label: "Admin", ids: ["admin"] },
 ];
 
-export default function BottomNav({ tabs, current, onSelect }) {
+export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
   const [openKey, setOpenKey] = useState(null);
   const byId = Object.fromEntries(tabs.map((t) => [t.id, t]));
 
-  // Keep only the groups (and members) that are actually visible to this user.
+  // Keep only the groups (and members) that are actually visible to this user,
+  // and roll each group's members' attention counts up onto the group.
   const groups = GROUPS
-    .map((g) => ({ ...g, members: g.ids.filter((id) => byId[id]) }))
+    .map((g) => {
+      const members = g.ids.filter((id) => byId[id]);
+      const count = members.reduce((n, id) => n + (attention[id] || 0), 0);
+      return { ...g, members, count };
+    })
     .filter((g) => g.members.length > 0);
 
   const activeKey = groups.find((g) => g.members.includes(current))?.key || null;
@@ -69,7 +74,13 @@ export default function BottomNav({ tabs, current, onSelect }) {
                   <button type="button" onClick={() => pick(id)}
                     className={`w-full text-left px-4 py-3 flex items-center justify-between gap-3 border-b border-line-soft last:border-b-0 ${current === id ? "text-fg font-semibold bg-subtle" : "text-muted"}`}>
                     <span>{byId[id].label}</span>
-                    {current === id && <span aria-hidden="true" className="text-brass">●</span>}
+                    <span className="flex items-center gap-2">
+                      {attention[id] > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brass text-ink text-[10px] font-bold leading-none"
+                          aria-label={`${attention[id]} need attention`}>{attention[id]}</span>
+                      )}
+                      {current === id && <span aria-hidden="true" className="text-brass">●</span>}
+                    </span>
                   </button>
                 </li>
               ))}
@@ -85,7 +96,13 @@ export default function BottomNav({ tabs, current, onSelect }) {
                 <button type="button" onClick={() => tapGroup(g)}
                   aria-expanded={openKey === g.key}
                   className={`w-full flex flex-col items-center gap-0.5 py-2 transition ${active ? "text-fg" : "text-muted"}`}>
-                  <span className={active ? "text-brass" : ""}>{ICONS[g.key]}</span>
+                  <span className={`relative ${active ? "text-brass" : ""}`}>
+                    {ICONS[g.key]}
+                    {g.count > 0 && (
+                      <span className="absolute -top-1 -right-2 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-brass text-ink text-[9px] font-bold leading-none"
+                        aria-label={`${g.count} need attention`}>{g.count}</span>
+                    )}
+                  </span>
                   <span className="text-[11px] font-semibold leading-none">{g.label}</span>
                 </button>
               </li>
