@@ -120,8 +120,8 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
                   <option key={i.id} value={i.id}>{i.name}{i.category ? ` · ${i.category}` : ""}</option>
                 ))}
               </select>
-              <button type="button" className="btn-ghost px-2.5 flex-shrink-0" title="Scan item barcode"
-                onClick={() => setScanOpen(true)}>📷</button>
+              <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg" title="Scan item barcode"
+                aria-label="Scan item barcode" onClick={() => setScanOpen(true)}>📷</button>
             </div></div>
         </div>
         {searchable && (

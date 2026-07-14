@@ -160,12 +160,14 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
           );
         })()}
 
-        <div>
-          <button type="button" onClick={() => setUseCounter((v) => !v)}
-            className="text-[12px] font-semibold text-gold hover:underline inline-flex items-center gap-1.5">
-            {useCounter ? "↔ Enter a single total instead" : "🧮 Count cash by denomination"}
-          </button>
-        </div>
+        <button type="button" onClick={() => setUseCounter((v) => !v)} aria-pressed={useCounter}
+          className="btn-ghost w-full min-h-[44px] justify-between text-sm font-semibold">
+          <span className="inline-flex items-center gap-2">
+            <span aria-hidden="true">🧮</span>
+            {useCounter ? "Counting by denomination" : "Count cash by denomination"}
+          </span>
+          <span className="text-[12px] font-normal text-muted">{useCounter ? "Enter a total instead" : "Tally the bills"}</span>
+        </button>
 
         {useCounter && (
           <div className="bg-panel border border-line rounded-xl p-3.5 space-y-2">

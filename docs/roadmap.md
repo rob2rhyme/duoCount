@@ -61,6 +61,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Smart count defaults** (Tier 1 usability: each count form opens on the location + drawer this person last used — remembered per vendor+user in `localStorage` — and guesses opening/closing from the time of day; pure, unit-tested `defaultShift` + `pickRemembered`; cash and scratch remember their own drawer so they never cross-fill; memory is a nicety, never load-bearing) | `src/lib/count-context.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
 | **Inventory fast-path** (Tier 1 usability: the Inventory form leads with a single **Counted on hand** field and collapses start/received/sold/removed into an optional **Movement details** expander — flagged with a dot when filled — so an everyday recount is one number, not five; expected still computes from the prefilled last count) | `src/components/InventoryForm.js` | ✅ |
 | **Mobile bottom nav** (Tier 1 usability: on < sm the nine-tab sideways strip becomes a thumb-reachable bottom bar grouping screens into Count / Team / Insights / Admin — tap a group for a sheet of its screens; the top strip returns at ≥ sm; content, toast, and the scroll-to-top FAB all lift clear of it; driven purely by the shell's visible-tabs list so an employee just sees one fewer group) | `src/components/BottomNav.js`, `AppShell.js`, `ScrollTopFab.js`, `globals.css` | ✅ |
+| **Bigger touch targets + promoted power features** (Tier 1 usability, completing the everyday bundle: barcode scan buttons are 44px targets with aria-labels; the cash denomination counter is a full-width labelled toggle instead of a tiny text link; the Dashboard **Reports & export** is a 44px button) | `CashForm.js`, `ScratchForm.js`, `InventoryForm.js`, `Dashboard.js` | ✅ |
 
 ## Next up
 
@@ -249,7 +250,7 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
   `src/lib/setup-progress.js` (unit-tested); no schema or rules change; empty
   states only appear once the snapshots have loaded, so an existing store never
   flashes one. `SetupChecklist.js`, `EmptyState.js`, `AppShell.js`.
-- **Everyday-usability bundle** — shipping in slices:
+- **Everyday-usability bundle — ✅ done** (shipped in slices):
   - **Trustworthy saves — ✅ done** — every count form now disables **Save** until
     the required inputs are filled (pure `count-validation.js`, unit-tested) and
     turns a failed save into a *persistent, retryable* error bar instead of a
@@ -267,7 +268,10 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     replaced by a thumb-reachable bottom bar grouping the screens into
     Count / Team / Insights / Admin (tap a group → sheet of its screens); the
     top strip takes over at ≥ sm. The scroll-to-top FAB lifts clear of it.
-  - *Next slice:* 44px scan targets + promoted power features.
+  - **Bigger touch targets + promoted power features — ✅ done** — the barcode
+    scan buttons are now 44px targets (with aria-labels), the cash denomination
+    counter is a full-width labelled toggle instead of a tiny text link, and the
+    Dashboard **Reports & export** is a proper 44px button. **Bundle complete.**
 - **Manager attention-badges** on Log / Incidents / Time from existing
   subscriptions.
 

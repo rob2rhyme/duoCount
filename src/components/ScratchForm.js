@@ -127,8 +127,8 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           <div><label htmlFor={packId} className="label">Pack / book #</label>
             <div className="flex gap-2">
               <input id={packId} className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
-              <button type="button" className="btn-ghost px-2.5 flex-shrink-0" title="Scan pack barcode"
-                onClick={() => setScanOpen(true)}>📷</button>
+              <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg" title="Scan pack barcode"
+                aria-label="Scan pack barcode" onClick={() => setScanOpen(true)}>📷</button>
             </div></div>
         </div>
         <Field label={"Ticket price"}><input type="number" inputMode="decimal" className="input" value={f.price} onChange={set("price")} placeholder="0.00" /></Field>
