@@ -102,6 +102,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
     varianceThreshold: vendor.varianceThreshold ?? 5,
     invVarianceThreshold: vendor.invVarianceThreshold ?? "",
     fiscalStartMonth: vendor.fiscalStartMonth ?? 1,
+    aiSearch: vendor.aiSearch === true,
     digestEnabled: vendor.digest?.enabled === true,
     digestNarrative: vendor.digest?.narrative === true,
     digestRecipients: (vendor.digest?.recipients || []).join(", "),
@@ -138,6 +139,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
       varianceThreshold: threshold,
       invVarianceThreshold: invThreshold,
       fiscalStartMonth,
+      aiSearch: settings.aiSearch, // opt-in NL log search; off by default
       patternRules: resolvePatternRules(settings.patternRules),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
@@ -524,6 +526,18 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
                   {testing ? "Sending…" : "Send test digest now"}
                 </button>
               )}
+            </div>
+          </div>
+
+          <div className="border border-line rounded-xl p-3.5 bg-panel">
+            <div className="flex items-start gap-3">
+              <input id="aiSearch" type="checkbox" className="mt-1" checked={settings.aiSearch}
+                disabled={!isOwner}
+                onChange={(e) => setSettings({ ...settings, aiSearch: e.target.checked })} />
+              <label htmlFor="aiSearch" className="min-w-0">
+                <span className="font-medium text-[14px]">Natural-language log search <span className="text-muted font-normal">— off by default</span></span>
+                <p className="text-xs text-muted leading-relaxed">Adds an &quot;Ask&quot; button to the Log search so staff can type plain-English questions (&quot;Eve&apos;s shorts last week&quot;). The typed question and the names/drawers/items currently in view are sent to Anthropic to turn it into a filter — your count amounts and records never leave the app, and the filtering happens in the browser. Off unless you turn it on; needs the server AI key.</p>
+              </label>
             </div>
           </div>
 

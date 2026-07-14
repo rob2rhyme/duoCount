@@ -8,6 +8,13 @@
 
 import { matchesTerms } from "./text-match.js";
 
+// The valid values for each filter dimension. Shared by the manual controls,
+// the AI search vocabulary (buildVocabulary), and the route's validation
+// (log-search.js coerceFilter) so there's one list to keep in sync.
+export const KIND_VALUES = ["all", "cash", "scratch", "inventory"];
+export const STATUS_VALUES = ["all", "needs-review", "under-review", "resolved", "disputed"];
+export const OUTCOME_VALUES = ["any", "short", "over", "balanced", "flagged"];
+
 // The concatenated text the free-text search matches against — the entry's
 // human labels, never its amounts. Kept identical to the field set the Log box
 // searched before this refactor so the behavior is preserved exactly.
@@ -92,4 +99,26 @@ export function applyLogFilter(entries, filter, { causeLabel = (x) => x || "" } 
     outcomeMatch(e, f.outcome) &&
     dateMatch(e, f.dateFrom, f.dateTo) &&
     matchesTerms(logSearchable(e, causeLabel), f.terms));
+}
+
+/**
+ * The label vocabulary a natural-language query can reference — the distinct
+ * people / drawers / items / games / locations present, plus the fixed value
+ * lists and an optional `today`. Pure and client-safe (this is what the "Ask"
+ * box builds from the loaded entries and sends to the route). Labels only — no
+ * amounts, diffs, or rows.
+ */
+export function buildVocabulary(entries = [], { today = null } = {}) {
+  const distinct = (fn) => [...new Set((entries || []).map(fn).filter(Boolean))].sort();
+  return {
+    people: distinct((e) => e.by),
+    drawers: distinct((e) => e.drawerName),
+    items: distinct((e) => e.itemName),
+    games: distinct((e) => e.game),
+    locations: distinct((e) => e.locationName),
+    kinds: KIND_VALUES,
+    statuses: STATUS_VALUES,
+    outcomes: OUTCOME_VALUES,
+    today,
+  };
 }

@@ -2,8 +2,8 @@
 // Run: npm run test:log-search
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { buildVocabulary } from "../src/lib/log-filter.js";
 import {
-  buildVocabulary,
   buildSearchPrompt,
   coerceFilter,
   aiSearchEnabled,

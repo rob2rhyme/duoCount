@@ -6,39 +6,18 @@
 // records: the browser does the filtering locally. Off by default and additive;
 // any failure or an un-routable query falls back to plain keyword search.
 //
-// No top-level Anthropic import: buildVocabulary / buildSearchPrompt /
-// coerceFilter are pure and unit-tested with `node --test`. The SDK loads
-// lazily inside interpretQuery — the one thin I/O wrapper.
+// No top-level Anthropic import: buildSearchPrompt / coerceFilter are pure and
+// unit-tested with `node --test`. The SDK loads lazily inside interpretQuery —
+// the one thin I/O wrapper. `buildVocabulary` (client-safe) lives in
+// log-filter.js so the "Ask" box can build it without pulling this module — and
+// the SDK — into the browser bundle.
+import { KIND_VALUES, STATUS_VALUES, OUTCOME_VALUES } from "./log-filter.js";
 
 // One place to change the tier (shared posture with the digest narrative; Haiku
 // is the right size for routing a short query to a small fixed schema). Fable 5
 // is excluded — its 30-day retention is the wrong posture for data derived from
 // personnel/cash records.
 export const SEARCH_MODEL = "claude-haiku-4-5";
-
-const STATUS_VALUES = ["all", "needs-review", "under-review", "resolved", "disputed"];
-const KIND_VALUES = ["all", "cash", "scratch", "inventory"];
-const OUTCOME_VALUES = ["any", "short", "over", "balanced", "flagged"];
-
-/**
- * The label vocabulary a query can reference — the ONLY entry-derived data that
- * leaves the app (names/labels, never amounts, diffs, or rows). Pure.
- * @returns {{ people, drawers, items, games, locations, kinds, statuses, outcomes, today }}
- */
-export function buildVocabulary(entries = [], { today = null } = {}) {
-  const distinct = (fn) => [...new Set((entries || []).map(fn).filter(Boolean))].sort();
-  return {
-    people: distinct((e) => e.by),
-    drawers: distinct((e) => e.drawerName),
-    items: distinct((e) => e.itemName),
-    games: distinct((e) => e.game),
-    locations: distinct((e) => e.locationName),
-    kinds: KIND_VALUES,
-    statuses: STATUS_VALUES,
-    outcomes: OUTCOME_VALUES,
-    today,
-  };
-}
 
 // Stable, cacheable system prompt — identical for every query and vendor, so
 // calls read this prefix from cache. Encodes the "route, don't answer" contract.

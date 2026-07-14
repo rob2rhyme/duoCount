@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import {
-  verifyEntry, investigateEntry, setDisputeStatus, addComment, watchComments,
+  verifyEntry, investigateEntry, setDisputeStatus, addComment, watchComments, apiLogSearch,
 } from "@/lib/data";
 import { money, toDate, exportCSV } from "@/lib/utils";
 import { searchTerms } from "@/lib/text-match";
-import { applyLogFilter } from "@/lib/log-filter";
+import { applyLogFilter, buildVocabulary } from "@/lib/log-filter";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
 import SearchInput from "./SearchInput";
@@ -187,13 +187,25 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
   const [fWho, setFWho] = useState("all");
   const [fDrawer, setFDrawer] = useState("all");
   const [fStatus, setFStatus] = useState("all");
+  const [fOutcome, setFOutcome] = useState("any");   // set by AI search only
+  const [fDateFrom, setFDateFrom] = useState(null);  // set by AI search only
+  const [fDateTo, setFDateTo] = useState(null);      // set by AI search only
   const [query, setQuery] = useState("");
+  const [aiNote, setAiNote] = useState(null);        // "Interpreted as…" summary
+  const [asking, setAsking] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const terms = useMemo(() => searchTerms(query), [query]);
 
+  // Natural-language search is opt-in per vendor (ai-log-search-spec.md). The
+  // server route re-checks the flag + key, so this is only the UI gate.
+  const aiSearch = vendor?.aiSearch === true;
+
   const names = useMemo(() => [...new Set(entries.map((e) => e.by))].sort(), [entries]);
   const drawerNames = useMemo(() => [...new Set(entries.map((e) => e.drawerName).filter(Boolean))].sort(), [entries]);
-  const clearAll = () => { setFType("all"); setFStatus("all"); setFWho("all"); setFDrawer("all"); setQuery(""); };
+  const clearAll = () => {
+    setFType("all"); setFStatus("all"); setFWho("all"); setFDrawer("all");
+    setFOutcome("any"); setFDateFrom(null); setFDateTo(null); setQuery(""); setAiNote(null);
+  };
   // Single source of truth for filtering — shared with the AI log-search feature
   // (log-filter.js). The manual dropdowns/box map straight onto the filter shape.
   const rows = applyLogFilter(entries, {
@@ -201,8 +213,50 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
     who: fWho === "all" ? null : fWho,
     drawer: fDrawer === "all" ? null : fDrawer,
     status: fStatus,
+    outcome: fOutcome,
+    dateFrom: fDateFrom,
+    dateTo: fDateTo,
     terms,
   }, { causeLabel });
+
+  // Apply a model-returned filter to the controls (values were validated
+  // server-side against the vocabulary; re-guard who/drawer here too).
+  function applyAiFilter(filter) {
+    const who = filter.who && names.includes(filter.who) ? filter.who : "all";
+    const drawer = filter.drawer && drawerNames.includes(filter.drawer) ? filter.drawer : "all";
+    setFType(filter.kind || "all");
+    setFWho(who);
+    setFDrawer(drawer);
+    setFStatus(filter.status || "all");
+    setFOutcome(filter.outcome || "any");
+    setFDateFrom(filter.dateFrom || null);
+    setFDateTo(filter.dateTo || null);
+    setQuery(filter.text || "");
+    const parts = [];
+    if ((filter.kind || "all") !== "all") parts.push(filter.kind);
+    if (who !== "all") parts.push(who);
+    if (drawer !== "all") parts.push(drawer);
+    if ((filter.status || "all") !== "all") parts.push(filter.status.replace(/-/g, " "));
+    if ((filter.outcome || "any") !== "any") parts.push(filter.outcome);
+    if (filter.dateFrom || filter.dateTo) parts.push(`${filter.dateFrom || "…"} → ${filter.dateTo || "…"}`);
+    if (filter.text) parts.push(`“${filter.text}”`);
+    setAiNote(parts.length ? parts.join(" · ") : "everything");
+  }
+
+  async function runAiSearch() {
+    const q = query.trim();
+    if (!q || asking) return;
+    setAsking(true);
+    try {
+      const vocabulary = buildVocabulary(entries, { today: new Date().toLocaleDateString("en-CA") });
+      const { filter } = await apiLogSearch(q, vocabulary);
+      if (filter) applyAiFilter(filter);
+      else { setAiNote(null); onToast?.("Couldn't interpret that — showing keyword matches"); }
+    } catch (err) {
+      console.error(err); setAiNote(null);
+      onToast?.("Search unavailable — showing keyword matches");
+    } finally { setAsking(false); }
+  }
 
   async function doVerify(e) {
     if (!isManager) return onToast?.("Managers only");
@@ -213,7 +267,28 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
 
   return (
     <div className="space-y-4">
-      <SearchInput value={query} onChange={setQuery} placeholder="Search counts — drawer, item, game, person…" label="Search counts" />
+      {aiSearch ? (
+        <div className="space-y-2">
+          <div className="flex gap-2 items-start">
+            <SearchInput value={query} onChange={(v) => { setQuery(v); if (aiNote) setAiNote(null); }}
+              onSubmit={runAiSearch} className="flex-1"
+              placeholder="Search or ask — “Eve’s shorts last week”, “unverified cash over $20”…" label="Search or ask" />
+            <button type="button" className="btn-ghost whitespace-nowrap px-3" disabled={asking || !query.trim()}
+              onClick={runAiSearch} title="Interpret this as filters">
+              {asking ? "Asking…" : "✨ Ask"}
+            </button>
+          </div>
+          {aiNote && (
+            <div className="flex items-center gap-2 text-[13px] flex-wrap bg-highlight border border-brass/30 rounded-lg px-3 py-1.5">
+              <span className="text-muted">Interpreted as:</span>
+              <span className="font-medium min-w-0">{aiNote}</span>
+              <button type="button" className="btn-ghost text-[12px] px-2 py-0.5 ml-auto" onClick={clearAll}>Clear</button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <SearchInput value={query} onChange={setQuery} placeholder="Search counts — drawer, item, game, person…" label="Search counts" />
+      )}
       <div className="flex gap-2 flex-wrap">
         <select className="input w-auto flex-1 min-w-[110px]" value={fType} onChange={(e) => setFType(e.target.value)}>
           <option value="all">All entries</option>

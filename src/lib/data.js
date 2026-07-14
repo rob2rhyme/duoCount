@@ -13,7 +13,7 @@ const vcol = (vendorId, name) => collection(db, "vendors", vendorId, name);
 /* ---------- vendor ---------- */
 export async function updateVendorSettings(vendorId, patch) {
   const allowed = {};
-  const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold", "patternRules", "fiscalStartMonth"];
+  const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold", "patternRules", "fiscalStartMonth", "aiSearch"];
   for (const k of keys) if (k in patch) allowed[k] = patch[k];
   await updateDoc(doc(db, "vendors", vendorId), allowed);
 }
@@ -115,6 +115,16 @@ export async function apiSeedDemo(action) {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
     body: JSON.stringify({ action }),
+  });
+}
+// Manager-only natural-language log search: turns a query into a filter object
+// (ai-log-search-spec.md). Returns { filter } or { filter: null } — the caller
+// falls back to keyword search on null.
+export async function apiLogSearch(query, vocabulary) {
+  return fetchJson("/api/log-search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify({ query, vocabulary }),
   });
 }
 

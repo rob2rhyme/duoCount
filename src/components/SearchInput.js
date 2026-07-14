@@ -3,7 +3,7 @@
 // Shared search box for the list filters (Inventory / Log / Notes / Incidents) so
 // every in-app search looks and behaves the same: a magnifier, a labelled input,
 // Escape-to-clear, and a clear (×) button. Controlled — pass value + onChange.
-export default function SearchInput({ value, onChange, placeholder = "Search…", label = "Search", className = "" }) {
+export default function SearchInput({ value, onChange, onSubmit, placeholder = "Search…", label = "Search", className = "" }) {
   return (
     <div className={`relative ${className}`}>
       <svg className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" width="15" height="15"
@@ -17,7 +17,10 @@ export default function SearchInput({ value, onChange, placeholder = "Search…"
       <input type="search" className="input" style={{ paddingLeft: "2.25rem", paddingRight: "2rem" }}
         value={value} aria-label={label} placeholder={placeholder}
         autoComplete="off" onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Escape") onChange(""); }} />
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onChange("");
+          else if (e.key === "Enter" && onSubmit) onSubmit();
+        }} />
       {value && (
         <button type="button" aria-label="Clear search" onClick={() => onChange("")}
           className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-lg leading-none text-muted hover:text-fg">×</button>
