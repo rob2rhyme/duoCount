@@ -42,6 +42,16 @@ security rules keyed on server-issued auth claims.
     (Phases 1 & 2 built, shipped dark)
   - `ai-pattern-narrative-spec.md` — spec for the opt-in in-app pattern narrative
     on the Dashboard (Phases 1 & 2 built, shipped dark)
+  - `competitive-gap-analysis.md` — competitor landscape, the gaps that matter,
+    and a prioritized UX enhancement plan (analysis)
+  - `multi-store-rollup-spec.md` — spec for an owner portfolio/rollup view across
+    a vendor's locations (analysis/design only, not built)
+  - `bulk-import-spec.md` — spec for owner-only CSV bulk import + migration off
+    paper/Excel (analysis/design only, not built)
+  - `accountant-export-spec.md` — spec for accountant/franchise-ready exports
+    (close-of-day PDF + QuickBooks CSV) (analysis/design only, not built)
+  - `localization-spec.md` — spec for i18n / Spanish-first localization + a
+    low-literacy count path (analysis/design only, not built)
   - `theme-accessibility-audit.md` — measured WCAG AA contrast audit across
     both themes, with the failures found and the token fixes shipped
   - `roadmap.md` — what's shipped, what's next, and what's deferred

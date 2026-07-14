@@ -23,6 +23,11 @@ const PATHS = {
   activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
   sparkles: <><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M18 15l.7 1.9L20.5 17.5l-1.8.6L18 20l-.7-1.9L15.5 17.5l1.8-.6z" /></>,
   "file-text": <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>,
+  compass: <><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></>,
+  layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
+  upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>,
+  download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>,
+  globe: <><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></>,
 };
 
 const SLUG_ICON = {
@@ -45,6 +50,11 @@ const SLUG_ICON = {
   "ai-features-spec": "sparkles",
   "ai-log-search-spec": "search",
   "ai-pattern-narrative-spec": "activity",
+  "competitive-gap-analysis": "compass",
+  "multi-store-rollup-spec": "layers",
+  "bulk-import-spec": "upload",
+  "accountant-export-spec": "download",
+  "localization-spec": "globe",
   "privacy-and-data": "shield",
   "legal-disclaimers": "file-text",
 };
