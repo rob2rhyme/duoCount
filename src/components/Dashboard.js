@@ -155,7 +155,9 @@ export default function Dashboard({ entries, packs = [], locations = [], locName
 
   const reportButton = isManager && (
     <div className="flex justify-end">
-      <button className="btn-ghost text-[13px] px-3.5 py-2" onClick={() => setReportOpen(true)}>📄 Reports</button>
+      <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2" onClick={() => setReportOpen(true)}>
+        <span aria-hidden="true">📄</span> Reports &amp; export
+      </button>
     </div>
   );
   const reportModal = reportOpen && (

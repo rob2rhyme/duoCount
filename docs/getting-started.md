@@ -110,7 +110,7 @@ This is how you save numbers for the accountant, the franchise, or taxes.
 
 *Four steps to a record you can keep — nothing about the saved counts changes.*
 
-1. Go to the **Dashboard** tab and tap **📄 Reports**.
+1. Go to the **Dashboard** tab and tap **📄 Reports & export**.
 2. Pick a **period** — Day, Week, Month, Quarter, Half-year, Year, or **Custom**
    dates — and use the **◀ ▶** arrows to step to the one you want.
 3. Pick a **location** (or *All locations*).
