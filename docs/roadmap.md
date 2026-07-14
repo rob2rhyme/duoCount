@@ -167,9 +167,10 @@ existing daily digest, generated on the aggregates the digest already computes.
   test-digest button (needs a real key + deploy). Later: NL log search /
   features 4–5 as their own specs.
 
-### 8. AI natural-language log search — 🔨 Phase 1 core built (dark); "Ask" UI next
+### 8. AI natural-language log search — ✅ Phases 1 & 2 built (shipped dark)
 The second AI feature (`distribution-analysis.md` §1.1, feature 2), specified in
-**`ai-log-search-spec.md`**. Turns a plain-English question in the Log search box
+**`ai-log-search-spec.md`** and built end-to-end behind the off-by-default
+`vendor.aiSearch` flag. Turns a plain-English question in the Log search box
 (*"Eve's shorts last week"*, *"unverified cash over $20"*) into the **same
 filters the Log tab already exposes**, applied to the entries already in the
 browser.
@@ -184,15 +185,17 @@ browser.
   today's keyword search. Honest residual: the typed query is user-authored and
   egresses as-is (resolving a named person needs the name), documented in the
   spec's Privacy section.
-- **Built (dark):** the shared pure `applyLogFilter` (`src/lib/log-filter.js`)
-  with `LogList` refactored onto it — a 560-combo matrix test pins it to the old
-  behavior — plus `src/lib/log-search.js` (vocabulary/prompt/coerce pure +
-  tested; `interpretQuery` I/O), the manager-gated `/api/log-search` route with
-  the server-enforced `vendor.aiSearch` gate, and the tests
-  (`npm run test:log-filter`, `test:log-search`). Nothing calls the route yet and
-  the flag is off, so the Log tab is unchanged.
-- **Remaining:** the "Ask" affordance in `LogList` (Phase 1 UI), then the owner
-  toggle + `privacy-and-data.md` disclosure (Phase 2).
+- **Built (dark):** the shared pure `applyLogFilter` + `buildVocabulary`
+  (`src/lib/log-filter.js`) with `LogList` refactored onto it — a 560-combo matrix
+  test pins it to the old behavior — plus `src/lib/log-search.js` (prompt/coerce
+  pure + tested; `interpretQuery` I/O), the manager-gated `/api/log-search` route
+  with the server-enforced `vendor.aiSearch` gate, the "Ask" UI in the Log tab
+  (Enter-to-ask, "Interpreted as…" chip, keyword fallback), and the owner toggle
+  in Admin + `privacy-and-data.md` disclosure. Tests: `npm run test:log-filter`,
+  `test:log-search`. Flag off ⇒ the Log tab is unchanged.
+- **Still open:** live model-call verification against a pilot store (needs a real
+  key + deploy); the one-key `firestore.rules` allow-list addition wants an
+  emulator/staging check (`npm run test:rules`).
 
 ## Layout audit
 

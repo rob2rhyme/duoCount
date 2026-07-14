@@ -49,17 +49,25 @@ app.
 - **Resend** — used **only if** you enable the emailed daily digest or schedule
   notifications, to deliver those emails to the recipients you configure. If you
   don't configure email, no data goes to Resend.
-- **Anthropic (Claude API)** — used **only if** an owner turns on the optional
-  **"AI summary in the daily digest"** setting (off by default). When on, the
-  day's already-totaled figures — per-location cash/scratch/inventory numbers and
-  the pattern-alert signals — are sent to Anthropic's API to write the two- or
-  three-sentence summary at the top of that digest. **Employee names are replaced
-  with pseudonyms ("Employee A", "Employee B") before anything is sent**, only
-  aggregates leave the app (never raw count records), and the AI output is
-  email-only — it never changes your logged counts. With the setting off, or with
-  no AI key configured on the server, nothing is sent to Anthropic. Use a
-  processor with a data-retention posture that matches your promise (Claude's
-  Haiku/Sonnet tiers support zero data retention).
+- **Anthropic (Claude API)** — used **only if** an owner turns on one of two
+  optional AI settings (both off by default and independent). In both cases the
+  AI output is advisory only — it never changes your logged counts — and with the
+  setting off, or with no AI key configured on the server, nothing is sent to
+  Anthropic. Use a processor with a data-retention posture that matches your
+  promise (Claude's Haiku/Sonnet tiers support zero data retention).
+  - **"AI summary in the daily digest"** — sends the day's already-totaled
+    figures (per-location cash/scratch/inventory numbers and the pattern-alert
+    signals) to write the two- or three-sentence summary at the top of that
+    digest. **Employee names are replaced with pseudonyms ("Employee A", …)
+    before anything is sent**; only aggregates leave the app, never raw count
+    records.
+  - **"Natural-language log search"** — when a manager uses the Log tab's "Ask"
+    box, the **typed question** and the **list of names / drawers / items / games
+    currently in view** are sent so the model can turn the question into a search
+    filter; the filtering then happens in the browser. **No count amounts or
+    records are ever sent.** Note the one difference from the digest summary: the
+    typed question is written by the manager and is sent as-is, so if they type a
+    person's name to search for it, that name is included.
 - **Your hosting** — the app itself (e.g. on Vercel). Traffic is over HTTPS.
 
 Each of these is a third-party processor with its own terms; list the ones you
