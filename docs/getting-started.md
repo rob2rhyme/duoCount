@@ -85,6 +85,11 @@ on an optional **daily email digest** (off by default), and turn on the optional
 
 ### 4. Your daily rhythm
 
+- **Watch the badges.** As a manager, small amber counts appear on the
+  navigation next to **Log** (counts with an unresolved variance or dispute),
+  **Incidents** (open write-ups), and **Time** (shift swaps waiting on your
+  approval) — an ambient nudge toward whatever needs a second look, so nothing
+  waits unseen. They clear themselves as you resolve each item.
 - **Verify counts.** On the **Log** (or the entry itself), mark a count
   **verified**. You can't verify your own — that's the whole point.
 - **Watch the Dashboard.** Net over/short, short counts, charts by day, employee,

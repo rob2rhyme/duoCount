@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchPacks, watchIncidents } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchPacks, watchIncidents, watchSwapBoard } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
@@ -17,6 +17,7 @@ import SetupChecklist from "./SetupChecklist";
 import BottomNav from "./BottomNav";
 import EmptyState, { IconStore, IconReceipt, IconBox } from "./EmptyState";
 import { setupProgress } from "@/lib/setup-progress";
+import { attentionCounts } from "@/lib/attention";
 import { resolveShortcut } from "@/lib/shortcuts";
 import { PRODUCT } from "@/lib/store";
 
@@ -42,6 +43,7 @@ export default function AppShell() {
   const [packs, setPacks] = useState([]);
   const [notes, setNotes] = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [swaps, setSwaps] = useState([]);
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
@@ -68,7 +70,9 @@ export default function AppShell() {
     const u6 = watchPacks(vendor.id, setPacks);
     // Write-ups: employees may only query incidents where they're the subject.
     const u7 = watchIncidents(vendor.id, isManager ? null : profile.id, setIncidents);
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
+    // Swap board — only a manager needs it, and only to badge pending approvals.
+    const u8 = isManager ? watchSwapBoard(vendor.id, setSwaps) : () => {};
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); };
   }, [vendor.id, lockedLoc, isManager, profile.id]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
@@ -101,6 +105,15 @@ export default function AppShell() {
   const setupReady = loaded.locations && loaded.drawers && loaded.items;
   const goAdmin = () => setTab("admin");
   const adminAction = isManager ? { onClick: goAdmin, label: "Set up in Admin →" } : undefined;
+
+  // Ambient "needs attention" badges for managers: unresolved variances/disputes
+  // (Log), open write-ups (Incidents), and swaps awaiting approval (Time). Pure
+  // tally over data we already watch; employees see none.
+  const att = useMemo(
+    () => (isManager ? attentionCounts({ entries, incidents, swaps }) : null),
+    [isManager, entries, incidents, swaps]
+  );
+  const tabAttention = att ? { log: att.log, incidents: att.incidents, time: att.time } : {};
 
   // The mobile bottom nav lives at the foot of the viewport; flag the body so
   // the app-wide scroll-to-top FAB lifts clear of it on small screens.
@@ -158,8 +171,14 @@ export default function AppShell() {
         <div className="hidden sm:flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition ${tab === t.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
+              className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition inline-flex items-center justify-center gap-1.5 ${tab === t.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
               {t.label}
+              {tabAttention[t.id] > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brass text-ink text-[10px] font-bold leading-none"
+                  aria-label={`${tabAttention[t.id]} need attention`}>
+                  {tabAttention[t.id]}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -269,7 +288,7 @@ export default function AppShell() {
         </div>
       </footer>
 
-      <BottomNav tabs={tabs} current={tab} onSelect={setTab} />
+      <BottomNav tabs={tabs} current={tab} onSelect={setTab} attention={tabAttention} />
 
       {toast && (
         <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-5 py-3 rounded-full text-sm font-medium shadow-lg z-50">

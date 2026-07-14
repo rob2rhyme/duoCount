@@ -62,6 +62,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Inventory fast-path** (Tier 1 usability: the Inventory form leads with a single **Counted on hand** field and collapses start/received/sold/removed into an optional **Movement details** expander — flagged with a dot when filled — so an everyday recount is one number, not five; expected still computes from the prefilled last count) | `src/components/InventoryForm.js` | ✅ |
 | **Mobile bottom nav** (Tier 1 usability: on < sm the nine-tab sideways strip becomes a thumb-reachable bottom bar grouping screens into Count / Team / Insights / Admin — tap a group for a sheet of its screens; the top strip returns at ≥ sm; content, toast, and the scroll-to-top FAB all lift clear of it; driven purely by the shell's visible-tabs list so an employee just sees one fewer group) | `src/components/BottomNav.js`, `AppShell.js`, `ScrollTopFab.js`, `globals.css` | ✅ |
 | **Bigger touch targets + promoted power features** (Tier 1 usability, completing the everyday bundle: barcode scan buttons are 44px targets with aria-labels; the cash denomination counter is a full-width labelled toggle instead of a tiny text link; the Dashboard **Reports & export** is a 44px button) | `CashForm.js`, `ScratchForm.js`, `InventoryForm.js`, `Dashboard.js` | ✅ |
+| **Manager attention-badges** (Tier 1, completes the tier: ambient amber counts on Log — unresolved variances/disputes — Incidents — open write-ups — and Time — swaps awaiting approval — shown on both the top strip and the bottom-nav groups; pure, unit-tested `attentionCounts` over already-watched data plus a manager-only swap-board subscription; employees see none) | `src/lib/attention.js`, `AppShell.js`, `BottomNav.js` | ✅ |
 
 ## Next up
 
@@ -241,7 +242,7 @@ trust), but the everyday **experience** and a few strategic gaps are what decide
 adoption. Center of gravity is everyday usability + onboarding + import + exports
 + multi-store + i18n — **not** more AI.
 
-### Tier 1 — quick wins (pure UI on existing reads; save the trial)
+### Tier 1 — quick wins (pure UI on existing reads; save the trial) — ✅ complete
 - **First-run onboarding + zero-config empty states — ✅ done** — a dismissible
   setup checklist (managers only) that tracks the two essentials (location +
   drawer) plus an optional inventory-items step and routes to Admin, backed by
@@ -272,8 +273,11 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     scan buttons are now 44px targets (with aria-labels), the cash denomination
     counter is a full-width labelled toggle instead of a tiny text link, and the
     Dashboard **Reports & export** is a proper 44px button. **Bundle complete.**
-- **Manager attention-badges** on Log / Incidents / Time from existing
-  subscriptions.
+- **Manager attention-badges — ✅ done** — ambient amber counts on Log
+  (unresolved variances/disputes), Incidents (open write-ups), and Time (swaps
+  awaiting approval), on both the top strip and the bottom-nav groups. Pure,
+  unit-tested `attentionCounts` over data the shell already watches (plus a
+  manager-only swap-board subscription); employees see none. **Tier 1 complete.**
 
 ### Tier 2 — strategic (spec'd; build after Tier 1)
 - **Multi-store owner rollup** — `multi-store-rollup-spec.md`
