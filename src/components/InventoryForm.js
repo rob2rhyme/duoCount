@@ -24,6 +24,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const { busy, error, run } = useSaveState();
   const [itemSearch, setItemSearch] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const itemFieldId = useId();
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
@@ -75,6 +76,9 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const flagged = flaggable && Math.abs(diff) >= invThreshold;
 
   const valid = validateInventory(f);
+  // Whether any movement (received / sold / removed) has been entered — used to
+  // flag the collapsed details section so a filled-in adjustment isn't hidden.
+  const hasMovement = [f.received, f.soldQty, f.removed].some((v) => String(v ?? "").trim() !== "" && Number(v) !== 0);
 
   // Throws on failure so useSaveState can show a persistent, retryable error
   // rather than a toast that vanishes before the clerk notices the save failed.
@@ -131,15 +135,34 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
               <option value="open">Opening</option><option value="close">Closing</option>
             </select></Field>
         </div>
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Start qty (last count)"}><input type="number" inputMode="numeric" className="input" value={f.startQty} onChange={set("startQty")} placeholder="0" /></Field>
-          <Field label={"Received (deliveries)"}><input type="number" inputMode="numeric" className="input" value={f.received} onChange={set("received")} placeholder="0" /></Field>
+        <div>
+          <Field label={"Counted on hand"}><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></Field>
+          <p className="text-[12px] text-muted mt-1">What&apos;s actually on the shelf right now — that&apos;s all a quick recount needs.</p>
         </div>
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Sold since last count"}><input type="number" inputMode="numeric" className="input" value={f.soldQty} onChange={set("soldQty")} placeholder="0" /></Field>
-          <Field label={"Removed (damage/returns)"}><input type="number" inputMode="numeric" className="input" value={f.removed} onChange={set("removed")} placeholder="0" /></Field>
+
+        <div className="rounded-xl border border-line overflow-hidden">
+          <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails}
+            className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-[13px] font-semibold text-fg hover:bg-subtle transition">
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="truncate">Movement details</span>
+              <span className="text-muted font-normal hidden sm:inline">received · sold · removed</span>
+              {hasMovement && !showDetails && <span className="w-1.5 h-1.5 rounded-full bg-brass flex-shrink-0" aria-label="has entries" />}
+            </span>
+            <span aria-hidden="true" className={`text-muted flex-shrink-0 transition-transform ${showDetails ? "rotate-180" : ""}`}>⌄</span>
+          </button>
+          {showDetails && (
+            <div className="px-3.5 pb-3.5 pt-3 space-y-3.5 border-t border-line">
+              <div className="grid grid-cols-2 gap-3.5">
+                <Field label={"Start qty (last count)"}><input type="number" inputMode="numeric" className="input" value={f.startQty} onChange={set("startQty")} placeholder="0" /></Field>
+                <Field label={"Received (deliveries)"}><input type="number" inputMode="numeric" className="input" value={f.received} onChange={set("received")} placeholder="0" /></Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3.5">
+                <Field label={"Sold since last count"}><input type="number" inputMode="numeric" className="input" value={f.soldQty} onChange={set("soldQty")} placeholder="0" /></Field>
+                <Field label={"Removed (damage/returns)"}><input type="number" inputMode="numeric" className="input" value={f.removed} onChange={set("removed")} placeholder="0" /></Field>
+              </div>
+            </div>
+          )}
         </div>
-        <Field label={"Counted on hand"}><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></Field>
 
         {blind ? (
           <div className="bg-panel border border-dashed border-line rounded-xl px-3.5 py-4 text-center">

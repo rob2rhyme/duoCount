@@ -186,9 +186,13 @@ Type the **store code** your manager gave you and **your own PIN**, then
 ### Log an inventory count
 
 1. Tap **Inventory**, pick the **item**.
-2. Enter **start on hand**, **received**, **sold**, and **removed**, then the
-   **counted** amount on the shelf (or **scan** the barcode).
-3. **Save.** A red (negative) result means stock is missing. If your store set an
+2. Enter **Counted on hand** — what's actually on the shelf right now (or
+   **scan** the barcode to pick the item). That's all a quick recount needs; the
+   app compares it against the last count.
+3. Adjusting for deliveries or sales? Open **Movement details** to add **start
+   on hand**, **received**, **sold**, and **removed** — it's optional and tucked
+   away so the everyday count stays one field.
+4. **Save.** A red (negative) result means stock is missing. If your store set an
    **inventory variance threshold**, a count off by that many units or more is
    flagged for a manager to review — just like a cash short. (Blind mode applies
    here too, if it's on.)
