@@ -197,6 +197,25 @@ browser.
   key + deploy); the one-key `firestore.rules` allow-list addition wants an
   emulator/staging check (`npm run test:rules`).
 
+### 9. AI in-app pattern narrative — 📄 spec ready (analysis only, not built)
+The third AI feature (`distribution-analysis.md` §1.1, feature 3), now specified
+in **`ai-pattern-narrative-spec.md`** — **no application code yet**. The **in-app
+twin of the digest narrative**: an "Explain these signals" button on the
+Dashboard's Patterns card that turns the on-screen `detectPatterns` alerts into a
+2–3 sentence "what to look at first" readout.
+- **Design headlines:** **reuses the digest narrative's pure core**
+  (`redactForModel` + `buildNarrativePrompt`) rather than re-deriving the
+  pseudonymization/prompt — one narrative core, two surfaces (cron email +
+  on-demand Dashboard). **On-demand** (a button, cached per pattern-set) to bound
+  cost and make egress explicit, like NL search; server-side `claude-haiku-4-5`;
+  **opt-in per vendor via a new `vendor.aiInsights` flag** (separate from the
+  digest and search flags); **additive** — the Patterns card is untouched and any
+  failure just means no block. Names pseudonymized before egress; display-only,
+  no writes.
+- **When built:** phase per the spec — mechanics + button (dark, extract a shared
+  `runNarrative` from the cron path) → owner toggle + privacy note → features 4–5
+  once the opt-in UX is proven on a pilot.
+
 ## Layout audit
 
 All nine screens (Cash, Scratch-offs, Inventory, Log, Notes, Incidents, Time,
