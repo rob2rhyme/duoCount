@@ -158,12 +158,18 @@ This is how you save numbers for the accountant, the franchise, or taxes.
 
 Files are named so they sort themselves, e.g. `duocount-report-all-2026-Q3.pdf`.
 
-> **Doing the books in QuickBooks?** The same Reports screen has a **"For the
-> bookkeeper"** section with a **QuickBooks journal CSV** — a balanced,
-> double-entry journal (cash sales, lottery, paid-outs, over/short, and the cash
-> to deposit), one entry per day per location, ready to import instead of
-> re-keying the day by hand. It's a **draft** for your bookkeeper to review and
-> post — DuoCount records the counts; your accounting software stays the ledger.
+> **Doing the books?** The same Reports screen has a **"For the bookkeeper"**
+> section with two one-tap files:
+> - **Close-of-day PDF** — a single-day reconciliation sheet (cash sales, paid-
+>   outs, expected vs counted, over/short) with a preview of the exact journal
+>   entry the CSV exports, plus signature lines — so the paper you sign and the
+>   file you import always agree.
+> - **QuickBooks journal CSV** — a balanced, double-entry journal (cash sales,
+>   lottery, paid-outs, over/short, and the cash to deposit), one entry per day
+>   per location, ready to import instead of re-keying the day by hand.
+>
+> Both are **drafts** for your bookkeeper to review and post — DuoCount records
+> the counts; your accounting software stays the ledger.
 
 ### 6. Optional AI helpers (off by default)
 
