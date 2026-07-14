@@ -32,6 +32,7 @@
     "test:log-search": "node --test tests/log-search.test.mjs",
     "test:setup-progress": "node --test tests/setup-progress.test.mjs",
     "test:count-validation": "node --test tests/count-validation.test.mjs",
+    "test:count-context": "node --test tests/count-context.test.mjs",
     "test:contrast": "node --test tests/contrast.test.mjs",
     "check:contrast": "node scripts/contrast-check.mjs"
   },

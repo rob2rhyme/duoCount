@@ -3,6 +3,7 @@ import { useEffect, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, expectedCash } from "@/lib/utils";
 import { validateCash } from "@/lib/count-validation";
+import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
 import SaveError from "./SaveError";
@@ -20,7 +21,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   const { profile, vendor, isManager } = useSession();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
-    date: today(), shift: "open", locationId: "", drawerId: "",
+    date: today(), shift: defaultShift(new Date().getHours()), locationId: "", drawerId: "",
     start: "", sales: "", paidout: "", counted: "",
   });
   const { busy, error, run } = useSaveState();
@@ -38,18 +39,21 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   const denomTotal =
     DENOMS.reduce((s, d) => s + d * (parseInt(denoms[d], 10) || 0), 0) + coinValue;
 
-  // default location: locked one, else first active
+  // default location: locked one, else the one this person last used here, else first active
   useEffect(() => {
-    if (!f.locationId && (lockedLoc || locations[0]))
-      setF((p) => ({ ...p, locationId: lockedLoc || locations[0].id }));
+    if (f.locationId || !(lockedLoc || locations[0])) return;
+    const remembered = lockedLoc || pickRemembered(loadContext(vendor.id, profile.id).locationId, locations);
+    setF((p) => ({ ...p, locationId: remembered }));
   }, [locations, lockedLoc]); // eslint-disable-line
 
   const locDrawers = drawers.filter((d) => d.active !== false && d.locationId === f.locationId);
-  // default drawer: prefer one named like "POS"
+  // default drawer: the one last used here if it's still valid, else one named like "POS"
   useEffect(() => {
     if (locDrawers.length && !locDrawers.some((d) => d.id === f.drawerId)) {
-      const pos = locDrawers.find((d) => /pos/i.test(d.name)) || locDrawers[0];
-      setF((p) => ({ ...p, drawerId: pos.id }));
+      const rememberedId = loadContext(vendor.id, profile.id).cashDrawerId;
+      const pick = locDrawers.find((d) => d.id === rememberedId)
+        || locDrawers.find((d) => /pos/i.test(d.name)) || locDrawers[0];
+      setF((p) => ({ ...p, drawerId: pick.id }));
     }
   }, [f.locationId, drawers]); // eslint-disable-line
 
@@ -87,6 +91,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
       flagged, varianceStatus: flagged ? "open" : "none",
       by: profile.name, byId: profile.id, byRole: profile.role,
     });
+    saveContext(vendor.id, profile.id, { locationId: f.locationId, cashDrawerId: drawer.id });
     setF((p) => ({ ...p, start: "", sales: "", paidout: "", counted: "" }));
     setDenoms(emptyDenoms());
     setCoins("");

@@ -58,6 +58,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **AI digest narrative — Phases 1 & 2 (shipped dark)** (opt-in per vendor, off by default; redacts/pseudonymizes names before egress, builds a cacheable prompt, calls `claude-haiku-4-5` server-side, renders an escaped narrative block above the digest table; additive — any failure sends the plain digest. **Phase 2:** owner toggle in Admin → Business settings + `privacy-and-data.md` disclosure) | `src/lib/digest-narrative.js`, `src/lib/digest.js`, `src/components/AdminPanel.js`, `ai-features-spec.md` | ✅ |
 | **First-run onboarding + zero-config empty states** (Tier 1: dismissible manager-only setup checklist tracking location + drawer essentials plus an optional items step, with guiding EmptyState cards on the Cash/Scratch/Inventory tabs that route managers to Admin and reassure employees; pure `setupProgress` derivation, unit-tested; empty states gated on first-snapshot load so existing stores never flash one; no schema/rules change) | `src/lib/setup-progress.js`, `src/components/SetupChecklist.js`, `EmptyState.js`, `AppShell.js`, `competitive-gap-analysis.md` | ✅ |
 | **Trustworthy saves** (Tier 1 usability: every count form disables **Save** until its required inputs are entered — pure, unit-tested `count-validation.js` shared by cash/scratch/inventory — and a failed save becomes a *persistent, retryable* error bar via `useSaveState` + `SaveError`, replacing the ~2.2s toast that could hide a lost save on flaky wifi; a "0" count stays valid, the denomination counter satisfies the cash requirement) | `src/lib/count-validation.js`, `src/lib/use-save-state.js`, `src/components/SaveError.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
+| **Smart count defaults** (Tier 1 usability: each count form opens on the location + drawer this person last used — remembered per vendor+user in `localStorage` — and guesses opening/closing from the time of day; pure, unit-tested `defaultShift` + `pickRemembered`; cash and scratch remember their own drawer so they never cross-fill; memory is a nicety, never load-bearing) | `src/lib/count-context.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
 
 ## Next up
 
@@ -251,9 +252,13 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     the required inputs are filled (pure `count-validation.js`, unit-tested) and
     turns a failed save into a *persistent, retryable* error bar instead of a
     vanishing toast (`useSaveState` + `SaveError`).
-  - *Next slices:* mobile bottom nav; smart shift default + remembered
-    location/drawer; inventory fast-path; 44px scan targets + promoted power
-    features.
+  - **Smart defaults — ✅ done** — each count form now opens on the location +
+    drawer this person used last (remembered per vendor+user in `localStorage`)
+    and guesses opening/closing from the time of day, so most counts start
+    pre-filled. Pure `defaultShift` / `pickRemembered` (unit-tested); cash and
+    scratch remember their own drawer so they don't cross-fill.
+  - *Next slices:* mobile bottom nav; inventory fast-path; 44px scan targets +
+    promoted power features.
 - **Manager attention-badges** on Log / Incidents / Time from existing
   subscriptions.
 

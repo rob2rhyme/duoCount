@@ -4,6 +4,7 @@ import { addEntry } from "@/lib/data";
 import { expectedStock } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { validateInventory } from "@/lib/count-validation";
+import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
 import SaveError from "./SaveError";
@@ -17,7 +18,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const { profile, vendor, isManager } = useSession();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
-    date: today(), shift: "open", locationId: "", itemId: "",
+    date: today(), shift: defaultShift(new Date().getHours()), locationId: "", itemId: "",
     startQty: "", received: "", removed: "", soldQty: "", counted: "",
   });
   const { busy, error, run } = useSaveState();
@@ -26,10 +27,11 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const itemFieldId = useId();
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
-  // default location: locked one, else first active
+  // default location: locked one, else the one this person last used, else first active
   useEffect(() => {
-    if (!f.locationId && (lockedLoc || locations[0]))
-      setF((p) => ({ ...p, locationId: lockedLoc || locations[0].id }));
+    if (f.locationId || !(lockedLoc || locations[0])) return;
+    const remembered = lockedLoc || pickRemembered(loadContext(vendor.id, profile.id).locationId, locations);
+    setF((p) => ({ ...p, locationId: remembered }));
   }, [locations, lockedLoc]); // eslint-disable-line
 
   const locItems = useMemo(
@@ -89,6 +91,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
       flagged, varianceStatus: flagged ? "open" : "none",
       by: profile.name, byId: profile.id, byRole: profile.role,
     });
+    saveContext(vendor.id, profile.id, { locationId: f.locationId });
     setF((p) => ({ ...p, startQty: String(Number(p.counted) || 0), received: "", removed: "", soldQty: "", counted: "" }));
     const result = diff === 0 ? "balanced" : diff > 0 ? `over ${diff} ${unit}s` : `short ${Math.abs(diff)} ${unit}s`;
     onSaved?.(blind ? `Saved — ${result}` : "Inventory count signed & saved");
