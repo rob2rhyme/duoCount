@@ -60,6 +60,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Trustworthy saves** (Tier 1 usability: every count form disables **Save** until its required inputs are entered — pure, unit-tested `count-validation.js` shared by cash/scratch/inventory — and a failed save becomes a *persistent, retryable* error bar via `useSaveState` + `SaveError`, replacing the ~2.2s toast that could hide a lost save on flaky wifi; a "0" count stays valid, the denomination counter satisfies the cash requirement) | `src/lib/count-validation.js`, `src/lib/use-save-state.js`, `src/components/SaveError.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
 | **Smart count defaults** (Tier 1 usability: each count form opens on the location + drawer this person last used — remembered per vendor+user in `localStorage` — and guesses opening/closing from the time of day; pure, unit-tested `defaultShift` + `pickRemembered`; cash and scratch remember their own drawer so they never cross-fill; memory is a nicety, never load-bearing) | `src/lib/count-context.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
 | **Inventory fast-path** (Tier 1 usability: the Inventory form leads with a single **Counted on hand** field and collapses start/received/sold/removed into an optional **Movement details** expander — flagged with a dot when filled — so an everyday recount is one number, not five; expected still computes from the prefilled last count) | `src/components/InventoryForm.js` | ✅ |
+| **Mobile bottom nav** (Tier 1 usability: on < sm the nine-tab sideways strip becomes a thumb-reachable bottom bar grouping screens into Count / Team / Insights / Admin — tap a group for a sheet of its screens; the top strip returns at ≥ sm; content, toast, and the scroll-to-top FAB all lift clear of it; driven purely by the shell's visible-tabs list so an employee just sees one fewer group) | `src/components/BottomNav.js`, `AppShell.js`, `ScrollTopFab.js`, `globals.css` | ✅ |
 
 ## Next up
 
@@ -262,8 +263,11 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     **Counted on hand** field and tucks start/received/sold/removed behind an
     optional **Movement details** expander (a dot flags it when filled), so an
     everyday recount is one number instead of five.
-  - *Next slices:* mobile bottom nav; 44px scan targets + promoted power
-    features.
+  - **Mobile bottom nav — ✅ done** — on phones the nine-tab sideways strip is
+    replaced by a thumb-reachable bottom bar grouping the screens into
+    Count / Team / Insights / Admin (tap a group → sheet of its screens); the
+    top strip takes over at ≥ sm. The scroll-to-top FAB lifts clear of it.
+  - *Next slice:* 44px scan targets + promoted power features.
 - **Manager attention-badges** on Log / Incidents / Time from existing
   subscriptions.
 
