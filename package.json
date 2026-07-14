@@ -26,10 +26,12 @@
     "test:report-csv": "node --test tests/report-csv.test.mjs",
     "test:doc-search": "node --test tests/doc-search.test.mjs",
     "test:text-match": "node --test tests/text-match.test.mjs",
+    "test:narrative": "node --test tests/digest-narrative.test.mjs",
     "test:contrast": "node --test tests/contrast.test.mjs",
     "check:contrast": "node scripts/contrast-check.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
     "@react-pdf/renderer": "^4.5.1",
     "@zxing/browser": "0.1.5",
     "@zxing/library": "0.21.3",

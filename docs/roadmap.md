@@ -55,6 +55,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Overnight-shift correctness** (overlap check runs on absolute date+time intervals so Mon 22:00–06:00 collides with Tue 05:00–13:00; attendance reconciliation accepts an overnight shift's next-day punches — no more false no-shows / phantom "unscheduled" mornings; availability warnings see the spill day) | `src/lib/schedule.js`, `time-clock-spec.md` §lib | ✅ |
 | **Time-level lateness** (arrivals >10 min past the scheduled start on the Attendance card, with minutes; nearest-in-punch pairing bounded by the shift's duration, overnight-safe, pure + unit-tested) | `src/lib/schedule.js` `lateArrivals`, `time-clock-spec.md` §lib | ✅ |
 | **Pay-period approval / payroll lock** (manager approves a finished week — freezes timesheet corrections via per-day lock docs enforced in the rules; owner-audited release, manager re-approve; Payroll approval card + locked pills in the timesheet) | `firestore.rules` `payrollLocks`, `src/lib/payroll-lock.js`, `time-clock-spec.md` §Pay-period approval | ✅ |
+| **AI digest narrative — Phase 1 (shipped dark)** (opt-in per vendor, off by default; redacts/pseudonymizes names before egress, builds a cacheable prompt, calls `claude-haiku-4-5` server-side, renders an escaped narrative block above the digest table; additive — any failure sends the plain digest) | `src/lib/digest-narrative.js`, `src/lib/digest.js`, `ai-features-spec.md` | ✅ |
 
 ## Next up
 
@@ -142,19 +143,25 @@ best-value AI feature at negligible cost, gated on a per-vendor privacy opt-in.
 ### 6. Mobile-first PWA — ✅ done (this cycle)
 Installable + offline app shell + safe-area + install prompt. See `pwa-spec.md`.
 
-### 7. AI digest narrative — 📄 spec ready (analysis only, not built)
-The first AI feature from `distribution-analysis.md` §1, now specified end-to-end
-in **`ai-features-spec.md`** (integration point, API design, privacy guardrails,
-failure handling, tests, phasing) — **no application code yet**. Adds 2–3
+### 7. AI digest narrative — ✅ Phase 1 built (shipped dark); Phase 2 pending
+The first AI feature from `distribution-analysis.md` §1, specified end-to-end in
+**`ai-features-spec.md`** and now **built through Phase 1**. Adds 2–3
 plain-English sentences + a "what to watch tomorrow" list to the top of the
 existing daily digest, generated on the aggregates the digest already computes.
-- **Design headlines:** slots between `summarizeEntries` and `composeEmail` in
-  `src/lib/digest.js`; server-side `@anthropic-ai/sdk` on `claude-haiku-4-5` with
-  structured output + prompt caching; **opt-in per vendor, off by default**;
-  names pseudonymized before egress; **additive** — any model failure sends the
-  plain digest unchanged; `claude-fable-5` excluded (30-day retention).
-- **When built:** phase it per the spec (mechanics dark → owner toggle + privacy
-  note → later NL log search / features 4–5 as their own specs).
+- **Built (Phase 1, dark):** `src/lib/digest-narrative.js` (`redactForModel` +
+  `buildNarrativePrompt` — pure, unit-tested — and the `generateNarrative` I/O
+  wrapper), the null-safe `composeEmail` narrative block, the
+  `vendor.digest.narrative` opt-in gate + `aiNarrativeEnabled`, and
+  `ANTHROPIC_API_KEY` wiring. Server-side `@anthropic-ai/sdk` on
+  `claude-haiku-4-5` with structured output + a cacheable system prompt;
+  **opt-in per vendor, off by default**; employee names pseudonymized before
+  egress; **additive** — any model failure/timeout sends the plain digest
+  unchanged; `claude-fable-5` excluded (30-day retention). Tests:
+  `npm run test:narrative`.
+- **Phase 2 (pending):** owner-facing toggle in Business settings + the matching
+  `docs/privacy-and-data.md` disclosure paragraph; live end-to-end verification
+  against one pilot vendor via the test-digest button (needs a real key + deploy).
+  Later: NL log search / features 4–5 as their own specs.
 
 ## Layout audit
 
@@ -291,9 +298,12 @@ deployment — consolidated from the notes above. Nothing here is blocked on cod
 5. **Live-app photo screenshots** for the guides + marketing page (sign-in,
    cash count, variance flag, report center) — needs a deployed app with the
    demo seed loaded; the SVG diagrams cover docs until then.
-6. **AI digest narrative — on hold at your request.** When ready: approve the
-   Phase 1 build per `ai-features-spec.md` and set `ANTHROPIC_API_KEY` on the
-   deployment (feature stays off per vendor until an owner opts in).
+6. **AI digest narrative — Phase 1 built (shipped dark).** To turn it on for a
+   pilot: set `ANTHROPIC_API_KEY` on the deployment and set
+   `vendor.digest.narrative = true` on that vendor's doc, then preview with the
+   "Send test digest" button. It stays off for every other vendor. Phase 2 (the
+   in-app owner toggle + `privacy-and-data.md` disclosure) is still to build
+   before turning it on broadly.
 7. **WordPress brochure path (optional, deferred)** — decide if the §3a
    brochure-site route in `distribution-analysis.md` is worth it once the
    marketing page has been live for a while.
