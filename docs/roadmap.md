@@ -226,6 +226,44 @@ readout.
   deploy); the rules change wants an emulator/staging check. Then features 4–5
   once the opt-in UX is proven.
 
+## Competitive enhancement plan
+
+From a competitor gap analysis + live-app UX review, adversarially re-checked
+(full write-up in **`competitive-gap-analysis.md`**). The headline: DuoCount owns
+a breadth no single competitor matches (cash + lottery + inventory + team +
+trust), but the everyday **experience** and a few strategic gaps are what decide
+adoption. Center of gravity is everyday usability + onboarding + import + exports
++ multi-store + i18n — **not** more AI.
+
+### Tier 1 — quick wins (pure UI on existing reads; save the trial)
+- **First-run onboarding + zero-config empty states** — a setup checklist that
+  routes a new owner to Admin and teaches the location→drawer→staff order, with
+  EmptyState CTAs on the count tabs. *(built in the enhancement PRs)*
+- **Everyday-usability bundle** — mobile bottom nav, inline validation
+  (disable-until-valid + focus the bad field), persistent/retryable save errors,
+  smart shift default + remembered location/drawer, inventory fast-path, 44px scan
+  targets.
+- **Manager attention-badges** on Log / Incidents / Time from existing
+  subscriptions.
+
+### Tier 2 — strategic (spec'd; build after Tier 1)
+- **Multi-store owner rollup** — `multi-store-rollup-spec.md`
+- **CSV bulk import + migration** — `bulk-import-spec.md`
+- **Accountant / franchise exports** — `accountant-export-spec.md`
+- **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`
+- **In-app notification center** (defer web push) — the real-time
+  loss-prevention story at a fraction of push's complexity.
+
+### Tier 3 — bigger bets, de-risk first
+Offline write-queue reliability UX; solo-shift countersign fallback; buddy-punch +
+OT/break compliance; and a POS e-journal / nightly-CSV import (the data spine that
+makes void/refund analytics real).
+
+### Explicitly deferred / reframed
+OCR of paper lottery reports (accuracy risk launders a bad number through a
+signature); self-logged voids (hollow without a POS feed); schedule↔shortage
+auto-correlation (names a person → brand/legal risk). See the analysis for why.
+
 ## Layout audit
 
 All nine screens (Cash, Scratch-offs, Inventory, Log, Notes, Incidents, Time,
