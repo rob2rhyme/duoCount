@@ -4,7 +4,8 @@ import {
   verifyEntry, investigateEntry, setDisputeStatus, addComment, watchComments,
 } from "@/lib/data";
 import { money, toDate, exportCSV } from "@/lib/utils";
-import { searchTerms, matchesTerms } from "@/lib/text-match";
+import { searchTerms } from "@/lib/text-match";
+import { applyLogFilter } from "@/lib/log-filter";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
 import SearchInput from "./SearchInput";
@@ -192,19 +193,16 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
 
   const names = useMemo(() => [...new Set(entries.map((e) => e.by))].sort(), [entries]);
   const drawerNames = useMemo(() => [...new Set(entries.map((e) => e.drawerName).filter(Boolean))].sort(), [entries]);
-  const searchable = (e) =>
-    `${e.by} ${e.drawerName || ""} ${e.itemName || ""} ${e.game || ""} ${e.pack || ""} ${e.locationName || ""} ${e.shift || ""} ${causeLabel(e.causeCode)}`;
   const clearAll = () => { setFType("all"); setFStatus("all"); setFWho("all"); setFDrawer("all"); setQuery(""); };
-  const rows = entries.filter((e) =>
-    (fType === "all" || e.kind === fType) &&
-    (fWho === "all" || e.by === fWho) &&
-    (fDrawer === "all" || e.drawerName === fDrawer) &&
-    (fStatus === "all"
-      || (fStatus === "needs-review" && e.varianceStatus === "open")
-      || (fStatus === "under-review" && e.varianceStatus === "under-review")
-      || (fStatus === "resolved" && e.varianceStatus === "resolved")
-      || (fStatus === "disputed" && ["open", "under-review"].includes(e.disputeStatus))) &&
-    matchesTerms(searchable(e), terms));
+  // Single source of truth for filtering — shared with the AI log-search feature
+  // (log-filter.js). The manual dropdowns/box map straight onto the filter shape.
+  const rows = applyLogFilter(entries, {
+    kind: fType,
+    who: fWho === "all" ? null : fWho,
+    drawer: fDrawer === "all" ? null : fDrawer,
+    status: fStatus,
+    terms,
+  }, { causeLabel });
 
   async function doVerify(e) {
     if (!isManager) return onToast?.("Managers only");
