@@ -71,6 +71,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Multi-store rollup — Phase 3 (people panel + exports) — feature complete** (Tier 2: the **People across stores** panel — one row per person from `buildEmployeeRollup`, most-short first, a brass dot marking anyone who worked 2+ stores, expandable to the per-store split that a single store's Dashboard can't show, with a "conversation, not a verdict" caption; and the **portfolio PDF/CSV export** — `entriesToCSV` for the raw window, a one-page PDF in the records report's visual language (DC mark, KPIs, the leaderboard exactly as sorted on screen, people table with per-store sub-rows, signature block). Labor-across-stores deferred; still read-only, no rules change) | `src/components/PortfolioView.js`, `multi-store-rollup-spec.md` | ✅ |
 | **Accountant export — QuickBooks journal CSV** (Tier 2: `report-accounting.js` reshapes the period into a **balanced double-entry general journal** — one entry per day×location with cash sales / lottery / paid-outs / over-short (shortage debits, overage credits) and a computed **deposit plug**, so every `JournalNo` balances to the cent *by construction* (the plug flips sides if paid-outs + shortage exceed sales). Raw `.toFixed(2)` amounts (never `money()`), `csvCell` injection guard, MM/DD/YYYY or ISO dates, baked-in account map (overridable per call — no vendor write, no rules change). Wired into Reports as **"For the bookkeeper"**, framed as a draft the bookkeeper reviews — DuoCount is the count-of-record, never the ledger. 14 unit tests incl. a reconciliation pin to `buildPeriodReport`) | `src/lib/report-accounting.js`, `tests/report-accounting.test.mjs`, `ReportModal.js`, `accountant-export-spec.md` | ✅ |
 | **Accountant export — close-of-day bookkeeper PDF** (Tier 2: a one-tap single-day reconciliation sheet on the existing `@react-pdf/renderer` path — DC mark, cash reconciliation (sales − paid-outs = expected vs counted, OVER/(SHORT)/BALANCED verdict in the app's tone convention), other sales, and a **journal-entry preview rendered from the same tested `buildJournalEntries` groups the CSV exports** with per-entry Debit = Credit totals, so the paper the bookkeeper signs and the file they import always agree. Pins to the picker's day (or today) and fetches that one day on demand — bounded read, independent of the on-screen period; signature block; read-only, no rules change) | `src/components/ReportModal.js`, `accountant-export-spec.md` | ✅ |
+| **Accountant export — franchise scaffold — feature complete** (Tier 2: `buildFranchiseCSV` + `FRANCHISE_PROFILES` — a profile is an ordered column list + per-column mappers + a date format, shipping the **generic daily-report** profile (StoreNo, BusinessDate, Gross/Cash/Lottery sales, PaidOuts, signed OverShort, DeptCount, VerifiedPct; `GrossSales = CashSales + LotterySales` by construction), one row per business date over the modal's already-scoped rows. Selected at **export time** from a dropdown defaulting to *None* — no vendor write, no rules change. Honestly labeled a **scaffold**, with per-brand profiles gated on a pilot franchisee's real template; 8 new unit tests incl. custom-profile objects and the injection guard) | `src/lib/report-accounting.js`, `tests/report-accounting.test.mjs`, `ReportModal.js`, `accountant-export-spec.md` | ✅ |
 
 ## Next up
 
@@ -332,8 +333,11 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     reconciliation sheet (sales − paid-outs = expected vs counted, with the
     OVER/(SHORT) verdict) whose journal preview renders the same
     `buildJournalEntries` rows the CSV exports — paper and file always agree.
-  - *Next:* the franchise-format scaffold (generic profile, export-time
-    choice, no persistence).
+  - **Franchise scaffold — ✅ done. Feature complete.** — `buildFranchiseCSV` +
+    the profile mechanism (ordered columns + mappers + date format) with the
+    generic daily-report profile, selected at export time (no persistence, no
+    rules change). Honestly a scaffold — per-brand profiles are gated on a
+    pilot franchisee's real template.
 - **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`
 - **In-app notification center** (defer web push) — the real-time
   loss-prevention story at a fraction of push's complexity.

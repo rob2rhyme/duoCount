@@ -170,6 +170,12 @@ Files are named so they sort themselves, e.g. `duocount-report-all-2026-Q3.pdf`.
 >
 > Both are **drafts** for your bookkeeper to review and post — DuoCount records
 > the counts; your accounting software stays the ledger.
+>
+> **Franchisee?** The same section has an optional **franchise format** dropdown
+> (off by default): pick it to download a fixed-column daily report (store #,
+> gross/cash/lottery sales, paid-outs, over/short, verified %), one row per day.
+> It's a generic layout — check it against your franchisor's actual template
+> before submitting.
 
 ### 6. Optional AI helpers (off by default)
 

@@ -1,7 +1,7 @@
 // Pure accounting-export shaping — no DOM. Run: npm run test:report-accounting
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildJournalEntries, buildJournalCSV, JOURNAL_HEADER, DEFAULT_ACCOUNTS } from "../src/lib/report-accounting.js";
+import { buildJournalEntries, buildJournalCSV, buildFranchiseCSV, FRANCHISE_PROFILES, JOURNAL_HEADER, DEFAULT_ACCOUNTS } from "../src/lib/report-accounting.js";
 import { buildPeriodReport } from "../src/lib/report-build.js";
 
 const RANGE = { startISO: "2026-07-13", endISO: "2026-07-14" };
@@ -153,4 +153,74 @@ test("memo carries provenance and blank fields are empty cells, never null", () 
   assert.ok(!csv.includes("null") && !csv.includes("undefined"));
   const salesRow = csv.split("\n").find((l) => l.includes(`"Cash sales"`));
   assert.ok(salesRow.includes(`"",`), "Debit cell is empty on a credit row");
+});
+
+/* ------------------------------- franchise ------------------------------- */
+
+test("franchise: fixed column order for the generic profile, byte for byte", () => {
+  const header = buildFranchiseCSV([], RANGE).split("\n")[0];
+  assert.equal(header, "StoreNo,BusinessDate,GrossSales,CashSales,LotterySales,PaidOuts,OverShort,DeptCount,VerifiedPct");
+});
+
+test("franchise: the spec's worked day maps correctly, GrossSales = Cash + Lottery", () => {
+  const csv = buildFranchiseCSV(DAY, RANGE, "generic", { storeNo: "1234" });
+  const row = csv.split("\n")[1];
+  assert.equal(row,
+    `"1234","2026-07-14","2452.00","2140.00","312.00","85.00","-4.00","2","0"`);
+});
+
+test("franchise: one row per business date, sorted; days outside the range dropped", () => {
+  const entries = [
+    ...DAY,
+    cash("2026-07-13", "Main St", { sales: 100, diff: 2 }),
+    cash("2026-06-30", "Main St", { sales: 999 }), // outside
+  ];
+  const lines = buildFranchiseCSV(entries, RANGE).split("\n");
+  assert.equal(lines.length, 3); // header + 2 days
+  assert.ok(lines[1].includes(`"2026-07-13"`));
+  assert.ok(lines[2].includes(`"2026-07-14"`));
+});
+
+test("franchise: OverShort keeps DuoCount's sign — positive on an over day", () => {
+  const csv = buildFranchiseCSV([cash("2026-07-13", "A", { sales: 100, diff: 6 })], RANGE);
+  assert.ok(csv.split("\n")[1].includes(`"6.00"`));
+});
+
+test("franchise: zero-activity aggregates render as 0.00 / 0, never blank or NaN", () => {
+  const csv = buildFranchiseCSV([inv("2026-07-13", "A", -2)], RANGE); // inventory-only day
+  const row = csv.split("\n")[1];
+  assert.ok(row.includes(`"0.00"`));
+  assert.ok(!row.includes("NaN"));
+  assert.ok(row.includes(`"1"`)); // DeptCount = 1 (inventory)
+});
+
+test("franchise: VerifiedPct is rounded; verified rows counted across kinds", () => {
+  const entries = [
+    { ...cash("2026-07-13", "A", { sales: 100 }), verifiedBy: "Mgr" },
+    cash("2026-07-13", "A", { sales: 50 }),
+    { ...scratch("2026-07-13", "A", 20), verifiedBy: "Mgr" },
+  ];
+  const row = buildFranchiseCSV(entries, RANGE).split("\n")[1];
+  assert.ok(row.endsWith(`"67"`), row); // 2 of 3 verified
+});
+
+test("franchise: a malicious storeNo can't smuggle a formula; empty period is header-only", () => {
+  const csv = buildFranchiseCSV(DAY, RANGE, "generic", { storeNo: "=CMD()" });
+  assert.ok(csv.includes(`"'=CMD()"`));
+  assert.equal(buildFranchiseCSV([], RANGE).split("\n").length, 1);
+});
+
+test("franchise: an unknown profile throws; a custom profile object works", () => {
+  assert.throws(() => buildFranchiseCSV(DAY, RANGE, "seven-eleven"));
+  const custom = {
+    id: "x", label: "X", dateFormat: "us",
+    columns: [
+      { header: "Date", value: (d, ctx) => d.date && ctx.dateFormat === "us" ? d.date : d.date },
+      { header: "Net", value: (d) => d.overShort.toFixed(2) },
+    ],
+  };
+  const csv = buildFranchiseCSV(DAY, RANGE, custom);
+  assert.equal(csv.split("\n")[0], "Date,Net");
+  assert.ok(csv.includes(`"-4.00"`));
+  assert.ok(FRANCHISE_PROFILES.generic.columns.length === 9); // ships exactly the generic profile
 });

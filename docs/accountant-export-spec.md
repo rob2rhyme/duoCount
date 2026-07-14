@@ -4,8 +4,9 @@ title: Accountant & franchise export
 
 # DuoCount — Accountant & Franchise Export Spec
 
-**Status: journal CSV + close-of-day bookkeeper PDF shipped (phasing steps 1–3);
-franchise scaffold designed, not built.** `src/lib/report-accounting.js` ships
+**Status: all four phasing steps shipped — feature complete** (journal CSV,
+the "For the bookkeeper" group, the close-of-day PDF, and the franchise
+scaffold with its generic profile). `src/lib/report-accounting.js` ships
 `buildJournalEntries` / `buildJournalCSV` (pure, unit-tested in
 `tests/report-accounting.test.mjs`) and the Reports center has the **"For the
 bookkeeper" → QuickBooks journal CSV** button, driven by the rows already in
@@ -391,9 +392,15 @@ produced by the tested `buildJournalCSV` shaping, so the numbers are covered.
    bounded single-day read, like the report PDF's punch fetch — so it never
    depends on which period is on screen. The optional `Σ start` opening-float
    line was skipped (the reconciliation is coherent without it, as designed).
-4. **Franchise scaffold.** `buildFranchiseCSV` + the generic profile + the
-   export-time profile dropdown (no persistence, no rules change). *~1 day for the
-   mechanism; per-brand profiles are open-ended and gated on a real spec.*
+4. **Franchise scaffold. ✅ shipped (generic profile only).** `buildFranchiseCSV`
+   + `FRANCHISE_PROFILES` (a profile = ordered column list + per-column mapper +
+   date format — the mechanism) with the generic daily-report profile, one row
+   per business date over the modal's already-scoped rows (`storeNo` =
+   `vendor.slug`), and the export-time profile dropdown (default *None*, no
+   persistence, no rules change). Unit-tested: exact column order,
+   `GrossSales = CashSales + LotterySales`, signed `OverShort`, zero-fill,
+   `csvCell` escaping, custom-profile objects, unknown-profile throws. Per-brand
+   profiles remain gated on a pilot franchisee's real template.
 
 Honest total for a shippable (a)+(b): ~2.5–3 days. (c) as a *generic* scaffold: +1
 day; (c) as a *brand-certified* submission: unbounded without a pilot's real template.
