@@ -6,10 +6,14 @@
 // Firestore state; the browser preview is advisory and never gates a write on
 // its own.
 //
-// Phase 1 covers items; guessMapping/validate for staff and baselines land in
-// later phases against the same parser and report shape.
+// Phase 1 covers items and Phase 2 staff; baseline validation lands in Phase 3
+// against the same parser and report shape.
+
+import { isValidNewPin } from "./pin.js";
 
 export const ITEM_UNITS = ["unit", "carton", "pack", "box", "case"];
+export const STAFF_ROLES = ["employee", "manager"]; // owner is never importable
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Target fields per import type: what the mapping UI offers, which are required
 // in the CSV, and the header aliases guessMapping fuzzy-matches against.
@@ -20,6 +24,13 @@ const TARGETS = {
     { field: "unit", label: "Unit", required: false, aliases: ["unit", "uom", "unitofmeasure", "measure", "units"] },
     { field: "barcode", label: "Barcode", required: false, aliases: ["barcode", "upc", "sku", "ean", "plu", "code"] },
     { field: "location", label: "Location", required: false, aliases: ["location", "store", "site", "loc", "branch", "shop"] },
+  ],
+  staff: [
+    { field: "name", label: "Name", required: true, aliases: ["name", "fullname", "employee", "employeename", "staff", "staffname", "person"] },
+    { field: "role", label: "Role", required: false, aliases: ["role", "position", "title", "access", "level"] },
+    { field: "pin", label: "PIN", required: false, aliases: ["pin", "passcode", "pincode", "code", "password"] },
+    { field: "location", label: "Location", required: false, aliases: ["location", "store", "site", "loc", "branch", "shop"] },
+    { field: "email", label: "Email", required: false, aliases: ["email", "emailaddress", "mail"] },
   ],
 };
 
@@ -201,6 +212,110 @@ export function validateItems(rows = [], mapping = {}, ctx = {}) {
       continue;
     }
 
+    push("create", messages);
+  }
+
+  return { rows: reports, summary };
+}
+
+/* ----------------------------- validateStaff ----------------------------- */
+
+// Validate mapped staff rows against live store state (locations + existing
+// staff by name). Same report shape as validateItems. PIN *format* and in-file
+// uniqueness are checked here; against-store PIN uniqueness (hashed creds) can
+// only be checked server-side and is enforced at commit. fields carries
+// `hasPin` (never the digits) for the preview.
+export function validateStaff(rows = [], mapping = {}, ctx = {}) {
+  const existing = (ctx.existingStaff || []).filter((u) => u && u.active !== false);
+  const seenNames = new Map(); // normName -> line
+  const seenPins = new Map();  // pin -> line
+  const reports = [];
+  const summary = { create: 0, update: 0, skip: 0, error: 0 };
+
+  for (const row of rows) {
+    const v = row.values || {};
+    const messages = [];
+    const get = (field) => (mapping[field] ? v[mapping[field]] : undefined);
+    const name = String(get("name") ?? "").trim();
+    const fields = { name, role: "employee", locationId: null, locationName: null, email: null, hasPin: false };
+    const push = (status, msgs) => {
+      summary[status] += 1;
+      reports.push({ line: row.line, status, fields: { ...fields }, messages: msgs });
+    };
+
+    // name (required)
+    if (!name) { push("error", ["Name is missing."]); continue; }
+    if (name.length < 2) { push("error", ["Name must be at least 2 characters."]); continue; }
+
+    // in-file duplicate name — skip the later one rather than risk a duplicate person
+    const nameKey = normName(name);
+    if (seenNames.has(nameKey)) {
+      push("skip", [`Same name as line ${seenNames.get(nameKey)} in this file — skipped. Import separately if they're different people.`]);
+      continue;
+    }
+    seenNames.set(nameKey, row.line);
+
+    // role (owner never importable)
+    if (mapping.role) {
+      const raw = String(get("role") ?? "").trim().toLowerCase();
+      if (raw === "owner") { push("error", ["Owner accounts can't be imported — add an owner in Admin."]); continue; }
+      if (raw && !STAFF_ROLES.includes(raw)) { push("error", [`Role "${raw}" must be employee or manager.`]); continue; }
+      if (raw) fields.role = raw;
+    }
+
+    // email
+    if (mapping.email) {
+      const e = String(get("email") ?? "").trim();
+      if (e) {
+        if (!EMAIL_RE.test(e) || e.length > 200) { push("error", [`"${e}" isn't a valid email.`]); continue; }
+        fields.email = e.toLowerCase();
+      }
+    }
+
+    // pin (format + in-file uniqueness; against-store uniqueness is server-side)
+    let rawPin = "";
+    if (mapping.pin) {
+      rawPin = String(get("pin") ?? "").trim();
+      if (rawPin) {
+        if (!isValidNewPin(rawPin)) { push("error", ["PIN must be exactly 6 digits (or leave it blank)."]); continue; }
+        if (seenPins.has(rawPin)) { push("error", [`PIN is already used on line ${seenPins.get(rawPin)} in this file.`]); continue; }
+        seenPins.set(rawPin, row.line);
+        fields.hasPin = true;
+      }
+    }
+
+    // location — employees require one; managers default to all-locations (null)
+    const locCell = String(get("location") ?? "").trim();
+    if (locCell) {
+      const r = resolveLocation(locCell, ctx);
+      if (r.error) { push("error", [r.error]); continue; }
+      fields.locationId = r.id;
+    } else if (fields.role === "employee") {
+      const r = resolveLocation("", ctx);
+      if (r.error) { push("error", ["Employees need a location — add a location column."]); continue; }
+      fields.locationId = r.id;
+    }
+    fields.locationName = fields.locationId
+      ? ((ctx.locations || []).find((l) => l && l.id === fields.locationId)?.name || null)
+      : null;
+
+    // against-store match by name
+    const match = existing.find((u) => normName(u.name) === nameKey);
+    if (match) {
+      fields.id = match.id;
+      if (match.role === "owner") { push("skip", ["Matches an existing owner — owners are managed in Admin, not by import."]); continue; }
+      messages.push("Matches an existing staff member — is this the same person? Owners are managed in Admin.");
+      if (fields.hasPin) messages.push("PIN left unchanged — reset a PIN in Admin, never by import.");
+      const changed = [];
+      if (mapping.role && fields.role !== match.role) changed.push("role");
+      if (mapping.location && fields.locationId !== (match.locationId ?? null)) changed.push("location");
+      if (mapping.email && fields.email !== (match.email ?? null)) changed.push("email");
+      if (changed.length) push("update", [`Updates ${changed.join(", ")}.`, ...messages]);
+      else push("skip", messages);
+      continue;
+    }
+
+    messages.push(fields.hasPin ? "Sets a sign-in PIN." : "No PIN — set one in Admin or at first sign-in.");
     push("create", messages);
   }
 

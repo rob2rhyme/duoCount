@@ -4,16 +4,18 @@ title: Owner-only CSV bulk import & migration
 
 # DuoCount — Bulk Import Spec
 
-**Status: Phase 1 (items) shipped; Phases 2–3 (staff, baselines) designed, not
+**Status: Phases 1–2 (items, staff) shipped; Phase 3 (baselines) designed, not
 built.** This is the design for a one-time-per-store, owner-only CSV importer
-that migrates a shop off paper, Excel, or another tool into DuoCount. Phase 1
-ships the whole scaffold — `POST /api/import` on the Admin SDK, the pure
-`src/lib/import-parse.js` (`parseCsv` / `guessMapping` / `validateItems`), the
-`apiImport` client helper, and the owner-only "Import / migrate" card in
-`AdminPanel.js` — for the **items** catalog. The staff and baseline branches
-below are the contract for the next two phases, and — just as importantly — the
-record of what the importer is deliberately **not** allowed to do (it never
-writes or edits a sealed count entry retroactively).
+that migrates a shop off paper, Excel, or another tool into DuoCount. Phases 1–2
+ship the whole scaffold — `POST /api/import` on the Admin SDK, the pure
+`src/lib/import-parse.js` (`parseCsv` / `guessMapping` / `validateItems` /
+`validateStaff`), the `apiImport` client helper, and the owner-only,
+type-switching "Import / migrate" card in `AdminPanel.js` — for the **items**
+catalog and the **staff** roster (via the same `/api/staff` write path:
+`hashPin`, store-wide PIN uniqueness, optional PINs, owner-cap, same-name match).
+The baseline branch below is the contract for the last phase, and — just as
+importantly — the record of what the importer is deliberately **not** allowed to
+do (it never writes or edits a sealed count entry retroactively).
 
 It reuses, verbatim where possible, the trusted server path the seed and signup
 routes already prove out: an Admin-SDK route gated by `requireOwner`, scoped to
@@ -380,10 +382,15 @@ is usable on its own.
    `source: "import"` + `importBatchId`, chunked writes), the `apiImport` client
    helper, and the owner-only "Import / migrate" card with the mapping step +
    live dry-run preview — the whole scaffold the next two phases reuse.
-2. **Phase 2 — Staff.** Adds `validateStaff` and the route's `staff` branch on the
-   `/api/staff` write path (`hashPin`, PIN uniqueness, location resolution, role
-   cap). Carries the PIN-policy UX (optional PINs, the "sets a sign-in PIN"
-   preview flag) and the same-name warning.
+2. **Phase 2 — Staff. ✅ shipped.** Adds `validateStaff` (pure + unit-tested) and
+   the route's `staff` branch on the `/api/staff` write path (`hashPin`,
+   store-wide PIN uniqueness re-checked at commit, location resolution,
+   employee-needs-a-location, role cap with owner rows rejected). Carries the
+   PIN-policy UX (optional PINs — a blank PIN creates the user with no creds — and
+   a "sets a sign-in PIN" preview note), the same-name match (updates
+   role/location/email, never re-hashes a PIN, and skips any row matching an
+   existing owner), and a refresh-token revoke on an imported role change (mirrors
+   the staff PATCH). The Admin card gains an Items/Staff type switch.
 3. **Phase 3 — Baselines.** Last, because it's the only phase that appends to the
    append-only log and the only one that isn't cleanly reversible. Adds
    `validateBaselines`, the clean-signed-entry writer, the write-once-per-item
