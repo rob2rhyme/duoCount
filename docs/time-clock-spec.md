@@ -173,6 +173,16 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
   form selection) that land on a date the employee marked unavailable. An
   overnight shift also conflicts when it **spills into** an unavailable next day
   (Mon 22:00–06:00 runs into Tuesday, so a Tuesday day-off blocks it).
+- **`lateArrivals`** — time-level **lateness**: scheduled shifts whose paired
+  clock-in ran more than `graceMin` (default 10) past the scheduled start, with
+  the minutes. Pairing is deliberately simple: everything is compared in
+  absolute business-day + local-clock minutes (so an overnight arrival past
+  midnight needs no special case); each shift takes the employee's **nearest
+  unused in-punch**, and a punch only pairs within the shift's own duration —
+  an unrelated punch never pairs, a shift with no plausible punch is
+  `reconcile`'s no-show (not "late"), and early arrivals are never flagged.
+  Local-clock time-of-day is used on purpose: it matches how the punch's `day`
+  label is stamped, and staff + manager share the store's timezone.
 
 **UI** — the **Schedule** view:
 - **Managers:** a week navigator; an add-a-shift form (employee — or **Open shift
@@ -184,7 +194,9 @@ start/end ("HH:MM"), by/byId (the manager), ts }`.
   flag (open shifts show a gold *Open shift* label); a one-click **Copy last
   week** (dedup-aware, batch write); **Week templates** (save the current week,
   apply a saved one to any week); a *Scheduled hours this week* table; and an
-  *Attendance so far* readout (worked / no-show / unscheduled + the no-show list).
+  *Attendance so far* readout (worked / no-show / unscheduled / **late arrivals**
+  — the late list names each person with the day, scheduled start, and minutes
+  past the 10-minute grace).
 - **Everyone:** *Your upcoming shifts*, **Days you can't work** (mark/remove the
   dates you're unavailable), and a **Shifts up for grabs** board — open shifts a
   manager posted (grab them directly) and coworkers' swap offers.
@@ -279,12 +291,15 @@ Copy-last-week, week templates, availability, shift swaps, open-shift claim,
 publish/notify, and **manager punch correction** are all built (see above). Still
 deferred:
 
-- **Time-level lateness** (comparing a punch-in's clock time against the
-  scheduled start needs shift↔punch pairing rules and a grace policy — day-level
-  attendance stays the granularity for now). ~~Overnight shifts straddling two
-  calendar days in the overlap check / reconciliation~~ — **done**: overlap runs
-  on absolute intervals, reconciliation accepts an overnight shift's next-day
-  punches, and availability sees the spill day (see the lib section above).
+- ~~**Time-level lateness**~~ — **done** (`lateArrivals`, see the lib section):
+  arrivals more than a 10-minute grace past the scheduled start surface on the
+  Attendance card. Deliberately simple pairing (nearest in-punch within the
+  shift's duration, each punch used once); a per-vendor grace knob stays a
+  future option if owners ask.
+- ~~Overnight shifts straddling two calendar days in the overlap check /
+  reconciliation~~ — **done**: overlap runs on absolute intervals,
+  reconciliation accepts an overnight shift's next-day punches, and availability
+  sees the spill day (see the lib section above).
 - **Breaks / unpaid time, overtime rules, rounding policies, pay rates** — real
   payroll math is jurisdiction- and employer-specific; the CSV exports raw
   paired hours for a payroll system to apply its own rules.
