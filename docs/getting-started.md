@@ -110,8 +110,14 @@ on an optional **daily email digest** (off by default), and turn on the optional
   **leaderboard** ranked by which store needs your attention (worst
   verification and biggest over/short first). The **O/S rate** column shows
   over/short per sales dollar, so a big store and a small one compare fairly.
-  Tap any store to open its full report for the same period. It's read-only —
-  a way of *looking at* your counts, never changing them.
+  Tap any store to open its full report for the same period. Below the
+  leaderboard, **People across stores** lists everyone who logged counts in the
+  period, most short first — a gold dot marks anyone who worked at more than
+  one store, and expanding them shows their record store by store (someone who
+  balances at one store but runs short at another is a training conversation,
+  not a verdict). **Download PDF / CSV** exports the whole portfolio view for
+  your records. It's all read-only — a way of *looking at* your counts, never
+  changing them.
 - **Verify counts.** On the **Log** (or the entry itself), mark a count
   **verified**. You can't verify your own — that's the whole point.
 - **Watch the Dashboard.** Net over/short, short counts, charts by day, employee,

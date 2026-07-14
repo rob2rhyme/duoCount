@@ -258,7 +258,7 @@ export default function AppShell() {
             onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
         )}
         {tab === "portfolio" && isOwner && (
-          <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} />
+          <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
       </main>

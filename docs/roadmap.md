@@ -68,6 +68,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **CSV bulk import — Phase 3 (opening counts) — feature complete** (Tier 2: an "Opening counts" type writes one clean, signed, `diff: 0` opening inventory entry per item — the exact honest-count shape, nothing flags — attributed to a `countedBy` roster name or the owner. Resolve-exactly-one-item by name/barcode with location disambiguation; quantity ≥ 0 ("0" is a real count); **write-once per item** (existing inventory count → skip, re-checked server-side); **all-or-nothing on errors** unless the owner opts into partial (`allowPartial`, HTTP 409 otherwise). The only entry type the importer will ever write — never cash/scratch, never an update/delete of any existing entry. Pure, unit-tested `validateBaselines`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js`, `bulk-import-spec.md` | ✅ |
 | **Multi-store rollup — Phase 1 (pure lib, shipped dark)** (Tier 2: `portfolio-rollup.js` — a ranked, **rate-normalized** store leaderboard (over/short per sales dollar, shrink per count, flag/dispute rates, attention order; idle stores neutral, never `NaN`) decorating the tested `buildLocationComparison`; the genuinely-new **cross-location employee rollup** grouped by stable `byId` (name-key fallback, latest-name display, per-location split); and a consolidated summary that IS `buildPeriodReport(…, "all")`. The load-bearing tests assert the portfolio reconciles with the Report center exactly. Read-only, no UI/route/rules yet) | `src/lib/portfolio-rollup.js`, `tests/portfolio-rollup.test.mjs`, `multi-store-rollup-spec.md` | ✅ |
 | **Multi-store rollup — Phase 2 (owner Portfolio surface)** (Tier 2: an owner-only **Portfolio** tab — the multi-store cockpit. Reused fiscal-aware period picker (day…year + custom, ◀ ▶ stepping); consolidated-close KPI header that equals the report's scope-All numbers by construction; the **attention-ranked leaderboard** with per-column sort/flip/reset, idle stores labeled, "—" for zero-denominator rates, and a units-not-dollars shrink caption; **drill-down** opens the existing `ReportModal` pre-scoped to the store *and* the viewed period (new initial-state props). One bounded unscoped fetch per window with Retry; <2 active locations shows an add-a-location empty state; owner-only is a product affordance, not a new security boundary — no rules change) | `src/components/PortfolioView.js`, `AppShell.js`, `BottomNav.js`, `ReportModal.js` | ✅ |
+| **Multi-store rollup — Phase 3 (people panel + exports) — feature complete** (Tier 2: the **People across stores** panel — one row per person from `buildEmployeeRollup`, most-short first, a brass dot marking anyone who worked 2+ stores, expandable to the per-store split that a single store's Dashboard can't show, with a "conversation, not a verdict" caption; and the **portfolio PDF/CSV export** — `entriesToCSV` for the raw window, a one-page PDF in the records report's visual language (DC mark, KPIs, the leaderboard exactly as sorted on screen, people table with per-store sub-rows, signature block). Labor-across-stores deferred; still read-only, no rules change) | `src/components/PortfolioView.js`, `multi-store-rollup-spec.md` | ✅ |
 
 ## Next up
 
@@ -313,8 +314,12 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     KPI header, sortable attention-ranked leaderboard (idle stores labeled,
     "—" for zero-denominator rates), <2-locations empty state, and drill-down
     into the existing `ReportModal` pre-scoped to the store + period.
-  - *Next (optional Phase 3):* the cross-location employee panel promoted to
-    full UI; portfolio PDF/CSV export; labor-across-stores.
+  - **Phase 3 — people panel + exports — ✅ done. Feature complete.** —
+    the "People across stores" panel (most-short first, brass dot for anyone
+    at 2+ stores, expandable per-store splits) and the portfolio **PDF/CSV**
+    export in the records report's visual language (leaderboard exports
+    exactly as sorted on screen). Labor-across-stores stays deferred — the
+    payroll story lives in the records report.
 - **Accountant / franchise exports** — `accountant-export-spec.md`
 - **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`
 - **In-app notification center** (defer web push) — the real-time
