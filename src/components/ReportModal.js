@@ -6,7 +6,7 @@ import { useModalA11y } from "@/lib/use-modal-a11y";
 import Field from "./Field";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPeriodReport, buildLocationComparison } from "@/lib/report-build";
-import { buildJournalCSV, buildJournalEntries } from "@/lib/report-accounting";
+import { buildJournalCSV, buildJournalEntries, buildFranchiseCSV, FRANCHISE_PROFILES } from "@/lib/report-accounting";
 import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -36,6 +36,9 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // Franchise format is an export-time choice, never a persisted setting — so
+  // the feature needs no vendor write and no rules change. "" = none.
+  const [franchiseProfile, setFranchiseProfile] = useState("");
 
   // The store's fiscal-year start (1–12; 1 = calendar year) shapes the Year /
   // Quarter / Half-year periods so reports match the books an accountant keeps.
@@ -94,6 +97,17 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   // (buildJournalCSV is pure and unit-tested) — one entry per day×location.
   function downloadJournalCsv() {
     downloadCSV(buildJournalCSV(rows, range), `${fileBase}-journal.csv`);
+  }
+
+  // Franchise daily report — the selected profile's fixed columns, one row per
+  // business date, over the same scoped in-memory rows. A scaffold, not a
+  // certified submission (see accountant-export-spec.md).
+  function downloadFranchiseCsv() {
+    if (!franchiseProfile) return;
+    downloadCSV(
+      buildFranchiseCSV(rows, range, franchiseProfile, { storeNo: vendor.slug }),
+      `duocount-franchise-${franchiseProfile}-${locId === "all" ? "all" : slug(locName(locId))}-${range.key}.csv`,
+    );
   }
 
   // One-tap close-of-day sheet for whoever does the books: a single-day cash
@@ -539,6 +553,26 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
               selected period, one balanced entry per day and location, ready to import instead of re-keying. Both are
               <b> drafts</b> your bookkeeper reviews and posts; DuoCount is the count-of-record, never the ledger.
             </p>
+
+            <div className="flex items-center gap-2">
+              <select className="input flex-1" value={franchiseProfile} aria-label="Franchise report format"
+                onChange={(e) => setFranchiseProfile(e.target.value)}>
+                <option value="">Franchise format: none</option>
+                {Object.values(FRANCHISE_PROFILES).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+              {franchiseProfile && (
+                <button className="btn-ghost w-auto px-4 text-[13px]" disabled={!ready || busy} onClick={downloadFranchiseCsv}>
+                  Download
+                </button>
+              )}
+            </div>
+            {franchiseProfile && (
+              <p className="text-[11px] text-muted leading-relaxed">
+                One row per business day in a fixed column layout (store #, gross/cash/lottery sales, paid-outs,
+                over/short, verified %). A <b>generic scaffold</b> — check it against your franchisor&apos;s actual
+                template before submitting; pick a location above to scope it to one store.
+              </p>
+            )}
           </div>
 
           <p className="text-[11px] text-muted">A read-only snapshot of recorded counts for the period — saved for your records.</p>

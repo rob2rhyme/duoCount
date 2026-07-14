@@ -137,3 +137,84 @@ export function buildJournalCSV(entries = [], range = {}, opts = {}) {
   }
   return lines.join("\n");
 }
+
+/* ---------------------------- franchise scaffold ---------------------------- */
+
+// A franchise profile is an ordered column list + per-column mapper + a date
+// format — the MECHANISM for franchisor daily-report layouts. Only a generic,
+// brand-neutral profile ships: real 7-Eleven / Circle K schemas are
+// proprietary and contract-specific, so per-brand profiles are added only when
+// a pilot franchisee provides their actual template ("bring us the spec").
+// Each mapper receives one day's aggregates:
+//   { date, cashSales, lotterySales, paidout, overShort, kinds:Set, total, verified }
+export const FRANCHISE_PROFILES = {
+  generic: {
+    id: "generic",
+    label: "Generic daily report",
+    dateFormat: "iso",
+    columns: [
+      { header: "StoreNo", value: (d, ctx) => ctx.storeNo || "" },
+      { header: "BusinessDate", value: (d, ctx) => fmtDate(d.date, ctx.dateFormat) },
+      { header: "GrossSales", value: (d) => (d.cashSales + d.lotterySales).toFixed(2) },
+      { header: "CashSales", value: (d) => d.cashSales.toFixed(2) },
+      { header: "LotterySales", value: (d) => d.lotterySales.toFixed(2) },
+      { header: "PaidOuts", value: (d) => d.paidout.toFixed(2) },
+      { header: "OverShort", value: (d) => d.overShort.toFixed(2) }, // signed: negative = short
+      { header: "DeptCount", value: (d) => String(d.kinds.size) },
+      { header: "VerifiedPct", value: (d) => String(d.total ? Math.round((d.verified / d.total) * 100) : 0) },
+    ],
+  },
+};
+
+// One day-bucket of franchise aggregates per business date, over ALL rows the
+// caller passes (the Reports modal's location picker already scopes them — a
+// franchisee exports with their store selected).
+function franchiseDays(entries, range) {
+  const { startISO, endISO } = range;
+  if (!startISO || !endISO) throw new Error("buildFranchiseCSV needs { startISO, endISO }");
+  if (startISO > endISO) throw new Error(`Range start ${startISO} is after end ${endISO}`);
+  const days = new Map();
+  for (const e of entries) {
+    if (!e || e.date < startISO || e.date > endISO) continue;
+    let d = days.get(e.date);
+    if (!d) {
+      d = { date: e.date, cashSales: 0, lotterySales: 0, paidout: 0, overShort: 0, kinds: new Set(), total: 0, verified: 0 };
+      days.set(e.date, d);
+    }
+    d.kinds.add(e.kind);
+    d.total += 1;
+    if (e.verifiedBy) d.verified += 1;
+    if (e.kind === "cash") {
+      d.cashSales += num(e.sales);
+      d.paidout += num(e.paidout);
+      d.overShort += num(e.diff);
+    } else if (e.kind === "scratch") {
+      d.lotterySales += num(e.dollars);
+    }
+  }
+  return [...days.values()]
+    .map((d) => ({ ...d, cashSales: round2(d.cashSales), lotterySales: round2(d.lotterySales), paidout: round2(d.paidout), overShort: round2(d.overShort) }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Fixed-column franchise daily report — one row per business date, in the
+ * profile's exact column order and date format. A SCAFFOLD, not a certified
+ * submission (see the spec's honesty flag). Same money/escaping rules as the
+ * journal: raw .toFixed(2), every cell through csvCell. Empty period →
+ * header-only file.
+ * @param {Array} entries  the period rows (already location-scoped by caller).
+ * @param {{startISO, endISO}} range
+ * @param {object|string} profile  a FRANCHISE_PROFILES entry or its id.
+ * @param {{storeNo?: string}} [opts]  profile context (store number).
+ */
+export function buildFranchiseCSV(entries = [], range = {}, profile = "generic", opts = {}) {
+  const p = typeof profile === "string" ? FRANCHISE_PROFILES[profile] : profile;
+  if (!p || !Array.isArray(p.columns)) throw new Error(`Unknown franchise profile: ${profile}`);
+  const ctx = { storeNo: opts.storeNo || "", dateFormat: p.dateFormat };
+  const lines = [p.columns.map((c) => c.header).join(",")];
+  for (const day of franchiseDays(entries, range)) {
+    lines.push(p.columns.map((c) => csvCell(c.value(day, ctx))).join(","));
+  }
+  return lines.join("\n");
+}
