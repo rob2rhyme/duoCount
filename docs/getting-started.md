@@ -67,8 +67,9 @@ Open **Admin** and add the pieces your team will pick from when they count:
 
 In the header **Settings** menu, the owner sets the **sharing mode**: either
 every location sees all counts, or each location sees only its own. Managers and
-owners always see everything. You can also set the business **name/logo** and
-turn on an optional **daily email digest** (off by default).
+owners always see everything. You can also set the business **name/logo**, turn
+on an optional **daily email digest** (off by default), and turn on the optional
+**AI helpers** (all off by default — see step 6).
 
 ### 4. Your daily rhythm
 
@@ -76,7 +77,9 @@ turn on an optional **daily email digest** (off by default).
   **verified**. You can't verify your own — that's the whole point.
 - **Watch the Dashboard.** Net over/short, short counts, charts by day, employee,
   drawer, and item, plus quiet **pattern alerts** (e.g. "same drawer short under
-  three people" — a conversation starter, never a verdict).
+  three people" — a conversation starter, never a verdict). If you turn on the AI
+  insight (step 6), an **"Explain these signals"** button sums the alerts up and
+  says what to look at first.
 - **Handle flags.** Any cash count off by more than your threshold (default $5)
   is flagged; close it by recording *why* (Human error, Register error, Training
   gap, etc.). You can also set an **inventory** threshold in units (Business
@@ -109,6 +112,26 @@ This is how you save numbers for the accountant, the franchise, or taxes.
    - **Print** — a line-by-line printout (or print-to-PDF from your browser).
 
 Files are named so they sort themselves, e.g. `duocount-report-all-2026-Q3.pdf`.
+
+### 6. Optional AI helpers (off by default)
+
+DuoCount has three small, optional AI features. Each is **off until you turn it
+on** in **Business settings**, each needs an AI key configured on the server, and
+none of them ever changes your saved counts — they only summarize or search.
+Before anything is sent, **employee names are replaced with "Employee A / B"**,
+and your count amounts stay in the app. See **Privacy & data** for exactly what
+each one sends.
+
+- **AI summary in the daily digest** — adds a couple of plain-English sentences
+  and a "what to watch tomorrow" list to the top of the digest email.
+- **Natural-language log search** — an **"Ask"** button on the Log so you can type
+  a question like *"Eve's shorts last week"* and have it turned into filters (it
+  always falls back to a normal keyword search).
+- **AI insight on the Dashboard** — an **"Explain these signals"** button on the
+  pattern-alerts card that reads the signals back and flags what to look at first.
+
+Turn one on for a location, try it, and turn it off again any time — leaving it
+off changes nothing about how DuoCount works.
 
 ---
 

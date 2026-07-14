@@ -197,7 +197,7 @@ browser.
   key + deploy); the one-key `firestore.rules` allow-list addition wants an
   emulator/staging check (`npm run test:rules`).
 
-### 9. AI in-app pattern narrative — 🔨 Phase 1 built (dark); owner toggle next
+### 9. AI in-app pattern narrative — ✅ Phases 1 & 2 built (shipped dark)
 The third AI feature (`distribution-analysis.md` §1.1, feature 3), specified in
 **`ai-pattern-narrative-spec.md`**. The **in-app twin of the digest narrative**:
 an "Explain these signals" button on the Dashboard's Patterns card that turns the
@@ -218,10 +218,13 @@ readout.
   (redacts names server-side), and the "Explain these signals" button on the
   Patterns card (cached per pattern-set). Tests: `npm run test:insight`. Flag off
   ⇒ the Dashboard is unchanged.
-- **Remaining:** the `vendor.aiInsights` owner toggle in Admin + the one-key
-  `firestore.rules` allow-list entry + the `privacy-and-data.md` disclosure
-  (Phase 2); live model-call verification on a pilot. Then features 4–5 once the
-  opt-in UX is proven.
+- **Phase 2 (owner UX + disclosure):** the `vendor.aiInsights` toggle in Admin →
+  Business settings (grouped with the digest + search toggles), the one-key
+  `firestore.rules` allow-list entry, and the disclosures in `privacy-and-data.md`,
+  the getting-started guide (§6 Optional AI helpers), and `app-summary-spec.md`.
+- **Still open:** live model-call verification on a pilot (needs a real key +
+  deploy); the rules change wants an emulator/staging check. Then features 4–5
+  once the opt-in UX is proven.
 
 ## Layout audit
 

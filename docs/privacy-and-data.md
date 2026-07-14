@@ -68,6 +68,12 @@ app.
     records are ever sent.** Note the one difference from the digest summary: the
     typed question is written by the manager and is sent as-is, so if they type a
     person's name to search for it, that name is included.
+  - **"AI insight on the Dashboard"** — when a manager clicks "Explain these
+    signals" on the pattern-alerts card, the **pattern signals shown on that card**
+    (their titles and totals) are sent so the model can summarize them.
+    **Employee names are replaced with pseudonyms first**, no count records are
+    sent, the summary is display-only, and nothing is sent until the manager
+    clicks.
 - **Your hosting** — the app itself (e.g. on Vercel). Traffic is over HTTPS.
 
 Each of these is a third-party processor with its own terms; list the ones you
