@@ -23,7 +23,7 @@ const ICONS = {
 const GROUPS = [
   { key: "count", label: "Count", ids: ["cash", "scratch", "inventory"] },
   { key: "team", label: "Team", ids: ["time", "incidents", "notes"] },
-  { key: "insights", label: "Insights", ids: ["dashboard", "log"] },
+  { key: "insights", label: "Insights", ids: ["dashboard", "portfolio", "log"] },
   { key: "admin", label: "Admin", ids: ["admin"] },
 ];
 

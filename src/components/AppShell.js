@@ -9,6 +9,7 @@ import LogList from "./LogList";
 import NotesPanel from "./NotesPanel";
 import IncidentsPanel from "./IncidentsPanel";
 import Dashboard from "./Dashboard";
+import PortfolioView from "./PortfolioView";
 import AdminPanel from "./AdminPanel";
 import TimeClock from "./TimeClock";
 import Logo from "./Logo";
@@ -30,11 +31,17 @@ const TABS = [
   { id: "incidents", label: "Incidents" },
   { id: "time", label: "Time" },
   { id: "dashboard", label: "Dashboard" },
+  { id: "portfolio", label: "Portfolio", ownerOnly: true },
   { id: "admin", label: "Admin", managerOnly: true },
 ];
 
+// Which tabs this person sees. ownerOnly is a product affordance, not a new
+// security boundary — a manager can already read every location via Reports.
+const visibleTabs = (isManager, isOwner) =>
+  TABS.filter((t) => (!t.managerOnly || isManager) && (!t.ownerOnly || isOwner));
+
 export default function AppShell() {
-  const { profile, vendor, logout, isManager } = useSession();
+  const { profile, vendor, logout, isManager, isOwner } = useSession();
   const [tab, setTab] = useState("cash");
   const [entries, setEntries] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -94,7 +101,7 @@ export default function AppShell() {
 
   function ping(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
-  const tabs = TABS.filter((t) => !t.managerOnly || isManager);
+  const tabs = visibleTabs(isManager, isOwner);
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
 
   // First-run onboarding: derive what's set up, and only trust "empty" once the
@@ -127,7 +134,7 @@ export default function AppShell() {
   // The decision logic lives in resolveShortcut (unit-tested); this effect only
   // wires it to the DOM.
   useEffect(() => {
-    const ids = TABS.filter((t) => !t.managerOnly || isManager).map((t) => t.id);
+    const ids = visibleTabs(isManager, isOwner).map((t) => t.id);
     function onKey(e) {
       const el = e.target;
       const typing = el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable);
@@ -141,7 +148,7 @@ export default function AppShell() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isManager, tab]);
+  }, [isManager, isOwner, tab]);
 
   return (
     <div className="min-h-screen">
@@ -249,6 +256,9 @@ export default function AppShell() {
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} packs={visiblePacks} locations={activeLocations} locName={locName} incidents={incidents}
             onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
+        )}
+        {tab === "portfolio" && isOwner && (
+          <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} />
         )}
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
       </main>

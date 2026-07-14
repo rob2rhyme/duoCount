@@ -18,15 +18,19 @@ const FISCAL_PRESETS = new Set(["year", "quarter", "half"]); // periods the fisc
 // location scope, preview what it contains, and export it for the record.
 // Reports only READ the append-only log (one-shot, via fetchEntriesInRange) and
 // render client-side — they never mutate the signed history.
-export default function ReportModal({ locations = [], locName = () => "—", incidents = [], onClose, onToast }) {
+// initialLocId / initialPreset / initialRefDate pre-scope the report (the
+// Portfolio drill-down opens a store's report for the period being viewed);
+// they're just initial state — the user can still change every control.
+export default function ReportModal({ locations = [], locName = () => "—", incidents = [], onClose, onToast,
+  initialLocId, initialPreset, initialRefDate, initialCustomStart, initialCustomEnd }) {
   const { profile, vendor } = useSession();
   const panelRef = useModalA11y(onClose);
 
-  const [preset, setPreset] = useState("day");
-  const [refDate, setRefDate] = useState(today());
-  const [customStart, setCustomStart] = useState(today());
-  const [customEnd, setCustomEnd] = useState(today());
-  const [locId, setLocId] = useState("all");
+  const [preset, setPreset] = useState(initialPreset || "day");
+  const [refDate, setRefDate] = useState(initialRefDate || today());
+  const [customStart, setCustomStart] = useState(initialCustomStart || today());
+  const [customEnd, setCustomEnd] = useState(initialCustomEnd || today());
+  const [locId, setLocId] = useState(initialLocId || "all");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);

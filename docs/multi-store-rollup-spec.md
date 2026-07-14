@@ -4,12 +4,17 @@ title: Multi-store owner rollup / portfolio view
 
 # DuoCount — Multi-Store Rollup (Owner Portfolio) Spec
 
-**Status: Phase 1 (pure rollup lib) shipped dark; Phases 2–3 (owner UI, polish)
-designed, not built.** `src/lib/portfolio-rollup.js` ships `buildStoreLeaderboard`,
+**Status: Phases 1–2 shipped (pure rollup lib + the owner Portfolio surface);
+Phase 3 (employee panel UI, exports) designed, not built.**
+`src/lib/portfolio-rollup.js` ships `buildStoreLeaderboard`,
 `buildEmployeeRollup`, and `buildPortfolioSummary`, unit-tested in
-`tests/portfolio-rollup.test.mjs` with the reconciliation assertions below — no
-UI, no route, no rules yet. This document is the design for an **owner-facing
-portfolio view** that consolidates a vendor's locations into one cockpit: a cross-store
+`tests/portfolio-rollup.test.mjs` with the reconciliation assertions below.
+`src/components/PortfolioView.js` ships the owner-only **Portfolio** tab: the
+reused period picker, the consolidated-close KPI header, the sortable
+attention-ranked leaderboard, and drill-down that opens the existing
+`ReportModal` pre-scoped to the store and period. No route, no rules — read-only
+by construction. This document is the design for an **owner-facing portfolio
+view** that consolidates a vendor's locations into one cockpit: a cross-store
 over/short + shrink + verification-rate **leaderboard**, a **consolidated
 period close**, and a **per-employee comparison across locations**. It is
 deliberately scoped to reuse machinery that already exists and is unit-tested —
@@ -308,11 +313,16 @@ Phase 2 is the real UI work; Phase 3 is optional polish.
    split), and `buildPortfolioSummary`, with the reconciliation tests that pin
    them to `buildPeriodReport`. No UI, no route, no rules — just tested logic
    behind an unused module. *Small–moderate: derived math + one new grouping.*
-2. **Phase 2 — the owner Portfolio surface.** The `ownerOnly` tab in `AppShell`,
-   the period picker (reused from `report-period.js`), the consolidated-close
-   header, the leaderboard table with column sort, and drill-down that opens the
-   existing `ReportModal` pre-scoped. *Moderate: it's the bulk of the work, but
-   it renders numbers the lib already produced.*
+2. **Phase 2 — the owner Portfolio surface. ✅ shipped.** The `ownerOnly` tab in
+   `AppShell` (also joined to the mobile bottom-nav Insights group), the period
+   picker reused from `report-period.js` (fiscal-aware, custom ranges), the
+   consolidated-close KPI header, the leaderboard table with per-column
+   sort/flip/reset (default: attention order; idle stores labeled, null rates
+   render "—"), the <2-locations empty state with an Add-a-location CTA, and
+   drill-down that opens the existing `ReportModal` pre-scoped to the store
+   *and the period being viewed* (`initialLocId` / `initialPreset` /
+   `initialRefDate` / custom bounds — new initial-state props, everything still
+   user-changeable). One bounded unscoped fetch per window, `loadError` + Retry.
 3. **Phase 3 — later / optional.** The per-employee cross-location panel promoted
    to full UI with expandable per-location splits; an optional **portfolio
    PDF/CSV** export reusing `ReportModal`'s `@react-pdf/renderer` primitives (the

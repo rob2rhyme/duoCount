@@ -22,9 +22,10 @@ If you work a shift and just need to log your counts, jump to
   no email, no password.
 - Move around with the **navigation**: on a phone, a **bottom bar** groups the
   screens into **Count** (Cash / Scratch-offs / Inventory), **Team** (Time /
-  Incidents / Notes), **Insights** (Dashboard / Log), and **Admin** (managers
-  only) — tap a group to pick a screen. On a wider screen the same screens line
-  up as a **row of tabs** across the top.
+  Incidents / Notes), **Insights** (Dashboard / Portfolio / Log), and **Admin**
+  (managers only) — tap a group to pick a screen. On a wider screen the same
+  screens line up as a **row of tabs** across the top. (**Portfolio** appears
+  for owners only.)
 - Employees **log counts**. Managers **verify** them (a second set of eyes),
   handle anything flagged, and pull **reports**.
 - The app does the arithmetic and shows **over/short** in green (over) or red
@@ -103,6 +104,14 @@ on an optional **daily email digest** (off by default), and turn on the optional
   **Incidents** (open write-ups), and **Time** (shift swaps waiting on your
   approval) — an ambient nudge toward whatever needs a second look, so nothing
   waits unseen. They clear themselves as you resolve each item.
+- **Run more than one store? Open Portfolio.** Owners with two or more locations
+  get a **Portfolio** tab: pick any period and see every store side by side —
+  total over/short, sales, scratch dollars, and shrink up top, then a
+  **leaderboard** ranked by which store needs your attention (worst
+  verification and biggest over/short first). The **O/S rate** column shows
+  over/short per sales dollar, so a big store and a small one compare fairly.
+  Tap any store to open its full report for the same period. It's read-only —
+  a way of *looking at* your counts, never changing them.
 - **Verify counts.** On the **Log** (or the entry itself), mark a count
   **verified**. You can't verify your own — that's the whole point.
 - **Watch the Dashboard.** Net over/short, short counts, charts by day, employee,
