@@ -251,8 +251,13 @@ what remains, ordered by priority:
   lotteries/brands, "not tax/legal advice", demo-data + no-warranty), surfaced
   under a new "Legal" section on `/docs`. **Still yours to do:** pick the license,
   fill in the real copyright holder + a contact point, and have a professional
-  review the privacy notice for your jurisdiction (GDPR/CCPA/etc.). Citations for
-  the market claims in `positioning-one-pager.md` remain to be added.
+  review the privacy notice for your jurisdiction (GDPR/CCPA/etc.). ~~Citations
+  for the market claims in `positioning-one-pager.md` remain to be added.~~
+  **Done:** every market claim now carries a numbered source (checked 2026-07)
+  in a "Sources & claim notes" section — vendor-published figures are flagged as
+  such, the NRF economy-wide context is cited alongside the lottery-specific
+  vendor stats, and the competitor-price cells were corrected (LottoShield
+  $79+/mo; FTx quote-based ~$89+ listings; Homebase Free–$100).
 - ✅ **Static HTML marketing page (done).** `marketing/index.html` — a
   self-contained, theme-aware landing page (the recommended §2 build), with the
   hero flow diagram shipped alongside; rendered/verified desktop + mobile. Still
@@ -263,6 +268,38 @@ what remains, ordered by priority:
   pairings in both themes; `tests/contrast.test.mjs` asserts they pass (and that a
   bad token is caught). Reproduces the hand-audited table exactly, so a token edit
   that fails AA now fails the suite. `npm run check:contrast` / `test:contrast`.
+
+## Owner action list
+
+Everything left that needs the owner — a decision, a credential, or a live
+deployment — consolidated from the notes above. Nothing here is blocked on code.
+
+1. **Pick the license + legal identity.** `LICENSE` is a conservative
+   "all rights reserved" placeholder — choose the real license (keep proprietary,
+   or MIT/Apache-2.0 for a self-host template per `distribution-analysis.md` §4),
+   set the real copyright holder + contact, and delete the in-file NOTE.
+2. **Professional privacy review.** `docs/privacy-and-data.md` and
+   `docs/legal-disclaimers.md` are accurate to the app but drafted by a
+   non-lawyer; have them reviewed for your jurisdiction (GDPR/CCPA/etc.).
+3. **Verify the emulator-gated security changes on a live project** — run
+   `npm run test:rules` (Firestore emulator) and exercise against staging:
+   session revocation (`require-manager.js`), manager self-resolve block,
+   `expectedConsistent()`, punch corrections, and the new payroll locks.
+4. **Trademark / store clearance.** USPTO + app-store search for "DuoCount"
+   (flagged pending in `positioning-one-pager.md`); register the launch domain
+   (duocount.app / getduocount.com — duocount.com is squatted).
+5. **Live-app photo screenshots** for the guides + marketing page (sign-in,
+   cash count, variance flag, report center) — needs a deployed app with the
+   demo seed loaded; the SVG diagrams cover docs until then.
+6. **AI digest narrative — on hold at your request.** When ready: approve the
+   Phase 1 build per `ai-features-spec.md` and set `ANTHROPIC_API_KEY` on the
+   deployment (feature stays off per vendor until an owner opts in).
+7. **WordPress brochure path (optional, deferred)** — decide if the §3a
+   brochure-site route in `distribution-analysis.md` is worth it once the
+   marketing page has been live for a while.
+8. **Re-verify competitor prices before printing anything** — the one-pager's
+   price cells were checked 2026-07 and move fast (`positioning-one-pager.md`
+   §Sources).
 
 ## Deferred (tier 3)
 
