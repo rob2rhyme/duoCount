@@ -55,6 +55,23 @@ export function IconCalendar(props) {
     </svg>
   );
 }
+export function IconStore(props) {
+  return (
+    <svg {...base} {...props} aria-hidden="true">
+      <path d="M4 10.5V20a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9.5" />
+      <path d="M3.5 6.5 5 3.5h14l1.5 3a2.5 2.5 0 0 1-4.75 1.15A2.5 2.5 0 0 1 12 8.5a2.5 2.5 0 0 1-3.75-.85A2.5 2.5 0 0 1 3.5 6.5z" />
+      <path d="M9.5 21v-5h5v5" />
+    </svg>
+  );
+}
+export function IconBox(props) {
+  return (
+    <svg {...base} {...props} aria-hidden="true">
+      <path d="M12 3 4 7v10l8 4 8-4V7z" />
+      <path d="M4 7l8 4 8-4M12 11v10" />
+    </svg>
+  );
+}
 
 export default function EmptyState({ icon, title, subtitle, action }) {
   return (
