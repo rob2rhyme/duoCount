@@ -6,6 +6,7 @@ import { useModalA11y } from "@/lib/use-modal-a11y";
 import Field from "./Field";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPeriodReport, buildLocationComparison } from "@/lib/report-build";
+import { buildJournalCSV } from "@/lib/report-accounting";
 import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -87,6 +88,12 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   // An empty period is a valid record too — it exports a header-only CSV.
   function downloadCsv() {
     downloadCSV(entriesToCSV(rows), `${fileBase}.csv`);
+  }
+
+  // Bookkeeper export: a balanced general journal over the same in-memory rows
+  // (buildJournalCSV is pure and unit-tested) — one entry per day×location.
+  function downloadJournalCsv() {
+    downloadCSV(buildJournalCSV(rows, range), `${fileBase}-journal.csv`);
   }
 
   // Period-native PDF for records: bounded SUMMARY tables (by location / drawer /
@@ -393,6 +400,19 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
             <button className="btn-ghost flex-1" disabled={!ready || busy} onClick={downloadCsv}>Download CSV</button>
           </div>
           <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={printReport}>Print (line-by-line)</button>
+
+          <div className="border-t border-line-soft pt-3 space-y-2">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">For the bookkeeper</div>
+            <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={downloadJournalCsv}>
+              QuickBooks journal CSV
+            </button>
+            <p className="text-[11px] text-muted leading-relaxed">
+              A balanced, double-entry journal — one entry per day and location (cash sales, lottery, paid-outs,
+              over/short, cash to deposit) — ready to import instead of re-keying the day. It&apos;s a <b>draft</b> your
+              bookkeeper reviews and posts; DuoCount is the count-of-record, never the ledger.
+            </p>
+          </div>
+
           <p className="text-[11px] text-muted">A read-only snapshot of recorded counts for the period — saved for your records.</p>
         </div>
       </div>

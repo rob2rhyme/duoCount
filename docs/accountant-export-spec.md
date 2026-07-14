@@ -4,13 +4,19 @@ title: Accountant & franchise export
 
 # DuoCount — Accountant & Franchise Export Spec
 
-**Status: analysis/design only — not built.** This is a design for the *next*
-layer on top of the shipped Reports center (`docs/reporting-spec.md`, phases 1–4):
-three accountant/franchise-shaped outputs that reuse the existing period
-aggregation (`buildPeriodReport`) and the existing PDF/CSV generation paths, add
-**no new Firestore rules**, and stay read-only. Nothing here exists in the code
-yet; the file names, functions, and formats below are the proposed design, not a
-description of shipped behavior.
+**Status: journal CSV shipped (phasing steps 1–2); bookkeeper PDF and franchise
+scaffold designed, not built.** `src/lib/report-accounting.js` ships
+`buildJournalEntries` / `buildJournalCSV` (pure, unit-tested in
+`tests/report-accounting.test.mjs`) and the Reports center has the **"For the
+bookkeeper" → QuickBooks journal CSV** button, driven by the rows already in
+memory. One shipped delta from the sketch below: the builder takes the **raw
+period entries + range** (which `ReportModal` already holds — still no new
+fetch) rather than the `buildPeriodReport` aggregate, because multi-day journals
+need per-day×location splits of paid-outs and scratch that the aggregate doesn't
+carry; a reconciliation test pins the journal's totals to `buildPeriodReport` so
+the two can't drift. Everything else — the layer on top of the shipped Reports
+center, reusing the existing period aggregation and PDF/CSV paths, adding **no
+new Firestore rules**, staying read-only — is as designed below.
 
 The three outputs:
 
@@ -363,13 +369,17 @@ produced by the tested `buildJournalCSV` shaping, so the numbers are covered.
 
 ## Phasing
 
-1. **Journal CSV core + tests (pure; no UI risk).** `src/lib/report-accounting.js`
-   `buildJournalCSV`, the baked-in default account map, and
-   `tests/report-accounting.test.mjs`. Ships the accounting logic first, exactly as
-   the reporting spec shipped its period math first. *~1 day incl. tests; the risk is
-   correctness of the mapping, not code volume.*
-2. **Wire the QuickBooks CSV button** into `ReportModal`'s new Accountant group
-   (reusing `downloadCSV` + the in-memory `report`). *~0.5 day.*
+1. **Journal CSV core + tests (pure; no UI risk). ✅ shipped.**
+   `src/lib/report-accounting.js` — `buildJournalEntries` (structured groups,
+   reused later by the PDF preview) + `buildJournalCSV`, the baked-in
+   `DEFAULT_ACCOUNTS` map (overridable per call), and
+   `tests/report-accounting.test.mjs` (14 cases: the balance-per-`JournalNo`
+   invariant incl. the negative-plug flip, Dr/Cr sign placement, raw-money
+   format, injection guard, empty-period header-only, account-map override, and
+   the reconciliation pin to `buildPeriodReport`).
+2. **Wire the QuickBooks CSV button. ✅ shipped.** The "For the bookkeeper"
+   group in `ReportModal` (reusing `downloadCSV` + the in-memory rows), with the
+   draft-not-ledger framing; filename `…-journal.csv`.
 3. **Close-of-day bookkeeper PDF.** `downloadBookkeeperPdf()` reusing the existing
    `@react-pdf/renderer` path with the reconciliation + JE-preview layout; the
    optional `Σ start` opening-float aggregate in `buildPeriodReport` if we want that

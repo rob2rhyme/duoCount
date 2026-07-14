@@ -36,6 +36,7 @@
     "test:attention": "node --test tests/attention.test.mjs",
     "test:import": "node --test tests/import-parse.test.mjs",
     "test:portfolio": "node --test tests/portfolio-rollup.test.mjs",
+    "test:report-accounting": "node --test tests/report-accounting.test.mjs",
     "test:contrast": "node --test tests/contrast.test.mjs",
     "check:contrast": "node scripts/contrast-check.mjs"
   },
