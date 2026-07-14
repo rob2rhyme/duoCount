@@ -226,6 +226,10 @@ bin 4 running low." Managers can pin the important ones.
 
 ## Handy tips
 
+- **It remembers your spot.** Each count form starts on the **location and
+  drawer you used last** and guesses **opening vs closing** from the time of day
+  (opening in the morning, closing from mid-afternoon) — so most counts are
+  pre-filled and you just enter the number. Change any of it whenever you need.
 - **Your saves are safe.** The **Save** button stays off until the count is
   actually filled in (so you can't save an empty drawer by accident), and if a
   save ever fails — a dead spot, a dropped signal — a red **"Couldn't save"** bar

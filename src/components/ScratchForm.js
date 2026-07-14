@@ -3,6 +3,7 @@ import { useEffect, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { validateScratch } from "@/lib/count-validation";
+import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
 import SaveError from "./SaveError";
@@ -15,7 +16,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   const { profile, vendor, isManager } = useSession();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
-    date: today(), shift: "open", locationId: "", drawerId: "",
+    date: today(), shift: defaultShift(new Date().getHours()), locationId: "", drawerId: "",
     game: "", pack: "", price: "", startno: "", endno: "",
   });
   const { busy, error, run } = useSaveState();
@@ -24,8 +25,9 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
 
   useEffect(() => {
-    if (!f.locationId && (lockedLoc || locations[0]))
-      setF((p) => ({ ...p, locationId: lockedLoc || locations[0].id }));
+    if (f.locationId || !(lockedLoc || locations[0])) return;
+    const remembered = lockedLoc || pickRemembered(loadContext(vendor.id, profile.id).locationId, locations);
+    setF((p) => ({ ...p, locationId: remembered }));
   }, [locations, lockedLoc]); // eslint-disable-line
 
   // Last-count prefill: when the pack (scanned or typed) matches an earlier
@@ -50,11 +52,13 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   }, [f.pack, f.locationId]); // eslint-disable-line
 
   const locDrawers = drawers.filter((d) => d.active !== false && d.locationId === f.locationId);
-  // default drawer: prefer one named like "Lottery"
+  // default drawer: the one last used for scratch here if valid, else one named like "Lottery"
   useEffect(() => {
     if (locDrawers.length && !locDrawers.some((d) => d.id === f.drawerId)) {
-      const lot = locDrawers.find((d) => /lott/i.test(d.name)) || locDrawers[0];
-      setF((p) => ({ ...p, drawerId: lot.id }));
+      const rememberedId = loadContext(vendor.id, profile.id).scratchDrawerId;
+      const pick = locDrawers.find((d) => d.id === rememberedId)
+        || locDrawers.find((d) => /lott/i.test(d.name)) || locDrawers[0];
+      setF((p) => ({ ...p, drawerId: pick.id }));
     }
   }, [f.locationId, drawers]); // eslint-disable-line
 
@@ -75,6 +79,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       price: Number(f.price) || 0, startno: Number(f.startno) || 0, endno: Number(f.endno) || 0,
       sold, dollars, by: profile.name, byId: profile.id, byRole: profile.role,
     });
+    saveContext(vendor.id, profile.id, { locationId: f.locationId, scratchDrawerId: drawer.id });
     setF((p) => ({ ...p, pack: "", startno: "", endno: "" }));
     onSaved?.("Scratch-off entry signed & saved");
   }
