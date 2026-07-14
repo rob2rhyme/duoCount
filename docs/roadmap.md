@@ -56,6 +56,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Time-level lateness** (arrivals >10 min past the scheduled start on the Attendance card, with minutes; nearest-in-punch pairing bounded by the shift's duration, overnight-safe, pure + unit-tested) | `src/lib/schedule.js` `lateArrivals`, `time-clock-spec.md` §lib | ✅ |
 | **Pay-period approval / payroll lock** (manager approves a finished week — freezes timesheet corrections via per-day lock docs enforced in the rules; owner-audited release, manager re-approve; Payroll approval card + locked pills in the timesheet) | `firestore.rules` `payrollLocks`, `src/lib/payroll-lock.js`, `time-clock-spec.md` §Pay-period approval | ✅ |
 | **AI digest narrative — Phases 1 & 2 (shipped dark)** (opt-in per vendor, off by default; redacts/pseudonymizes names before egress, builds a cacheable prompt, calls `claude-haiku-4-5` server-side, renders an escaped narrative block above the digest table; additive — any failure sends the plain digest. **Phase 2:** owner toggle in Admin → Business settings + `privacy-and-data.md` disclosure) | `src/lib/digest-narrative.js`, `src/lib/digest.js`, `src/components/AdminPanel.js`, `ai-features-spec.md` | ✅ |
+| **First-run onboarding + zero-config empty states** (Tier 1: dismissible manager-only setup checklist tracking location + drawer essentials plus an optional items step, with guiding EmptyState cards on the Cash/Scratch/Inventory tabs that route managers to Admin and reassure employees; pure `setupProgress` derivation, unit-tested; empty states gated on first-snapshot load so existing stores never flash one; no schema/rules change) | `src/lib/setup-progress.js`, `src/components/SetupChecklist.js`, `EmptyState.js`, `AppShell.js`, `competitive-gap-analysis.md` | ✅ |
 
 ## Next up
 
@@ -236,9 +237,14 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
 + multi-store + i18n — **not** more AI.
 
 ### Tier 1 — quick wins (pure UI on existing reads; save the trial)
-- **First-run onboarding + zero-config empty states** — a setup checklist that
-  routes a new owner to Admin and teaches the location→drawer→staff order, with
-  EmptyState CTAs on the count tabs. *(built in the enhancement PRs)*
+- **First-run onboarding + zero-config empty states — ✅ done** — a dismissible
+  setup checklist (managers only) that tracks the two essentials (location +
+  drawer) plus an optional inventory-items step and routes to Admin, backed by
+  guiding EmptyState cards on the Cash / Scratch / Inventory tabs (manager → "Set
+  up in Admin →"; employee → "ask your manager"). Pure derivation in
+  `src/lib/setup-progress.js` (unit-tested); no schema or rules change; empty
+  states only appear once the snapshots have loaded, so an existing store never
+  flashes one. `SetupChecklist.js`, `EmptyState.js`, `AppShell.js`.
 - **Everyday-usability bundle** — mobile bottom nav, inline validation
   (disable-until-valid + focus the bad field), persistent/retryable save errors,
   smart shift default + remembered location/drawer, inventory fast-path, 44px scan

@@ -13,6 +13,9 @@ import AdminPanel from "./AdminPanel";
 import TimeClock from "./TimeClock";
 import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
+import SetupChecklist from "./SetupChecklist";
+import EmptyState, { IconStore, IconReceipt, IconBox } from "./EmptyState";
+import { setupProgress } from "@/lib/setup-progress";
 import { resolveShortcut } from "@/lib/shortcuts";
 import { PRODUCT } from "@/lib/store";
 
@@ -41,6 +44,10 @@ export default function AppShell() {
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
+  // Tracks whether the location/drawer/item snapshots have each landed once, so
+  // the onboarding empty-states only appear after we truly know the store is
+  // empty — never as a flash while an existing vendor's data is still loading.
+  const [loaded, setLoaded] = useState({ locations: false, drawers: false, items: false });
 
   // First name only for the tiny-screen header pill (full name returns at ≥sm).
   const firstName = (profile.name || "").trim().split(/\s+/)[0] || profile.name;
@@ -53,9 +60,9 @@ export default function AppShell() {
 
   useEffect(() => {
     const u1 = watchEntries(vendor.id, lockedLoc, setEntries);
-    const u2 = watchLocations(vendor.id, setLocations);
-    const u3 = watchDrawers(vendor.id, setDrawers);
-    const u4 = watchItems(vendor.id, setItems);
+    const u2 = watchLocations(vendor.id, (v) => { setLocations(v); setLoaded((p) => (p.locations ? p : { ...p, locations: true })); });
+    const u3 = watchDrawers(vendor.id, (v) => { setDrawers(v); setLoaded((p) => (p.drawers ? p : { ...p, drawers: true })); });
+    const u4 = watchItems(vendor.id, (v) => { setItems(v); setLoaded((p) => (p.items ? p : { ...p, items: true })); });
     const u5 = watchNotes(vendor.id, lockedLoc, setNotes);
     const u6 = watchPacks(vendor.id, setPacks);
     // Write-ups: employees may only query incidents where they're the subject.
@@ -84,6 +91,15 @@ export default function AppShell() {
 
   const tabs = TABS.filter((t) => !t.managerOnly || isManager);
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
+
+  // First-run onboarding: derive what's set up, and only trust "empty" once the
+  // relevant snapshots have arrived (so existing stores never flash an empty
+  // state). The count tabs fall back to a guiding EmptyState until their
+  // prerequisites exist; the checklist banner steers managers to Admin.
+  const setup = setupProgress(locations, drawers, items);
+  const setupReady = loaded.locations && loaded.drawers && loaded.items;
+  const goAdmin = () => setTab("admin");
+  const adminAction = isManager ? { onClick: goAdmin, label: "Set up in Admin →" } : undefined;
 
   // Keyboard shortcuts for desktop power users. Digits jump to a tab, [ / ]
   // step through them, ⌘/Ctrl+Enter saves the visible form, ? toggles help.
@@ -140,6 +156,11 @@ export default function AppShell() {
           ))}
         </div>
 
+        {setupReady && tab !== "admin" && (
+          <SetupChecklist locations={locations} drawers={drawers} items={items}
+            isManager={isManager} vendorId={vendor.id} onGoAdmin={goAdmin} />
+        )}
+
         {showLocFilter && (
           <div className="mb-4">
             <select className="input" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
@@ -150,13 +171,49 @@ export default function AppShell() {
         )}
 
         {tab === "cash" && (
-          <CashForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
+          setupReady && !setup.hasLocation ? (
+            <EmptyState icon={<IconStore />} title="No store location yet" action={adminAction}
+              subtitle={isManager
+                ? "Add your first store location in Admin, then a cash drawer — then your team can start counting."
+                : "Your manager is still setting up this store. Counting opens up once a location and drawer exist."} />
+          ) : setupReady && !setup.hasDrawer ? (
+            <EmptyState icon={<IconReceipt />} title="No cash drawer yet" action={adminAction}
+              subtitle={isManager
+                ? "Add a cash drawer or register in Admin, then you can record the open and close counts."
+                : "Your manager needs to add a cash drawer before counts can be recorded here."} />
+          ) : (
+            <CashForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
+          )
         )}
         {tab === "scratch" && (
-          <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} packs={packs} />
+          setupReady && !setup.hasLocation ? (
+            <EmptyState icon={<IconStore />} title="No store location yet" action={adminAction}
+              subtitle={isManager
+                ? "Add a store location and a drawer in Admin, then you can log scratch-off packs here."
+                : "Your manager is still setting up this store. Scratch-off logging opens up once a location and drawer exist."} />
+          ) : setupReady && !setup.hasDrawer ? (
+            <EmptyState icon={<IconReceipt />} title="No drawer yet" action={adminAction}
+              subtitle={isManager
+                ? "Add a drawer or register in Admin (a lottery drawer works well), then you can log packs."
+                : "Your manager needs to add a drawer before scratch-off packs can be logged."} />
+          ) : (
+            <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} packs={packs} />
+          )
         )}
         {tab === "inventory" && (
-          <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
+          setupReady && !setup.hasLocation ? (
+            <EmptyState icon={<IconStore />} title="No store location yet" action={adminAction}
+              subtitle={isManager
+                ? "Add a store location in Admin, then add the items you want to track."
+                : "Your manager is still setting up this store. Inventory counts open up once items are added."} />
+          ) : setupReady && !setup.hasItem ? (
+            <EmptyState icon={<IconBox />} title="No items to track yet" action={adminAction}
+              subtitle={isManager
+                ? "Add the stock you want to watch — cigarettes, vapes, anything high-shrink — in Admin."
+                : "Your manager hasn't added any inventory items to track yet."} />
+          ) : (
+            <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
+          )
         )}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}

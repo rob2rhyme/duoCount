@@ -47,6 +47,16 @@ If you work a shift and just need to log your counts, jump to
 
 ### 2. Set the store up (Admin tab)
 
+> **You'll be guided.** The first time you sign in to a brand-new store, a
+> **"Welcome — let's set up your store"** checklist sits at the top of the
+> screen and tracks the two essentials — **a location** and **a cash drawer** —
+> plus an optional **inventory items** step. Each **Set up in Admin →** button
+> jumps you straight to the right place. Until those essentials exist, the Cash,
+> Scratch-off, and Inventory tabs show a short "here's what's missing" card
+> instead of an empty form, so you always know the next step. Once the two
+> essentials are in place the checklist gets out of the way (you can dismiss the
+> leftover inventory nudge if you're cash-only).
+
 Open **Admin** and add the pieces your team will pick from when they count:
 
 - **Locations** — each physical store (skip if you have just one).
@@ -141,6 +151,10 @@ off changes nothing about how DuoCount works.
 
 Type the **store code** your manager gave you and **your own PIN**, then
 **Sign in**. That's it — your name is attached to everything you log.
+
+> **See "ask your manager to finish setup"?** That just means your manager
+> hasn't added a location, drawer, or the items yet — there's nothing for you to
+> fix. Counting opens up as soon as they do.
 
 ### Log a cash-drawer count
 
