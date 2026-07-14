@@ -4,13 +4,20 @@ title: AI features — natural-language log search
 
 # DuoCount — AI Log Search Spec (feature 2)
 
-**Status:** analysis / design only — **no application code in this item.** This
-is the build spec for the second AI feature named in `ai-features-spec.md`
-(§"Out of scope / later") and `distribution-analysis.md` §1.1: **natural-language
-log search**. It graduates that pointer into concrete integration points, a data
-shape, guardrails, failure handling, tests, and a phased plan, so the feature can
-be picked up cleanly behind an owner opt-in. Nothing here changes app behavior
-yet.
+**Status: Phase 1 core built (shipped dark); the "Ask" UI is the next slice.**
+Built so far — the shared pure filter `src/lib/log-filter.js` (`applyLogFilter`,
+with `LogList` refactored onto it, behavior-preserving), the server-only
+`src/lib/log-search.js` (`buildVocabulary` / `buildSearchPrompt` / `coerceFilter`
+pure + unit-tested; `interpretQuery` I/O wrapper; `aiSearchEnabled` gate), the
+`POST /api/log-search` route (manager-gated, server-enforced opt-in), and the
+tests (`npm run test:log-filter` — a 560-combo matrix pins the refactor to the
+old behavior — and `npm run test:log-search`). The route and lib are **dark**:
+no UI calls them yet and `vendor.aiSearch` defaults off, so the Log tab is
+unchanged. **Still to build:** the "Ask" affordance in `LogList` that calls the
+route and applies the returned filter (Phase 1 UI), then the owner toggle +
+`privacy-and-data.md` disclosure (Phase 2). This remains the build spec for the
+second AI feature named in `ai-features-spec.md` (§"Out of scope / later") and
+`distribution-analysis.md` §1.1.
 
 **Why it's separate from the digest narrative.** The narrative (feature 1, built)
 is a *batch* feature that **writes prose about** the day's aggregates, so it
@@ -237,9 +244,12 @@ thin I/O wrapper isn't.
 1. **Phase 1 — mechanics, shipped dark.** `log-filter.js` (+ `LogList` refactored
    onto it, behavior-preserving), `log-search.js`, the `/api/log-search` route,
    the `vendor.aiSearch` gate, the "Ask" UI with keyword fallback, and the unit
-   tests. Flag defaults off, so the Log tab is unchanged for every vendor. Verify
-   the refactor is behavior-preserving (the existing filters still work) and, with
-   a key, spot-check routing against a pilot store.
+   tests. Flag defaults off, so the Log tab is unchanged for every vendor.
+   - ✅ **built:** the shared filter + refactor (matrix-tested), `log-search.js`,
+     the route, the gate, and the tests.
+   - ⏳ **remaining:** the "Ask" affordance in `LogList` (calls the route, applies
+     the filter, shows an "Interpreted as…" chip, falls back to keyword search on
+     null). Then, with a key, spot-check routing against a pilot store.
 2. **Phase 2 — owner UX + disclosure.** The `vendor.aiSearch` toggle in Admin →
    Business settings ("Natural-language log search — off by default") with the
    data-handling note, and the matching `privacy-and-data.md` paragraph.
