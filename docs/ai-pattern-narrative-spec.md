@@ -4,12 +4,22 @@ title: AI features — in-app pattern narrative
 
 # DuoCount — AI Pattern-Narrative Spec (feature 3)
 
-**Status:** analysis / design only — **no application code in this item.** This
-is the build spec for the third AI feature named in `ai-features-spec.md`
-(§Phasing) and `distribution-analysis.md` §1.1: an **in-app narrative over the
-Dashboard's pattern alerts**. It graduates that pointer into concrete integration
-points, a data shape, guardrails, failure handling, tests, and a phased plan.
-Nothing here changes app behavior yet.
+**Status: Phase 1 built (shipped dark); Phase 2 (owner toggle + disclosure)
+pending.** Built — the reused digest core factored into a shared
+`runNarrative(redacted, ctx)` (behavior-preserving for the cron), `redactForModel`
+reused as-is, the pure `buildInsightSummary(patterns, counts)` + `aiInsightsEnabled`
+gate, the manager-gated `POST /api/pattern-narrative` route (server-enforced
+opt-in, redacts names server-side), the "Explain these signals" button on the
+Dashboard's Patterns card (shown only when `vendor.aiInsights` is on; result
+cached per pattern-set; React auto-escapes the model text), and the tests
+(`npm run test:insight`; the digest's 9 tests still pass, confirming the
+extraction is behavior-preserving). Off by default — with the flag off the
+Dashboard is unchanged. **Still to build (Phase 2):** the `vendor.aiInsights`
+owner toggle in Admin (+ the one-key `firestore.rules` allow-list entry) and the
+`privacy-and-data.md` disclosure. **Also open:** live model-call verification
+against a pilot (needs a real key + deploy). This is the build spec for the third
+AI feature named in `ai-features-spec.md` (§Phasing) and `distribution-analysis.md`
+§1.1.
 
 **Relationship to the shipped AI features.** This is the **in-app twin of the
 digest narrative** (feature 1, built): both summarize the same pattern signals in
@@ -170,16 +180,18 @@ Reuses the digest narrative's test posture and, where possible, its tests.
 
 ## Phasing
 
-1. **Phase 1 — mechanics + button, shipped dark.** `buildInsightSummary`, the
-   `runNarrative` extraction (shared with the cron), the `/api/pattern-narrative`
-   route, the `vendor.aiInsights` gate, the "Explain these signals" button with
-   its cached result, and the tests. Flag defaults off, so the Dashboard is
-   unchanged. Verify the reuse is behavior-preserving for the digest (the cron
-   still sends the same narrative) and, with a key, spot-check the in-app readout.
+1. **Phase 1 — mechanics + button, shipped dark. ✅ built.** `buildInsightSummary`,
+   the `runNarrative` extraction (shared with the cron — the digest's tests still
+   pass, so it's behavior-preserving), the `/api/pattern-narrative` route, the
+   `vendor.aiInsights` gate, the "Explain these signals" button with its cached
+   result, and the tests. Flag defaults off, so the Dashboard is unchanged. With a
+   key + the flag on, spot-check the in-app readout (the only part not exercisable
+   in-repo).
 2. **Phase 2 — owner UX + disclosure.** The `vendor.aiInsights` toggle in Admin →
    Business settings ("AI insight on the Dashboard — off by default") with the
-   data-handling note, grouped with the other AI toggles, and the matching
-   `privacy-and-data.md` paragraph.
+   data-handling note, grouped with the other AI toggles, the one-key
+   `firestore.rules` allow-list entry, and the matching `privacy-and-data.md`
+   paragraph.
 3. **Phase 3 — later.** Features 4–5 (variance-note assist, incident write-up
    assist) — the human-in-the-loop drafting features — stay deferred until the
    opt-in/consent UX across features 1–3 is proven on a live pilot, then each gets

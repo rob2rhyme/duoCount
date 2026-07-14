@@ -41,7 +41,7 @@ security rules keyed on server-issued auth claims.
   - `ai-log-search-spec.md` — spec for opt-in natural-language log search
     (Phases 1 & 2 built, shipped dark)
   - `ai-pattern-narrative-spec.md` — spec for the opt-in in-app pattern narrative
-    on the Dashboard (analysis/design only, not built)
+    on the Dashboard (Phase 1 built, shipped dark; owner toggle is the next slice)
   - `theme-accessibility-audit.md` — measured WCAG AA contrast audit across
     both themes, with the failures found and the token fixes shipped
   - `roadmap.md` — what's shipped, what's next, and what's deferred

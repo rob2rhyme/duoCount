@@ -140,6 +140,10 @@ export function buildNarrativePrompt(redacted, vendorContext = {}) {
   const payload = {
     date: vendorContext.date,
     windowDays: vendorContext.windowDays ?? redacted?.windowDays,
+    // Optional surface hint (e.g. "dashboard") for the in-app pattern narrative
+    // (ai-pattern-narrative-spec.md). Only added when provided, so the digest
+    // payload — and its shared cacheable prefix — stays byte-identical.
+    ...(vendorContext.surface ? { surface: vendorContext.surface } : {}),
     ...redacted,
   };
   return {
@@ -157,14 +161,40 @@ export function aiNarrativeEnabled(vendor) {
 }
 
 /**
- * The thin I/O wrapper: redact → build prompt → call the model → return
- * { summary, watch } or null. NEVER throws into the caller — any failure
- * (feature off, SDK missing, network/schema/timeout) degrades to null, and the
- * digest sends without the block. Not unit-tested here (network I/O, same
- * posture as sendEmail); exercised via the owner "send test digest" button.
+ * Opt-in for the in-app pattern narrative on the Dashboard
+ * (ai-pattern-narrative-spec.md). Separate flag from the digest's — turning one
+ * AI surface on must never enable another. Also requires the key.
  */
-export async function generateNarrative(summary, vendor, { signal, date } = {}) {
-  if (!aiNarrativeEnabled(vendor)) return null;
+export function aiInsightsEnabled(vendor) {
+  return vendor?.aiInsights === true && !!process.env.ANTHROPIC_API_KEY;
+}
+
+/**
+ * Shape the Dashboard's on-screen `patterns` + headline counts into the same
+ * `summary` object `redactForModel` consumes, so the in-app narrative reuses the
+ * digest core unchanged. Pure. An empty pattern list yields an empty-but-valid
+ * summary.
+ */
+export function buildInsightSummary(patterns, { openVariances, openDisputes, unverified, windowDays } = {}) {
+  const summary = {
+    patterns: Array.isArray(patterns) ? patterns : [],
+    openVariances: Number(openVariances) || 0,
+    openDisputes: Number(openDisputes) || 0,
+    unverified: Number(unverified) || 0,
+    locations: [],
+  };
+  if (Number.isFinite(Number(windowDays))) summary.windowDays = Number(windowDays);
+  return summary;
+}
+
+/**
+ * The thin I/O wrapper, shared by the digest cron and the pattern-narrative
+ * route: build prompt from an already-redacted payload → call the model →
+ * return { summary, watch } or null. NEVER throws — any failure (SDK missing,
+ * network/schema/timeout) degrades to null. Not unit-tested here (network I/O,
+ * same posture as sendEmail).
+ */
+export async function runNarrative(redacted, { signal, date, surface } = {}) {
   try {
     let Anthropic;
     try {
@@ -173,8 +203,7 @@ export async function generateNarrative(summary, vendor, { signal, date } = {}) 
       return null; // SDK not installed — stay inert
     }
 
-    const { redacted } = redactForModel(summary);
-    const { system, messages } = buildNarrativePrompt(redacted, { date, windowDays: summary?.windowDays });
+    const { system, messages } = buildNarrativePrompt(redacted, { date, windowDays: redacted?.windowDays, surface });
 
     const client = new Anthropic(); // reads ANTHROPIC_API_KEY from env
     const resp = await client.messages.create(
@@ -202,7 +231,18 @@ export async function generateNarrative(summary, vendor, { signal, date } = {}) 
     if (!out.summary && out.watch.length === 0) return null;
     return out;
   } catch (e) {
-    console.error("digest narrative failed:", e?.message || e);
+    console.error("narrative failed:", e?.message || e);
     return null;
   }
+}
+
+/**
+ * The digest narrative: gate → redact → run. Behavior-preserving over the prior
+ * inline implementation (same redact → same prompt → same call). Returns
+ * { summary, watch } or null; the digest sends without the block on null.
+ */
+export async function generateNarrative(summary, vendor, { signal, date } = {}) {
+  if (!aiNarrativeEnabled(vendor)) return null;
+  const { redacted } = redactForModel(summary);
+  return runNarrative(redacted, { signal, date });
 }
