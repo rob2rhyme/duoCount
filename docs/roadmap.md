@@ -59,6 +59,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **First-run onboarding + zero-config empty states** (Tier 1: dismissible manager-only setup checklist tracking location + drawer essentials plus an optional items step, with guiding EmptyState cards on the Cash/Scratch/Inventory tabs that route managers to Admin and reassure employees; pure `setupProgress` derivation, unit-tested; empty states gated on first-snapshot load so existing stores never flash one; no schema/rules change) | `src/lib/setup-progress.js`, `src/components/SetupChecklist.js`, `EmptyState.js`, `AppShell.js`, `competitive-gap-analysis.md` | ✅ |
 | **Trustworthy saves** (Tier 1 usability: every count form disables **Save** until its required inputs are entered — pure, unit-tested `count-validation.js` shared by cash/scratch/inventory — and a failed save becomes a *persistent, retryable* error bar via `useSaveState` + `SaveError`, replacing the ~2.2s toast that could hide a lost save on flaky wifi; a "0" count stays valid, the denomination counter satisfies the cash requirement) | `src/lib/count-validation.js`, `src/lib/use-save-state.js`, `src/components/SaveError.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
 | **Smart count defaults** (Tier 1 usability: each count form opens on the location + drawer this person last used — remembered per vendor+user in `localStorage` — and guesses opening/closing from the time of day; pure, unit-tested `defaultShift` + `pickRemembered`; cash and scratch remember their own drawer so they never cross-fill; memory is a nicety, never load-bearing) | `src/lib/count-context.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js` | ✅ |
+| **Inventory fast-path** (Tier 1 usability: the Inventory form leads with a single **Counted on hand** field and collapses start/received/sold/removed into an optional **Movement details** expander — flagged with a dot when filled — so an everyday recount is one number, not five; expected still computes from the prefilled last count) | `src/components/InventoryForm.js` | ✅ |
 
 ## Next up
 
@@ -257,8 +258,12 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     and guesses opening/closing from the time of day, so most counts start
     pre-filled. Pure `defaultShift` / `pickRemembered` (unit-tested); cash and
     scratch remember their own drawer so they don't cross-fill.
-  - *Next slices:* mobile bottom nav; inventory fast-path; 44px scan targets +
-    promoted power features.
+  - **Inventory fast-path — ✅ done** — the Inventory form leads with a single
+    **Counted on hand** field and tucks start/received/sold/removed behind an
+    optional **Movement details** expander (a dot flags it when filled), so an
+    everyday recount is one number instead of five.
+  - *Next slices:* mobile bottom nav; 44px scan targets + promoted power
+    features.
 - **Manager attention-badges** on Log / Incidents / Time from existing
   subscriptions.
 
