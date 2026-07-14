@@ -64,6 +64,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Bigger touch targets + promoted power features** (Tier 1 usability, completing the everyday bundle: barcode scan buttons are 44px targets with aria-labels; the cash denomination counter is a full-width labelled toggle instead of a tiny text link; the Dashboard **Reports & export** is a 44px button) | `CashForm.js`, `ScratchForm.js`, `InventoryForm.js`, `Dashboard.js` | ✅ |
 | **Manager attention-badges** (Tier 1, completes the tier: ambient amber counts on Log — unresolved variances/disputes — Incidents — open write-ups — and Time — swaps awaiting approval — shown on both the top strip and the bottom-nav groups; pure, unit-tested `attentionCounts` over already-watched data plus a manager-only swap-board subscription; employees see none) | `src/lib/attention.js`, `AppShell.js`, `BottomNav.js` | ✅ |
 | **CSV bulk import — Phase 1 (items)** (Tier 2, first unit: owner-only "Import / migrate" card that parses a CSV in the browser, fuzzy-guesses the column mapping, shows a live per-row dry-run preview, and commits through `POST /api/import` on the Admin SDK — which re-validates against live state, so the preview never gates a write. Idempotent: matches existing items by name/barcode+location → update or skip, never duplicates; `source`/`importBatchId` tagged; pure, unit-tested `parseCsv`/`guessMapping`/`validateItems`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js`, `AdminPanel.js`, `bulk-import-spec.md` | ✅ |
+| **CSV bulk import — Phase 2 (staff)** (Tier 2: the Import card gains an Items/Staff switch and a `validateStaff` path — names/roles/locations/emails with **optional** 6-digit PINs. The route reuses the `/api/staff` write path: store-wide PIN uniqueness re-checked at commit (hashed), owner rows rejected, employees require a location, an existing person matched by name is updated (role/location/email) but never duplicated and their PIN never re-hashed, and an imported role change revokes refresh tokens. Pure, unit-tested `validateStaff`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js` | ✅ |
 
 ## Next up
 
@@ -286,8 +287,12 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     CSV, map columns, live per-row dry-run preview, commit through
     `POST /api/import` (Admin SDK, re-validated server-side). Idempotent
     (matches existing items → update/skip, never duplicates); no rules change.
-  - *Next:* Phase 2 staff (via the `/api/staff` write path), Phase 3 opening
-    baselines (write-once-per-item, append-only-safe).
+  - **Phase 2 — staff — ✅ done** — the same card gains an Items/Staff switch and
+    a `validateStaff` path: names/roles/locations/emails with **optional PINs**
+    (6-digit, store-wide unique, re-checked server-side; blank = no creds set),
+    owner rows rejected, employees need a location, and an existing person
+    (matched by name) is updated — never duplicated, PIN never re-hashed.
+  - *Next:* Phase 3 opening baselines (write-once-per-item, append-only-safe).
 - **Multi-store owner rollup** — `multi-store-rollup-spec.md`
 - **Accountant / franchise exports** — `accountant-export-spec.md`
 - **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`

@@ -71,11 +71,15 @@ Open **Admin** and add the pieces your team will pick from when they count:
   manager), and a **PIN**. Share the store code with them.
 
 > **Switching from a spreadsheet?** Owners get an **Import / migrate** card in
-> **Admin**: upload a **CSV** of your tracked items (from Excel, your old POS, a
-> spreadsheet), match your columns to DuoCount's fields — it guesses most for you
-> — and review a **row-by-row preview** before anything is written. Re-running is
-> safe: items already in your catalog are matched and updated, never duplicated.
-> (Staff and opening shelf counts import are coming next.)
+> **Admin** that imports either your **tracked items** or your **staff roster**
+> from a **CSV** (from Excel, your old POS, a spreadsheet). Pick **Items** or
+> **Staff**, upload the file, match your columns to DuoCount's fields — it guesses
+> most for you — and review a **row-by-row preview** before anything is written.
+> Re-running is safe: a record already in your store is matched and updated, never
+> duplicated. **Staff PINs are optional** — import names, roles, and locations
+> now, then set each person's PIN in Admin (or let them set it at first sign-in);
+> an existing person's PIN is never changed by import, and owner rows are never
+> imported. (Importing opening shelf counts is coming next.)
 
 > **Just exploring?** In **Admin**, under **Demo data**, the owner sees a **Load
 > sample data** button. It fills the app with realistic sample counts, staff, and

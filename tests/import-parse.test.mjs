@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCsv, guessMapping, validateItems, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
+import { parseCsv, guessMapping, validateItems, validateStaff, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
 
 /* ------------------------------ parseCsv ------------------------------ */
 
@@ -157,4 +157,91 @@ test("validateItems: full mapping over a small file tallies a correct summary", 
   );
   const { summary } = validateItems(rows, mapAll, ctx);
   assert.deepEqual(summary, { create: 1, update: 0, skip: 1, error: 1 });
+});
+
+/* ----------------------------- validateStaff ----------------------------- */
+
+const staffCtx = {
+  locations: [{ id: "l1", name: "Main St", active: true }],
+  existingStaff: [],
+  defaultLocationId: "l1",
+};
+const staffMap = { name: "name", role: "role", pin: "pin", location: "location", email: "email" };
+
+test("validateStaff: an employee with a valid 6-digit PIN is a create that sets a PIN", () => {
+  const { rows, summary } = validateStaff(rowsOf({ name: "Sam Rivera", role: "employee", pin: "428193" }), { name: "name", role: "role", pin: "pin" }, staffCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.hasPin, true);
+  assert.equal(rows[0].fields.locationId, "l1"); // defaulted
+  assert.match(rows[0].messages.join(" "), /sign-in PIN/i);
+  assert.deepEqual(summary, { create: 1, update: 0, skip: 0, error: 0 });
+});
+
+test("validateStaff: a PIN is optional — no PIN still creates, with a hint", () => {
+  const { rows } = validateStaff(rowsOf({ name: "Pat Lee", role: "employee" }), { name: "name", role: "role" }, staffCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.hasPin, false);
+  assert.match(rows[0].messages.join(" "), /no pin/i);
+});
+
+test("validateStaff: an owner row is an error (never importable)", () => {
+  const { rows } = validateStaff(rowsOf({ name: "Boss", role: "owner" }), { name: "name", role: "role" }, staffCtx);
+  assert.equal(rows[0].status, "error");
+  assert.match(rows[0].messages.join(" "), /owner/i);
+});
+
+test("validateStaff: an unknown role is an error", () => {
+  const { rows } = validateStaff(rowsOf({ name: "Xander", role: "cashier" }), { name: "name", role: "role" }, staffCtx);
+  assert.equal(rows[0].status, "error");
+});
+
+test("validateStaff: a bad PIN (not 6 digits) errors; a bad email errors", () => {
+  const badPin = validateStaff(rowsOf({ name: "Ann Poe", pin: "12" }), { name: "name", pin: "pin" }, staffCtx);
+  assert.equal(badPin.rows[0].status, "error");
+  const badEmail = validateStaff(rowsOf({ name: "Ann Poe", email: "nope" }), { name: "name", email: "email" }, staffCtx);
+  assert.equal(badEmail.rows[0].status, "error");
+});
+
+test("validateStaff: a duplicate PIN within the file errors on the second row", () => {
+  const { rows } = validateStaff(rowsOf({ name: "Ann Poe", pin: "111111" }, { name: "Bob Ray", pin: "111111" }), { name: "name", pin: "pin" }, staffCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[1].status, "error");
+  assert.match(rows[1].messages.join(" "), /line 2/);
+});
+
+test("validateStaff: an employee needs a location when the store has more than one", () => {
+  const ctx = { locations: [{ id: "l1", name: "A", active: true }, { id: "l2", name: "B", active: true }], existingStaff: [] };
+  const emp = validateStaff(rowsOf({ name: "Ann Poe", role: "employee" }), { name: "name", role: "role" }, ctx);
+  assert.equal(emp.rows[0].status, "error");
+  // a manager may be all-locations (no location needed)
+  const mgr = validateStaff(rowsOf({ name: "Mia Fox", role: "manager" }), { name: "name", role: "role" }, ctx);
+  assert.equal(mgr.rows[0].status, "create");
+  assert.equal(mgr.rows[0].fields.locationId, null);
+});
+
+test("validateStaff: matches an existing member by name → update on change, PIN never touched", () => {
+  const ctx = { ...staffCtx, existingStaff: [{ id: "u1", name: "Sam Rivera", role: "employee", locationId: "l1", email: null, active: true }] };
+  const upd = validateStaff(rowsOf({ name: "sam rivera", role: "manager", pin: "999999" }), { name: "name", role: "role", pin: "pin" }, ctx);
+  assert.equal(upd.rows[0].status, "update");
+  assert.equal(upd.rows[0].fields.id, "u1");
+  assert.match(upd.rows[0].messages.join(" "), /unchanged/i); // PIN left unchanged
+});
+
+test("validateStaff: a row matching an existing owner is skipped (owners managed in Admin)", () => {
+  const ctx = { ...staffCtx, existingStaff: [{ id: "o1", name: "The Boss", role: "owner", active: true }] };
+  const { rows } = validateStaff(rowsOf({ name: "The Boss", role: "manager" }), { name: "name", role: "role" }, ctx);
+  assert.equal(rows[0].status, "skip");
+  assert.match(rows[0].messages.join(" "), /owner/i);
+});
+
+test("validateStaff: duplicate name within the file skips the second, citing the first line", () => {
+  const { rows } = validateStaff(rowsOf({ name: "Jo" }, { name: "jo" }), { name: "name" }, staffCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[1].status, "skip");
+  assert.match(rows[1].messages.join(" "), /line 2/);
+});
+
+test("missingRequired: name is required for staff too", () => {
+  assert.deepEqual(missingRequired({}, "staff"), ["name"]);
+  assert.deepEqual(missingRequired({ name: "Name" }, "staff"), []);
 });

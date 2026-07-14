@@ -562,7 +562,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
         </div>
       </div>
 
-      {isOwner && <ImportCard locations={locations} items={items} onToast={onToast} />}
+      {isOwner && <ImportCard locations={locations} items={items} staff={staff} onToast={onToast} />}
 
       {isOwner && (
         <div className="card overflow-hidden">
