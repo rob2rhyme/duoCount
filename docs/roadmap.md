@@ -66,6 +66,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **CSV bulk import — Phase 1 (items)** (Tier 2, first unit: owner-only "Import / migrate" card that parses a CSV in the browser, fuzzy-guesses the column mapping, shows a live per-row dry-run preview, and commits through `POST /api/import` on the Admin SDK — which re-validates against live state, so the preview never gates a write. Idempotent: matches existing items by name/barcode+location → update or skip, never duplicates; `source`/`importBatchId` tagged; pure, unit-tested `parseCsv`/`guessMapping`/`validateItems`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js`, `AdminPanel.js`, `bulk-import-spec.md` | ✅ |
 | **CSV bulk import — Phase 2 (staff)** (Tier 2: the Import card gains an Items/Staff switch and a `validateStaff` path — names/roles/locations/emails with **optional** 6-digit PINs. The route reuses the `/api/staff` write path: store-wide PIN uniqueness re-checked at commit (hashed), owner rows rejected, employees require a location, an existing person matched by name is updated (role/location/email) but never duplicated and their PIN never re-hashed, and an imported role change revokes refresh tokens. Pure, unit-tested `validateStaff`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js` | ✅ |
 | **CSV bulk import — Phase 3 (opening counts) — feature complete** (Tier 2: an "Opening counts" type writes one clean, signed, `diff: 0` opening inventory entry per item — the exact honest-count shape, nothing flags — attributed to a `countedBy` roster name or the owner. Resolve-exactly-one-item by name/barcode with location disambiguation; quantity ≥ 0 ("0" is a real count); **write-once per item** (existing inventory count → skip, re-checked server-side); **all-or-nothing on errors** unless the owner opts into partial (`allowPartial`, HTTP 409 otherwise). The only entry type the importer will ever write — never cash/scratch, never an update/delete of any existing entry. Pure, unit-tested `validateBaselines`; no schema or rules change) | `src/lib/import-parse.js`, `src/app/api/import/route.js`, `src/components/ImportCard.js`, `bulk-import-spec.md` | ✅ |
+| **Multi-store rollup — Phase 1 (pure lib, shipped dark)** (Tier 2: `portfolio-rollup.js` — a ranked, **rate-normalized** store leaderboard (over/short per sales dollar, shrink per count, flag/dispute rates, attention order; idle stores neutral, never `NaN`) decorating the tested `buildLocationComparison`; the genuinely-new **cross-location employee rollup** grouped by stable `byId` (name-key fallback, latest-name display, per-location split); and a consolidated summary that IS `buildPeriodReport(…, "all")`. The load-bearing tests assert the portfolio reconciles with the Report center exactly. Read-only, no UI/route/rules yet) | `src/lib/portfolio-rollup.js`, `tests/portfolio-rollup.test.mjs`, `multi-store-rollup-spec.md` | ✅ |
 
 ## Next up
 
@@ -301,6 +302,13 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     skipped — never double-written) and **all-or-nothing on errors** unless the
     owner explicitly opts into a partial import.
 - **Multi-store owner rollup** — `multi-store-rollup-spec.md`
+  - **Phase 1 — pure rollup lib — ✅ done (dark)** — `portfolio-rollup.js`:
+    ranked/rate-normalized store leaderboard decorating the tested
+    `buildLocationComparison`, the cross-location `buildEmployeeRollup` (stable
+    `byId` grouping), and a consolidated summary that IS
+    `buildPeriodReport(…, "all")` — reconciliation unit-tested. No UI yet.
+  - *Next:* Phase 2 the owner-only Portfolio surface (tab, period picker,
+    leaderboard table, drill-down to the existing report).
 - **Accountant / franchise exports** — `accountant-export-spec.md`
 - **Localization (Spanish-first) + low-literacy count path** — `localization-spec.md`
 - **In-app notification center** (defer web push) — the real-time
