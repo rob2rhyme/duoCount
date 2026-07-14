@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { money } from "@/lib/utils";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { money, entriesToCSV, downloadCSV } from "@/lib/utils";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
-import { buildPortfolioSummary, buildStoreLeaderboard } from "@/lib/portfolio-rollup";
+import { buildPortfolioSummary, buildStoreLeaderboard, buildEmployeeRollup } from "@/lib/portfolio-rollup";
 import { fetchEntriesInRange } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconChart } from "./EmptyState";
@@ -35,8 +35,10 @@ const COLUMNS = [
 // all aggregation client-side via the unit-tested portfolio-rollup lib, and the
 // consolidated numbers reconcile with Reports by construction. Drill-down opens
 // the existing ReportModal pre-scoped, so the single-store math is the report's.
-export default function PortfolioView({ locations = [], locName = () => "—", incidents = [], onGoAdmin }) {
-  const { vendor } = useSession();
+// Phase 3 adds the people-across-stores panel (expandable per-store splits) and
+// the portfolio PDF/CSV export, reusing the records report's visual language.
+export default function PortfolioView({ locations = [], locName = () => "—", incidents = [], onGoAdmin, onToast }) {
+  const { profile, vendor } = useSession();
   const [preset, setPreset] = useState("week");
   const [refDate, setRefDate] = useState(today());
   const [customStart, setCustomStart] = useState(today());
@@ -47,6 +49,8 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
   const [sort, setSort] = useState(null); // null = attention order; else { key, dir }
   const [drill, setDrill] = useState(null); // locId being drilled into
   const [reload, setReload] = useState(0); // bumped by Retry to re-run the fetch
+  const [expanded, setExpanded] = useState(() => new Set()); // person keys with the per-store split open
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   const fiscalStartMonth = vendor.fiscalStartMonth ?? 1;
   const fiscalOpts = useMemo(() => ({ fiscalStartMonth }), [fiscalStartMonth]);
@@ -82,6 +86,7 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
     () => (range ? buildStoreLeaderboard(rows, range, locations, sort ? { sortBy: sort.key, dir: sort.dir } : {}) : null),
     [rows, range, locations, sort],
   );
+  const employees = useMemo(() => (range ? buildEmployeeRollup(rows, range, locations) : null), [rows, range, locations]);
 
   // Header click: first desc, again asc, third back to the attention order.
   function toggleSort(key) {
@@ -90,6 +95,143 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
       if (s.dir === "desc") return { key, dir: "asc" };
       return null;
     });
+  }
+
+  function togglePerson(key) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  // Raw rows for the whole portfolio window — every store, one CSV.
+  function downloadCsv() {
+    downloadCSV(entriesToCSV(rows), `duocount-portfolio-${range.key}.csv`);
+  }
+
+  // One-page portfolio PDF: the consolidated close, the leaderboard exactly as
+  // sorted on screen, and the people-across-stores table with per-store splits.
+  // Reuses the records report's visual language (DC mark, styles) so the two
+  // documents read as one family; numbers reconcile with each store's report by
+  // construction.
+  async function downloadPdf() {
+    if (!range || !summary || !board || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const { pdf, Document, Page, Text, View, StyleSheet } = await import("@react-pdf/renderer");
+      const s = StyleSheet.create({
+        page: { padding: 28, fontSize: 9, fontFamily: "Helvetica", color: "#1a1c2e" },
+        brandRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#b8863b", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        markText: { color: "#1a1c2e", fontFamily: "Helvetica-Bold", fontSize: 11 },
+        h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
+        meta: { color: "#666", marginBottom: 2, fontSize: 8 },
+        section: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 14, marginBottom: 5 },
+        row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#ccc", paddingVertical: 3 },
+        sub: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#e4e2da", paddingVertical: 2, color: "#555" },
+        head: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#1a1c2e", paddingVertical: 3, fontFamily: "Helvetica-Bold" },
+        totals: { flexDirection: "row", paddingVertical: 4, fontFamily: "Helvetica-Bold", borderTopWidth: 1, borderTopColor: "#1a1c2e" },
+        neg: { color: "#b03a3a" }, pos: { color: "#2f7d5b" },
+        sig: { flexDirection: "row", justifyContent: "space-between", marginTop: 30 },
+        sigLine: { width: "44%", borderTopWidth: 1, borderTopColor: "#1a1c2e", paddingTop: 3, fontSize: 8, color: "#666" },
+        empty: { marginTop: 8, color: "#666", fontStyle: "italic" },
+        kpis: { flexDirection: "row", marginTop: 12 },
+        kpi: { flex: 1, borderWidth: 1, borderColor: "#e2e0d8", borderRadius: 4, padding: 6, marginRight: 5 },
+        kpiV: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+        kpiL: { fontSize: 7, color: "#666", marginTop: 2 },
+        cap: { fontSize: 7, color: "#888", marginTop: 4 },
+      });
+      const C = ({ w, children, style }) => (
+        <Text style={[{ width: w }, ...(Array.isArray(style) ? style : style ? [style] : [])]}>{children}</Text>
+      );
+      const tone = (n) => (n < -0.005 ? s.neg : n > 0.005 ? s.pos : null);
+      const sgn = (n, fmt = (x) => x) => `${n >= 0 ? "+" : ""}${fmt(n)}`;
+      const pdfPct = (r, d = 0) => (r == null ? "—" : `${(r * 100).toFixed(d)}%`);
+
+      const doc = (
+        <Document title={`duocount-portfolio-${range.key}`}>
+          <Page size="A4" style={s.page}>
+            <View style={s.brandRow}>
+              <View style={s.mark}><Text style={s.markText}>DC</Text></View>
+              <Text style={s.h1}>{vendor.name} — Portfolio Report</Text>
+            </View>
+            <Text style={s.meta}>Store code: {vendor.slug} · {locations.length} locations · {range.startISO} → {range.endISO}</Text>
+            <Text style={s.meta}>{range.label} · generated by {profile.name} at {new Date().toLocaleString()}</Text>
+
+            {summary.empty && <Text style={s.empty}>No activity recorded in this period.</Text>}
+
+            <View style={s.kpis}>
+              <View style={s.kpi}><Text style={[s.kpiV, tone(summary.cash.netDiff)]}>{sgn(summary.cash.netDiff, money)}</Text><Text style={s.kpiL}>Net over/short</Text></View>
+              <View style={s.kpi}><Text style={s.kpiV}>{money(summary.cash.sales)}</Text><Text style={s.kpiL}>Cash sales</Text></View>
+              <View style={s.kpi}><Text style={s.kpiV}>{money(summary.scratch.dollars)}</Text><Text style={s.kpiL}>Scratch $</Text></View>
+              <View style={s.kpi}><Text style={[s.kpiV, summary.inventory.netShrink < 0 ? s.neg : null]}>{summary.inventory.netShrink} u</Text><Text style={s.kpiL}>Net shrink</Text></View>
+              <View style={[s.kpi, { marginRight: 0 }]}><Text style={s.kpiV}>{Math.round(summary.integrity.verificationRate * 100)}%</Text><Text style={s.kpiL}>Verified</Text></View>
+            </View>
+
+            <Text style={s.section}>Store leaderboard{sort ? "" : " — ranked by needs-attention"}</Text>
+            <View style={s.head}><C w="6%">#</C><C w="24%">Store</C><C w="10%">Counts</C><C w="15%">Over/short</C><C w="12%">O/S rate</C><C w="11%">Shrink</C><C w="10%">Flags</C><C w="12%">Verified</C></View>
+            {board.rows.map((r) => (
+              <View key={r.locId} style={s.row}>
+                <C w="6%">{r.rank}</C><C w="24%">{r.locName}</C><C w="10%">{r.total}</C>
+                <C w="15%" style={tone(r.cashNet)}>{sgn(r.cashNet, money)}</C>
+                <C w="12%" style={tone(r.cashNetRate ?? 0)}>{pdfPct(r.cashNetRate, 1)}</C>
+                <C w="11%" style={r.invShrink < 0 ? s.neg : null}>{r.invShrink}</C>
+                <C w="10%">{pdfPct(r.flagRate)}</C>
+                <C w="12%">{r.total ? pdfPct(r.verificationRate) : "—"}</C>
+              </View>
+            ))}
+            <View style={s.totals}>
+              <C w="6%"> </C><C w="24%">All stores</C><C w="10%">{board.total.total}</C>
+              <C w="15%" style={tone(board.total.cashNet)}>{sgn(board.total.cashNet, money)}</C>
+              <C w="12%" style={tone(board.total.cashNetRate ?? 0)}>{pdfPct(board.total.cashNetRate, 1)}</C>
+              <C w="11%" style={board.total.invShrink < 0 ? s.neg : null}>{board.total.invShrink}</C>
+              <C w="10%">{pdfPct(board.total.flagRate)}</C>
+              <C w="12%">{board.total.total ? pdfPct(board.total.verificationRate) : "—"}</C>
+            </View>
+            <Text style={s.cap}>O/S rate = over/short per cash-sales dollar. Shrink is units, not dollars. Each row equals that store&apos;s own records report for this period.</Text>
+
+            {employees && employees.rows.length > 0 && (<>
+              <Text style={s.section}>People across stores — most short first</Text>
+              <View style={s.head}><C w="30%">Person</C><C w="12%">Entries</C><C w="16%">Over/short</C><C w="12%">Shorts</C><C w="16%">Scratch $</C><C w="14%">Verified</C></View>
+              {employees.rows.map((p) => (
+                <Fragment key={p.key}>
+                  <View style={s.row}>
+                    <C w="30%">{p.name}</C><C w="12%">{p.entries}</C>
+                    <C w="16%" style={tone(p.cashNet)}>{sgn(p.cashNet, money)}</C>
+                    <C w="12%">{p.shorts}</C><C w="16%">{money(p.scratchDollars)}</C>
+                    <C w="14%">{pdfPct(p.verificationRate)}</C>
+                  </View>
+                  {p.byLocation.length > 1 && p.byLocation.map((l, i) => (
+                    <View key={i} style={s.sub}>
+                      <C w="30%">    ↳ {l.locationName}</C><C w="12%">{l.entries}</C>
+                      <C w="16%" style={tone(l.cashNet)}>{sgn(l.cashNet, money)}</C>
+                      <C w="12%">{l.shorts}</C><C w="16%">{money(l.scratchDollars)}</C>
+                      <C w="14%">{pdfPct(l.verificationRate)}</C>
+                    </View>
+                  ))}
+                </Fragment>
+              ))}
+            </>)}
+
+            <View style={s.sig}>
+              <View style={s.sigLine}><Text>Prepared by · date</Text></View>
+              <View style={s.sigLine}><Text>Reviewed by (owner) · date</Text></View>
+            </View>
+          </Page>
+        </Document>
+      );
+      const blob = await pdf(doc).toBlob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `duocount-portfolio-${range.key}.pdf`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      console.error(err);
+      onToast?.("PDF failed — try the CSV");
+    }
+    setPdfBusy(false);
   }
 
   if (locations.length < 2) {
@@ -218,6 +360,84 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
               Shrink is in <b>units</b>, not dollars. Tap a store for its full report — the numbers there are the
               same ones this table is built from.
             </p>
+          </div>
+
+          {/* People across stores — the split a single store's Dashboard can't show */}
+          {employees && employees.rows.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-3">
+                <h3 className="font-semibold text-[14px]">People across stores</h3>
+                <span className="text-[11px] text-muted">Most short first</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px] min-w-[560px]">
+                  <thead className="bg-panel text-muted text-[11px] uppercase tracking-wide">
+                    <tr>
+                      <th className="text-left font-semibold px-3 py-2">Person</th>
+                      <th className="text-right font-semibold px-3 py-2">Stores</th>
+                      <th className="text-right font-semibold px-3 py-2">Entries</th>
+                      <th className="text-right font-semibold px-3 py-2">Over/short</th>
+                      <th className="text-right font-semibold px-3 py-2">Shorts</th>
+                      <th className="text-right font-semibold px-3 py-2">Scratch $</th>
+                      <th className="text-right font-semibold px-3 py-2">Verified</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employees.rows.map((p) => (
+                      <Fragment key={p.key}>
+                        <tr className="border-t border-line-soft hover:bg-subtle cursor-pointer" onClick={() => togglePerson(p.key)}>
+                          <td className="px-3 py-2.5 font-semibold">
+                            <button type="button" aria-expanded={expanded.has(p.key)}
+                              className="inline-flex items-center gap-1.5 text-left"
+                              onClick={(e) => { e.stopPropagation(); togglePerson(p.key); }}>
+                              <span aria-hidden="true" className={`text-muted text-[11px] transition-transform ${expanded.has(p.key) ? "rotate-90" : ""}`}>▶</span>
+                              {p.name}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                            {p.byLocation.length}
+                            {p.byLocation.length > 1 && <span aria-hidden="true" className="ml-1 text-brass">●</span>}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums">{p.entries}</td>
+                          <td className={`px-3 py-2.5 text-right font-mono tabular-nums font-semibold ${toneOf(p.cashNet)}`}>
+                            {p.cashNet >= 0 ? "+" : ""}{money(p.cashNet)}
+                          </td>
+                          <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${p.shorts ? "text-neg" : ""}`}>{p.shorts}</td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums">{money(p.scratchDollars)}</td>
+                          <td className="px-3 py-2.5 text-right font-mono tabular-nums">{pct(p.verificationRate, 0)}</td>
+                        </tr>
+                        {expanded.has(p.key) && p.byLocation.map((l, i) => (
+                          <tr key={`${p.key}-${l.locationId || i}`} className="border-t border-line-soft bg-panel text-[12px] text-muted">
+                            <td className="pl-9 pr-3 py-2">↳ {l.locationName}</td>
+                            <td className="px-3 py-2" />
+                            <td className="px-3 py-2 text-right font-mono tabular-nums">{l.entries}</td>
+                            <td className={`px-3 py-2 text-right font-mono tabular-nums ${toneOf(l.cashNet)}`}>
+                              {l.cashNet >= 0 ? "+" : ""}{money(l.cashNet)}
+                            </td>
+                            <td className={`px-3 py-2 text-right font-mono tabular-nums ${l.shorts ? "text-neg" : ""}`}>{l.shorts}</td>
+                            <td className="px-3 py-2 text-right font-mono tabular-nums">{money(l.scratchDollars)}</td>
+                            <td className="px-3 py-2 text-right font-mono tabular-nums">{pct(l.verificationRate, 0)}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="px-4 py-2.5 text-[11px] text-muted border-t border-line-soft leading-relaxed">
+                A <span className="text-brass">●</span> marks someone who worked at more than one store — expand them
+                to compare their record store by store. A different profile at each store is a training or coverage
+                conversation, not a verdict.
+              </p>
+            </div>
+          )}
+
+          {/* Export the portfolio for the record */}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button className="btn-ghost w-auto px-4 text-[13px]" onClick={downloadCsv}>⬇ Download CSV</button>
+            <button className="btn-ghost w-auto px-4 text-[13px]" disabled={pdfBusy} onClick={downloadPdf}>
+              {pdfBusy ? "Building PDF…" : "📄 Download PDF"}
+            </button>
           </div>
         </>
       )}

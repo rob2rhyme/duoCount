@@ -4,17 +4,19 @@ title: Multi-store owner rollup / portfolio view
 
 # DuoCount — Multi-Store Rollup (Owner Portfolio) Spec
 
-**Status: Phases 1–2 shipped (pure rollup lib + the owner Portfolio surface);
-Phase 3 (employee panel UI, exports) designed, not built.**
+**Status: all three phases shipped** (labor-across-stores, the one optional
+Phase 3 stretch item, stays deferred — see Phasing).
 `src/lib/portfolio-rollup.js` ships `buildStoreLeaderboard`,
 `buildEmployeeRollup`, and `buildPortfolioSummary`, unit-tested in
 `tests/portfolio-rollup.test.mjs` with the reconciliation assertions below.
 `src/components/PortfolioView.js` ships the owner-only **Portfolio** tab: the
 reused period picker, the consolidated-close KPI header, the sortable
-attention-ranked leaderboard, and drill-down that opens the existing
-`ReportModal` pre-scoped to the store and period. No route, no rules — read-only
-by construction. This document is the design for an **owner-facing portfolio
-view** that consolidates a vendor's locations into one cockpit: a cross-store
+attention-ranked leaderboard, drill-down that opens the existing `ReportModal`
+pre-scoped to the store and period, the **people-across-stores panel** with
+expandable per-store splits, and the **portfolio PDF/CSV export** in the records
+report's visual language. No route, no rules — read-only by construction. This
+document is the design for an **owner-facing portfolio view** that consolidates
+a vendor's locations into one cockpit: a cross-store
 over/short + shrink + verification-rate **leaderboard**, a **consolidated
 period close**, and a **per-employee comparison across locations**. It is
 deliberately scoped to reuse machinery that already exists and is unit-tested —
@@ -323,11 +325,19 @@ Phase 2 is the real UI work; Phase 3 is optional polish.
    *and the period being viewed* (`initialLocId` / `initialPreset` /
    `initialRefDate` / custom bounds — new initial-state props, everything still
    user-changeable). One bounded unscoped fetch per window, `loadError` + Retry.
-3. **Phase 3 — later / optional.** The per-employee cross-location panel promoted
-   to full UI with expandable per-location splits; an optional **portfolio
-   PDF/CSV** export reusing `ReportModal`'s `@react-pdf/renderer` primitives (the
-   DC mark, the styles) and `entriesToCSV`; optional labor-per-employee-across-
-   stores via `fetchPunchesInRange` + `summarizeHours`.
+3. **Phase 3 — ✅ shipped (labor deferred).** The per-employee cross-location
+   panel promoted to full UI — "People across stores," most-short first, a brass
+   dot marking anyone who worked 2+ stores, each row expandable to the
+   per-location split (`buildEmployeeRollup`'s `byLocation`) — and the
+   **portfolio PDF/CSV export**: `entriesToCSV` over the whole window for the
+   CSV, and a one-page PDF reusing `ReportModal`'s `@react-pdf/renderer`
+   primitives (DC mark, styles, signature block) with the consolidated KPIs,
+   the leaderboard *exactly as sorted on screen*, and the people table with
+   indented per-store sub-rows. The one stretch item —
+   labor-per-employee-across-stores via `fetchPunchesInRange` +
+   `summarizeHours` — stays deferred: it's the only piece needing a second
+   fetch, and the payroll story already lives in the records report's labor
+   section.
 
 ---
 
