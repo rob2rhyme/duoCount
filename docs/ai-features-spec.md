@@ -260,9 +260,10 @@ Same posture as the rest of the digest code — the pure cores are unit-tested w
    needed — the vendor-update rule already allows the whole `digest` map, so the
    inner `narrative` flag rides along.
 3. **Phase 3 — later features, separate specs.** NL log search (feature 2, output
-   is a *filter object* not prose) is the natural next AI build and is now
-   **specified in its own `ai-log-search-spec.md`** (analysis/design only, not
-   built); then in-app pattern narratives (feature 3). Each gets its own spec.
+   is a *filter object* not prose) — built, `ai-log-search-spec.md`; in-app
+   pattern narratives (feature 3) — **specified in `ai-pattern-narrative-spec.md`**
+   (analysis/design only, not built), the in-app twin of this narrative that
+   reuses its redaction + prompt core. Each gets its own spec.
 
 ---
 

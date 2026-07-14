@@ -20,6 +20,7 @@ const PATHS = {
   eye: <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>,
   zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
   search: <><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>,
+  activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
   sparkles: <><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M18 15l.7 1.9L20.5 17.5l-1.8.6L18 20l-.7-1.9L15.5 17.5l1.8-.6z" /></>,
   "file-text": <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></>,
 };
@@ -43,6 +44,7 @@ const SLUG_ICON = {
   "ui-enhancements-spec": "zap",
   "ai-features-spec": "sparkles",
   "ai-log-search-spec": "search",
+  "ai-pattern-narrative-spec": "activity",
   "privacy-and-data": "shield",
   "legal-disclaimers": "file-text",
 };
