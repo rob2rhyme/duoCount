@@ -1,0 +1,189 @@
+"use client";
+import { useMemo, useRef, useState } from "react";
+import { parseCsv, guessMapping, validateItems, importTargets, missingRequired } from "@/lib/import-parse";
+import { apiImport } from "@/lib/data";
+
+// Owner-only "Import / migrate" card (Phase 1: items). Parses a CSV in the
+// browser, lets the owner map columns onto DuoCount's fields, shows a live
+// per-row dry-run preview (validateItems — the same code the server re-runs at
+// commit), and writes the valid rows through POST /api/import. Nothing is
+// written until Commit; the server re-validates against live state, so the
+// preview never gates a write on its own.
+
+const STATUS_STYLE = {
+  create: "text-pos",
+  update: "text-gold",
+  skip: "text-muted",
+  error: "text-neg",
+};
+const PREVIEW_CAP = 60;
+
+export default function ImportCard({ locations = [], items = [], onToast }) {
+  const type = "items";
+  const [parsed, setParsed] = useState(null); // { headers, rows, fileName }
+  const [mapping, setMapping] = useState({});
+  const [parseError, setParseError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef(null);
+
+  const activeLocations = locations.filter((l) => l.active !== false);
+  const ctx = useMemo(() => ({
+    locations,
+    existingItems: items,
+    defaultLocationId: activeLocations.length === 1 ? activeLocations[0].id : null,
+  }), [locations, items, activeLocations]);
+
+  const report = useMemo(() => (parsed ? validateItems(parsed.rows, mapping, ctx) : null), [parsed, mapping, ctx]);
+
+  const targets = importTargets(type);
+  const missing = missingRequired(mapping, type);
+  const writable = report ? report.summary.create + report.summary.update : 0;
+
+  function onFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParseError(""); setParsed(null); setMapping({});
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const { headers, rows } = parseCsv(String(reader.result || ""));
+        if (!rows.length) throw new Error("No data rows found under the header row.");
+        setParsed({ headers, rows, fileName: file.name });
+        setMapping(guessMapping(headers, type));
+      } catch (err) { setParseError(err.message || "Couldn't read that file."); }
+    };
+    reader.onerror = () => setParseError("Couldn't read that file.");
+    reader.readAsText(file);
+  }
+
+  function reset() {
+    setParsed(null); setMapping({}); setParseError("");
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function commit() {
+    if (missing.length || !writable || busy) return;
+    setBusy(true);
+    try {
+      const r = await apiImport({ type, mode: "commit", mapping, rows: parsed.rows });
+      const c = r.counts || {};
+      onToast?.(`Imported ${c.create || 0} new item${c.create === 1 ? "" : "s"}` +
+        (c.update ? `, updated ${c.update}` : "") + (c.error ? `, ${c.error} skipped` : ""));
+      reset();
+    } catch (e) { onToast?.(e.message || "Import failed — check your connection"); }
+    setBusy(false);
+  }
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="px-4 py-3.5 border-b border-line">
+        <h2 className="font-semibold text-[15px]">Import / migrate</h2>
+        <p className="text-[13px] text-muted mt-0.5">
+          Bring your tracked-item catalog in from a CSV (from Excel, your old POS, a spreadsheet) instead of
+          keying it in one at a time. This writes your store&apos;s <b>real</b> items — preview every row first.
+        </p>
+      </div>
+      <div className="p-4 space-y-4">
+        {activeLocations.length === 0 && (
+          <p className="text-[13px] text-neg">Add a store location above before importing items — every item lands at a location.</p>
+        )}
+
+        <div>
+          <label className="label">Items CSV file</label>
+          <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" onChange={onFile}
+            className="block w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-line file:bg-subtle file:text-fg file:font-semibold file:text-[13px] file:cursor-pointer" />
+          <p className="text-xs text-muted mt-1.5">A header row plus one item per line. Columns can be in any order — you map them next.</p>
+        </div>
+
+        {parseError && <p role="alert" className="text-[13px] text-neg">{parseError}</p>}
+
+        {parsed && (
+          <>
+            <div className="text-[13px] text-muted">
+              <b className="text-fg">{parsed.fileName}</b> — {parsed.rows.length} row{parsed.rows.length === 1 ? "" : "s"}, {parsed.headers.length} column{parsed.headers.length === 1 ? "" : "s"}.
+            </div>
+
+            {/* Column mapping */}
+            <div className="space-y-2.5">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Match your columns</div>
+              {targets.map((t) => (
+                <div key={t.field} className="grid grid-cols-2 gap-3 items-center">
+                  <label className="text-sm font-medium">
+                    {t.label}{t.required && <span className="text-neg"> *</span>}
+                    {t.field === "location" && activeLocations.length === 1 && (
+                      <span className="block text-[11px] text-muted font-normal">Optional — defaults to {activeLocations[0].name}</span>
+                    )}
+                  </label>
+                  <select className="input" value={mapping[t.field] || ""}
+                    onChange={(e) => setMapping((m) => ({ ...m, [t.field]: e.target.value || undefined }))}>
+                    <option value="">{t.required ? "— choose a column —" : "— skip —"}</option>
+                    {parsed.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            {/* Dry-run preview */}
+            {report && (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold">
+                  <span className="text-pos">{report.summary.create} create</span>
+                  <span className="text-gold">{report.summary.update} update</span>
+                  <span className="text-muted">{report.summary.skip} skip</span>
+                  <span className="text-neg">{report.summary.error} error</span>
+                </div>
+                <div className="border border-line rounded-xl overflow-hidden">
+                  <div className="max-h-72 overflow-y-auto">
+                    <table className="w-full text-[13px]">
+                      <thead className="bg-panel text-muted text-[11px] uppercase tracking-wide sticky top-0">
+                        <tr>
+                          <th className="text-left font-semibold px-2.5 py-2 w-12">Line</th>
+                          <th className="text-left font-semibold px-2.5 py-2 w-16">Status</th>
+                          <th className="text-left font-semibold px-2.5 py-2">Item</th>
+                          <th className="text-left font-semibold px-2.5 py-2">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.rows.slice(0, PREVIEW_CAP).map((r) => (
+                          <tr key={r.line} className="border-t border-line-soft align-top">
+                            <td className="px-2.5 py-2 font-mono text-muted">{r.line}</td>
+                            <td className={`px-2.5 py-2 font-semibold ${STATUS_STYLE[r.status] || ""}`}>{r.status}</td>
+                            <td className="px-2.5 py-2">
+                              {r.fields.name || <span className="text-faint">—</span>}
+                              {r.fields.locationName && <span className="text-muted"> · {r.fields.locationName}</span>}
+                            </td>
+                            <td className="px-2.5 py-2 text-muted">{r.messages.join(" ")}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {report.rows.length > PREVIEW_CAP && (
+                    <div className="px-2.5 py-2 text-[12px] text-muted border-t border-line-soft bg-panel">
+                      Showing the first {PREVIEW_CAP} of {report.rows.length} rows — all of them import on commit.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {missing.length > 0 && (
+              <p className="text-[13px] text-neg">Map a column for <b>{targets.find((t) => t.field === missing[0])?.label}</b> to continue.</p>
+            )}
+
+            <div className="flex gap-2">
+              <button className="btn-primary flex-1" disabled={busy || !!missing.length || !writable} onClick={commit}>
+                {busy ? "Importing…" : writable ? `Import ${writable} row${writable === 1 ? "" : "s"}` : "Nothing to import"}
+              </button>
+              <button className="btn-ghost w-auto px-4" disabled={busy} onClick={reset}>Cancel</button>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              Rows marked <b>error</b> are skipped with a reason and never block the rest. Re-running is safe —
+              items already in your catalog are matched and updated or skipped, never duplicated.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
