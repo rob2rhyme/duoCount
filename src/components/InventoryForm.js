@@ -3,7 +3,10 @@ import { useEffect, useMemo, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { expectedStock } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
+import { validateInventory } from "@/lib/count-validation";
+import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
+import SaveError from "./SaveError";
 import Field from "./Field";
 import SearchInput from "./SearchInput";
 import BarcodeScanner from "./BarcodeScanner";
@@ -17,7 +20,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
     date: today(), shift: "open", locationId: "", itemId: "",
     startQty: "", received: "", removed: "", soldQty: "", counted: "",
   });
-  const [busy, setBusy] = useState(false);
+  const { busy, error, run } = useSaveState();
   const [itemSearch, setItemSearch] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
   const itemFieldId = useId();
@@ -69,28 +72,26 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   const flaggable = Number.isFinite(invThreshold) && invThreshold > 0;
   const flagged = flaggable && Math.abs(diff) >= invThreshold;
 
+  const valid = validateInventory(f);
+
+  // Throws on failure so useSaveState can show a persistent, retryable error
+  // rather than a toast that vanishes before the clerk notices the save failed.
   async function save() {
-    if (!f.locationId) return onSaved?.("Pick a location first");
-    if (!item) return onSaved?.("Pick an item first — add items in Admin");
     if (blind && !confirm("You're committing a blind count. Entries can't be edited after saving.")) return;
-    setBusy(true);
-    try {
-      await addEntry(vendor.id, {
-        kind: "inventory", date: f.date, shift: f.shift,
-        locationId: f.locationId, locationName: locName(f.locationId),
-        itemId: item.id, itemName: item.name, unit,
-        startQty: Number(f.startQty) || 0, received: Number(f.received) || 0,
-        removed: Number(f.removed) || 0, soldQty: Number(f.soldQty) || 0,
-        counted: Number(f.counted) || 0,
-        expected, diff, blind,
-        flagged, varianceStatus: flagged ? "open" : "none",
-        by: profile.name, byId: profile.id, byRole: profile.role,
-      });
-      setF((p) => ({ ...p, startQty: String(Number(p.counted) || 0), received: "", removed: "", soldQty: "", counted: "" }));
-      const result = diff === 0 ? "balanced" : diff > 0 ? `over ${diff} ${unit}s` : `short ${Math.abs(diff)} ${unit}s`;
-      onSaved?.(blind ? `Saved — ${result}` : "Inventory count signed & saved");
-    } catch (e) { console.error(e); onSaved?.("Save failed — check connection"); }
-    setBusy(false);
+    await addEntry(vendor.id, {
+      kind: "inventory", date: f.date, shift: f.shift,
+      locationId: f.locationId, locationName: locName(f.locationId),
+      itemId: item.id, itemName: item.name, unit,
+      startQty: Number(f.startQty) || 0, received: Number(f.received) || 0,
+      removed: Number(f.removed) || 0, soldQty: Number(f.soldQty) || 0,
+      counted: Number(f.counted) || 0,
+      expected, diff, blind,
+      flagged, varianceStatus: flagged ? "open" : "none",
+      by: profile.name, byId: profile.id, byRole: profile.role,
+    });
+    setF((p) => ({ ...p, startQty: String(Number(p.counted) || 0), received: "", removed: "", soldQty: "", counted: "" }));
+    const result = diff === 0 ? "balanced" : diff > 0 ? `over ${diff} ${unit}s` : `short ${Math.abs(diff)} ${unit}s`;
+    onSaved?.(blind ? `Saved — ${result}` : "Inventory count signed & saved");
   }
 
   return (
@@ -155,7 +156,9 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
           </div>
         )}
 
-        <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
+        <SaveError message={error} onRetry={() => run(save)} busy={busy} />
+        <button className="btn-primary" disabled={busy || !valid.ok || !item} onClick={() => run(save)}>{busy ? "Saving…" : "Save & sign entry"}</button>
+        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{valid.message}</p>}
         <p className="text-xs text-muted leading-relaxed">Expected = start + received − sold − removed. Negative over/short means missing stock. Your name, item, location, and time stamp attach automatically.</p>
       </div>
 

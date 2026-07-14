@@ -2,7 +2,10 @@
 import { useEffect, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, expectedCash } from "@/lib/utils";
+import { validateCash } from "@/lib/count-validation";
+import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
+import SaveError from "./SaveError";
 import Field from "./Field";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -20,7 +23,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
     date: today(), shift: "open", locationId: "", drawerId: "",
     start: "", sales: "", paidout: "", counted: "",
   });
-  const [busy, setBusy] = useState(false);
+  const { busy, error, run } = useSaveState();
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   const countedId = useId();
 
@@ -66,32 +69,31 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   const blind = vendor.blindCounts === true;
   const threshold = Number(vendor.varianceThreshold ?? 5);
 
+  const valid = validateCash(f, { useCounter });
+
+  // Throws on failure so useSaveState surfaces a persistent, retryable error
+  // (a vanishing toast could hide a failed save on flaky wifi). The blind-count
+  // confirm cancels quietly — it's a deliberate abort, not a failure.
   async function save() {
-    if (!f.locationId) return onSaved?.("Pick a location first");
-    if (!drawer) return onSaved?.("Pick a drawer first");
     if (blind && !confirm("You're committing a blind count. Entries can't be edited after saving.")) return;
-    setBusy(true);
-    try {
-      const flagged = Math.abs(diff) >= threshold;
-      await addEntry(vendor.id, {
-        kind: "cash", date: f.date, shift: f.shift,
-        locationId: f.locationId, locationName: locName(f.locationId),
-        drawerId: drawer.id, drawerName: drawer.name,
-        start: Number(f.start) || 0, sales: isOpen ? 0 : Number(f.sales) || 0,
-        paidout: isOpen ? 0 : Number(f.paidout) || 0, counted: countedValue,
-        expected, diff, blind,
-        flagged, varianceStatus: flagged ? "open" : "none",
-        by: profile.name, byId: profile.id, byRole: profile.role,
-      });
-      setF((p) => ({ ...p, start: "", sales: "", paidout: "", counted: "" }));
-      setDenoms(emptyDenoms());
-      setCoins("");
-      // In blind mode the result is revealed only after the commit.
-      const result = Math.abs(diff) < 0.005 ? "balanced"
-        : diff > 0 ? `over ${money(diff)}` : `short ${money(Math.abs(diff))}`;
-      onSaved?.(blind ? `Saved — ${result}` : "Cash entry signed & saved");
-    } catch (e) { console.error(e); onSaved?.("Save failed — check connection"); }
-    setBusy(false);
+    const flagged = Math.abs(diff) >= threshold;
+    await addEntry(vendor.id, {
+      kind: "cash", date: f.date, shift: f.shift,
+      locationId: f.locationId, locationName: locName(f.locationId),
+      drawerId: drawer.id, drawerName: drawer.name,
+      start: Number(f.start) || 0, sales: isOpen ? 0 : Number(f.sales) || 0,
+      paidout: isOpen ? 0 : Number(f.paidout) || 0, counted: countedValue,
+      expected, diff, blind,
+      flagged, varianceStatus: flagged ? "open" : "none",
+      by: profile.name, byId: profile.id, byRole: profile.role,
+    });
+    setF((p) => ({ ...p, start: "", sales: "", paidout: "", counted: "" }));
+    setDenoms(emptyDenoms());
+    setCoins("");
+    // In blind mode the result is revealed only after the commit.
+    const result = Math.abs(diff) < 0.005 ? "balanced"
+      : diff > 0 ? `over ${money(diff)}` : `short ${money(Math.abs(diff))}`;
+    onSaved?.(blind ? `Saved — ${result}` : "Cash entry signed & saved");
   }
 
   return (
@@ -210,7 +212,9 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
           </div>
         )}
 
-        <button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save & sign entry"}</button>
+        <SaveError message={error} onRetry={() => run(save)} busy={busy} />
+        <button className="btn-primary" disabled={busy || !valid.ok} onClick={() => run(save)}>{busy ? "Saving…" : "Save & sign entry"}</button>
+        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{valid.message}</p>}
         <p className="text-xs text-muted leading-relaxed">{isOpen ? "Expected = your starting drawer (an opening count has no sales or paid-outs yet)." : "Expected = start + sales − paid out."} Your name, drawer, location, and time stamp attach automatically.</p>
       </div>
     </div>
