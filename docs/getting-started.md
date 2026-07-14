@@ -20,9 +20,11 @@ If you work a shift and just need to log your counts, jump to
 
 - You sign in with a **store code** (like `acme-market`) and your own **PIN** —
   no email, no password.
-- Near the top is a **row of tabs** that scrolls sideways on a narrow phone:
-  **Cash**, **Scratch-offs**, **Inventory**, **Log**, **Notes**, **Incidents**,
-  **Time**, **Dashboard**, and **Admin** (managers only).
+- Move around with the **navigation**: on a phone, a **bottom bar** groups the
+  screens into **Count** (Cash / Scratch-offs / Inventory), **Team** (Time /
+  Incidents / Notes), **Insights** (Dashboard / Log), and **Admin** (managers
+  only) — tap a group to pick a screen. On a wider screen the same screens line
+  up as a **row of tabs** across the top.
 - Employees **log counts**. Managers **verify** them (a second set of eyes),
   handle anything flagged, and pull **reports**.
 - The app does the arithmetic and shows **over/short** in green (over) or red

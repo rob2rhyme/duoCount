@@ -14,6 +14,7 @@ import TimeClock from "./TimeClock";
 import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
 import SetupChecklist from "./SetupChecklist";
+import BottomNav from "./BottomNav";
 import EmptyState, { IconStore, IconReceipt, IconBox } from "./EmptyState";
 import { setupProgress } from "@/lib/setup-progress";
 import { resolveShortcut } from "@/lib/shortcuts";
@@ -101,6 +102,13 @@ export default function AppShell() {
   const goAdmin = () => setTab("admin");
   const adminAction = isManager ? { onClick: goAdmin, label: "Set up in Admin →" } : undefined;
 
+  // The mobile bottom nav lives at the foot of the viewport; flag the body so
+  // the app-wide scroll-to-top FAB lifts clear of it on small screens.
+  useEffect(() => {
+    document.body.classList.add("has-bottom-nav");
+    return () => document.body.classList.remove("has-bottom-nav");
+  }, []);
+
   // Keyboard shortcuts for desktop power users. Digits jump to a tab, [ / ]
   // step through them, ⌘/Ctrl+Enter saves the visible form, ? toggles help.
   // The decision logic lives in resolveShortcut (unit-tested); this effect only
@@ -146,8 +154,8 @@ export default function AppShell() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-4">
-        <div className="flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
+      <main className="max-w-3xl mx-auto px-4 py-4 pb-28 sm:pb-4">
+        <div className="hidden sm:flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
           {tabs.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition ${tab === t.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
@@ -226,7 +234,7 @@ export default function AppShell() {
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
       </main>
 
-      <footer className="mt-10 border-t border-line-soft">
+      <footer className="mt-10 border-t border-line-soft pb-28 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 px-safe pb-safe pt-6 pb-6">
           <div className="flex items-center justify-center gap-2.5 mb-5">
             <Logo src="/logo.png" alt="DuoCount" size={28} />
@@ -261,8 +269,10 @@ export default function AppShell() {
         </div>
       </footer>
 
+      <BottomNav tabs={tabs} current={tab} onSelect={setTab} />
+
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-5 py-3 rounded-full text-sm font-medium shadow-lg z-50">
+        <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-5 py-3 rounded-full text-sm font-medium shadow-lg z-50">
           {toast}
         </div>
       )}

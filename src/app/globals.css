@@ -82,6 +82,12 @@ input[type="search"]::-webkit-search-results-decoration { -webkit-appearance: no
 .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 .bottom-safe { bottom: max(1.25rem, env(safe-area-inset-bottom)); }
 
+/* When the mobile bottom nav is mounted (only on the signed-in app shell), lift
+   the scroll-to-top FAB clear of it on small screens so they don't overlap. */
+@media (max-width: 639.98px) {
+  body.has-bottom-nav .scrolltop-fab { bottom: calc(env(safe-area-inset-bottom) + 5rem); }
+}
+
 /* Native-app feel: kill the mobile tap-flash and the double-tap-zoom delay,
    stop iOS auto-inflating text on rotate, and suppress the standalone
    pull-to-refresh / rubber-band overscroll so the app doesn't feel like a web
