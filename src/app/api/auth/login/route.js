@@ -16,8 +16,11 @@ const ipOf = (req) => clientIp((n) => req.headers.get(n));
 export async function POST(req) {
   try {
     const { storeCode, pin } = await req.json();
+    // Errors carry a stable `code` alongside the English prose so the client
+    // can render them in the device's language (i18n autherr.* keys); the
+    // `error` string is the unchanged fallback for anything that predates it.
     if (!storeCode || !pin)
-      return NextResponse.json({ error: "Enter your store code and PIN." }, { status: 400 });
+      return NextResponse.json({ error: "Enter your store code and PIN.", code: "missing_fields" }, { status: 400 });
 
     const { adminDb, adminAuth } = await getAdmin();
     const now = Date.now();
@@ -31,7 +34,7 @@ export async function POST(req) {
     const storeDec = throttleDecision(storeSnap.exists ? storeSnap.data() : null, now, STORE_LIMIT);
     if (ipDec.blocked || storeDec.blocked)
       return NextResponse.json(
-        { error: "Too many attempts — wait a few minutes and try again." }, { status: 429 });
+        { error: "Too many attempts — wait a few minutes and try again.", code: "throttled" }, { status: 429 });
     const recordFail = () =>
       Promise.all([ipRef.set(ipDec.nextOnFail), storeRef.set(storeDec.nextOnFail)]);
 
@@ -39,7 +42,7 @@ export async function POST(req) {
       .where("slug", "==", slug).limit(1).get();
     if (vSnap.empty) {
       await recordFail();
-      return NextResponse.json({ error: "No store found for that code." }, { status: 404 });
+      return NextResponse.json({ error: "No store found for that code.", code: "no_store" }, { status: 404 });
     }
     const vendorDoc = vSnap.docs[0];
     const vendor = { id: vendorDoc.id, ...vendorDoc.data() };
@@ -57,7 +60,7 @@ export async function POST(req) {
     // rather than sign in as an arbitrary one of them.
     if (matches.length !== 1) {
       await recordFail();
-      return NextResponse.json({ error: "PIN not recognized for this store." }, { status: 401 });
+      return NextResponse.json({ error: "PIN not recognized for this store.", code: "bad_pin" }, { status: 401 });
     }
     const match = matches[0];
 
@@ -81,6 +84,10 @@ export async function POST(req) {
     });
   } catch (e) {
     console.error("login error", e);
-    return NextResponse.json({ error: e.message || "Login failed." }, { status: 500 });
+    // e.message may be diagnostic (env/config) — no code, so the client shows
+    // it verbatim; the generic fallback localizes.
+    return NextResponse.json(
+      e.message ? { error: e.message } : { error: "Login failed.", code: "login_failed" },
+      { status: 500 });
   }
 }

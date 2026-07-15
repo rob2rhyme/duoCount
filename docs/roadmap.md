@@ -74,6 +74,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Accountant export — franchise scaffold — feature complete** (Tier 2: `buildFranchiseCSV` + `FRANCHISE_PROFILES` — a profile is an ordered column list + per-column mappers + a date format, shipping the **generic daily-report** profile (StoreNo, BusinessDate, Gross/Cash/Lottery sales, PaidOuts, signed OverShort, DeptCount, VerifiedPct; `GrossSales = CashSales + LotterySales` by construction), one row per business date over the modal's already-scoped rows. Selected at **export time** from a dropdown defaulting to *None* — no vendor write, no rules change. Honestly labeled a **scaffold**, with per-brand profiles gated on a pilot franchisee's real template; 8 new unit tests incl. custom-profile objects and the injection guard) | `src/lib/report-accounting.js`, `tests/report-accounting.test.mjs`, `ReportModal.js`, `accountant-export-spec.md` | ✅ |
 | **Localization — Phase 1: Spanish count path (shipped as one complete slug)** (Tier 2: a pure ~95-key en/es catalog + `translate` in `i18n.js` (no i18n framework, zero new dependencies), `LangProvider` with per-device `duocount-lang` (mirrors the theme/FAB posture — never the vendor record, no rules change), a language picker on the login card and in Settings. The **whole count path** renders in the clerk's language: login, tab bar + mobile bottom nav, all three count forms, validation messages (stable `code`s on `count-validation.js`), the save-failure line (`SAVE_FAILED` sentinel), the blind-count confirm, and every toast. **Icon-forward treatment**: language-neutral tab glyphs, ✓ on Save, 🌅/🌇 shift options, ▲/▼ on over/short. English default is byte-equivalent; a missing key falls back to English, never blank; the **completeness test** pins en/es key sets equal) | `src/lib/i18n.js`, `src/components/LangProvider.js`, `PinLogin.js`, `AppShell.js`, `BottomNav.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js`, `SaveError.js`, `PreferencesMenu.js`, `localization-spec.md` | ✅ |
 | **Localization — Phase 2a: Notes, Incidents + count-tab onboarding** (~130 new en/es keys, each landed screen complete per the no-mixed-screens rule: the **setup checklist + six count-tab empty states** (they render on the already-Spanish count tabs — the first gap to close; step labels/hints resolve by stable step key so the pure `setup-progress` lib and its tests are untouched), the **full Notes screen** (composer, filters, pins/archive actions + toasts, empty states), and the **full Incidents screen** (filing form, severity/status/category vocabulary via `sev.*`/`status.*`/`cat.*` keys everywhere they appear — selects *and* pills — acknowledge flow, evidence-link errors via codes, all toasts). Completeness test keeps en/es pinned equal) | `src/lib/i18n.js`, `NotesPanel.js`, `IncidentsPanel.js`, `SetupChecklist.js`, `AppShell.js` | ✅ |
+| **Localization — Phase 2b: Log, Time + auth error prose** (~245 new en/es keys, each screen complete: the **full Log screen** (search + AI-ask chrome, filters, over/short/balanced pills, variance-resolution panel and dispute flow via `vstatus.*`/`cause.*` vocabulary keys — selects *and* pills — verify row, thread chrome, empty states, every toast), the **full Time screen** (clock in/out card, hours-by-employee, payroll approval incl. `confirm()` prose, timesheet corrections, and the whole Schedule: swaps via `swapact.*`/`swaptoast.*` keyed to the `lib/swaps` action ids, templates, publish & notify, availability, roster, attendance), and the **Phase 1 carve-out closed** — login/signup routes send a stable `code` beside the unchanged English `error`, `fetchJson` propagates it (+ `network`/`network_drop`), `PinLogin` renders known codes via `autherr.*` with verbatim fallback for diagnostics. Deliberate carve-outs: permanent-record text (Log status comments + embedded English `causeLabel`) and CSV export headers stay English — shared record/export data, not per-device chrome. No schema/rules change) | `src/lib/i18n.js`, `LogList.js`, `TimeClock.js`, `Schedule.js`, `PinLogin.js`, `SessionProvider.js`, `src/lib/api.js`, `api/auth/*` | ✅ |
 
 ## Next up
 
@@ -353,8 +354,18 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     on the Spanish count path), the full Notes screen, and the full Incidents
     screen incl. the severity/status/category vocabulary (`sev.*` /
     `status.*` / `cat.*`).
-  - *Next:* Phase 2b — Log, Time, Dashboard, Admin + the server-authored
-    login error prose.
+  - **Phase 2b — Log, Time + the server-authored auth error prose — ✅ done**
+    — the full Log screen (variance/dispute vocabulary via `vstatus.*` /
+    `cause.*`), the full Time screen (clock, payroll approval, corrections,
+    and the whole Schedule incl. `swapact.*` / `swaptoast.*`), and the auth
+    routes' stable error `code`s rendered through `autherr.*` on the login
+    card. Permanent-record text and CSV headers deliberately stay English.
+  - *Next:* Phase 2c — Dashboard + Admin, each structurally more than a
+    catalog sweep: the Dashboard pattern alerts are prose generated in
+    `lib/patterns.js` (also feeds the fixed-English digest → detectors move
+    to codes + params), and the Admin tab must land with `PacksCard`,
+    `SettlementReconcile`, and `ImportCard` per the no-mixed-screens rule.
+    Then the keyboard-shortcuts help and `/guide` + `/docs`.
 - **In-app notification center** (defer web push) — the real-time
   loss-prevention story at a fraction of push's complexity.
 

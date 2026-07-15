@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
-import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
+import { LOCALES, LOCALE_LABELS, CATALOG } from "@/lib/i18n";
 import { PRODUCT } from "@/lib/store";
 import { PIN_LENGTH, PIN_PLACEHOLDER, isValidNewPin } from "@/lib/pin";
 import Logo from "./Logo";
@@ -14,8 +14,16 @@ export default function PinLogin() {
   const { lang, setLang, t } = useLang();
   const [mode, setMode] = useState("login"); // 'login' | 'signup'
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(null); // the caught Error (message + optional code)
   const [createdSlug, setCreatedSlug] = useState("");
+
+  // Server/API errors carry a stable `code` (see /api/auth/* and fetchJson);
+  // a known code renders in the device language, anything else — including
+  // diagnostic prose like the non-JSON platform messages — shows verbatim.
+  const errText = (e) =>
+    e?.code && CATALOG.en[`autherr.${e.code}`]
+      ? t(`autherr.${e.code}`, { n: PIN_LENGTH })
+      : e?.message || String(e || "");
 
   // login fields
   const [storeCode, setStoreCode] = useState("");
@@ -28,18 +36,18 @@ export default function PinLogin() {
   const ids = { storeCode: useId(), pin: useId(), bizName: useId(), logoUrl: useId(), ownerName: useId(), newPin: useId() };
 
   async function doLogin() {
-    setErr(""); setBusy(true);
+    setErr(null); setBusy(true);
     try { await login(storeCode, pin); }
-    catch (e) { setErr(e.message); }
+    catch (e) { setErr(e); }
     setBusy(false);
   }
 
   async function doSignup() {
-    setErr(""); setBusy(true);
+    setErr(null); setBusy(true);
     try {
       const vendor = await signup({ businessName: bizName, logoUrl, ownerName, pin: newPin });
       setCreatedSlug(vendor.slug);
-    } catch (e) { setErr(e.message); }
+    } catch (e) { setErr(e); }
     setBusy(false);
   }
 
@@ -71,12 +79,12 @@ export default function PinLogin() {
               inputMode="numeric" maxLength={PIN_LENGTH} value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && doLogin()} placeholder={PIN_PLACEHOLDER} />
-            {err && <p className="text-sm text-neg mt-3">{err}</p>}
+            {err && <p className="text-sm text-neg mt-3">{errText(err)}</p>}
             <button className="btn-primary mt-5" disabled={busy || pin.length < PIN_LENGTH || !storeCode.trim()} onClick={doLogin}>
               {busy ? t("login.checking") : t("login.sign_in")}
             </button>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
-              onClick={() => { setMode("signup"); setErr(""); }}>
+              onClick={() => { setMode("signup"); setErr(null); }}>
               {t("login.register_link")}
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">
@@ -95,12 +103,12 @@ export default function PinLogin() {
             <input id={ids.newPin} className="input text-center text-xl tracking-[0.3em] font-mono"
               inputMode="numeric" maxLength={PIN_LENGTH} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
-            {err && <p className="text-sm text-neg mt-3">{err}</p>}
+            {err && <p className="text-sm text-neg mt-3">{errText(err)}</p>}
             <button className="btn-primary mt-5" disabled={busy || !isValidNewPin(newPin)} onClick={doSignup}>
               {busy ? t("login.creating") : t("login.create")}
             </button>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
-              onClick={() => { setMode("login"); setErr(""); }}>
+              onClick={() => { setMode("login"); setErr(null); }}>
               {t("login.back_to_login")}
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">

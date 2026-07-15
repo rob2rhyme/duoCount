@@ -5,19 +5,25 @@ title: Localization & low-literacy count path
 # DuoCount — Localization Spec (Spanish first)
 
 **Status: Phase 1 shipped (Spanish count path + mechanics + icon-forward
-treatment); Phases 2–3 designed, not built.** `src/lib/i18n.js` (pure `translate`
-/ `resolveLocale` + the en/es catalogs, ~95 keys), `LangProvider` / `useLang()`,
-the language picker on `PinLogin` and the language row in `PreferencesMenu`, and
-the full count-path sweep — login, the tab bar (top strip + mobile bottom nav),
-all three count forms, their validation messages (via stable `code`s on
-`count-validation.js`), save errors (the `SAVE_FAILED` sentinel), the blind-count
-confirm, and every toast — plus tab glyphs, ✓ on Save, 🌅/🌇 on shift, and ▲/▼ on
-the over/short readout. The completeness test (`npm run test:i18n`) pins the en
-and es key sets equal. **One honest carve-out:** the `login()` / `signup()` error
-prose originates server-side (the auth API), so it still surfaces in English —
-keyed with the API layer in Phase 2. This spec remains the contract for Phases
-2–3, because the expensive part — touching every string beyond the count path —
-is real, unglamorous work that a `t()` helper alone does not make cheap.
+treatment); Phase 2 in progress, screen by screen — Notes, Incidents, the
+count-tab onboarding (2a), then Log, Time (clock + schedule), and the
+server-authored auth error prose (2b) are shipped; Dashboard + Admin are the
+remaining 2c slug. Phase 3 designed, not built.** `src/lib/i18n.js` (pure
+`translate` / `resolveLocale` + the en/es catalogs, ~520 keys), `LangProvider` /
+`useLang()`, the language picker on `PinLogin` and the language row in
+`PreferencesMenu`, and the full count-path sweep — login, the tab bar (top strip
++ mobile bottom nav), all three count forms, their validation messages (via
+stable `code`s on `count-validation.js`), save errors (the `SAVE_FAILED`
+sentinel), the blind-count confirm, and every toast — plus tab glyphs, ✓ on
+Save, 🌅/🌇 on shift, and ▲/▼ on the over/short readout. The completeness test
+(`npm run test:i18n`) pins the en and es key sets equal. The Phase 1 carve-out —
+`login()` / `signup()` error prose originating server-side — closed in 2b: the
+auth routes now send a stable `code` beside the unchanged English `error`,
+`fetchJson` carries it, and the login card renders known codes through the
+`autherr.*` keys (unknown/diagnostic prose still shows verbatim). This spec
+remains the contract for the rest of Phase 2 and Phase 3, because the expensive
+part — touching every string beyond the count path — is real, unglamorous work
+that a `t()` helper alone does not make cheap.
 
 It follows the pattern the app already uses for personal, per-device preferences
 (the light/dark theme in `ThemeProvider` and the scroll-to-top FAB in
@@ -321,15 +327,40 @@ concerns of the AI specs don't apply here — there is no network and no key.
    translate the remaining user-facing surfaces; purely more catalog entries and
    more `t()` calls — the mechanics don't change. The completeness test keeps
    each screen honest as it lands.
-   - **✅ Shipped:** the count-tab onboarding surfaces (`SetupChecklist` + the
-     six count-tab `EmptyState` variants — they render on the already-Spanish
+   - **✅ Shipped (2a):** the count-tab onboarding surfaces (`SetupChecklist` +
+     the six count-tab `EmptyState` variants — they render on the already-Spanish
      count tabs, so they were the first mixed-language gap to close), **Notes**
      (`NotesPanel`, complete), and **Incidents** (`IncidentsPanel`, complete —
      incl. the severity/status/category vocabulary, which now renders through
      `sev.*` / `status.*` / `cat.*` keys everywhere it appears).
-   - **Remaining:** Log (`LogList`), Time (`TimeClock` + `Schedule`), Dashboard,
-     Admin, the keyboard-shortcuts help, the `/guide` + `/docs` pages, and the
-     server-authored `login()` error prose.
+   - **✅ Shipped (2b):** **Log** (`LogList`, complete — filters, AI-ask chrome,
+     variance/dispute controls and pills via `vstatus.*` / `cause.*` vocabulary
+     keys, the comment thread chrome, empty states, every toast), **Time**
+     (`TimeClock` + `Schedule`, complete — clock in/out, hours table, payroll
+     approval incl. its `confirm()` prose, timesheet corrections, the whole
+     roster: swaps via `swapact.*` / `swaptoast.*` keyed to the `lib/swaps`
+     action ids, templates, publish, availability, attendance), and the
+     **server-authored auth error prose** — the login/signup routes attach a
+     stable `code` beside the unchanged English `error`, `fetchJson` propagates
+     it (plus `network` / `network_drop` on its own failures), and `PinLogin`
+     renders known codes through `autherr.*` with verbatim fallback for
+     diagnostic prose. **Deliberate carve-outs, stated plainly:** text written
+     into the permanent record stays English — the Log's status comments
+     ("Resolved — Human error", "Dispute resolved by …") and the English
+     `causeLabel` they embed are shared, append-only store data, not per-device
+     chrome (one language for the record; the *rendered* pills localize); CSV
+     exports (log export, payroll CSV) keep English headers per the fixed-light
+     export posture; and item units (`carton`, `pack`) are store data shown
+     verbatim.
+   - **Remaining (2c):** Dashboard and Admin. Both are structurally bigger than
+     a catalog sweep, which is why they're their own slug: the Dashboard's
+     pattern alerts are English prose *generated inside* `lib/patterns.js`
+     (which also feeds the fixed-English email digest, so detectors must move
+     to stable codes + params with the digest keeping its English rendering),
+     and the Admin tab renders `PacksCard`, `SettlementReconcile`, and
+     `ImportCard` alongside `AdminPanel` — the no-mixed-screens rule means all
+     four land together. After that: the keyboard-shortcuts help and the
+     `/guide` + `/docs` pages.
 3. **Phase 3 — more locales + RTL.** Additional locales are *just another object* in
    the catalog and one more entry in `LOCALES`. **RTL / Arabic is explicitly larger
    and later:** it needs `dir="rtl"` on the document, an audit for logical (vs
