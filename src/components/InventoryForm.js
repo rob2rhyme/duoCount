@@ -7,6 +7,7 @@ import { validateInventory } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
+import { useLang } from "./LangProvider";
 import SaveError from "./SaveError";
 import Field from "./Field";
 import SearchInput from "./SearchInput";
@@ -16,6 +17,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function InventoryForm({ onSaved, locations, items, entries, locName }) {
   const { profile, vendor, isManager } = useSession();
+  const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
     date: today(), shift: defaultShift(new Date().getHours()), locationId: "", itemId: "",
@@ -83,7 +85,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   // Throws on failure so useSaveState can show a persistent, retryable error
   // rather than a toast that vanishes before the clerk notices the save failed.
   async function save() {
-    if (blind && !confirm("You're committing a blind count. Entries can't be edited after saving.")) return;
+    if (blind && !confirm(t("confirm.blind"))) return;
     await addEntry(vendor.id, {
       kind: "inventory", date: f.date, shift: f.shift,
       locationId: f.locationId, locationName: locName(f.locationId),
@@ -97,68 +99,70 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
     });
     saveContext(vendor.id, profile.id, { locationId: f.locationId });
     setF((p) => ({ ...p, startQty: String(Number(p.counted) || 0), received: "", removed: "", soldQty: "", counted: "" }));
-    const result = diff === 0 ? "balanced" : diff > 0 ? `over ${diff} ${unit}s` : `short ${Math.abs(diff)} ${unit}s`;
-    onSaved?.(blind ? `Saved — ${result}` : "Inventory count signed & saved");
+    const result = diff === 0 ? t("toast.balanced")
+      : diff > 0 ? t("toast.over_units", { n: diff, unit })
+        : t("toast.short_units", { n: Math.abs(diff), unit });
+    onSaved?.(blind ? t("toast.saved_result", { result }) : t("toast.saved_inventory"));
   }
 
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
-        <h2 className="font-semibold text-[15px]">Inventory count</h2>
+        <h2 className="font-semibold text-[15px]"><span aria-hidden="true">📦</span> {t("inventory.title")}</h2>
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Location"}>
+          <Field label={t("common.location")}>
             <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select></Field>
-          <div><label htmlFor={itemFieldId} className="label">Item</label>
+          <div><label htmlFor={itemFieldId} className="label">{t("inventory.item")}</label>
             <div className="flex gap-2">
               <select id={itemFieldId} className="input min-w-0" value={f.itemId} onChange={set("itemId")}>
-                {locItems.length === 0 && <option value="">No items — add in Admin</option>}
+                {locItems.length === 0 && <option value="">{t("inventory.no_items")}</option>}
                 {shownItems.map((i) => (
                   <option key={i.id} value={i.id}>{i.name}{i.category ? ` · ${i.category}` : ""}</option>
                 ))}
               </select>
-              <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg" title="Scan item barcode"
-                aria-label="Scan item barcode" onClick={() => setScanOpen(true)}>📷</button>
+              <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg" title={t("inventory.scan_item")}
+                aria-label={t("inventory.scan_item")} onClick={() => setScanOpen(true)}>📷</button>
             </div></div>
         </div>
         {searchable && (
           <SearchInput value={itemSearch} onChange={setItemSearch}
-            placeholder={`Search ${locItems.length} items…`} label="Search items" />
+            placeholder={t("inventory.search", { n: locItems.length })} label={t("inventory.search_label")} />
         )}
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Date"}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
-          <Field label={"Shift"}>
+          <Field label={t("common.date")}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
+          <Field label={t("common.shift")}>
             <select className="input" value={f.shift} onChange={set("shift")}>
-              <option value="open">Opening</option><option value="close">Closing</option>
+              <option value="open">🌅 {t("common.opening")}</option><option value="close">🌇 {t("common.closing")}</option>
             </select></Field>
         </div>
         <div>
-          <Field label={"Counted on hand"}><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></Field>
-          <p className="text-[12px] text-muted mt-1">What&apos;s actually on the shelf right now — that&apos;s all a quick recount needs.</p>
+          <Field label={t("inventory.counted")}><input type="number" inputMode="numeric" className="input" value={f.counted} onChange={set("counted")} placeholder="0" /></Field>
+          <p className="text-[12px] text-muted mt-1">{t("inventory.counted_hint")}</p>
         </div>
 
         <div className="rounded-xl border border-line overflow-hidden">
           <button type="button" onClick={() => setShowDetails((v) => !v)} aria-expanded={showDetails}
             className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-[13px] font-semibold text-fg hover:bg-subtle transition">
             <span className="flex items-center gap-2 min-w-0">
-              <span className="truncate">Movement details</span>
-              <span className="text-muted font-normal hidden sm:inline">received · sold · removed</span>
-              {hasMovement && !showDetails && <span className="w-1.5 h-1.5 rounded-full bg-brass flex-shrink-0" aria-label="has entries" />}
+              <span className="truncate">{t("inventory.movement")}</span>
+              <span className="text-muted font-normal hidden sm:inline">{t("inventory.movement_sub")}</span>
+              {hasMovement && !showDetails && <span className="w-1.5 h-1.5 rounded-full bg-brass flex-shrink-0" aria-label={t("inventory.has_entries")} />}
             </span>
             <span aria-hidden="true" className={`text-muted flex-shrink-0 transition-transform ${showDetails ? "rotate-180" : ""}`}>⌄</span>
           </button>
           {showDetails && (
             <div className="px-3.5 pb-3.5 pt-3 space-y-3.5 border-t border-line">
               <div className="grid grid-cols-2 gap-3.5">
-                <Field label={"Start qty (last count)"}><input type="number" inputMode="numeric" className="input" value={f.startQty} onChange={set("startQty")} placeholder="0" /></Field>
-                <Field label={"Received (deliveries)"}><input type="number" inputMode="numeric" className="input" value={f.received} onChange={set("received")} placeholder="0" /></Field>
+                <Field label={t("inventory.startqty")}><input type="number" inputMode="numeric" className="input" value={f.startQty} onChange={set("startQty")} placeholder="0" /></Field>
+                <Field label={t("inventory.received")}><input type="number" inputMode="numeric" className="input" value={f.received} onChange={set("received")} placeholder="0" /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3.5">
-                <Field label={"Sold since last count"}><input type="number" inputMode="numeric" className="input" value={f.soldQty} onChange={set("soldQty")} placeholder="0" /></Field>
-                <Field label={"Removed (damage/returns)"}><input type="number" inputMode="numeric" className="input" value={f.removed} onChange={set("removed")} placeholder="0" /></Field>
+                <Field label={t("inventory.sold")}><input type="number" inputMode="numeric" className="input" value={f.soldQty} onChange={set("soldQty")} placeholder="0" /></Field>
+                <Field label={t("inventory.removed")}><input type="number" inputMode="numeric" className="input" value={f.removed} onChange={set("removed")} placeholder="0" /></Field>
               </div>
             </div>
           )}
@@ -166,39 +170,44 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
 
         {blind ? (
           <div className="bg-panel border border-dashed border-line rounded-xl px-3.5 py-4 text-center">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Blind count</div>
-            <div className="text-sm text-muted mt-1">Result shown after you save</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("cash.blind")}</div>
+            <div className="text-sm text-muted mt-1">{t("cash.blind_hint")}</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
             <div className="bg-panel px-3.5 py-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Expected on hand</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("inventory.expected")}</div>
               <div className="text-xl font-bold font-mono mt-0.5">{expected} <span className="text-sm font-normal text-muted">{unit}s</span></div>
             </div>
             <div className="bg-panel px-3.5 py-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Over / short</div>
-              <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>{diff >= 0 ? "+" : ""}{diff} <span className="text-sm font-normal text-muted">{unit}s</span></div>
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("common.over_short")}</div>
+              <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>
+                {diff !== 0 && <span aria-hidden="true">{diff > 0 ? "▲ " : "▼ "}</span>}
+                {diff >= 0 ? "+" : ""}{diff} <span className="text-sm font-normal text-muted">{unit}s</span>
+              </div>
             </div>
           </div>
         )}
 
         <SaveError message={error} onRetry={() => run(save)} busy={busy} />
-        <button className="btn-primary" disabled={busy || !valid.ok || !item} onClick={() => run(save)}>{busy ? "Saving…" : "Save & sign entry"}</button>
-        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{valid.message}</p>}
-        <p className="text-xs text-muted leading-relaxed">Expected = start + received − sold − removed. Negative over/short means missing stock. Your name, item, location, and time stamp attach automatically.</p>
+        <button className="btn-primary" disabled={busy || !valid.ok || !item} onClick={() => run(save)}>
+          <span aria-hidden="true">✓</span> {busy ? t("common.saving") : t("common.save_sign")}
+        </button>
+        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{t(`err.${valid.code}`)}</p>}
+        <p className="text-xs text-muted leading-relaxed">{t("inventory.helper")}</p>
       </div>
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
-        title="Scan to select item"
-        hint="The scan just picks the item — nothing saves until you save & sign the count."
+        title={t("inventory.scan_title")}
+        hint={t("inventory.scan_hint")}
         onDetected={(code) => {
           setScanOpen(false);
           const match = locItems.find((i) => i.barcode && i.barcode === code);
           if (match) {
             setF((p) => ({ ...p, itemId: match.id }));
-            onSaved?.(`Selected ${match.name}`);
+            onSaved?.(t("toast.item_selected", { name: match.name }));
           } else {
-            onSaved?.("No item with this barcode here — add it in Admin");
+            onSaved?.(t("toast.barcode_no_match"));
           }
         }} />
     </div>

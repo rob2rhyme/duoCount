@@ -43,7 +43,17 @@ test("scratch: start == end (a no-sales shift) is valid", () => {
   assert.equal(validateScratch({ locationId: "l1", drawerId: "d1", startno: "150", endno: "150" }).ok, true);
 });
 
-test("a valid result carries no field or message", () => {
+test("a valid result carries no field, code, or message", () => {
   const r = validateCash({ locationId: "l1", drawerId: "d1", counted: "5" });
-  assert.deepEqual(r, { ok: true, field: null, message: "" });
+  assert.deepEqual(r, { ok: true, field: null, code: null, message: "" });
+});
+
+test("failures carry a stable code the forms can localize (t(`err.${code}`))", () => {
+  assert.equal(validateCash({}).code, "pick_location");
+  assert.equal(validateCash({ locationId: "l1" }).code, "pick_drawer");
+  assert.equal(validateCash({ locationId: "l1", drawerId: "d1" }).code, "enter_counted");
+  assert.equal(validateInventory({ locationId: "l1" }).code, "pick_item");
+  assert.equal(validateInventory({ locationId: "l1", itemId: "i1" }).code, "enter_onhand");
+  assert.equal(validateScratch({ locationId: "l1", drawerId: "d1" }).code, "enter_numbers");
+  assert.equal(validateScratch({ locationId: "l1", drawerId: "d1", startno: "9", endno: "1" }).code, "end_lt_start");
 });

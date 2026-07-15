@@ -7,7 +7,11 @@ import { useState } from "react";
 // actually succeeds (which clears it) or the user retries.
 //
 // `run(fn)` runs the save, returns true on success / false on failure, and never
-// throws. A thrown error may carry a `.userMessage` for a friendlier line.
+// throws. A thrown error may carry a `.userMessage` for a friendlier line;
+// otherwise `error` is the SAVE_FAILED sentinel, which the form maps through the
+// i18n catalog (t("err.save_failed")) so the failure reads in the clerk's language.
+export const SAVE_FAILED = "save_failed";
+
 export function useSaveState() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -20,10 +24,7 @@ export function useSaveState() {
       return true;
     } catch (e) {
       console.error(e);
-      setError(
-        (e && e.userMessage) ||
-          "Couldn't save — check your connection and try again. Your entry wasn't recorded."
-      );
+      setError((e && e.userMessage) || SAVE_FAILED);
       return false;
     } finally {
       setBusy(false);

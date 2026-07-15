@@ -6,6 +6,7 @@ import { validateCash } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
+import { useLang } from "./LangProvider";
 import SaveError from "./SaveError";
 import Field from "./Field";
 
@@ -19,6 +20,7 @@ const emptyDenoms = () => ({ 100: "", 50: "", 20: "", 10: "", 5: "", 1: "" });
 
 export default function CashForm({ onSaved, locations, drawers, locName }) {
   const { profile, vendor, isManager } = useSession();
+  const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
     date: today(), shift: defaultShift(new Date().getHours()), locationId: "", drawerId: "",
@@ -79,7 +81,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   // (a vanishing toast could hide a failed save on flaky wifi). The blind-count
   // confirm cancels quietly — it's a deliberate abort, not a failure.
   async function save() {
-    if (blind && !confirm("You're committing a blind count. Entries can't be edited after saving.")) return;
+    if (blind && !confirm(t("confirm.blind"))) return;
     const flagged = Math.abs(diff) >= threshold;
     await addEntry(vendor.id, {
       kind: "cash", date: f.date, shift: f.shift,
@@ -96,50 +98,51 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
     setDenoms(emptyDenoms());
     setCoins("");
     // In blind mode the result is revealed only after the commit.
-    const result = Math.abs(diff) < 0.005 ? "balanced"
-      : diff > 0 ? `over ${money(diff)}` : `short ${money(Math.abs(diff))}`;
-    onSaved?.(blind ? `Saved — ${result}` : "Cash entry signed & saved");
+    const result = Math.abs(diff) < 0.005 ? t("toast.balanced")
+      : diff > 0 ? t("toast.over_amount", { amount: money(diff) })
+        : t("toast.short_amount", { amount: money(Math.abs(diff)) });
+    onSaved?.(blind ? t("toast.saved_result", { result }) : t("toast.saved_cash"));
   }
 
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
-        <h2 className="font-semibold text-[15px]">New drawer count</h2>
+        <h2 className="font-semibold text-[15px]"><span aria-hidden="true">💵</span> {t("cash.title")}</h2>
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Location"}>
+          <Field label={t("common.location")}>
             <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select></Field>
-          <Field label={"Cash drawer"}>
+          <Field label={t("cash.drawer")}>
             <select className="input" value={f.drawerId} onChange={set("drawerId")}>
-              {locDrawers.length === 0 && <option value="">No drawers — add in Admin</option>}
+              {locDrawers.length === 0 && <option value="">{t("cash.no_drawers")}</option>}
               {locDrawers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Date"}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
-          <Field label={"Shift"}>
+          <Field label={t("common.date")}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
+          <Field label={t("common.shift")}>
             <select className="input" value={f.shift} onChange={set("shift")}>
-              <option value="open">Opening</option><option value="close">Closing</option>
+              <option value="open">🌅 {t("common.opening")}</option><option value="close">🌇 {t("common.closing")}</option>
             </select></Field>
         </div>
         {(() => {
           const countedInput = useCounter ? (
             <div className="input flex items-center justify-between font-mono font-semibold" aria-live="polite">
               <span>{money(denomTotal)}</span>
-              <span className="text-[10px] uppercase tracking-wide text-muted font-sans">from counter</span>
+              <span className="text-[10px] uppercase tracking-wide text-muted font-sans">{t("cash.from_counter")}</span>
             </div>
           ) : (
             <input id={countedId} type="number" inputMode="decimal" className="input" value={f.counted} onChange={set("counted")} placeholder="0.00" />
           );
           const startField = (
-            <Field label={"Starting drawer"}><input type="number" inputMode="decimal" className="input" value={f.start} onChange={set("start")} placeholder="0.00" /></Field>
+            <Field label={t("cash.start")}><input type="number" inputMode="decimal" className="input" value={f.start} onChange={set("start")} placeholder="0.00" /></Field>
           );
           const countedField = (
             <div>
-              <label htmlFor={countedId} className="label">{isOpen ? "Counted now" : "Counted at close"}</label>
+              <label htmlFor={countedId} className="label">{isOpen ? t("cash.counted_now") : t("cash.counted_close")}</label>
               {countedInput}
             </div>
           );
@@ -150,10 +153,10 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
             <>
               <div className="grid grid-cols-2 gap-3.5">
                 {startField}
-                <Field label={"Cash sales"}><input type="number" inputMode="decimal" className="input" value={f.sales} onChange={set("sales")} placeholder="0.00" /></Field>
+                <Field label={t("cash.sales")}><input type="number" inputMode="decimal" className="input" value={f.sales} onChange={set("sales")} placeholder="0.00" /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3.5">
-                <Field label={"Paid out / drops"}><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></Field>
+                <Field label={t("cash.paidout")}><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></Field>
                 {countedField}
               </div>
             </>
@@ -164,14 +167,14 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
           className="btn-ghost w-full min-h-[44px] justify-between text-sm font-semibold">
           <span className="inline-flex items-center gap-2">
             <span aria-hidden="true">🧮</span>
-            {useCounter ? "Counting by denomination" : "Count cash by denomination"}
+            {useCounter ? t("cash.counter_on") : t("cash.counter_off")}
           </span>
-          <span className="text-[12px] font-normal text-muted">{useCounter ? "Enter a total instead" : "Tally the bills"}</span>
+          <span className="text-[12px] font-normal text-muted">{useCounter ? t("cash.counter_hint_on") : t("cash.counter_hint_off")}</span>
         </button>
 
         {useCounter && (
           <div className="bg-panel border border-line rounded-xl p-3.5 space-y-2">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Count by denomination</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("cash.by_denom")}</div>
             {DENOMS.map((d) => {
               const n = parseInt(denoms[d], 10) || 0;
               return (
@@ -180,22 +183,22 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
                   <span className="text-muted text-sm">×</span>
                   <input type="number" inputMode="numeric" min="0" step="1"
                     className="input py-1.5 w-24" value={denoms[d]} onChange={setDenom(d)} placeholder="0"
-                    aria-label={`Number of $${d} bills`} />
+                    aria-label={t("cash.bills_of", { d })} />
                   <span className="ml-auto font-mono text-sm tabular-nums text-muted">{money(d * n)}</span>
                 </div>
               );
             })}
             <div className="flex items-center gap-2.5">
-              <span className="w-12 text-sm font-semibold font-mono text-right">Coins</span>
+              <span className="w-12 text-sm font-semibold font-mono text-right">{t("cash.coins")}</span>
               <span className="text-muted text-sm">$</span>
               <input type="number" inputMode="decimal" min="0" step="0.01"
                 className="input py-1.5 w-24" value={coins}
                 onChange={(e) => setCoins(e.target.value)} placeholder="0.00"
-                aria-label="Coins total in dollars" />
+                aria-label={t("cash.coins_total")} />
               <span className="ml-auto font-mono text-sm tabular-nums text-muted">{money(coinValue)}</span>
             </div>
             <div className="flex items-center justify-between border-t border-line pt-2.5 mt-1">
-              <span className="text-[11px] uppercase tracking-wide text-muted font-semibold">Counter total</span>
+              <span className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("cash.counter_total")}</span>
               <span className="font-mono font-bold text-lg">{money(denomTotal)}</span>
             </div>
           </div>
@@ -203,26 +206,31 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
 
         {blind ? (
           <div className="bg-panel border border-dashed border-line rounded-xl px-3.5 py-4 text-center">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Blind count</div>
-            <div className="text-sm text-muted mt-1">Result shown after you save</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("cash.blind")}</div>
+            <div className="text-sm text-muted mt-1">{t("cash.blind_hint")}</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
             <div className="bg-panel px-3.5 py-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Expected in drawer</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("cash.expected")}</div>
               <div className="text-xl font-bold font-mono mt-0.5">{money(expected)}</div>
             </div>
             <div className="bg-panel px-3.5 py-3">
-              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Over / short</div>
-              <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>{diff >= 0 ? "+" : ""}{money(diff)}</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("common.over_short")}</div>
+              <div className={`text-xl font-bold font-mono mt-0.5 ${diffClass}`}>
+                {Math.abs(diff) >= 0.005 && <span aria-hidden="true">{diff > 0 ? "▲ " : "▼ "}</span>}
+                {diff >= 0 ? "+" : ""}{money(diff)}
+              </div>
             </div>
           </div>
         )}
 
         <SaveError message={error} onRetry={() => run(save)} busy={busy} />
-        <button className="btn-primary" disabled={busy || !valid.ok} onClick={() => run(save)}>{busy ? "Saving…" : "Save & sign entry"}</button>
-        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{valid.message}</p>}
-        <p className="text-xs text-muted leading-relaxed">{isOpen ? "Expected = your starting drawer (an opening count has no sales or paid-outs yet)." : "Expected = start + sales − paid out."} Your name, drawer, location, and time stamp attach automatically.</p>
+        <button className="btn-primary" disabled={busy || !valid.ok} onClick={() => run(save)}>
+          <span aria-hidden="true">✓</span> {busy ? t("common.saving") : t("common.save_sign")}
+        </button>
+        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{t(`err.${valid.code}`)}</p>}
+        <p className="text-xs text-muted leading-relaxed">{isOpen ? t("cash.helper_open") : t("cash.helper_close")} {t("cash.helper_sig")}</p>
       </div>
     </div>
   );

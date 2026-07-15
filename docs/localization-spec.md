@@ -4,14 +4,20 @@ title: Localization & low-literacy count path
 
 # DuoCount — Localization Spec (Spanish first)
 
-**Status: analysis / design only — not built.** This is the design for a
-lightweight internationalization (i18n) layer and a Spanish-first, icon-forward
-treatment of the daily **count path** (the screens a clerk touches every shift).
-Nothing here is implemented yet: there is no `src/lib/i18n.js`, no `LangProvider`,
-no locale catalogs, and every user-facing string in the components below is still
-an inline English literal. This spec exists to scope the work honestly *before* it
-starts, because the expensive part — touching every string on the count path — is
-real, unglamorous work that a `t()` helper alone does not make cheap.
+**Status: Phase 1 shipped (Spanish count path + mechanics + icon-forward
+treatment); Phases 2–3 designed, not built.** `src/lib/i18n.js` (pure `translate`
+/ `resolveLocale` + the en/es catalogs, ~95 keys), `LangProvider` / `useLang()`,
+the language picker on `PinLogin` and the language row in `PreferencesMenu`, and
+the full count-path sweep — login, the tab bar (top strip + mobile bottom nav),
+all three count forms, their validation messages (via stable `code`s on
+`count-validation.js`), save errors (the `SAVE_FAILED` sentinel), the blind-count
+confirm, and every toast — plus tab glyphs, ✓ on Save, 🌅/🌇 on shift, and ▲/▼ on
+the over/short readout. The completeness test (`npm run test:i18n`) pins the en
+and es key sets equal. **One honest carve-out:** the `login()` / `signup()` error
+prose originates server-side (the auth API), so it still surfaces in English —
+keyed with the API layer in Phase 2. This spec remains the contract for Phases
+2–3, because the expensive part — touching every string beyond the count path —
+is real, unglamorous work that a `t()` helper alone does not make cheap.
 
 It follows the pattern the app already uses for personal, per-device preferences
 (the light/dark theme in `ThemeProvider` and the scroll-to-top FAB in
@@ -299,12 +305,18 @@ concerns of the AI specs don't apply here — there is no network and no key.
 
 ## Phasing
 
-1. **Phase 1 — Spanish count path + mechanics.** `src/lib/i18n.js` (`translate`,
-   `LOCALES`, `LANG_KEY`, `DEFAULT_LOCALE`) + the completeness test; `LangProvider`
-   and `useLang()`; the language row in `PreferencesMenu` and the picker on
-   `PinLogin`; the full Spanish catalog for the count path (login → tab bar → the
-   three forms → their toasts); and the **icon-forward treatment** on that path.
-   Shipped as one complete slug — no partial count path. Default English is unchanged.
+1. **Phase 1 — Spanish count path + mechanics. ✅ shipped** as one complete slug:
+   `src/lib/i18n.js` (`translate`, `LOCALES`, `LANG_KEY`, `DEFAULT_LOCALE`,
+   `resolveLocale`) + the completeness test; `LangProvider` and `useLang()`; the
+   language row in `PreferencesMenu` and the picker on `PinLogin`; the full
+   Spanish catalog for the count path (login → tab bar incl. the mobile bottom
+   nav → the three forms → validation/save errors → their toasts); and the
+   icon-forward treatment (tab glyphs, ✓ Save, 🌅/🌇 shift, ▲/▼ over-short).
+   Validation messages localize via stable `code`s added to `count-validation.js`
+   (its English `message` is unchanged, so nothing else moved); the save-failure
+   line localizes via the `SAVE_FAILED` sentinel. Default English is unchanged;
+   the server-authored `login()` error prose is the one deferred string (Phase 2,
+   with the API layer).
 2. **Phase 2 — the rest of the app.** Extract and translate the remaining
    user-facing surfaces: Log (`LogList`), Notes, Incidents, Time, Dashboard, Admin,
    and the `/guide` + `/docs` pages. Purely more catalog entries and more `t()`

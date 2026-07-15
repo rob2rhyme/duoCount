@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchPacks, watchIncidents, watchSwapBoard } from "@/lib/data";
 import { useSession } from "./SessionProvider";
+import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
 import InventoryForm from "./InventoryForm";
@@ -22,17 +23,20 @@ import { attentionCounts } from "@/lib/attention";
 import { resolveShortcut } from "@/lib/shortcuts";
 import { PRODUCT } from "@/lib/store";
 
+// Labels resolve through the i18n catalog (t(labelKey)); the glyph is the
+// language-neutral recognition anchor a clerk learns, per the localization
+// spec's icon-forward treatment — the word reinforces it.
 const TABS = [
-  { id: "cash", label: "Cash" },
-  { id: "scratch", label: "Scratch-offs" },
-  { id: "inventory", label: "Inventory" },
-  { id: "log", label: "Log" },
-  { id: "notes", label: "Notes" },
-  { id: "incidents", label: "Incidents" },
-  { id: "time", label: "Time" },
-  { id: "dashboard", label: "Dashboard" },
-  { id: "portfolio", label: "Portfolio", ownerOnly: true },
-  { id: "admin", label: "Admin", managerOnly: true },
+  { id: "cash", labelKey: "nav.cash", glyph: "💵" },
+  { id: "scratch", labelKey: "nav.scratch", glyph: "🎟️" },
+  { id: "inventory", labelKey: "nav.inventory", glyph: "📦" },
+  { id: "log", labelKey: "nav.log", glyph: "📋" },
+  { id: "notes", labelKey: "nav.notes", glyph: "📝" },
+  { id: "incidents", labelKey: "nav.incidents", glyph: "⚠️" },
+  { id: "time", labelKey: "nav.time", glyph: "⏱️" },
+  { id: "dashboard", labelKey: "nav.dashboard", glyph: "📊" },
+  { id: "portfolio", labelKey: "nav.portfolio", glyph: "🏬", ownerOnly: true },
+  { id: "admin", labelKey: "nav.admin", glyph: "⚙️", managerOnly: true },
 ];
 
 // Which tabs this person sees. ownerOnly is a product affordance, not a new
@@ -42,6 +46,7 @@ const visibleTabs = (isManager, isOwner) =>
 
 export default function AppShell() {
   const { profile, vendor, logout, isManager, isOwner } = useSession();
+  const { t } = useLang();
   const [tab, setTab] = useState("cash");
   const [entries, setEntries] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -101,7 +106,7 @@ export default function AppShell() {
 
   function ping(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
-  const tabs = visibleTabs(isManager, isOwner);
+  const tabs = visibleTabs(isManager, isOwner).map((tb) => ({ ...tb, label: t(tb.labelKey) }));
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
 
   // First-run onboarding: derive what's set up, and only trust "empty" once the
@@ -134,7 +139,7 @@ export default function AppShell() {
   // The decision logic lives in resolveShortcut (unit-tested); this effect only
   // wires it to the DOM.
   useEffect(() => {
-    const ids = visibleTabs(isManager, isOwner).map((t) => t.id);
+    const ids = visibleTabs(isManager, isOwner).map((tb) => tb.id);
     function onKey(e) {
       const el = e.target;
       const typing = el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable);
@@ -176,14 +181,15 @@ export default function AppShell() {
 
       <main className="max-w-3xl mx-auto px-4 py-4 pb-28 sm:pb-4">
         <div className="hidden sm:flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
-          {tabs.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition inline-flex items-center justify-center gap-1.5 ${tab === t.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
-              {t.label}
-              {tabAttention[t.id] > 0 && (
+          {tabs.map((tb) => (
+            <button key={tb.id} onClick={() => setTab(tb.id)}
+              className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition inline-flex items-center justify-center gap-1.5 ${tab === tb.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
+              <span aria-hidden="true">{tb.glyph}</span>
+              {tb.label}
+              {tabAttention[tb.id] > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brass text-ink text-[10px] font-bold leading-none"
-                  aria-label={`${tabAttention[t.id]} need attention`}>
-                  {tabAttention[t.id]}
+                  aria-label={t("nav.need_attention", { n: tabAttention[tb.id] })}>
+                  {tabAttention[tb.id]}
                 </span>
               )}
             </button>
