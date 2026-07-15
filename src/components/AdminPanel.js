@@ -10,15 +10,13 @@ import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { PIN_LENGTH, PIN_HELP, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
-import PacksCard from "./PacksCard";
-import SettlementReconcile from "./SettlementReconcile";
 import ImportCard from "./ImportCard";
 import Field from "./Field";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 
-export default function AdminPanel({ onToast, locations, drawers, items = [], packs = [], entries = [] }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const [staff, setStaff] = useState([]);
   const barcodeFieldId = useId();
@@ -391,12 +389,6 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], pa
           </div>
         ))}
       </div>
-
-      {/* ---------------- scratch-off packs ---------------- */}
-      <PacksCard onToast={onToast} locations={locations} packs={packs} entries={entries} />
-
-      {/* ---------------- lottery settlement reconciliation ---------------- */}
-      <SettlementReconcile packs={packs} onToast={onToast} />
 
       {/* ---------------- settings (owner) ---------------- */}
       <div className="card overflow-hidden">

@@ -39,7 +39,7 @@ the code lives in the
 | Tier two — incident write-ups, pattern alerts, login rate limiting | [tier-two-build-spec.md](tier-two-build-spec.md) |
 | Inventory counts | [inventory-tracker-spec.md](inventory-tracker-spec.md) |
 | Barcode scanning | [barcode-scanning-spec.md](barcode-scanning-spec.md) |
-| Scratch-off pack lifecycle | [lottery-pack-lifecycle-spec.md](lottery-pack-lifecycle-spec.md) |
+| Scratch-off pack lifecycle (retired → shift-boundary pack audit) | [lottery-pack-lifecycle-spec.md](lottery-pack-lifecycle-spec.md) |
 | UI — currency counter, scroll-to-top FAB, light/dark theme, Settings menu | [ui-enhancements-spec.md](ui-enhancements-spec.md) |
 | Demo data seed (owner-only load/clear) | [demo-data-spec.md](demo-data-spec.md) |
 | Mobile-first PWA | [pwa-spec.md](pwa-spec.md) |

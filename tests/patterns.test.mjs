@@ -213,49 +213,66 @@ test("a single recent short over a small earlier one is not a trend (blip guard)
   assert.ok(!detectPatterns(blip, { now: NOW }).some((a) => a.kind === "person-trend"));
 });
 
-// ---- 8. scratch settle-shortfall streak ----------------------------------
-const pack = (over = {}) => ({
-  status: "settled", game: "$5 Diamond", price: 2, shortAtSettle: 2,
-  settledAt: daysAgo(2), locationId: "loc1", ...over,
+// ---- 8. pack continuity gaps (entry-based; replaced settle-shortfall) ----
+const scratch = (over = {}) => ({
+  kind: "scratch", date: dstr(1), by: "Eve", byId: "u1", verifiedBy: "Mia",
+  game: "$5 Diamond", pack: "0447-233", price: 5, locationId: "loc1",
+  startno: 0, endno: 10, ts: daysAgo(1), ...over,
 });
 
-test("a game that keeps settling short raises a scratch-shortfall alert", () => {
-  const ps = [pack(), pack({ settledAt: daysAgo(4) }), pack({ settledAt: daysAgo(6) })];
-  const s = detectPatterns([], { now: NOW, packs: ps }).find((a) => a.kind === "scratch-shortfall");
-  assert.ok(s);
-  assert.equal(s.severity, "medium");          // 3 * 2 tickets * $2 = $12 < $20
-  assert.equal(s.id, "scratch-shortfall:$5 Diamond");
-  assert.match(s.title, /3 packs settled short/);
-  assert.match(s.detail, /6 tickets/);
-});
-
-test("scratch-shortfall goes high when the unaccounted dollars are large", () => {
-  const big = [pack({ price: 20 }), pack({ price: 20, settledAt: daysAgo(4) }), pack({ price: 20, settledAt: daysAgo(6) })];
-  assert.equal(detectPatterns([], { now: NOW, packs: big }).find((a) => a.kind === "scratch-shortfall").severity, "high");
-});
-
-test("scratch-shortfall ignores balanced, unsettled, and out-of-window packs", () => {
-  const noise = [
-    pack({ shortAtSettle: 0 }),                      // settled clean
-    pack({ status: "active", settledAt: null }),     // not settled yet
-    pack({ settledAt: daysAgo(40) }),                // settled outside the window
+test("a start # above the previous end # raises a pack-gap alert", () => {
+  const es = [
+    scratch({ startno: 0, endno: 37, date: dstr(2), ts: daysAgo(2) }),
+    scratch({ startno: 41, endno: 50, by: "Sam", byId: "u2", date: dstr(1), ts: daysAgo(1) }),
   ];
-  assert.ok(!detectPatterns([], { now: NOW, packs: noise }).some((a) => a.kind === "scratch-shortfall"));
-  // two of the same game is under the streak threshold
-  assert.ok(!detectPatterns([], { now: NOW, packs: [pack(), pack({ settledAt: daysAgo(4) })] })
-    .some((a) => a.kind === "scratch-shortfall"));
-  // different games don't pool into one streak
-  const mixed = [pack({ game: "A" }), pack({ game: "A", settledAt: daysAgo(4) }), pack({ game: "B", settledAt: daysAgo(6) })];
-  assert.ok(!detectPatterns([], { now: NOW, packs: mixed }).some((a) => a.kind === "scratch-shortfall"));
+  const s = detectPatterns(es, { now: NOW }).find((a) => a.kind === "pack-gap");
+  assert.ok(s);
+  assert.equal(s.severity, "high");            // 4 tickets * $5 = $20 >= $20
+  assert.equal(s.id, "pack-gap:loc1|0447-233");
+  assert.match(s.title, /4 tickets unaccounted/);
+  assert.match(s.detail, /\$20\.00/);
 });
 
-test("scratch-shortfall reads a Firestore Timestamp settledAt (the shape the digest passes)", () => {
-  const tsPack = (d) => pack({ settledAt: { seconds: Math.floor(daysAgo(d).getTime() / 1000) } });
-  const ps = [tsPack(2), tsPack(4), tsPack(6)];
-  assert.ok(detectPatterns([], { now: NOW, packs: ps }).some((a) => a.kind === "scratch-shortfall"));
+test("small-dollar gaps are medium; a clean chain never alerts", () => {
+  const small = [
+    scratch({ price: 1, startno: 0, endno: 10, date: dstr(2), ts: daysAgo(2) }),
+    scratch({ price: 1, startno: 12, endno: 20, date: dstr(1), ts: daysAgo(1) }),
+  ];
+  assert.equal(detectPatterns(small, { now: NOW }).find((a) => a.kind === "pack-gap").severity, "medium");
+
+  const clean = [
+    scratch({ startno: 0, endno: 10, date: dstr(2), ts: daysAgo(2) }),
+    scratch({ startno: 10, endno: 20, date: dstr(1), ts: daysAgo(1) }),
+  ];
+  assert.ok(!detectPatterns(clean, { now: NOW }).some((a) => a.kind === "pack-gap"));
 });
 
-test("no packs argument leaves behavior unchanged (backward compatible)", () => {
-  assert.ok(!detectPatterns([cash({ diff: -1 })], { now: NOW }).some((a) => a.kind === "scratch-shortfall"));
-  assert.deepEqual(detectPatterns([cash()], { now: NOW }), []); // still a quiet book
+test("pack-gap ignores rollbacks, other locations' packs, and out-of-window counts", () => {
+  // next start BELOW previous end — a re-count, not missing tickets
+  const rollback = [
+    scratch({ startno: 0, endno: 30, date: dstr(2), ts: daysAgo(2) }),
+    scratch({ startno: 27, endno: 33, date: dstr(1), ts: daysAgo(1) }),
+  ];
+  assert.ok(!detectPatterns(rollback, { now: NOW }).some((a) => a.kind === "pack-gap"));
+  // same pack # at two locations never cross-chains
+  const twoStores = [
+    scratch({ locationId: "loc1", startno: 0, endno: 10, date: dstr(2), ts: daysAgo(2) }),
+    scratch({ locationId: "loc2", startno: 50, endno: 60, date: dstr(1), ts: daysAgo(1) }),
+  ];
+  assert.ok(!detectPatterns(twoStores, { now: NOW }).some((a) => a.kind === "pack-gap"));
+  // the earlier count fell out of the window, so there's no pair to compare
+  const stale = [
+    scratch({ startno: 0, endno: 10, date: dstr(40), ts: daysAgo(40) }),
+    scratch({ startno: 90, endno: 95, date: dstr(1), ts: daysAgo(1) }),
+  ];
+  assert.ok(!detectPatterns(stale, { now: NOW }).some((a) => a.kind === "pack-gap"));
+});
+
+test("pack-gap reads Firestore Timestamp `ts` shapes (what the digest passes)", () => {
+  const fsTs = (d) => ({ seconds: Math.floor(daysAgo(d).getTime() / 1000) });
+  const es = [
+    scratch({ startno: 0, endno: 10, date: dstr(2), ts: fsTs(2) }),
+    scratch({ startno: 15, endno: 20, by: "Sam", byId: "u2", date: dstr(1), ts: fsTs(1) }),
+  ];
+  assert.ok(detectPatterns(es, { now: NOW }).some((a) => a.kind === "pack-gap"));
 });

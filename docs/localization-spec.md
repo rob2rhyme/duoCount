@@ -356,11 +356,12 @@ concerns of the AI specs don't apply here — there is no network and no key.
      a catalog sweep, which is why they're their own slug: the Dashboard's
      pattern alerts are English prose *generated inside* `lib/patterns.js`
      (which also feeds the fixed-English email digest, so detectors must move
-     to stable codes + params with the digest keeping its English rendering),
-     and the Admin tab renders `PacksCard`, `SettlementReconcile`, and
-     `ImportCard` alongside `AdminPanel` — the no-mixed-screens rule means all
-     four land together. After that: the keyboard-shortcuts help and the
-     `/guide` + `/docs` pages.
+     to stable codes + params with the digest keeping its English rendering)
+     plus the Pack-audit card prose, and the Admin tab renders `ImportCard`
+     alongside `AdminPanel` — the no-mixed-screens rule means both land
+     together (`PacksCard` / `SettlementReconcile` no longer exist — the pack
+     lifecycle was retired in favor of the shift-boundary pack audit). After
+     that: the keyboard-shortcuts help and the `/guide` + `/docs` pages.
 3. **Phase 3 — more locales + RTL.** Additional locales are *just another object* in
    the catalog and one more entry in `LOCALES`. **RTL / Arabic is explicitly larger
    and later:** it needs `dir="rtl"` on the document, an audit for logical (vs

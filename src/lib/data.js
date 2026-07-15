@@ -57,17 +57,9 @@ export async function updateItem(vendorId, id, patch) {
   await updateDoc(doc(db, "vendors", vendorId, "items", id), patch);
 }
 
-/* ---------- scratch-off packs (forward-only lifecycle) ---------- */
-export function watchPacks(vendorId, cb) {
-  return onSnapshot(query(vcol(vendorId, "packs"), orderBy("createdAt", "desc")),
-    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-}
-export async function addPack(vendorId, pack) {
-  await addDoc(vcol(vendorId, "packs"), { ...pack, createdAt: new Date() });
-}
-export async function updatePack(vendorId, id, patch) {
-  await updateDoc(doc(db, "vendors", vendorId, "packs", id), patch);
-}
+// The scratch pack lifecycle (packs collection) was retired — the shift-boundary
+// ticket #s on scratch count entries are the record; settlement is the lottery's
+// job. Legacy pack docs are untouched; demo Clear still sweeps them.
 
 /* ---------- staff (reads client-side; writes via /api/staff) ---------- */
 export function watchStaff(vendorId, cb) {

@@ -59,7 +59,6 @@ const file = {
     locations: byId(data.locations),
     drawers: byId(data.drawers),
     items: byId(data.items),
-    packs: byId(data.packs),
     entries,
     notes: byId(data.notes),
     incidents: byId(data.incidents),

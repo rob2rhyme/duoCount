@@ -71,17 +71,9 @@ export function buildDemoData({ owner, now = new Date(), days = 120 }) {
     { id: "seed_itm_redbull", name: "Red Bull 12oz", category: "Beverages", unit: "can", locationId: "seed_loc_main" },
   ].map((it) => ({ ...it, active: true, createdAt: born }));
 
-  // Scratch packs across the lifecycle: two active, one received, and several
-  // settled over time — so the Packs list is full and settlement reconciliation
-  // has real recorded figures ($ = price × soldAtSettle).
-  const packs = [
-    { id: "seed_pak_bonus", game: "$5 Bonus Cashword", pack: "1234-001", price: 5, ticketsPerPack: 60, status: "active", bin: "3", locationId: "seed_loc_main", activatedAt: ts(18), activatedBy: manager.name },
-    { id: "seed_pak_colossal", game: "$10 Colossal Cash", pack: "0777-014", price: 10, ticketsPerPack: 40, status: "active", bin: "5", locationId: "seed_loc_main", activatedAt: ts(15), activatedBy: manager.name },
-    { id: "seed_pak_lucky", game: "$2 Lucky 7s", pack: "0450-208", price: 2, ticketsPerPack: 75, status: "received", locationId: "seed_loc_main" },
-    { id: "seed_pak_cherry", game: "$3 Wild Cherry", pack: "0888-102", price: 3, ticketsPerPack: 50, status: "settled", locationId: "seed_loc_main", activatedAt: ts(48), activatedBy: manager.name, settledAt: ts(3), settledBy: manager.name, soldAtSettle: 44, shortAtSettle: 6 },
-    { id: "seed_pak_gold", game: "$20 Gold Rush", pack: "0333-091", price: 20, ticketsPerPack: 30, status: "settled", locationId: "seed_loc_main", activatedAt: ts(70), activatedBy: manager.name, settledAt: ts(34), settledBy: manager.name, soldAtSettle: 28, shortAtSettle: 2 },
-    { id: "seed_pak_diamond", game: "$5 Diamond Dazzler", pack: "1201-777", price: 5, ticketsPerPack: 60, status: "settled", locationId: "seed_loc_main", activatedAt: ts(96), activatedBy: manager.name, settledAt: ts(62), settledBy: manager.name, soldAtSettle: 57, shortAtSettle: 3 },
-  ].map((p) => ({ ...p, createdAt: p.activatedAt ? new Date(p.activatedAt.getTime() - 2 * DAY) : born }));
+  // The pack-lifecycle/settlement feature was retired (settlement is the
+  // lottery's job) — packs exist only as the pack #s on scratch count entries.
+  // "packs" stays in SEED_COLLECTIONS so clearing still removes legacy demo docs.
 
   const entries = [];
   const comments = {}; // entryId -> [comment, ...]
@@ -236,8 +228,8 @@ export function buildDemoData({ owner, now = new Date(), days = 120 }) {
       text: "Closing count was fine, but the POS drawer was found unlocked the next morning. Nothing missing; logging for the record and a coaching conversation.", d: 4, status: "open" },
     { id: "seed_inc_2", title: "No-call no-show for opening shift", severity: "serious", subjectId: "seed_usr_alex", subjectName: "Alex Kim",
       text: "Scheduled to open Main Store and did not arrive or call; store opened 25 minutes late.", d: 2, status: "acknowledged" },
-    { id: "seed_inc_3", title: "Scratch pack settled with a short", severity: "note", subjectId: null, subjectName: null,
-      text: "Gold Rush pack settled 2 tickets short of the activation count. Small, but logged so the pattern is visible if it repeats.", d: 34, status: "closed" },
+    { id: "seed_inc_3", title: "Scratch pack ticket gap between counts", severity: "note", subjectId: null, subjectName: null,
+      text: "Gold Rush opened 2 tickets above the previous shift's closing number. Small, but logged so the pattern is visible if it repeats.", d: 34, status: "closed" },
     { id: "seed_inc_4", title: "Repeated register-2 shortages", severity: "warning", subjectId: "seed_usr_jordan", subjectName: "Jordan Lee",
       text: "Register 2 came up short three times in two weeks under the same closer. Coaching scheduled; watching next cycle.", d: 20, status: "closed" },
     { id: "seed_inc_5", title: "Back stockroom door propped open", severity: "note", subjectId: null, subjectName: null,
@@ -352,12 +344,13 @@ export function buildDemoData({ owner, now = new Date(), days = 120 }) {
   });
 
   return {
-    staff, locations, drawers: drawerDocs, items, packs, entries, comments, notes, incidents,
+    staff, locations, drawers: drawerDocs, items, entries, comments, notes, incidents,
     timeclock, schedule, availability, templates, schedulePublished,
   };
 }
 
 // Collections whose top-level docs carry a `seed` flag, for tagging + clearing.
+// "packs" is retired from seeding but stays so Clear removes legacy demo packs.
 export const SEED_COLLECTIONS = [
   "locations", "drawers", "items", "packs", "entries", "notes", "incidents", "users",
   "timeclock", "schedule", "availability", "templates", "schedulePublished",

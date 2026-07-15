@@ -6,6 +6,8 @@
 // can be a sticky drawer as easily as a hand in the till, which is why the
 // drawer hot-spot detector exists alongside the person detector.
 
+import { buildPackAudit } from "./scratch-audit.js";
+
 export const PATTERN_RULES = {
   windowDays: 14,        // trailing window for streak detectors
   minShorts: 3,          // shorts needed to call it a streak
@@ -64,7 +66,7 @@ const isoDaysAgo = (days, now) =>
  * detail }] with severity 'high' | 'medium', worst first. Windows use the
  * entry's business `date` (YYYY-MM-DD); entries without one fall back to ts.
  */
-export function detectPatterns(entries, { now = new Date(), rules, packs = [] } = {}) {
+export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   const R = resolvePatternRules(rules);
   const cutoff = isoDaysAgo(R.windowDays, now);
   const dateOf = (e) => e.date || coerceDate(e.ts)?.toISOString().slice(0, 10) || "";
@@ -213,31 +215,20 @@ export function detectPatterns(entries, { now = new Date(), rules, packs = [] } 
     });
   }
 
-  // 8. Scratch settle-shortfall streak: the same game keeps settling with tickets
-  //    unaccounted (shortAtSettle). Like the drawer hot-spot, it points at the
-  //    settle count, the safe, or the pack before a person. Runs on settled packs
-  //    in the window; callers that pass no packs get identical behavior.
-  const settleCut = isoDaysAgo(R.windowDays, now);
-  const byGame = {};
-  for (const p of packs) {
-    if (p.status !== "settled") continue;
-    const short = Number(p.shortAtSettle) || 0;
-    if (short <= 0) continue;
-    const d = coerceDate(p.settledAt);
-    if (!d || d.toISOString().slice(0, 10) < settleCut) continue;
-    const k = p.game || "(game)";
-    byGame[k] = byGame[k] || { key: k, name: p.game || "(game)", count: 0, tickets: 0, dollars: 0 };
-    byGame[k].count++;
-    byGame[k].tickets += short;
-    byGame[k].dollars += short * (Number(p.price) || 0);
-  }
-  for (const g of Object.values(byGame)) {
-    if (g.count < R.minShorts) continue;
+  // 8. Pack continuity gaps: between two consecutive counts of the same scratch
+  //    pack, ticket numbers went unaccounted — the next count opened above the
+  //    number the previous count closed at. This replaced the settlement-based
+  //    detector when the pack lifecycle was retired (settlement is the
+  //    lottery's job; the shift boundary is ours). Every gapped pack alerts —
+  //    a gap is a conversation between the two signers — and dollars decide
+  //    severity. The full who/when detail lives in the Dashboard pack audit.
+  for (const g of buildPackAudit(entries, { days: R.windowDays, now }).gaps) {
+    if (g.totalMissing <= 0) continue; // pure rollbacks show in the audit card, not as alerts
     alerts.push({
-      id: `scratch-shortfall:${g.key}`, kind: "scratch-shortfall",
-      severity: g.dollars >= R.highShortDollars ? "high" : "medium",
-      title: `${g.name}: ${g.count} packs settled short in ${R.windowDays} days`,
-      detail: `${g.tickets} ticket${g.tickets === 1 ? "" : "s"} (~${money(g.dollars)}) unaccounted across ${g.count} packs — check the settle counts and the safe before anything else.`,
+      id: `pack-gap:${g.key}`, kind: "pack-gap",
+      severity: g.missingDollars >= R.highShortDollars ? "high" : "medium",
+      title: `${g.game} #${g.pack}: ${g.totalMissing} ticket${g.totalMissing === 1 ? "" : "s"} unaccounted between counts`,
+      detail: `~${money(g.missingDollars)} across ${g.events.length} count boundar${g.events.length === 1 ? "y" : "ies"} in ${R.windowDays} days — compare who closed and who opened at each break before anything else.`,
     });
   }
 

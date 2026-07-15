@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchPacks, watchIncidents, watchSwapBoard } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
@@ -52,7 +52,6 @@ export default function AppShell() {
   const [locations, setLocations] = useState([]);
   const [drawers, setDrawers] = useState([]);
   const [items, setItems] = useState([]);
-  const [packs, setPacks] = useState([]);
   const [notes, setNotes] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [swaps, setSwaps] = useState([]);
@@ -79,12 +78,11 @@ export default function AppShell() {
     const u3 = watchDrawers(vendor.id, (v) => { setDrawers(v); setLoaded((p) => (p.drawers ? p : { ...p, drawers: true })); });
     const u4 = watchItems(vendor.id, (v) => { setItems(v); setLoaded((p) => (p.items ? p : { ...p, items: true })); });
     const u5 = watchNotes(vendor.id, lockedLoc, setNotes);
-    const u6 = watchPacks(vendor.id, setPacks);
     // Write-ups: employees may only query incidents where they're the subject.
-    const u7 = watchIncidents(vendor.id, isManager ? null : profile.id, setIncidents);
+    const u6 = watchIncidents(vendor.id, isManager ? null : profile.id, setIncidents);
     // Swap board — only a manager needs it, and only to badge pending approvals.
-    const u8 = isManager ? watchSwapBoard(vendor.id, setSwaps) : () => {};
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); };
+    const u7 = isManager ? watchSwapBoard(vendor.id, setSwaps) : () => {};
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
   }, [vendor.id, lockedLoc, isManager, profile.id]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
@@ -96,13 +94,6 @@ export default function AppShell() {
     if (viewLoc === "all") return entries;
     return entries.filter((e) => e.locationId === viewLoc);
   }, [entries, viewLoc, lockedLoc]);
-
-  // Packs scoped to the same view as the entries, so the Dashboard's scratch
-  // settle-shortfall signal matches the location the manager is looking at.
-  const visiblePacks = useMemo(() => {
-    const loc = lockedLoc || (viewLoc === "all" ? null : viewLoc);
-    return loc ? packs.filter((p) => p.locationId === loc) : packs;
-  }, [packs, viewLoc, lockedLoc]);
 
   function ping(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
@@ -229,7 +220,7 @@ export default function AppShell() {
             <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title_scratch")} action={adminAction}
               subtitle={isManager ? t("empty.scratch_drawer_mgr") : t("empty.scratch_drawer_emp")} />
           ) : (
-            <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} packs={packs} />
+            <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} />
           )
         )}
         {tab === "inventory" && (
@@ -248,13 +239,13 @@ export default function AppShell() {
         {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
-          <Dashboard entries={visibleEntries} packs={visiblePacks} locations={activeLocations} locName={locName} incidents={incidents}
+          <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
             onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
         )}
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
-        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} packs={packs} entries={entries} />}
+        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} />}
       </main>
 
       <footer className="mt-10 border-t border-line-soft pb-28 sm:pb-0">

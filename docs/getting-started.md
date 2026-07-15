@@ -67,9 +67,12 @@ Open **Admin** and add the pieces your team will pick from when they count:
   *Lottery Cash Drawer*, *Safe*, and so on.
 - **Tracked items** — the high-shrink inventory you want counted (cigarette
   cartons, vapes, etc.). Only what's on this list gets counted — keep it short.
-- **Scratch-off packs** — register lottery packs so their numbers are tracked.
 - **Staff** — add each employee with their **name**, **role** (employee or
   manager), and a **PIN**. Share the store code with them.
+
+> Scratch-off packs need no registration step: a pack exists in DuoCount the
+> first time someone counts it, and from then on its ticket numbers chain from
+> count to count. Settlement paperwork stays with the lottery.
 
 > **Switching from a spreadsheet?** Owners get an **Import / migrate** card in
 > **Admin** that brings in your **tracked items**, your **staff roster**, or your
@@ -125,6 +128,11 @@ on an optional **daily email digest** (off by default), and turn on the optional
   three people" — a conversation starter, never a verdict). If you turn on the AI
   insight (step 6), an **"Explain these signals"** button sums the alerts up and
   says what to look at first.
+- **Check the Pack audit.** The Dashboard compares each scratch pack's opening
+  ticket # against its previous closing # and shows every break — how many
+  tickets are unaccounted, who signed the close, who signed the reopen — plus
+  packs that quietly stopped being counted. Missing tickets get caught at the
+  shift boundary, not months later on a settlement statement.
 - **Handle flags.** Any cash count off by more than your threshold (default $5)
   is flagged; close it by recording *why* (Human error, Register error, Training
   gap, etc.). You can also set an **inventory** threshold in units (Business
@@ -231,10 +239,12 @@ Type the **store code** your manager gave you and **your own PIN**, then
 
 ### Log a scratch-off count
 
-1. Tap **Scratch-offs**, pick the **game/pack**.
-2. Enter the **start** and **end** ticket numbers (or **scan** the pack with your
-   phone camera). Tickets sold = end − start, and the app multiplies by the
-   ticket price to get the dollars that should be in the drawer.
+1. Tap **Scratch-offs** and enter the **game** and **pack #** — or **scan** the
+   pack with your phone camera. A pack the store has counted before fills in its
+   game and price, and carries the **start #** from the last count's end #.
+2. Enter the **start** and **end** ticket numbers. Tickets sold = end − start,
+   and the app multiplies by the ticket price to get the dollars that should be
+   in the drawer.
 3. **Save.**
 
 ### Log an inventory count

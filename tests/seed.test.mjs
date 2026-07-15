@@ -11,7 +11,7 @@ const round2 = (n) => Math.round(n * 100) / 100;
 // Every seed doc except schedulePublished, whose id is intentionally the week
 // start (so the app recognizes the week as published), not a seed_ id.
 const allDocs = (d) => [
-  ...d.staff, ...d.locations, ...d.drawers, ...d.items, ...d.packs, ...d.entries,
+  ...d.staff, ...d.locations, ...d.drawers, ...d.items, ...d.entries,
   ...d.notes, ...d.incidents, ...d.timeclock, ...d.schedule, ...d.availability, ...d.templates,
 ];
 
@@ -25,7 +25,6 @@ test("expected collection shape (counts scale with the history window)", () => {
   assert.equal(d.locations.length, 2);
   assert.equal(d.drawers.length, 4);
   assert.equal(d.items.length, 4);
-  assert.ok(d.packs.length >= 6, "expected the full pack lifecycle set");
   assert.ok(d.entries.length > 150, `expected a rich log, got ${d.entries.length}`);
   assert.ok(d.notes.length >= 5, "expected several notes");
   assert.ok(d.incidents.length >= 4, "expected several incidents");
@@ -54,12 +53,11 @@ test("counts span both locations and every kind", () => {
   assert.ok(locs.has("seed_loc_main") && locs.has("seed_loc_kiosk"), "expected multi-location data");
 });
 
-test("packs cover the full lifecycle incl. settled packs for reconciliation", () => {
+test("seed data no longer writes pack-lifecycle docs (feature retired)", () => {
   const d = build();
-  const settled = d.packs.filter((p) => p.status === "settled");
-  assert.ok(settled.length >= 2, "expected several settled packs");
-  for (const p of settled) assert.ok(Number.isFinite(p.soldAtSettle), "settled pack needs soldAtSettle");
-  assert.ok(d.packs.some((p) => p.status === "active") && d.packs.some((p) => p.status === "received"));
+  assert.ok(!("packs" in d), "packs should not be seeded anymore");
+  // scratch history still exists as count entries with pack #s
+  assert.ok(d.entries.some((e) => e.kind === "scratch" && e.pack));
 });
 
 test("time-clock punches are signed, typed, and pair into shifts", () => {
