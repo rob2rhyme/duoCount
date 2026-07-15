@@ -13,7 +13,7 @@ import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [], packs = [] }) {
+export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [] }) {
   const { profile, vendor, isManager } = useSession();
   const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
@@ -110,20 +110,6 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
               <option value="open">🌅 {t("common.opening")}</option><option value="close">🌇 {t("common.closing")}</option>
             </select></Field>
         </div>
-        {packs.some((p) => p.status === "active" && p.locationId === f.locationId) && (
-          <Field label={t("scratch.active_pack")}>
-            <select className="input" value=""
-              onChange={(e) => {
-                const p = packs.find((x) => x.id === e.target.value);
-                if (p) setF((prev) => ({ ...prev, pack: p.packNumber, game: p.game, price: String(p.price ?? "") }));
-              }}>
-              <option value="">{t("scratch.pick_pack")}</option>
-              {packs.filter((p) => p.status === "active" && p.locationId === f.locationId).map((p) => (
-                <option key={p.id} value={p.id}>{p.game} · #{p.packNumber}{p.bin ? ` · ${t("scratch.bin", { bin: p.bin })}` : ""}</option>
-              ))}
-            </select></Field>
-        )}
-
         <div className="grid grid-cols-2 gap-3.5">
           <Field label={t("scratch.game")}><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></Field>
           <div><label htmlFor={packId} className="label">{t("scratch.pack_no")}</label>

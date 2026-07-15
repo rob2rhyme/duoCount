@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { money, toDate, isUnresolved } from "@/lib/utils";
 import { detectPatterns } from "@/lib/patterns";
+import { buildPackAudit } from "@/lib/scratch-audit";
 import { apiPatternNarrative } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -30,7 +31,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, packs = [], locations = [], locName = () => "—", incidents = [], onOpenLog, onRecord, onToast }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], onOpenLog, onRecord, onToast }) {
   const { isManager, vendor } = useSession();
   const { theme } = useTheme();
   const ch = CHART[theme] || CHART.light;
@@ -39,8 +40,14 @@ export default function Dashboard({ entries, packs = [], locations = [], locName
   // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink
   // streaks) — manager-facing only, so employees never see them computed.
   const patterns = useMemo(
-    () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules, packs }) : []),
-    [entries, packs, isManager, vendor?.patternRules]);
+    () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules }) : []),
+    [entries, isManager, vendor?.patternRules]);
+  // Pack audit: shift-boundary ticket #s checked against each other (gaps +
+  // packs that stopped being counted). The pack-gap pattern above is the
+  // signal; this card is the who/when detail behind it. Manager-only.
+  const packAudit = useMemo(
+    () => (isManager ? buildPackAudit(entries) : { gaps: [], missing: [], packsSeen: 0 }),
+    [entries, isManager]);
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
     const scratch = entries.filter((e) => e.kind === "scratch");
@@ -232,6 +239,61 @@ export default function Dashboard({ entries, packs = [], locations = [], locName
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pack audit — the who/when detail behind the pack-gap signal: every
+          discontinuity between consecutive counts of a pack, and packs that
+          stopped being counted. Settlement math is the lottery's job. */}
+      {isManager && (packAudit.gaps.length > 0 || packAudit.missing.length > 0) && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-line">
+            <h3 className="font-semibold text-[15px]">Pack audit</h3>
+            <p className="text-[12px] text-muted mt-0.5">
+              Each pack&apos;s opening ticket # checked against its previous closing #, last 14 days. A break names the two signers — a question, not a verdict.
+            </p>
+          </div>
+          {packAudit.gaps.slice(0, 8).map((g) => (
+            <div key={g.key} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3">
+              <span className={`pill flex-shrink-0 mt-0.5 ${g.totalMissing > 0 ? "bg-red-100 text-red-700" : "bg-subtle text-muted"}`}>
+                {g.totalMissing > 0 ? `${g.totalMissing} missing` : "re-count"}
+              </span>
+              <div className="min-w-0">
+                <div className="font-medium text-sm">
+                  {g.game} · #{g.pack}
+                  {g.totalMissing > 0 && <span className="text-neg font-semibold"> · ≈{money(g.missingDollars)}</span>}
+                  {g.locationName && <span className="text-muted font-normal"> · {g.locationName}</span>}
+                </div>
+                {g.events.map((ev, i) => (
+                  <div key={i} className="text-[12px] text-muted">
+                    {ev.missing > 0 ? `${ev.missing} ticket${ev.missing === 1 ? "" : "s"} unaccounted` : `reopened ${-ev.missing} below the close`}
+                    {" — "}closed at #{ev.prevEnd} by {ev.prevBy}
+                    {ev.prevTs ? ` (${ev.prevTs.toLocaleDateString()} ${ev.prevTs.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})` : ""}
+                    , opened at #{ev.nextStart} by {ev.nextBy}
+                    {ev.nextTs ? ` (${ev.nextTs.toLocaleDateString()} ${ev.nextTs.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})` : ""}.
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {packAudit.gaps.length > 8 && (
+            <div className="px-4 py-2 text-[12px] text-muted border-b border-line">+{packAudit.gaps.length - 8} more gapped packs in the window</div>
+          )}
+          {packAudit.missing.length > 0 && (
+            <div className="px-4 py-3 bg-panel">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Missing from recent counts</div>
+              {packAudit.missing.slice(0, 8).map((m) => (
+                <div key={m.key} className="text-[12px] text-muted">
+                  {m.game} · #{m.pack} — last counted {m.lastDate} by {m.lastBy}
+                  {m.lastEnd != null ? ` at #${m.lastEnd}` : ""}; absent from the last {m.missedDays} counting day{m.missedDays === 1 ? "" : "s"}
+                  {m.locationName ? ` at ${m.locationName}` : ""}.
+                </div>
+              ))}
+              {packAudit.missing.length > 8 && (
+                <div className="text-[12px] text-muted mt-1">+{packAudit.missing.length - 8} more</div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

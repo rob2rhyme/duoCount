@@ -79,7 +79,6 @@ export async function POST(req) {
       add("locations", data.locations);
       add("drawers", data.drawers);
       add("items", data.items);
-      add("packs", data.packs);
       add("entries", data.entries);
       add("notes", data.notes);
       add("incidents", data.incidents);
@@ -97,7 +96,7 @@ export async function POST(req) {
 
       const counts = {
         staff: data.staff.length, locations: data.locations.length, drawers: data.drawers.length,
-        items: data.items.length, packs: data.packs.length, entries: data.entries.length,
+        items: data.items.length, entries: data.entries.length,
         notes: data.notes.length, incidents: data.incidents.length,
         timeclock: data.timeclock.length, schedule: data.schedule.length,
         availability: data.availability.length, templates: data.templates.length,

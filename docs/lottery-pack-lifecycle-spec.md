@@ -1,6 +1,17 @@
 # DuoCount — Lottery Pack Lifecycle Spec
 
-**Status:** built alongside this spec (pack registry, activate/settle/return transitions, settle-time reconciliation, active-pack picker on the scratch form).
+**Status: RETIRED (July 2026, owner decision).** The pack registry
+(activate/settle/return), the settlement CSV reconciliation, and the
+active-pack picker were removed from the app: settlement paperwork is the
+lottery's job, and the registry duplicated what the counts already prove. The
+theft control that replaced it is the **shift boundary**: each scratch count
+records the pack's start and end ticket #s, the form chains a pack's start #
+from its previous count's end #, and the **pack audit**
+(`src/lib/scratch-audit.js`, surfaced on the Dashboard with a `pack-gap`
+pattern alert) flags every discontinuity — tickets unaccounted between two
+signed counts, naming both signers — plus packs that stopped being counted.
+Legacy `packs` documents are left in place (rules unchanged); the demo-data
+Clear still sweeps seeded ones. The spec below is kept for history.
 
 **Goal.** Track each scratch-off pack from the safe to the last ticket. Counts (tier zero) prove what sold *per shift*; the lifecycle proves what happened to the *whole pack* — the unit the state lottery bills you for, and the unit that walks away in the classic theft pattern (a pack activated off-book, tickets pocketed). This is the last column of the LottoShield comparison in the positioning one-pager.
 

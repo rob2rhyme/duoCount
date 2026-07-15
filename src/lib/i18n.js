@@ -98,9 +98,6 @@ export const CATALOG = {
     // scratch-off count
     "scratch.title": "Scratch-off pack count",
     "scratch.drawer": "Drawer",
-    "scratch.active_pack": "Active pack (fills game, price & pack #)",
-    "scratch.pick_pack": "Pick a pack…",
-    "scratch.bin": "bin {bin}",
     "scratch.game": "Game name",
     "scratch.pack_no": "Pack / book #",
     "scratch.scan_pack": "Scan pack barcode",
@@ -675,9 +672,6 @@ export const CATALOG = {
 
     "scratch.title": "Conteo de raspaditos",
     "scratch.drawer": "Caja",
-    "scratch.active_pack": "Paquete activo (llena juego, precio y n.º)",
-    "scratch.pick_pack": "Elige un paquete…",
-    "scratch.bin": "casilla {bin}",
     "scratch.game": "Nombre del juego",
     "scratch.pack_no": "N.º de paquete / libro",
     "scratch.scan_pack": "Escanear código del paquete",
