@@ -132,11 +132,11 @@ export async function apiImport({ type, mode, mapping, rows, allowPartial }) {
 // Manager-only natural-language log search: turns a query into a filter object
 // (ai-log-search-spec.md). Returns { filter } or { filter: null } — the caller
 // falls back to keyword search on null.
-export async function apiLogSearch(query, vocabulary) {
+export async function apiLogSearch(q, vocabulary) {
   return fetchJson("/api/log-search", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
-    body: JSON.stringify({ query, vocabulary }),
+    body: JSON.stringify({ query: q, vocabulary }),
   });
 }
 // Manager-only on-demand narrative over the Dashboard's pattern alerts

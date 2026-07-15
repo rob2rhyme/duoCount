@@ -242,7 +242,7 @@ export default function Dashboard({ entries, packs = [], locations = [], locName
             {onOpenLog && <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={onOpenLog}>Open the Log →</button>}
           </div>
           {a.attention.map(({ e, why }) => {
-            const t = toDate(e.ts);
+            const ts = toDate(e.ts); // `ts`, not `t` — keep the name free for the Phase 2c translation sweep
             const label = e.kind === "cash" ? (e.drawerName || "Drawer") : e.kind === "inventory" ? (e.itemName || "Item") : e.game;
             return (
               <div key={e.id} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3 cursor-pointer hover:bg-panel"
@@ -250,7 +250,7 @@ export default function Dashboard({ entries, packs = [], locations = [], locName
                 <span className={`pill flex-shrink-0 mt-0.5 ${why === "Unverified > 24h" ? "bg-subtle text-muted" : "bg-red-100 text-red-700"}`}>{why}</span>
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-sm truncate">{label}</div>
-                  <div className="text-[12px] text-muted font-mono truncate">{e.by} · {t ? t.toLocaleDateString() : ""}</div>
+                  <div className="text-[12px] text-muted font-mono truncate">{e.by} · {ts ? ts.toLocaleDateString() : ""}</div>
                 </div>
               </div>
             );
