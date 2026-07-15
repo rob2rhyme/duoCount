@@ -273,7 +273,7 @@ export default function AppShell() {
         <div className="max-w-3xl mx-auto px-4 px-safe pb-safe pt-6 pb-6">
           <div className="flex items-center justify-center gap-2.5 mb-5">
             <Logo src="/logo.png" alt="DuoCount" size={28} />
-            <div className="text-center leading-tight">
+            <div className="text-left leading-tight">
               <p className="text-sm font-semibold text-fg">DuoCount</p>
               <p className="text-[11px] text-muted italic">{PRODUCT.tagline}</p>
             </div>
