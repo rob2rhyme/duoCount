@@ -13,14 +13,9 @@ import {
   weekShiftsToTemplate, templateToShifts,
 } from "@/lib/schedule";
 import { availableActions, applySwap, swapStatusOf, SWAP_ACTIONS } from "@/lib/swaps";
+import { useLang } from "./LangProvider";
 import EmptyState, { IconCalendar } from "./EmptyState";
 import Field from "./Field";
-
-const SWAP_TOAST = {
-  offer: "Shift offered for swap", "cancel-offer": "Offer canceled",
-  claim: "Claimed — pending manager approval", "withdraw-claim": "Claim withdrawn",
-  approve: "Swap approved — shift reassigned", reject: "Swap rejected",
-};
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const dayLabel = (d) => {
@@ -36,6 +31,7 @@ const hhmm = (t) => {
 
 export default function Schedule({ punches = [], locations = [], locName, onToast }) {
   const { profile, vendor, isManager } = useSession();
+  const { t } = useLang();
   const [shifts, setShifts] = useState([]);
   const [board, setBoard] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -63,15 +59,15 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   const actor = { userId: profile.id, name: profile.name, isManager };
   async function doSwap(shift, action) {
     const patch = applySwap(shift, action, actor);
-    if (!patch) return onToast?.("That swap action isn't available");
-    try { await updateScheduledShift(vendor.id, shift.id, patch); onToast?.(SWAP_TOAST[action] || "Updated"); }
-    catch (e) { console.error(e); onToast?.("Couldn't update the swap"); }
+    if (!patch) return onToast?.(t("sched.err_swap_unavailable"));
+    try { await updateScheduledShift(vendor.id, shift.id, patch); onToast?.(SWAP_ACTIONS[action] ? t(`swaptoast.${action}`) : t("common.updated")); }
+    catch (e) { console.error(e); onToast?.(t("sched.toast_swap_failed")); }
   }
   async function claimOpen(shift) {
     try {
       await updateScheduledShift(vendor.id, shift.id, { userId: profile.id, userName: profile.name, open: false });
-      onToast?.("Shift claimed — it's yours");
-    } catch (e) { console.error(e); onToast?.("Couldn't claim the shift"); }
+      onToast?.(t("sched.toast_open_claimed"));
+    } catch (e) { console.error(e); onToast?.(t("sched.toast_claim_failed")); }
   }
   const swapButtons = (s) => {
     const acts = availableActions(s, actor);
@@ -84,7 +80,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
             <button key={a} onClick={() => doSwap(s, a)}
               className={`text-[12px] font-semibold px-2.5 py-1 rounded-md border ${a === "approve" ? "text-pos" : danger ? "text-neg" : "text-fg"}`}
               style={{ borderColor: "var(--line)", background: "var(--subtle)" }}>
-              {SWAP_ACTIONS[a]}
+              {t(`swapact.${a}`)}
             </button>
           );
         })}
@@ -93,8 +89,8 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   };
   const swapLabel = (s) => {
     const st = swapStatusOf(s);
-    if (st === "offered") return <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Offered</span>;
-    if (st === "claimed") return <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Claimed by {s.claimedByName}</span>;
+    if (st === "offered") return <span className="pill bg-highlight text-gold border border-brass/30 ml-2">{t("sched.pill_offered")}</span>;
+    if (st === "claimed") return <span className="pill bg-highlight text-gold border border-brass/30 ml-2">{t("sched.pill_claimed_by", { name: s.claimedByName })}</span>;
     return null;
   };
 
@@ -124,12 +120,12 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   async function addShift() {
     const isOpen = form.userId === "__open";
     const m = isOpen ? null : staff.find((s) => s.id === form.userId);
-    if (!isOpen && !m) return onToast?.("Pick an employee (or post an open shift)");
-    if (!form.date) return onToast?.("Pick a date");
+    if (!isOpen && !m) return onToast?.(t("sched.err_pick_employee"));
+    if (!form.date) return onToast?.(t("sched.err_pick_date"));
     // start == end would be read as a 24h overnight shift; that's never intended.
     if (form.start && form.end && form.start === form.end)
-      return onToast?.("A shift can't start and end at the same time");
-    if (shiftMinutes(form.start, form.end) <= 0) return onToast?.("Check the start/end times");
+      return onToast?.(t("sched.err_same_time"));
+    if (shiftMinutes(form.start, form.end) <= 0) return onToast?.(t("sched.err_times"));
     setBusy(true);
     try {
       const loc = form.locationId || m?.locationId || null;
@@ -141,70 +137,70 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
         ...(isOpen ? { open: true } : {}),
       });
       setForm((f) => ({ ...f, userId: "" }));
-      onToast?.(isOpen ? "Open shift posted" : "Shift scheduled");
-    } catch (e) { console.error(e); onToast?.("Couldn't schedule — managers only"); }
+      onToast?.(isOpen ? t("sched.toast_open_posted") : t("sched.toast_scheduled"));
+    } catch (e) { console.error(e); onToast?.(t("sched.toast_schedule_failed")); }
     setBusy(false);
   }
   async function removeShift(id) {
-    try { await deleteScheduledShift(vendor.id, id); onToast?.("Shift removed"); }
-    catch (e) { console.error(e); onToast?.("Couldn't remove — managers only"); }
+    try { await deleteScheduledShift(vendor.id, id); onToast?.(t("sched.toast_removed")); }
+    catch (e) { console.error(e); onToast?.(t("sched.toast_remove_failed")); }
   }
   async function copyPrevWeek() {
     const source = shifts.filter((s) => s.date >= addDays(weekStart, -7) && s.date <= addDays(weekEnd, -7));
     const specs = copyShiftsToWeek(source, { offsetDays: 7, existing: weekShifts })
       .map((s) => ({ ...s, by: profile.name, byId: profile.id }));
-    if (!specs.length) return onToast?.(source.length ? "This week already matches last week" : "Last week had no shifts to copy");
+    if (!specs.length) return onToast?.(source.length ? t("sched.toast_already_matches") : t("sched.toast_nothing_to_copy"));
     setCopying(true);
     try {
       const n = await addScheduledShiftsBatch(vendor.id, specs);
-      onToast?.(`Copied ${n} shift${n === 1 ? "" : "s"} from last week`);
-    } catch (e) { console.error(e); onToast?.("Copy failed — managers only"); }
+      onToast?.(n === 1 ? t("sched.toast_copied_one") : t("sched.toast_copied", { n }));
+    } catch (e) { console.error(e); onToast?.(t("sched.toast_copy_failed")); }
     setCopying(false);
   }
   async function publishWeek() {
-    if (!weekShifts.length) return onToast?.("No shifts this week to publish");
+    if (!weekShifts.length) return onToast?.(t("sched.err_no_shifts_publish"));
     setPublishing(true);
     try {
       const r = await apiPublishSchedule(weekStart);
-      const bits = [`Notified ${r.notified}`];
-      if (r.noEmail) bits.push(`${r.noEmail} without an email`);
-      if (r.failed?.length) bits.push(`${r.failed.length} failed`);
-      onToast?.(`Published — ${bits.join(", ")}`);
-    } catch (e) { console.error(e); onToast?.(e.message || "Publish failed"); }
+      const bits = [t("sched.notified_n", { n: r.notified })];
+      if (r.noEmail) bits.push(t("sched.no_email_n", { n: r.noEmail }));
+      if (r.failed?.length) bits.push(t("sched.failed_n", { n: r.failed.length }));
+      onToast?.(t("sched.toast_published", { bits: bits.join(", ") }));
+    } catch (e) { console.error(e); onToast?.(e.message || t("sched.toast_publish_failed")); }
     setPublishing(false);
   }
   async function saveTemplate() {
     const specs = weekShiftsToTemplate(weekShifts, weekStart);
-    if (!specs.length) return onToast?.("No shifts this week to save");
-    const name = prompt('Name this week template (e.g. "Standard week"):');
+    if (!specs.length) return onToast?.(t("sched.err_no_shifts_save"));
+    const name = prompt(t("sched.prompt_template_name"));
     if (name == null || !name.trim()) return;
     try {
       await addTemplate(vendor.id, { name: name.trim().slice(0, 60), shifts: specs, by: profile.name, byId: profile.id });
-      onToast?.("Template saved");
-    } catch (e) { console.error(e); onToast?.("Couldn't save — managers only"); }
+      onToast?.(t("sched.toast_template_saved"));
+    } catch (e) { console.error(e); onToast?.(t("sched.toast_template_save_failed")); }
   }
-  async function applyTemplate(t) {
-    const specs = templateToShifts(t.shifts || [], weekStart, { existing: weekShifts })
+  async function applyTemplate(tpl) {
+    const specs = templateToShifts(tpl.shifts || [], weekStart, { existing: weekShifts })
       .map((s) => ({ ...s, by: profile.name, byId: profile.id }));
-    if (!specs.length) return onToast?.("This week already has those shifts");
+    if (!specs.length) return onToast?.(t("sched.toast_template_dup"));
     try {
       const n = await addScheduledShiftsBatch(vendor.id, specs);
-      onToast?.(`Added ${n} shift${n === 1 ? "" : "s"} from "${t.name}"`);
-    } catch (e) { console.error(e); onToast?.("Couldn't apply — managers only"); }
+      onToast?.(n === 1 ? t("sched.toast_template_applied_one", { name: tpl.name }) : t("sched.toast_template_applied", { n, name: tpl.name }));
+    } catch (e) { console.error(e); onToast?.(t("sched.toast_template_apply_failed")); }
   }
   async function removeTemplate(id) {
-    try { await deleteTemplate(vendor.id, id); onToast?.("Template deleted"); }
-    catch (e) { console.error(e); onToast?.("Couldn't delete — managers only"); }
+    try { await deleteTemplate(vendor.id, id); onToast?.(t("sched.toast_template_deleted")); }
+    catch (e) { console.error(e); onToast?.(t("sched.toast_template_delete_failed")); }
   }
   async function markUnavailable() {
     if (!newOff) return;
-    if (avail.some((u) => u.userId === profile.id && u.date === newOff)) return onToast?.("That day is already marked");
-    try { await addUnavailable(vendor.id, { userId: profile.id, userName: profile.name, date: newOff }); onToast?.("Marked unavailable"); }
-    catch (e) { console.error(e); onToast?.("Couldn't save"); }
+    if (avail.some((u) => u.userId === profile.id && u.date === newOff)) return onToast?.(t("sched.toast_day_marked"));
+    try { await addUnavailable(vendor.id, { userId: profile.id, userName: profile.name, date: newOff }); onToast?.(t("sched.toast_marked")); }
+    catch (e) { console.error(e); onToast?.(t("sched.toast_save_failed")); }
   }
   async function removeUnavailable(id) {
-    try { await deleteUnavailable(vendor.id, id); onToast?.("Removed"); }
-    catch (e) { console.error(e); onToast?.("Couldn't remove"); }
+    try { await deleteUnavailable(vendor.id, id); onToast?.(t("sched.toast_unavail_removed")); }
+    catch (e) { console.error(e); onToast?.(t("sched.toast_unavail_remove_failed")); }
   }
 
   /* ---- employee view: my upcoming shifts + availability ---- */
@@ -217,10 +213,10 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
     return (
       <div className="space-y-4">
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Your upcoming shifts</h3></div>
+          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">{t("sched.upcoming_title")}</h3></div>
           {upcoming.length === 0 ? (
-            <EmptyState icon={<IconCalendar />} title="Nothing scheduled"
-              subtitle="When a manager rosters you for a shift, it shows up here with the date, time, and location." />
+            <EmptyState icon={<IconCalendar />} title={t("sched.empty_upcoming_title")}
+              subtitle={t("sched.empty_upcoming_sub")} />
           ) : upcoming.map((s) => (
             <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
               <div className="flex items-center justify-between gap-3">
@@ -236,17 +232,17 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
         </div>
 
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Shifts up for grabs</h3></div>
+          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">{t("sched.grabs_title")}</h3></div>
           {pickups.length === 0 && myClaims.length === 0 && openToClaim.length === 0 ? (
-            <EmptyState icon={<IconCalendar />} title="Nothing up for grabs"
-              subtitle="Open shifts a manager posts, and shifts coworkers offer to swap, appear here to claim." />
+            <EmptyState icon={<IconCalendar />} title={t("sched.empty_grabs_title")}
+              subtitle={t("sched.empty_grabs_sub")} />
           ) : (
             <>
               {openToClaim.map((s) => (
                 <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-sm text-gold">Open shift</div>
+                      <div className="font-medium text-sm text-gold">{t("sched.open_shift")}</div>
                       <div className="text-[13px] text-muted">{dayLabel(s.date)}{s.locationName ? ` · ${s.locationName}` : ""}</div>
                     </div>
                     <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)}–{hhmm(s.end)}</div>
@@ -255,7 +251,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                     <button onClick={() => claimOpen(s)}
                       className="text-[12px] font-semibold px-2.5 py-1 rounded-md border text-fg"
                       style={{ borderColor: "var(--line)", background: "var(--subtle)" }}>
-                      Claim shift
+                      {t("swapact.claim")}
                     </button>
                   </div>
                 </div>
@@ -264,8 +260,8 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                 <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-sm">{s.userName}&apos;s shift</div>
-                      <div className="text-[13px] text-muted">{dayLabel(s.date)}{s.locationName ? ` · ${s.locationName}` : ""} · you claimed it, pending approval</div>
+                      <div className="font-medium text-sm">{t("sched.persons_shift", { name: s.userName })}</div>
+                      <div className="text-[13px] text-muted">{dayLabel(s.date)}{s.locationName ? ` · ${s.locationName}` : ""} · {t("sched.you_claimed")}</div>
                     </div>
                     <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)}–{hhmm(s.end)}</div>
                   </div>
@@ -276,7 +272,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                 <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-sm">{s.userName}&apos;s shift</div>
+                      <div className="font-medium text-sm">{t("sched.persons_shift", { name: s.userName })}</div>
                       <div className="text-[13px] text-muted">{dayLabel(s.date)}{s.locationName ? ` · ${s.locationName}` : ""}</div>
                     </div>
                     <div className="font-mono text-sm text-right flex-shrink-0">{hhmm(s.start)}–{hhmm(s.end)}</div>
@@ -290,19 +286,19 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
 
         <div className="card p-4 space-y-3">
           <div>
-            <h3 className="font-semibold text-[15px]">Days you can&apos;t work</h3>
-            <p className="text-[13px] text-muted">Mark dates you&apos;re unavailable so managers can roster around you.</p>
+            <h3 className="font-semibold text-[15px]">{t("sched.unavail_title")}</h3>
+            <p className="text-[13px] text-muted">{t("sched.unavail_sub")}</p>
           </div>
           <div className="flex gap-2">
-            <input type="date" className="input" value={newOff} min={todayStr()} onChange={(e) => setNewOff(e.target.value)} aria-label="Date you're unavailable" />
-            <button className="btn-ghost px-4 whitespace-nowrap" onClick={markUnavailable}>Add</button>
+            <input type="date" className="input" value={newOff} min={todayStr()} onChange={(e) => setNewOff(e.target.value)} aria-label={t("sched.unavail_date_aria")} />
+            <button className="btn-ghost px-4 whitespace-nowrap" onClick={markUnavailable}>{t("sched.add_btn")}</button>
           </div>
           {myOff.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-1">
               {myOff.map((u) => (
                 <span key={u.id} className="pill bg-subtle text-muted">
                   {dayLabel(u.date)}
-                  <button onClick={() => removeUnavailable(u.id)} className="ml-1.5 text-neg" aria-label={`Remove ${u.date}`}>×</button>
+                  <button onClick={() => removeUnavailable(u.id)} className="ml-1.5 text-neg" aria-label={t("sched.remove_date_aria", { date: u.date })}>×</button>
                 </span>
               ))}
             </div>
@@ -318,81 +314,81 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
       {/* week navigator + publish */}
       <div className="card p-3 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Previous week">←</button>
+          <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label={t("common.prev_week")}>←</button>
           <div className="text-center">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Week of</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("sched.week_of")}</div>
             <button className="font-semibold text-sm hover:text-gold transition" onClick={() => setWeekStart(weekStartMonday(todayStr()))}>
               {dayLabel(weekStart)} – {dayLabel(weekEnd)}
             </button>
           </div>
-          <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Next week">→</button>
+          <button className="btn-ghost px-3 py-1.5 text-[13px]" onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label={t("common.next_week")}>→</button>
         </div>
         <div className="flex items-center justify-between gap-3 flex-wrap border-t border-line pt-3">
           <span className="text-[12px] text-muted">
             {published[weekStart]
-              ? <>Published · notified <b className="font-mono">{published[weekStart].notified}</b></>
-              : "Not published yet"}
+              ? <>{t("sched.published_notified")} <b className="font-mono">{published[weekStart].notified}</b></>
+              : t("sched.not_published")}
           </span>
           <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={publishing || !weekShifts.length} onClick={publishWeek}>
-            {publishing ? "Publishing…" : published[weekStart] ? "Re-publish & notify" : "📣 Publish & notify"}
+            {publishing ? t("sched.publishing") : published[weekStart] ? t("sched.republish") : t("sched.publish")}
           </button>
         </div>
       </div>
 
       {/* add a shift */}
       <div className="card p-4 space-y-3">
-        <h3 className="font-semibold text-[15px]">Schedule a shift</h3>
+        <h3 className="font-semibold text-[15px]">{t("sched.add_title")}</h3>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={"Employee"}>
+          <Field label={t("common.employee")}>
             <select className="input" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })}>
-              <option value="">Select…</option>
-              <option value="__open">🟡 Open shift (unassigned)</option>
+              <option value="">{t("sched.select_ph")}</option>
+              <option value="__open">{t("sched.open_shift_option")}</option>
               {activeStaff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </Field>
-          <Field label={"Date"}>
+          <Field label={t("common.date")}>
             <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           </Field>
-          <Field label={"Start"}>
+          <Field label={t("sched.start")}>
             <input type="time" className="input" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />
           </Field>
-          <Field label={"End"}>
+          <Field label={t("sched.end")}>
             <input type="time" className="input" value={form.end} onChange={(e) => setForm({ ...form, end: e.target.value })} />
           </Field>
           {locations.length > 1 && (
-            <Field label={"Location (optional)"} className="col-span-2">
+            <Field label={t("sched.loc_optional")} className="col-span-2">
               <select className="input" value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
-                <option value="">Employee&apos;s default</option>
+                <option value="">{t("sched.emp_default")}</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </Field>
           )}
         </div>
         {formConflict && (
-          <p className="text-[13px] text-neg">⚠ {nameOf(form.userId)} marked this day unavailable — you can still schedule it.</p>
+          <p className="text-[13px] text-neg">{t("sched.conflict_warning", { name: nameOf(form.userId) })}</p>
         )}
-        <button className="btn-primary" disabled={busy} onClick={addShift}>{busy ? "Saving…" : "Add to schedule"}</button>
+        <button className="btn-primary" disabled={busy} onClick={addShift}>{busy ? t("common.saving") : t("sched.add_to_schedule")}</button>
       </div>
 
       {/* week templates */}
       <div className="card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-[15px]">Week templates</h3>
-          <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={!weekShifts.length} onClick={saveTemplate}>Save this week</button>
+          <h3 className="font-semibold text-[15px]">{t("sched.templates_title")}</h3>
+          <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={!weekShifts.length} onClick={saveTemplate}>{t("sched.save_this_week")}</button>
         </div>
         {templates.length === 0 ? (
-          <p className="text-[13px] text-muted">Save a typical week as a template, then stamp it onto any future week in one tap.</p>
+          <p className="text-[13px] text-muted">{t("sched.templates_hint")}</p>
         ) : (
           <div className="space-y-2">
-            {templates.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 bg-subtle border" style={{ borderColor: "var(--line)" }}>
+            {templates.map((tpl) => (
+              <div key={tpl.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 bg-subtle border" style={{ borderColor: "var(--line)" }}>
                 <div className="min-w-0">
-                  <span className="font-medium text-sm">{t.name}</span>
-                  <span className="text-[13px] text-muted"> · {t.shifts?.length || 0} shift{(t.shifts?.length || 0) === 1 ? "" : "s"}</span>
+                  <span className="font-medium text-sm">{tpl.name}</span>
+                  <span className="text-[13px] text-muted"> · {(tpl.shifts?.length || 0) === 1 ? t("sched.n_shifts_one") : t("sched.n_shifts", { n: tpl.shifts?.length || 0 })}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <button className="text-[12px] font-semibold px-2.5 py-1 rounded-md border text-fg" style={{ borderColor: "var(--line)", background: "var(--surface)" }} onClick={() => applyTemplate(t)}>Apply to this week</button>
-                  <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeTemplate(t.id)} aria-label={`Delete ${t.name}`}>×</button>
+                  <button className="text-[12px] font-semibold px-2.5 py-1 rounded-md border text-fg" style={{ borderColor: "var(--line)", background: "var(--surface)" }} onClick={() => applyTemplate(tpl)}>{t("sched.apply_week")}</button>
+                  <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeTemplate(tpl.id)} aria-label={t("sched.delete_template_aria", { name: tpl.name })}>×</button>
                 </div>
               </div>
             ))}
@@ -403,20 +399,20 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
       {/* roster by day */}
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-[15px]">Roster</h3>
+          <h3 className="font-semibold text-[15px]">{t("sched.roster_title")}</h3>
           <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={copying} onClick={copyPrevWeek}>
-            {copying ? "Copying…" : "⧉ Copy last week"}
+            {copying ? t("sched.copying") : t("sched.copy_last_week")}
           </button>
         </div>
         {weekShifts.length === 0 ? (
-          <EmptyState icon={<IconCalendar />} title="No shifts this week"
-            subtitle="Add shifts above and they'll lay out by day here, with double-booking warnings and weekly hours." />
+          <EmptyState icon={<IconCalendar />} title={t("sched.empty_roster_title")}
+            subtitle={t("sched.empty_roster_sub")} />
         ) : (
           days.map((d) => {
             const list = byDate.get(d) || [];
             return (
               <div key={d} className="px-4 py-3 border-b border-line last:border-0">
-                <div className={`text-[13px] font-semibold mb-1.5 ${d === todayStr() ? "text-gold" : "text-muted"}`}>{dayLabel(d)}{d === todayStr() ? " · today" : ""}</div>
+                <div className={`text-[13px] font-semibold mb-1.5 ${d === todayStr() ? "text-gold" : "text-muted"}`}>{dayLabel(d)}{d === todayStr() ? ` · ${t("sched.today_suffix")}` : ""}</div>
                 {list.length === 0 ? (
                   <div className="text-[13px] text-faint">—</div>
                 ) : (
@@ -430,15 +426,15 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                           <div className="min-w-0">
                             {s.userName
                               ? <span className="font-medium text-sm">{s.userName}</span>
-                              : <span className="font-medium text-sm text-gold">Open shift</span>}
+                              : <span className="font-medium text-sm text-gold">{t("sched.open_shift")}</span>}
                             {s.locationName && <span className="text-[13px] text-muted"> · {s.locationName}</span>}
-                            {isOv && <span className="pill bg-highlight text-gold border border-brass/30 ml-2">Overlap</span>}
-                            {isConf && <span className="pill bg-red-100 text-red-700 ml-2">Unavailable</span>}
+                            {isOv && <span className="pill bg-highlight text-gold border border-brass/30 ml-2">{t("sched.pill_overlap")}</span>}
+                            {isConf && <span className="pill bg-red-100 text-red-700 ml-2">{t("sched.pill_unavailable")}</span>}
                             {swapLabel(s)}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <span className="font-mono text-[13px]">{hhmm(s.start)}–{hhmm(s.end)}</span>
-                            <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeShift(s.id)} aria-label={`Remove ${s.userName || "open"} shift`}>×</button>
+                            <button className="text-neg text-lg leading-none px-1 hover:opacity-70" onClick={() => removeShift(s.id)} aria-label={t("sched.remove_shift_aria", { name: s.userName || t("sched.open_shift") })}>×</button>
                           </div>
                         </div>
                         {swapButtons(s)}
@@ -456,13 +452,13 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
       {/* weekly hours + attendance */}
       {hours.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">Scheduled hours this week</h3></div>
+          <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">{t("sched.hours_title")}</h3></div>
           <div className="overflow-auto max-h-[22rem]">
             <table className="w-full text-sm">
               <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted [&_th]:sticky [&_th]:top-0 [&_th]:bg-surface [&_th]:z-10 [&_th]:shadow-[inset_0_-1px_0_var(--line)]">
-                <th className="px-4 py-2 font-semibold">Employee</th>
-                <th className="px-4 py-2 font-semibold text-right">Shifts</th>
-                <th className="px-4 py-2 font-semibold text-right">Hours</th>
+                <th className="px-4 py-2 font-semibold">{t("common.employee")}</th>
+                <th className="px-4 py-2 font-semibold text-right">{t("time.col_shifts")}</th>
+                <th className="px-4 py-2 font-semibold text-right">{t("time.col_hours")}</th>
               </tr></thead>
               <tbody>
                 {hours.map((r) => (
@@ -480,22 +476,22 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
 
       {attendance && attendance.scheduled > 0 && (
         <div className="card p-4">
-          <h3 className="font-semibold text-[15px] mb-2">Attendance so far</h3>
-          <p className="text-[13px] text-muted mb-3">Scheduled vs. actually clocked in, for elapsed days this week.</p>
+          <h3 className="font-semibold text-[15px] mb-2">{t("sched.attendance_title")}</h3>
+          <p className="text-[13px] text-muted mb-3">{t("sched.attendance_sub")}</p>
           <div className="flex gap-4 flex-wrap text-sm">
-            <span><b className="font-mono">{attendance.worked}</b>/<span className="font-mono">{attendance.scheduled}</span> <span className="text-muted">worked as scheduled</span></span>
-            {attendance.noShow.length > 0 && <span className="text-neg"><b className="font-mono">{attendance.noShow.length}</b> no-show{attendance.noShow.length === 1 ? "" : "s"}</span>}
-            {attendance.unscheduled.length > 0 && <span className="text-gold"><b className="font-mono">{attendance.unscheduled.length}</b> unscheduled</span>}
-            {late.length > 0 && <span className="text-gold"><b className="font-mono">{late.length}</b> late arrival{late.length === 1 ? "" : "s"}</span>}
+            <span><b className="font-mono">{attendance.worked}</b>/<span className="font-mono">{attendance.scheduled}</span> <span className="text-muted">{t("sched.worked_as_scheduled")}</span></span>
+            {attendance.noShow.length > 0 && <span className="text-neg"><b className="font-mono">{attendance.noShow.length}</b> {attendance.noShow.length === 1 ? t("sched.no_show_word") : t("sched.no_shows_word")}</span>}
+            {attendance.unscheduled.length > 0 && <span className="text-gold"><b className="font-mono">{attendance.unscheduled.length}</b> {t("sched.unscheduled_word")}</span>}
+            {late.length > 0 && <span className="text-gold"><b className="font-mono">{late.length}</b> {late.length === 1 ? t("sched.late_word") : t("sched.late_words")}</span>}
           </div>
           {attendance.noShow.length > 0 && (
             <div className="mt-2.5 text-[13px] text-muted">
-              No-shows: {attendance.noShow.map((n) => `${n.userName || nameOf(n.userId)} (${dayLabel(n.date)})`).join(", ")}
+              {t("sched.no_shows_list")} {attendance.noShow.map((n) => `${n.userName || nameOf(n.userId)} (${dayLabel(n.date)})`).join(", ")}
             </div>
           )}
           {late.length > 0 && (
             <div className="mt-2.5 text-[13px] text-muted">
-              Late (&gt;10 min past start): {late.map((l) =>
+              {t("sched.late_list")} {late.map((l) =>
                 `${l.userName || nameOf(l.userId)} (${dayLabel(l.date)} ${l.start}, +${l.lateMin}m)`).join(", ")}
             </div>
           )}
@@ -503,7 +499,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
       )}
 
       <p className="text-center text-[11px] text-muted px-4">
-        The schedule is a plan — edit it freely. Attendance compares it to the read-only time-clock punches by business day.
+        {t("sched.footer")}
       </p>
     </div>
   );

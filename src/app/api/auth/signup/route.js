@@ -21,12 +21,14 @@ function slugify(name) {
 export async function POST(req) {
   try {
     const { businessName, logoUrl, ownerName, pin } = await req.json();
+    // Stable `code` beside the English prose, same contract as the login route
+    // (client renders via the i18n autherr.* keys, prose is the fallback).
     if (!businessName || businessName.trim().length < 2)
-      return NextResponse.json({ error: "Enter a business name." }, { status: 400 });
+      return NextResponse.json({ error: "Enter a business name.", code: "missing_biz" }, { status: 400 });
     if (!ownerName || ownerName.trim().length < 2)
-      return NextResponse.json({ error: "Enter your name." }, { status: 400 });
+      return NextResponse.json({ error: "Enter your name.", code: "missing_owner" }, { status: 400 });
     if (!isValidNewPin(pin))
-      return NextResponse.json({ error: PIN_ERROR }, { status: 400 });
+      return NextResponse.json({ error: PIN_ERROR, code: "bad_new_pin" }, { status: 400 });
 
     const { adminDb, adminAuth } = await getAdmin();
     const now = new Date();
@@ -36,7 +38,7 @@ export async function POST(req) {
     const ipSnap = await ipRef.get();
     const dec = throttleDecision(ipSnap.exists ? ipSnap.data() : null, now.getTime(), SIGNUP_LIMIT);
     if (dec.blocked)
-      return NextResponse.json({ error: "Too many stores created from here — try again later." }, { status: 429 });
+      return NextResponse.json({ error: "Too many stores created from here — try again later.", code: "signup_throttled" }, { status: 429 });
     await ipRef.set(dec.nextOnFail); // every creation counts toward the window
 
     const base = slugify(businessName);
@@ -87,6 +89,8 @@ export async function POST(req) {
     });
   } catch (e) {
     console.error("signup error", e);
-    return NextResponse.json({ error: e.message || "Signup failed." }, { status: 500 });
+    return NextResponse.json(
+      e.message ? { error: e.message } : { error: "Signup failed.", code: "signup_failed" },
+      { status: 500 });
   }
 }

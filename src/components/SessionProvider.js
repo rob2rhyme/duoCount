@@ -70,7 +70,11 @@ export default function SessionProvider({ children }) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ storeCode, pin }),
     });
-    if (!j.token) throw new Error("Sign-in failed — the server didn't return a session token. Please try again.");
+    if (!j.token) {
+      const err = new Error("Sign-in failed — the server didn't return a session token. Please try again.");
+      err.code = "no_token";
+      throw err;
+    }
     await signInWithCustomToken(auth, j.token);
     setVendor(j.vendor); setProfile(j.profile);
   }
@@ -80,7 +84,11 @@ export default function SessionProvider({ children }) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!j.token) throw new Error("Sign-up failed — the server didn't return a session token. Please try again.");
+    if (!j.token) {
+      const err = new Error("Sign-up failed — the server didn't return a session token. Please try again.");
+      err.code = "signup_no_token";
+      throw err;
+    }
     await signInWithCustomToken(auth, j.token);
     setVendor(j.vendor); setProfile(j.profile);
     return j.vendor;

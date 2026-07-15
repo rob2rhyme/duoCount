@@ -11,19 +11,27 @@
 // timeout. Those are worth naming for the user rather than hiding behind a
 // parse error.
 
+// Errors thrown here may carry a stable `code` (from the API body's `code`
+// field, or set locally for network failures). Codes are additive metadata:
+// `message` stays the English prose, and surfaces that localize (the login
+// card) map known codes through the i18n catalog instead.
 export async function fetchJson(url, options) {
   let res;
   try {
     res = await fetch(url, options);
   } catch (cause) {
-    throw new Error("Network error — check your connection and try again.", { cause });
+    const err = new Error("Network error — check your connection and try again.", { cause });
+    err.code = "network";
+    throw err;
   }
 
   let body;
   try {
     body = await res.text();
   } catch (cause) {
-    throw new Error("Network error — the connection dropped mid-response. Try again.", { cause });
+    const err = new Error("Network error — the connection dropped mid-response. Try again.", { cause });
+    err.code = "network_drop";
+    throw err;
   }
 
   let data = null;
@@ -43,7 +51,9 @@ export async function fetchJson(url, options) {
   }
 
   if (!res.ok) {
-    throw new Error((data && data.error) || `Request failed (HTTP ${res.status}).`);
+    const err = new Error((data && data.error) || `Request failed (HTTP ${res.status}).`);
+    if (data && typeof data.code === "string") err.code = data.code;
+    throw err;
   }
   return data || {};
 }

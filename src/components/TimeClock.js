@@ -10,16 +10,13 @@ import {
 } from "@/lib/timeclock";
 import { weekStartMonday, weekDates, addDays } from "@/lib/schedule";
 import { activeLockDays, weekLockInfo } from "@/lib/payroll-lock";
+import { useLang } from "./LangProvider";
 import EmptyState, { IconClock } from "./EmptyState";
 import Schedule from "./Schedule";
 import { csvCell } from "@/lib/utils";
 
 const DAY = 24 * 3600 * 1000;
-const PERIODS = [
-  { key: 7, label: "7 days" },
-  { key: 14, label: "14 days" },
-  { key: 30, label: "30 days" },
-];
+const PERIODS = [7, 14, 30];
 const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const fmtDay = (ms) => new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 // A punch's business day is stamped as the UTC date of the moment (see addPunch);
@@ -45,6 +42,7 @@ function downloadCSV(lines, name) {
 
 export default function TimeClock({ locations = [], locName, onToast }) {
   const { profile, vendor, isManager } = useSession();
+  const { t } = useLang();
   const isOwner = profile.role === "owner";
   const [punches, setPunches] = useState([]);
   const [locks, setLocks] = useState([]);
@@ -88,10 +86,10 @@ export default function TimeClock({ locations = [], locName, onToast }) {
         locationName: hasLoc ? locName(profile.locationId) : null,
         type: open ? "out" : "in",
       });
-      onToast?.(open ? "Clocked out" : "Clocked in — have a good shift");
+      onToast?.(open ? t("time.toast_out") : t("time.toast_in"));
     } catch (e) {
       console.error(e);
-      onToast?.("Punch failed — try again");
+      onToast?.(t("time.toast_punch_failed"));
     }
     setBusy(false);
   }
@@ -115,13 +113,13 @@ export default function TimeClock({ locations = [], locName, onToast }) {
       lines.push([r.userName, r.shifts, r.hours.toFixed(2), period, new Date(now).toISOString()].map(csvCell).join(","));
     lines.push(["TOTAL", totalShifts, totalHours.toFixed(2), period, ""].map(csvCell).join(","));
     downloadCSV(lines, `duocount-payroll-${days}d.csv`);
-    onToast?.("Payroll CSV downloaded");
+    onToast?.(t("time.toast_payroll"));
   }
 
   return (
     <div className="space-y-4">
       <div className="flex gap-1.5 bg-subtle rounded-xl p-1">
-        {[["clock", "Time clock"], ["schedule", "Schedule"]].map(([id, label]) => (
+        {[["clock", t("time.tab_clock")], ["schedule", t("time.tab_schedule")]].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)}
             className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${view === id ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
             {label}
@@ -140,29 +138,29 @@ export default function TimeClock({ locations = [], locName, onToast }) {
             <IconClock />
           </div>
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Time clock</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("time.tab_clock")}</div>
             {open ? (
               <>
-                <div className="font-semibold text-pos leading-tight">On the clock · {formatDuration(now - open.inMs)}</div>
-                <div className="text-[13px] text-muted">Clocked in at {fmtTime(open.inMs)}{open.locationName ? ` · ${open.locationName}` : ""}</div>
+                <div className="font-semibold text-pos leading-tight">{t("time.on_clock", { dur: formatDuration(now - open.inMs) })}</div>
+                <div className="text-[13px] text-muted">{t("time.in_at", { time: fmtTime(open.inMs) })}{open.locationName ? ` · ${open.locationName}` : ""}</div>
               </>
             ) : (
               <>
-                <div className="font-semibold leading-tight">Clocked out</div>
-                <div className="text-[13px] text-muted">{myShifts[0] ? `Last shift ${formatDuration(myShifts[0].ms)}, out ${fmtTime(myShifts[0].outMs)}` : "Tap below to start your shift"}</div>
+                <div className="font-semibold leading-tight">{t("time.state_out")}</div>
+                <div className="text-[13px] text-muted">{myShifts[0] ? t("time.last_shift", { dur: formatDuration(myShifts[0].ms), time: fmtTime(myShifts[0].outMs) }) : t("time.tap_start")}</div>
               </>
             )}
           </div>
         </div>
         <button className={open ? "btn-ghost w-full" : "btn-primary"} disabled={busy} onClick={togglePunch}>
-          {busy ? "Saving…" : open ? "Clock out" : "Clock in"}
+          {busy ? t("common.saving") : open ? t("time.clock_out") : t("time.clock_in")}
         </button>
       </div>
 
       {/* my recent shifts */}
       {myShifts.length > 0 && (
         <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-line"><h3 className="font-semibold text-[15px]">Your recent shifts</h3></div>
+          <div className="px-4 py-3 border-b border-line"><h3 className="font-semibold text-[15px]">{t("time.recent_title")}</h3></div>
           {myShifts.map((s, i) => (
             <div key={i} className="px-4 py-2.5 border-b border-line last:border-0 flex items-center justify-between gap-3 text-sm">
               <span className="text-muted">{fmtDay(s.inMs)}</span>
@@ -178,30 +176,30 @@ export default function TimeClock({ locations = [], locName, onToast }) {
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <h3 className="font-semibold text-[15px]">Hours by employee</h3>
-              <p className="text-[13px] text-muted mt-0.5">Paired clock in/out punches over the period.</p>
+              <h3 className="font-semibold text-[15px]">{t("time.hours_title")}</h3>
+              <p className="text-[13px] text-muted mt-0.5">{t("time.hours_sub")}</p>
             </div>
             <div className="flex gap-1.5 bg-subtle rounded-lg p-1">
               {PERIODS.map((p) => (
-                <button key={p.key} onClick={() => setDays(p.key)}
-                  className={`px-2.5 py-1 rounded-md text-[13px] font-semibold transition ${days === p.key ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
-                  {p.label}
+                <button key={p} onClick={() => setDays(p)}
+                  className={`px-2.5 py-1 rounded-md text-[13px] font-semibold transition ${days === p ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
+                  {t("time.n_days", { n: p })}
                 </button>
               ))}
             </div>
           </div>
 
           {summary.length === 0 ? (
-            <EmptyState icon={<IconClock />} title="No shifts in this period"
-              subtitle="Once staff clock in and out, their paired hours show up here — ready to export for payroll." />
+            <EmptyState icon={<IconClock />} title={t("time.empty_period_title")}
+              subtitle={t("time.empty_hours_sub")} />
           ) : (
             <>
               <div className="overflow-auto max-h-[26rem]">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted [&_th]:sticky [&_th]:top-0 [&_th]:bg-surface [&_th]:z-10 [&_th]:shadow-[inset_0_-1px_0_var(--line)]">
-                    <th className="px-4 py-2 font-semibold">Employee</th>
-                    <th className="px-4 py-2 font-semibold text-right">Shifts</th>
-                    <th className="px-4 py-2 font-semibold text-right">Hours</th>
+                    <th className="px-4 py-2 font-semibold">{t("common.employee")}</th>
+                    <th className="px-4 py-2 font-semibold text-right">{t("time.col_shifts")}</th>
+                    <th className="px-4 py-2 font-semibold text-right">{t("time.col_hours")}</th>
                   </tr></thead>
                   <tbody>
                     {summary.map((r) => (
@@ -212,7 +210,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
                       </tr>
                     ))}
                     <tr className="border-t border-line bg-panel">
-                      <td className="px-4 py-2.5 font-semibold">Total</td>
+                      <td className="px-4 py-2.5 font-semibold">{t("common.total")}</td>
                       <td className="px-4 py-2.5 text-right font-mono font-semibold">{totalShifts}</td>
                       <td className="px-4 py-2.5 text-right font-mono font-semibold">{totalHours.toFixed(2)}</td>
                     </tr>
@@ -220,7 +218,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
                 </table>
               </div>
               <div className="p-4 border-t border-line">
-                <button className="btn-ghost w-full" onClick={exportPayroll}>⬇ Export payroll CSV</button>
+                <button className="btn-ghost w-full" onClick={exportPayroll}>{t("time.export_payroll")}</button>
               </div>
             </>
           )}
@@ -243,9 +241,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
       )}
 
       <p className="text-center text-[11px] text-muted px-4">
-        {isManager
-          ? "Punches are append-only — an original is never edited. A correction files a separate, signed record that supersedes it, so the audit trail keeps both."
-          : "Punches are permanent — a mistake is fixed by punching again, never edited. A forgotten clock-out shows as an open shift and adds no hours until you clock out. A manager can file a correction if needed."}
+        {isManager ? t("time.footer_mgr") : t("time.footer_emp")}
       </p>
       </>
       )}
@@ -258,6 +254,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
 // reviewed hours can't drift after export. Owner can release a lock (audited);
 // a released week can be re-approved. Punches themselves are already immutable.
 function PayrollApproval({ locks, vendorId, actor, isOwner, onToast }) {
+  const { t } = useLang();
   const todayISO = dayOfMs(Date.now());
   // Default to LAST week — the natural approval target once a week has ended.
   const [weekStart, setWeekStart] = useState(() => weekStartMonday(addDays(todayISO, -7)));
@@ -274,52 +271,52 @@ function PayrollApproval({ locks, vendorId, actor, isOwner, onToast }) {
     setBusy(false);
   }
   const approve = () => {
-    if (!confirm(`Approve payroll for ${label}?\n\nThis locks timesheet corrections for that week. ${isOwner ? "You" : "The owner"} can release the lock later if something needs fixing.`)) return;
+    if (!confirm(t(isOwner ? "time.confirm_approve_owner" : "time.confirm_approve_mgr", { label }))) return;
     run(() => approvePayrollWeek(vendorId, weekStart, locks, { byId: actor.id, byName: actor.name }),
-      "Week approved — timesheet locked", "Approve failed — try again");
+      t("time.toast_approved"), t("time.toast_approve_failed"));
   };
   const release = () => {
-    if (!confirm(`Release the payroll lock for ${label}?\n\nCorrections become possible again for that week; re-approve once it's fixed.`)) return;
+    if (!confirm(t("time.confirm_release", { label }))) return;
     run(() => releasePayrollWeek(vendorId, weekStart, locks, { byId: actor.id, byName: actor.name }),
-      "Lock released — corrections open again", "Release failed — try again");
+      t("time.toast_released"), t("time.toast_release_failed"));
   };
 
   return (
     <div className="card p-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="font-semibold text-[15px]">Payroll approval</h3>
-          <p className="text-[13px] text-muted mt-0.5">Approve a finished week to lock its timesheet — the record your export stands on.</p>
+          <h3 className="font-semibold text-[15px]">{t("time.payroll_title")}</h3>
+          <p className="text-[13px] text-muted mt-0.5">{t("time.payroll_sub")}</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label="Previous week"
+          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label={t("common.prev_week")}
             onClick={() => setWeekStart(addDays(weekStart, -7))}>‹</button>
           <span className="text-sm font-semibold min-w-[130px] text-center">{label}</span>
-          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label="Next week"
+          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label={t("common.next_week")}
             onClick={() => setWeekStart(addDays(weekStart, 7))}>›</button>
         </div>
       </div>
       <div className="mt-3 flex items-center gap-3 flex-wrap text-sm">
         {info.state === "approved" && (
           <>
-            <span className="pill bg-highlight text-gold border border-brass/30">Approved</span>
-            <span className="text-muted text-[13px]">by {info.byName || "a manager"} — corrections locked</span>
-            {isOwner && <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={busy} onClick={release}>Release lock</button>}
+            <span className="pill bg-highlight text-gold border border-brass/30">{t("time.pill_approved")}</span>
+            <span className="text-muted text-[13px]">{t("time.approved_by", { name: info.byName || t("time.a_manager") })}</span>
+            {isOwner && <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={busy} onClick={release}>{t("time.release_lock")}</button>}
           </>
         )}
         {info.state === "partial" && (
-          <span className="text-[13px] text-muted">Partially locked — approve to lock the whole week.</span>
+          <span className="text-[13px] text-muted">{t("time.partial")}</span>
         )}
         {(info.state === "open" || info.state === "released" || info.state === "partial") && (
           <>
             {info.state === "released" && (
-              <span className="text-[13px] text-muted">Lock released by {info.byName || "the owner"} — re-approve when fixed.</span>
+              <span className="text-[13px] text-muted">{t("time.released_by", { name: info.byName || t("time.the_owner") })}</span>
             )}
             <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={busy || !finished}
-              title={finished ? undefined : "The week isn't over yet"} onClick={approve}>
-              {busy ? "Saving…" : info.state === "released" ? "Re-approve week" : "Approve week"}
+              title={finished ? undefined : t("time.week_not_over")} onClick={approve}>
+              {busy ? t("common.saving") : info.state === "released" ? t("time.reapprove") : t("time.approve_week")}
             </button>
-            {!finished && <span className="text-[12px] text-faint">Available once the week ends.</span>}
+            {!finished && <span className="text-[12px] text-faint">{t("time.avail_after_end")}</span>}
           </>
         )}
       </div>
@@ -332,6 +329,7 @@ function PayrollApproval({ locks, vendorId, actor, isOwner, onToast }) {
 // Nothing here mutates a punch — each action writes a signed correction record
 // that `computeShifts` folds in (see lib/timeclock `applyCorrections`).
 function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vendorId, actor, onToast }) {
+  const { t } = useLang();
   const shifts = useMemo(
     () => computeShifts(punches).filter((s) => s.inMs >= now - days * DAY).sort((a, b) => b.inMs - a.inMs),
     [punches, days, now]
@@ -362,13 +360,13 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
   async function run(job, okMsg) {
     setBusy(true);
     try { await job(); onToast?.(okMsg); return true; }
-    catch (e) { console.error(e); onToast?.("Correction failed — try again"); return false; }
+    catch (e) { console.error(e); onToast?.(t("time.toast_correction_failed")); return false; }
     finally { setBusy(false); }
   }
 
   async function saveEdit() {
     const reason = form.reason.trim();
-    if (!reason) return onToast?.("Add a reason for the correction");
+    if (!reason) return onToast?.(t("time.err_reason"));
     // Compare against the prefilled strings (minute granularity), so saving an
     // untouched field doesn't file a no-op correction that nudges the seconds.
     const origIn = editing.inMs ? toLocalInput(editing.inMs) : "";
@@ -380,32 +378,32 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
       jobs.push({ ...c, action: editing.inId ? "edit" : "add", targetId: editing.inId, type: "in", atMs: newIn });
     if (form.outStr && form.outStr !== origOut && newOut != null)
       jobs.push({ ...c, action: editing.outId ? "edit" : "add", targetId: editing.outId, type: "out", atMs: newOut });
-    if (!jobs.length) return onToast?.("Nothing changed");
-    if (await run(() => Promise.all(jobs.map((j) => addPunchCorrection(vendorId, j))), "Correction filed")) setEditing(null);
+    if (!jobs.length) return onToast?.(t("time.toast_nothing_changed"));
+    if (await run(() => Promise.all(jobs.map((j) => addPunchCorrection(vendorId, j))), t("time.toast_correction_filed"))) setEditing(null);
   }
 
   async function voidShift() {
     const reason = form.reason.trim();
-    if (!reason) return onToast?.("Add a reason before voiding");
+    if (!reason) return onToast?.(t("time.err_reason_void"));
     const c = { ...commonFor(editing), reason, action: "void" };
     const jobs = [editing.inId, editing.outId].filter(Boolean).map((targetId) => ({ ...c, targetId }));
-    if (!jobs.length) return onToast?.("Nothing to void");
-    if (await run(() => Promise.all(jobs.map((j) => addPunchCorrection(vendorId, j))), "Shift voided")) setEditing(null);
+    if (!jobs.length) return onToast?.(t("time.toast_nothing_void"));
+    if (await run(() => Promise.all(jobs.map((j) => addPunchCorrection(vendorId, j))), t("time.toast_voided"))) setEditing(null);
   }
 
   async function saveAdd() {
     const reason = addForm.reason.trim();
     const atMs = fromLocalInput(addForm.atStr);
     const emp = employees.find((e) => e.id === addForm.userId);
-    if (!emp) return onToast?.("Pick an employee");
-    if (atMs == null) return onToast?.("Pick a date and time");
+    if (!emp) return onToast?.(t("time.err_pick_employee"));
+    if (atMs == null) return onToast?.(t("time.err_pick_datetime"));
     if (lockedDays.has(dayOfMs(atMs)))
-      return onToast?.("That day is payroll-approved — release the lock first");
-    if (!reason) return onToast?.("Add a reason");
+      return onToast?.(t("time.err_day_locked"));
+    if (!reason) return onToast?.(t("time.err_add_reason"));
     const ok = await run(() => addPunchCorrection(vendorId, {
       action: "add", type: addForm.type, atMs,
       userId: emp.id, userName: emp.name, byId: actor.id, byName: actor.name, reason,
-    }), "Punch added");
+    }), t("time.toast_punch_added"));
     if (ok) { setAdding(false); setAddForm({ userId: "", type: "in", atStr: "", reason: "" }); }
   }
 
@@ -413,42 +411,42 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line flex items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-[15px]">Timesheet &amp; corrections</h3>
-          <p className="text-[13px] text-muted mt-0.5">Fix a mis-punch without editing the record — each correction is signed and logged.</p>
+          <h3 className="font-semibold text-[15px]">{t("time.corrections_title")}</h3>
+          <p className="text-[13px] text-muted mt-0.5">{t("time.corrections_sub")}</p>
         </div>
         <button className="btn-ghost text-sm px-3 py-1.5 flex-shrink-0"
           onClick={() => { setEditing(null); setAdding((v) => !v); }}>
-          {adding ? "Close" : "+ Add punch"}
+          {adding ? t("time.close_btn") : t("time.add_punch")}
         </button>
       </div>
 
       {adding && (
         <div className="p-4 border-b border-line bg-panel space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <select className="input" value={addForm.userId} aria-label="Employee"
+            <select className="input" value={addForm.userId} aria-label={t("common.employee")}
               onChange={(e) => setAddForm({ ...addForm, userId: e.target.value })}>
-              <option value="">Employee…</option>
+              <option value="">{t("time.employee_ph")}</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
-            <select className="input" value={addForm.type} aria-label="Punch type"
+            <select className="input" value={addForm.type} aria-label={t("time.punch_type")}
               onChange={(e) => setAddForm({ ...addForm, type: e.target.value })}>
-              <option value="in">Clock in</option>
-              <option value="out">Clock out</option>
+              <option value="in">{t("time.clock_in")}</option>
+              <option value="out">{t("time.clock_out")}</option>
             </select>
           </div>
-          <input className="input" type="datetime-local" aria-label="Punch time"
+          <input className="input" type="datetime-local" aria-label={t("time.punch_time")}
             value={addForm.atStr} onChange={(e) => setAddForm({ ...addForm, atStr: e.target.value })} />
-          <input className="input" placeholder="Reason (required)" value={addForm.reason}
+          <input className="input" placeholder={t("time.reason_ph")} value={addForm.reason}
             onChange={(e) => setAddForm({ ...addForm, reason: e.target.value })} />
           <button className="btn-primary w-full" disabled={busy} onClick={saveAdd}>
-            {busy ? "Saving…" : "Add punch"}
+            {busy ? t("common.saving") : t("time.add_punch_btn")}
           </button>
         </div>
       )}
 
       {shifts.length === 0 ? (
-        <EmptyState icon={<IconClock />} title="No shifts in this period"
-          subtitle="Shifts appear here as staff clock in and out — then you can correct any that are wrong." />
+        <EmptyState icon={<IconClock />} title={t("time.empty_period_title")}
+          subtitle={t("time.empty_corrections_sub")} />
       ) : (
         <div className="max-h-[26rem] overflow-auto divide-y divide-line">
           {shifts.map((s) => {
@@ -460,18 +458,18 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <div className="min-w-0">
                     <div className="font-medium truncate">{s.userName || "—"}
-                      {s.corrected && <span className="pill ml-2 bg-highlight text-gold border border-brass/30">corrected</span>}
-                      {s.open && <span className="pill ml-2 bg-subtle text-muted">open</span>}
+                      {s.corrected && <span className="pill ml-2 bg-highlight text-gold border border-brass/30">{t("time.pill_corrected")}</span>}
+                      {s.open && <span className="pill ml-2 bg-subtle text-muted">{t("time.pill_open")}</span>}
                     </div>
                     <div className="text-[12px] text-muted">{fmtDay(s.inMs)} · {fmtTime(s.inMs)} – {s.outMs ? fmtTime(s.outMs) : "—"}</div>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="font-mono font-semibold">{formatDuration(s.ms)}</span>
                     {locked ? (
-                      <span className="pill bg-subtle text-muted" title="Payroll-approved — release the week's lock to correct">locked</span>
+                      <span className="pill bg-subtle text-muted" title={t("time.locked_title")}>{t("time.pill_locked")}</span>
                     ) : (
                       <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => (isEditing ? setEditing(null) : openEdit(s))}>
-                        {isEditing ? "Cancel" : "Correct"}
+                        {isEditing ? t("common.cancel") : t("time.correct_btn")}
                       </button>
                     )}
                   </div>
@@ -480,22 +478,22 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
                 {isEditing && !locked && (
                   <div className="mt-3 space-y-3 bg-panel rounded-lg p-3">
                     <div className="grid grid-cols-2 gap-2">
-                      <label className="text-[12px] text-muted">Clock in
+                      <label className="text-[12px] text-muted">{t("time.clock_in")}
                         <input className="input mt-1" type="datetime-local" value={form.inStr}
                           onChange={(e) => setForm({ ...form, inStr: e.target.value })} />
                       </label>
-                      <label className="text-[12px] text-muted">Clock out
+                      <label className="text-[12px] text-muted">{t("time.clock_out")}
                         <input className="input mt-1" type="datetime-local" value={form.outStr}
                           onChange={(e) => setForm({ ...form, outStr: e.target.value })} />
                       </label>
                     </div>
-                    <input className="input" placeholder="Reason (required)" value={form.reason}
+                    <input className="input" placeholder={t("time.reason_ph")} value={form.reason}
                       onChange={(e) => setForm({ ...form, reason: e.target.value })} />
                     <div className="flex gap-2">
                       <button className="btn-primary flex-1" disabled={busy} onClick={saveEdit}>
-                        {busy ? "Saving…" : "Save correction"}
+                        {busy ? t("common.saving") : t("time.save_correction")}
                       </button>
-                      <button className="btn-ghost text-neg" disabled={busy} onClick={voidShift}>Void</button>
+                      <button className="btn-ghost text-neg" disabled={busy} onClick={voidShift}>{t("time.void_btn")}</button>
                     </div>
                   </div>
                 )}
