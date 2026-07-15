@@ -259,7 +259,8 @@ export default function AppShell() {
 
       <footer className="mt-10 border-t border-line-soft pb-28 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 px-safe pb-safe pt-6 pb-6">
-          <div className="flex items-center justify-center gap-2.5 mb-5">
+          {/* Brand block sits flush left; the wordmark + tagline read left-aligned beside the logo. */}
+          <div className="flex items-center justify-start gap-2.5 mb-5">
             <Logo src="/logo.png" alt="DuoCount" size={28} />
             <div className="text-left leading-tight">
               <p className="text-sm font-semibold text-fg">DuoCount</p>

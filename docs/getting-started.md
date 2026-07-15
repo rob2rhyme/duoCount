@@ -297,12 +297,14 @@ bin 4 running low." Managers can pin the important ones.
   Home Screen," and it opens full-screen and works offline for the basics.
 - **¿Prefieres español?** The everyday screens speak Spanish: pick **Español**
   from the language menu on the sign-in screen (next to the sun/moon) or in the
-  header **gear (Settings) → Idioma**. Sign-in, the navigation, the Cash /
-  Scratch-off / Inventory forms, **Notes**, **Incidents**, and every
+  header **gear (Settings) → Idioma**. Sign-in (including its error messages),
+  the navigation, the Cash / Scratch-off / Inventory forms, the **Log**,
+  **Notes**, **Incidents**, **Time** (the clock *and* the schedule), and every
   confirmation switch language; each screen also leads with an icon (💵 🎟️ 📦),
   so the glyph carries the meaning too. It's a per-device choice, like the
-  theme — your coworker's screen never changes. (Manager screens like the
-  Dashboard and Admin are being translated next.)
+  theme — your coworker's screen never changes. What's written into the
+  permanent record (notes, comments, exports) stays in the language it was
+  written. (The manager Dashboard and Admin screens are being translated next.)
 - **Light or dark.** On the sign-in screen, tap the sun/moon. Once you're signed
   in, open the header **gear (Settings) → Appearance** to switch — it remembers
   your choice per device.
