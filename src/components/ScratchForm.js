@@ -6,6 +6,7 @@ import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
 import { useSession } from "./SessionProvider";
+import { useLang } from "./LangProvider";
 import SaveError from "./SaveError";
 import Field from "./Field";
 import BarcodeScanner from "./BarcodeScanner";
@@ -14,6 +15,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [], packs = [] }) {
   const { profile, vendor, isManager } = useSession();
+  const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
     date: today(), shift: defaultShift(new Date().getHours()), locationId: "", drawerId: "",
@@ -47,7 +49,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         price: prev.price != null ? String(prev.price) : p.price,
         startno: prev.endno != null ? String(prev.endno) : p.startno,
       }));
-      onSaved?.(`Pack recognized — start # carried from last count`);
+      onSaved?.(t("toast.pack_recognized"));
     }
   }, [f.pack, f.locationId]); // eslint-disable-line
 
@@ -81,86 +83,88 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     });
     saveContext(vendor.id, profile.id, { locationId: f.locationId, scratchDrawerId: drawer.id });
     setF((p) => ({ ...p, pack: "", startno: "", endno: "" }));
-    onSaved?.("Scratch-off entry signed & saved");
+    onSaved?.(t("toast.saved_scratch"));
   }
 
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
-        <h2 className="font-semibold text-[15px]">Scratch-off pack count</h2>
+        <h2 className="font-semibold text-[15px]"><span aria-hidden="true">🎟️</span> {t("scratch.title")}</h2>
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Location"}>
+          <Field label={t("common.location")}>
             <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select></Field>
-          <Field label={"Drawer"}>
+          <Field label={t("scratch.drawer")}>
             <select className="input" value={f.drawerId} onChange={set("drawerId")}>
-              {locDrawers.length === 0 && <option value="">No drawers — add in Admin</option>}
+              {locDrawers.length === 0 && <option value="">{t("cash.no_drawers")}</option>}
               {locDrawers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Date"}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
-          <Field label={"Shift"}>
+          <Field label={t("common.date")}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
+          <Field label={t("common.shift")}>
             <select className="input" value={f.shift} onChange={set("shift")}>
-              <option value="open">Opening</option><option value="close">Closing</option>
+              <option value="open">🌅 {t("common.opening")}</option><option value="close">🌇 {t("common.closing")}</option>
             </select></Field>
         </div>
         {packs.some((p) => p.status === "active" && p.locationId === f.locationId) && (
-          <Field label={<>Active pack (fills game, price &amp; pack #)</>}>
+          <Field label={t("scratch.active_pack")}>
             <select className="input" value=""
               onChange={(e) => {
                 const p = packs.find((x) => x.id === e.target.value);
                 if (p) setF((prev) => ({ ...prev, pack: p.packNumber, game: p.game, price: String(p.price ?? "") }));
               }}>
-              <option value="">Pick a pack…</option>
+              <option value="">{t("scratch.pick_pack")}</option>
               {packs.filter((p) => p.status === "active" && p.locationId === f.locationId).map((p) => (
-                <option key={p.id} value={p.id}>{p.game} · #{p.packNumber}{p.bin ? ` · bin ${p.bin}` : ""}</option>
+                <option key={p.id} value={p.id}>{p.game} · #{p.packNumber}{p.bin ? ` · ${t("scratch.bin", { bin: p.bin })}` : ""}</option>
               ))}
             </select></Field>
         )}
 
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Game name"}><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></Field>
-          <div><label htmlFor={packId} className="label">Pack / book #</label>
+          <Field label={t("scratch.game")}><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></Field>
+          <div><label htmlFor={packId} className="label">{t("scratch.pack_no")}</label>
             <div className="flex gap-2">
               <input id={packId} className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
-              <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg" title="Scan pack barcode"
-                aria-label="Scan pack barcode" onClick={() => setScanOpen(true)}>📷</button>
+              <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg" title={t("scratch.scan_pack")}
+                aria-label={t("scratch.scan_pack")} onClick={() => setScanOpen(true)}>📷</button>
             </div></div>
         </div>
-        <Field label={"Ticket price"}><input type="number" inputMode="decimal" className="input" value={f.price} onChange={set("price")} placeholder="0.00" /></Field>
+        <Field label={t("scratch.price")}><input type="number" inputMode="decimal" className="input" value={f.price} onChange={set("price")} placeholder="0.00" /></Field>
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={"Start ticket #"}><input type="number" inputMode="numeric" className="input" value={f.startno} onChange={set("startno")} placeholder="0" /></Field>
-          <Field label={"End ticket #"}><input type="number" inputMode="numeric" className="input" value={f.endno} onChange={set("endno")} placeholder="0" /></Field>
+          <Field label={t("scratch.startno")}><input type="number" inputMode="numeric" className="input" value={f.startno} onChange={set("startno")} placeholder="0" /></Field>
+          <Field label={t("scratch.endno")}><input type="number" inputMode="numeric" className="input" value={f.endno} onChange={set("endno")} placeholder="0" /></Field>
         </div>
 
         <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
           <div className="bg-panel px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Tickets sold</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("scratch.sold")}</div>
             <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-pos" : "text-fg"}`}>{sold}</div>
           </div>
           <div className="bg-panel px-3.5 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Dollars sold</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("scratch.dollars")}</div>
             <div className={`text-xl font-bold font-mono mt-0.5 ${sold > 0 ? "text-pos" : "text-fg"}`}>{money(dollars)}</div>
           </div>
         </div>
 
         <SaveError message={error} onRetry={() => run(save)} busy={busy} />
-        <button className="btn-primary" disabled={busy || !valid.ok || !drawer} onClick={() => run(save)}>{busy ? "Saving…" : "Save & sign entry"}</button>
-        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{valid.message}</p>}
-        <p className="text-xs text-muted leading-relaxed">End # − start # = tickets sold. That × price must match the drawer — this makes the log self-auditing.</p>
+        <button className="btn-primary" disabled={busy || !valid.ok || !drawer} onClick={() => run(save)}>
+          <span aria-hidden="true">✓</span> {busy ? t("common.saving") : t("common.save_sign")}
+        </button>
+        {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{t(`err.${valid.code}`)}</p>}
+        <p className="text-xs text-muted leading-relaxed">{t("scratch.helper")}</p>
       </div>
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
-        title="Scan pack barcode"
-        hint="The scan fills the pack — nothing saves until you save & sign the count."
+        title={t("scratch.scan_pack")}
+        hint={t("scratch.scan_hint")}
         onDetected={(code) => {
           setScanOpen(false);
           setF((p) => ({ ...p, pack: code }));
-          onSaved?.("Pack scanned");
+          onSaved?.(t("toast.pack_scanned"));
         }} />
     </div>
   );

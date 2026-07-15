@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "./ThemeProvider";
 import { usePrefs } from "./PrefsProvider";
+import { useLang } from "./LangProvider";
+import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 import { useInstallPrompt } from "@/lib/install";
 
 function Switch({ on, onChange, label }) {
@@ -21,6 +23,7 @@ function Switch({ on, onChange, label }) {
 // a single control.
 export default function PreferencesMenu({ onSignOut }) {
   const { theme, setTheme } = useTheme();
+  const { lang, setLang, t } = useLang();
   const { fabEnabled, setFabEnabled } = usePrefs();
   const { available: canInstall, promptInstall } = useInstallPrompt();
   const [open, setOpen] = useState(false);
@@ -50,12 +53,24 @@ export default function PreferencesMenu({ onSignOut }) {
         <div role="menu" aria-label="Settings"
           className="card absolute right-0 mt-2 w-64 z-50 p-3 space-y-3.5 text-fg shadow-xl">
           <div>
+            <div className="label mb-1.5">{t("lang.language")}</div>
+            <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-subtle">
+              {LOCALES.map((l) => (
+                <button key={l} type="button" onClick={() => setLang(l)} role="menuitemradio" aria-checked={lang === l}
+                  className={`px-2 py-1.5 rounded-md text-sm font-semibold transition ${lang === l ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
+                  {LOCALE_LABELS[l] || l}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <div className="label mb-1.5">Appearance</div>
             <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-subtle">
-              {["light", "dark"].map((t) => (
-                <button key={t} type="button" onClick={() => setTheme(t)} role="menuitemradio" aria-checked={theme === t}
-                  className={`px-2 py-1.5 rounded-md text-sm font-semibold capitalize transition ${theme === t ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
-                  {t}
+              {["light", "dark"].map((th) => (
+                <button key={th} type="button" onClick={() => setTheme(th)} role="menuitemradio" aria-checked={theme === th}
+                  className={`px-2 py-1.5 rounded-md text-sm font-semibold capitalize transition ${theme === th ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
+                  {th}
                 </button>
               ))}
             </div>

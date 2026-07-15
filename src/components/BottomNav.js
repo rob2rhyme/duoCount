@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useLang } from "./LangProvider";
 
 // Mobile bottom navigation. The top tab strip works fine on a wide screen but
 // on a phone it's nine text-only tabs on a single sideways scroll — off-screen
@@ -19,17 +20,19 @@ const ICONS = {
   admin: (<svg viewBox="0 0 24 24" width="22" height="22" {...stroke} aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.6 19l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4 12.6H4a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 5.6 6L5.5 6a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H10a1.6 1.6 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V8a1.6 1.6 0 0 0 1.5 1H22a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" /></svg>),
 };
 
-// Order + membership of each group. `key` picks the icon above.
+// Order + membership of each group. `key` picks the icon above; labels resolve
+// through the i18n catalog so the mobile nav follows the clerk's language.
 const GROUPS = [
-  { key: "count", label: "Count", ids: ["cash", "scratch", "inventory"] },
-  { key: "team", label: "Team", ids: ["time", "incidents", "notes"] },
-  { key: "insights", label: "Insights", ids: ["dashboard", "portfolio", "log"] },
-  { key: "admin", label: "Admin", ids: ["admin"] },
+  { key: "count", labelKey: "nav.group_count", ids: ["cash", "scratch", "inventory"] },
+  { key: "team", labelKey: "nav.group_team", ids: ["time", "incidents", "notes"] },
+  { key: "insights", labelKey: "nav.group_insights", ids: ["dashboard", "portfolio", "log"] },
+  { key: "admin", labelKey: "nav.admin", ids: ["admin"] },
 ];
 
 export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
+  const { t } = useLang();
   const [openKey, setOpenKey] = useState(null);
-  const byId = Object.fromEntries(tabs.map((t) => [t.id, t]));
+  const byId = Object.fromEntries(tabs.map((tb) => [tb.id, tb]));
 
   // Keep only the groups (and members) that are actually visible to this user,
   // and roll each group's members' attention counts up onto the group.
@@ -37,7 +40,7 @@ export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
     .map((g) => {
       const members = g.ids.filter((id) => byId[id]);
       const count = members.reduce((n, id) => n + (attention[id] || 0), 0);
-      return { ...g, members, count };
+      return { ...g, label: t(g.labelKey), members, count };
     })
     .filter((g) => g.members.length > 0);
 
@@ -57,12 +60,12 @@ export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
     <div className="sm:hidden">
       {/* Tap-away backdrop while a group sheet is open */}
       {openGroup && (
-        <button type="button" aria-label="Close menu" onClick={() => setOpenKey(null)}
+        <button type="button" aria-label={t("nav.close_menu")} onClick={() => setOpenKey(null)}
           className="fixed inset-0 z-30 bg-black/30" />
       )}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 bg-surface border-t border-line px-safe pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.06)]"
-        aria-label="Sections">
+        aria-label={t("nav.sections")}>
         {openGroup && (
           <div className="absolute bottom-full inset-x-0 bg-surface border-t border-line shadow-lg">
             <div className="px-3 py-2.5 border-b border-line text-[11px] uppercase tracking-wide text-muted font-semibold">
@@ -77,7 +80,7 @@ export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
                     <span className="flex items-center gap-2">
                       {attention[id] > 0 && (
                         <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brass text-ink text-[10px] font-bold leading-none"
-                          aria-label={`${attention[id]} need attention`}>{attention[id]}</span>
+                          aria-label={t("nav.need_attention", { n: attention[id] })}>{attention[id]}</span>
                       )}
                       {current === id && <span aria-hidden="true" className="text-brass">●</span>}
                     </span>
@@ -100,7 +103,7 @@ export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
                     {ICONS[g.key]}
                     {g.count > 0 && (
                       <span className="absolute -top-1 -right-2 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-brass text-ink text-[9px] font-bold leading-none"
-                        aria-label={`${g.count} need attention`}>{g.count}</span>
+                        aria-label={t("nav.need_attention", { n: g.count })}>{g.count}</span>
                     )}
                   </span>
                   <span className="text-[11px] font-semibold leading-none">{g.label}</span>

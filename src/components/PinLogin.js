@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import { useSession } from "./SessionProvider";
+import { useLang } from "./LangProvider";
+import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 import { PRODUCT } from "@/lib/store";
 import { PIN_LENGTH, PIN_PLACEHOLDER, isValidNewPin } from "@/lib/pin";
 import Logo from "./Logo";
@@ -9,6 +11,7 @@ import ThemeToggle from "./ThemeToggle";
 
 export default function PinLogin() {
   const { login, signup } = useSession();
+  const { lang, setLang, t } = useLang();
   const [mode, setMode] = useState("login"); // 'login' | 'signup'
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -49,66 +52,72 @@ export default function PinLogin() {
             <h1 className="text-lg font-semibold leading-tight">{PRODUCT.name}</h1>
             <p className="text-xs text-muted">{PRODUCT.tagline}</p>
           </div>
-          <ThemeToggle className="ml-auto flex-shrink-0" />
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+            <select className="input w-auto py-1 px-2 text-xs" value={lang} aria-label={t("lang.language")}
+              onChange={(e) => setLang(e.target.value)}>
+              {LOCALES.map((l) => <option key={l} value={l}>{LOCALE_LABELS[l] || l}</option>)}
+            </select>
+            <ThemeToggle className="flex-shrink-0" />
+          </div>
         </div>
 
         {mode === "login" ? (
           <>
-            <label htmlFor={ids.storeCode} className="label">Store code</label>
+            <label htmlFor={ids.storeCode} className="label">{t("login.store_code")}</label>
             <input id={ids.storeCode} className="input mb-4 font-mono lowercase" value={storeCode}
               onChange={(e) => setStoreCode(e.target.value)} placeholder="acme-market" autoFocus />
-            <label htmlFor={ids.pin} className="label">Your PIN ({PIN_LENGTH} digits)</label>
+            <label htmlFor={ids.pin} className="label">{t("login.your_pin", { n: PIN_LENGTH })}</label>
             <input id={ids.pin} className="input text-center text-2xl tracking-[0.4em] font-mono"
               inputMode="numeric" maxLength={PIN_LENGTH} value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && doLogin()} placeholder={PIN_PLACEHOLDER} />
             {err && <p className="text-sm text-neg mt-3">{err}</p>}
             <button className="btn-primary mt-5" disabled={busy || pin.length < PIN_LENGTH || !storeCode.trim()} onClick={doLogin}>
-              {busy ? "Checking…" : "Sign in"}
+              {busy ? t("login.checking") : t("login.sign_in")}
             </button>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
               onClick={() => { setMode("signup"); setErr(""); }}>
-              New business? Register your store
+              {t("login.register_link")}
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">
-              Your store code comes from whoever set up your business. Ask a manager if you don&apos;t have it.
+              {t("login.code_help")}
             </p>
           </>
         ) : (
           <>
-            <label htmlFor={ids.bizName} className="label">Business name</label>
+            <label htmlFor={ids.bizName} className="label">{t("login.biz_name")}</label>
             <input id={ids.bizName} className="input mb-4" value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Acme Market" />
-            <label htmlFor={ids.logoUrl} className="label">Logo URL (optional)</label>
+            <label htmlFor={ids.logoUrl} className="label">{t("login.logo_url")}</label>
             <input id={ids.logoUrl} className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
-            <label htmlFor={ids.ownerName} className="label">Your name (owner)</label>
+            <label htmlFor={ids.ownerName} className="label">{t("login.owner_name")}</label>
             <input id={ids.ownerName} className="input mb-4" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Jordan P." />
-            <label htmlFor={ids.newPin} className="label">Choose your PIN ({PIN_LENGTH} digits)</label>
+            <label htmlFor={ids.newPin} className="label">{t("login.choose_pin", { n: PIN_LENGTH })}</label>
             <input id={ids.newPin} className="input text-center text-xl tracking-[0.3em] font-mono"
               inputMode="numeric" maxLength={PIN_LENGTH} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
             {err && <p className="text-sm text-neg mt-3">{err}</p>}
             <button className="btn-primary mt-5" disabled={busy || !isValidNewPin(newPin)} onClick={doSignup}>
-              {busy ? "Creating…" : "Create business & sign in"}
+              {busy ? t("login.creating") : t("login.create")}
             </button>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
               onClick={() => { setMode("login"); setErr(""); }}>
-              Already registered? Sign in
+              {t("login.back_to_login")}
             </button>
             <p className="text-xs text-muted mt-4 leading-relaxed">
-              You&apos;ll get a store code to share with staff. You&apos;ll be the owner and can add locations, drawers, and staff in Admin.
+              {t("login.signup_help")}
             </p>
           </>
         )}
 
         {createdSlug && (
           <div className="mt-4 text-sm bg-highlight border border-brass/40 rounded-lg p-3">
-            Store created. Your store code is <b className="font-mono">{createdSlug}</b> — share it with staff so they can sign in.
+            {t("login.created_pre")} <b className="font-mono">{createdSlug}</b> {t("login.created_post")}
           </div>
         )}
         <p className="text-center text-[11px] text-muted mt-5 pt-4 border-t border-line">
-          <Link href="/guide" className="underline underline-offset-2 hover:text-fg">User guide</Link>
+          <Link href="/guide" className="underline underline-offset-2 hover:text-fg">{t("login.user_guide")}</Link>
           {" · "}
-          <Link href="/docs" className="underline underline-offset-2 hover:text-fg">Documentation</Link>
+          <Link href="/docs" className="underline underline-offset-2 hover:text-fg">{t("login.documentation")}</Link>
         </p>
       </div>
     </div>
