@@ -116,7 +116,7 @@ export default function AppShell() {
   const setup = setupProgress(locations, drawers, items);
   const setupReady = loaded.locations && loaded.drawers && loaded.items;
   const goAdmin = () => setTab("admin");
-  const adminAction = isManager ? { onClick: goAdmin, label: "Set up in Admin →" } : undefined;
+  const adminAction = isManager ? { onClick: goAdmin, label: t("setup.go_admin") } : undefined;
 
   // Ambient "needs attention" badges for managers: unresolved variances/disputes
   // (Log), open write-ups (Incidents), and swaps awaiting approval (Time). Pure
@@ -212,45 +212,33 @@ export default function AppShell() {
 
         {tab === "cash" && (
           setupReady && !setup.hasLocation ? (
-            <EmptyState icon={<IconStore />} title="No store location yet" action={adminAction}
-              subtitle={isManager
-                ? "Add your first store location in Admin, then a cash drawer — then your team can start counting."
-                : "Your manager is still setting up this store. Counting opens up once a location and drawer exist."} />
+            <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
+              subtitle={isManager ? t("empty.cash_loc_mgr") : t("empty.cash_loc_emp")} />
           ) : setupReady && !setup.hasDrawer ? (
-            <EmptyState icon={<IconReceipt />} title="No cash drawer yet" action={adminAction}
-              subtitle={isManager
-                ? "Add a cash drawer or register in Admin, then you can record the open and close counts."
-                : "Your manager needs to add a cash drawer before counts can be recorded here."} />
+            <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title")} action={adminAction}
+              subtitle={isManager ? t("empty.cash_drawer_mgr") : t("empty.cash_drawer_emp")} />
           ) : (
             <CashForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
           )
         )}
         {tab === "scratch" && (
           setupReady && !setup.hasLocation ? (
-            <EmptyState icon={<IconStore />} title="No store location yet" action={adminAction}
-              subtitle={isManager
-                ? "Add a store location and a drawer in Admin, then you can log scratch-off packs here."
-                : "Your manager is still setting up this store. Scratch-off logging opens up once a location and drawer exist."} />
+            <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
+              subtitle={isManager ? t("empty.scratch_loc_mgr") : t("empty.scratch_loc_emp")} />
           ) : setupReady && !setup.hasDrawer ? (
-            <EmptyState icon={<IconReceipt />} title="No drawer yet" action={adminAction}
-              subtitle={isManager
-                ? "Add a drawer or register in Admin (a lottery drawer works well), then you can log packs."
-                : "Your manager needs to add a drawer before scratch-off packs can be logged."} />
+            <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title_scratch")} action={adminAction}
+              subtitle={isManager ? t("empty.scratch_drawer_mgr") : t("empty.scratch_drawer_emp")} />
           ) : (
             <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} packs={packs} />
           )
         )}
         {tab === "inventory" && (
           setupReady && !setup.hasLocation ? (
-            <EmptyState icon={<IconStore />} title="No store location yet" action={adminAction}
-              subtitle={isManager
-                ? "Add a store location in Admin, then add the items you want to track."
-                : "Your manager is still setting up this store. Inventory counts open up once items are added."} />
+            <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
+              subtitle={isManager ? t("empty.inv_loc_mgr") : t("empty.inv_loc_emp")} />
           ) : setupReady && !setup.hasItem ? (
-            <EmptyState icon={<IconBox />} title="No items to track yet" action={adminAction}
-              subtitle={isManager
-                ? "Add the stock you want to watch — cigarettes, vapes, anything high-shrink — in Admin."
-                : "Your manager hasn't added any inventory items to track yet."} />
+            <EmptyState icon={<IconBox />} title={t("empty.no_items_title")} action={adminAction}
+              subtitle={isManager ? t("empty.inv_items_mgr") : t("empty.inv_items_emp")} />
           ) : (
             <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
           )

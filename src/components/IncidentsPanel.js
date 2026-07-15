@@ -4,25 +4,16 @@ import { addIncident, ackIncident, closeIncident, watchStaff } from "@/lib/data"
 import { toDate } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useSession } from "./SessionProvider";
+import { useLang } from "./LangProvider";
 import EmptyState, { IconShield } from "./EmptyState";
 import SearchInput from "./SearchInput";
 import Highlight from "./Highlight";
 import Field from "./Field";
 
-const CATEGORIES = [
-  ["cash-handling", "Cash handling"],
-  ["till-procedure", "Till procedure"],
-  ["policy", "Policy"],
-  ["safety", "Safety"],
-  ["customer", "Customer"],
-  ["attendance", "Attendance"],
-  ["other", "Other"],
-];
-const SEVERITIES = [
-  ["note", "Note"],
-  ["warning", "Warning"],
-  ["serious", "Serious"],
-];
+// Values are stable ids; display labels resolve through the i18n catalog
+// (cat.* / sev.* / status.*), so the pills and selects follow the language.
+const CATEGORIES = ["cash-handling", "till-procedure", "policy", "safety", "customer", "attendance", "other"];
+const SEVERITIES = ["note", "warning", "serious"];
 
 const sevPill = (s) =>
   s === "serious" ? "bg-red-100 text-red-700"
@@ -41,16 +32,17 @@ const fmt = (ts) => {
 // Evidence links: up to 5 http(s) URLs, one per line.
 function parseLinks(raw) {
   const urls = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  if (urls.length > 5) return { error: "At most 5 evidence links" };
+  if (urls.length > 5) return { error: "links_max" };
   for (const u of urls) {
     if (!/^https?:\/\//i.test(u) || u.length > 500)
-      return { error: "Links must start with http(s):// (max 500 chars each)" };
+      return { error: "links_format" };
   }
   return { links: urls };
 }
 
 export default function IncidentsPanel({ incidents, locations, locName, onToast }) {
   const { profile, vendor, isManager } = useSession();
+  const { t } = useLang();
 
   const [staff, setStaff] = useState([]);
   const [f, setF] = useState({ title: "", subjectId: "", severity: "note", category: "other", locationId: "", text: "", links: "" });
@@ -78,11 +70,11 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
 
   async function post() {
     const title = f.title.trim(), text = f.text.trim();
-    if (!title) return onToast?.("Give the incident a title");
-    if (!text) return onToast?.("Describe what happened");
-    if (!f.locationId) return onToast?.("Pick a location");
+    if (!title) return onToast?.(t("incidents.err_title"));
+    if (!text) return onToast?.(t("incidents.err_text"));
+    if (!f.locationId) return onToast?.(t("notes.err_location"));
     const parsed = parseLinks(f.links);
-    if (parsed.error) return onToast?.(parsed.error);
+    if (parsed.error) return onToast?.(t(`incidents.err_${parsed.error}`));
     const subject = staff.find((s) => s.id === f.subjectId) || null;
     setBusy(true);
     try {
@@ -95,8 +87,8 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
         by: profile.name, byId: profile.id, byRole: profile.role,
       });
       setF((p) => ({ ...p, title: "", subjectId: "", severity: "note", category: "other", text: "", links: "" }));
-      onToast?.("Incident filed");
-    } catch (e) { console.error(e); onToast?.("Filing failed"); }
+      onToast?.(t("incidents.toast_filed"));
+    } catch (e) { console.error(e); onToast?.(t("incidents.toast_file_failed")); }
     setBusy(false);
   }
 
@@ -105,76 +97,76 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
     try {
       await ackIncident(vendor.id, inc.id, ackText);
       setAckFor(null); setAckText("");
-      onToast?.("Acknowledged — your response is on the record");
-    } catch (e) { console.error(e); onToast?.("Acknowledge failed"); }
+      onToast?.(t("incidents.toast_acked"));
+    } catch (e) { console.error(e); onToast?.(t("incidents.toast_ack_failed")); }
     setBusy(false);
   }
 
   const close = (inc) =>
     closeIncident(vendor.id, inc.id, profile.name)
-      .then(() => onToast?.("Incident closed"))
-      .catch(() => onToast?.("Managers only"));
+      .then(() => onToast?.(t("incidents.toast_closed")))
+      .catch(() => onToast?.(t("common.managers_only")));
 
   return (
     <div className="space-y-4">
       {isManager ? (
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line">
-            <h2 className="font-semibold text-[15px]">File an incident</h2>
+            <h2 className="font-semibold text-[15px]">{t("incidents.file_title")}</h2>
             <p className="text-[13px] text-muted mt-0.5">
-              Signed, permanent, and shown to the person it concerns — they can acknowledge and add their side. Write-ups can&apos;t be edited after filing.
+              {t("incidents.file_sub")}
             </p>
           </div>
           <div className="p-4 space-y-3">
-            <Field label={"Title"}>
+            <Field label={t("incidents.title_label")}>
               <input ref={titleRef} className="input" maxLength={120} value={f.title}
-                placeholder="e.g. Till left unlocked during break"
+                placeholder={t("incidents.title_ph")}
                 onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={"Concerning"}>
+              <Field label={t("incidents.concerning")}>
                 <select className="input" value={f.subjectId} onChange={(e) => setF({ ...f, subjectId: e.target.value })}>
-                  <option value="">General — no one specific</option>
+                  <option value="">{t("incidents.general")}</option>
                   {staff.filter((s) => s.active !== false).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select></Field>
-              <Field label={"Severity"}>
+              <Field label={t("incidents.severity")}>
                 <select className="input" value={f.severity} onChange={(e) => setF({ ...f, severity: e.target.value })}>
-                  {SEVERITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  {SEVERITIES.map((v) => <option key={v} value={v}>{t(`sev.${v}`)}</option>)}
                 </select></Field>
-              <Field label={"Category"}>
+              <Field label={t("incidents.category")}>
                 <select className="input" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
-                  {CATEGORIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  {CATEGORIES.map((v) => <option key={v} value={v}>{t(`cat.${v}`)}</option>)}
                 </select></Field>
-              <Field label={"Location"}>
+              <Field label={t("common.location")}>
                 <select className="input" value={f.locationId} onChange={(e) => setF({ ...f, locationId: e.target.value })}>
                   {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select></Field>
             </div>
-            <Field label={"What happened"}>
+            <Field label={t("incidents.what")}>
               <textarea className="input min-h-[96px]" maxLength={4000} value={f.text}
-                placeholder="Facts, times, who was present, what was said…"
+                placeholder={t("incidents.what_ph")}
                 onChange={(e) => setF({ ...f, text: e.target.value })} /></Field>
-            <Field label={"Evidence links (optional, one per line — camera clips, photos)"}>
+            <Field label={t("incidents.links_label")}>
               <textarea className="input min-h-[44px] font-mono text-[13px]" value={f.links}
                 placeholder="https://…"
                 onChange={(e) => setF({ ...f, links: e.target.value })} /></Field>
-            <button className="btn-primary" disabled={busy} onClick={post}>{busy ? "Filing…" : "File incident"}</button>
+            <button className="btn-primary" disabled={busy} onClick={post}>{busy ? t("incidents.filing") : t("incidents.file")}</button>
           </div>
         </div>
       ) : (
         <p className="text-[13px] text-muted px-1">
-          Write-ups that concern you appear here. Acknowledging means &ldquo;I&apos;ve seen this&rdquo; — not &ldquo;I agree&rdquo; — and you can add your side to the permanent record.
+          {t("incidents.employee_intro")}
         </p>
       )}
 
       {incidents.length > 0 && (
         <div className="flex gap-2 flex-wrap items-center">
-          <SearchInput value={query} onChange={setQuery} placeholder="Search incidents…" label="Search incidents" className="flex-1 min-w-[160px]" />
+          <SearchInput value={query} onChange={setQuery} placeholder={t("incidents.search")} label={t("incidents.search")} className="flex-1 min-w-[160px]" />
           {isManager && (
-            <select className="input w-auto" value={viewStatus} onChange={(e) => setViewStatus(e.target.value)} aria-label="Filter incidents by status">
-              <option value="all">All statuses</option>
-              <option value="open">Open</option>
-              <option value="acknowledged">Acknowledged</option>
-              <option value="closed">Closed</option>
+            <select className="input w-auto" value={viewStatus} onChange={(e) => setViewStatus(e.target.value)} aria-label={t("incidents.filter_status")}>
+              <option value="all">{t("incidents.all_statuses")}</option>
+              <option value="open">{t("status.open")}</option>
+              <option value="acknowledged">{t("status.acknowledged")}</option>
+              <option value="closed">{t("status.closed")}</option>
             </select>
           )}
         </div>
@@ -183,16 +175,16 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
       <div className="card overflow-hidden">
         {visible.length === 0 ? (
           terms.length ? (
-            <EmptyState icon={<IconShield />} title="No incidents match your search"
-              subtitle={`Nothing matches “${query.trim()}”. Try fewer or different words.`}
-              action={{ label: "Clear search", onClick: () => setQuery("") }} />
+            <EmptyState icon={<IconShield />} title={t("incidents.no_match")}
+              subtitle={t("common.no_match_hint", { q: query.trim() })}
+              action={{ label: t("common.clear_search"), onClick: () => setQuery("") }} />
           ) : isManager ? (
-            <EmptyState icon={<IconShield />} title="No incidents on file"
-              subtitle="A clean record. If something needs documenting, file a signed write-up above — it can't be edited after filing."
-              action={{ label: "File an incident", onClick: () => titleRef.current?.focus() }} />
+            <EmptyState icon={<IconShield />} title={t("incidents.empty_mgr_title")}
+              subtitle={t("incidents.empty_mgr_sub")}
+              action={{ label: t("incidents.file_title"), onClick: () => titleRef.current?.focus() }} />
           ) : (
-            <EmptyState icon={<IconShield />} title="Nothing on file"
-              subtitle="Write-ups that concern you would appear here. There's nothing to acknowledge right now." />
+            <EmptyState icon={<IconShield />} title={t("incidents.empty_emp_title")}
+              subtitle={t("incidents.empty_emp_sub")} />
           )
         ) : visible.map((inc) => (
           <div key={inc.id} className="px-4 py-3.5 border-b border-line last:border-0">
@@ -200,9 +192,9 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
               <div className="min-w-0">
                 <div className="font-medium text-sm"><Highlight text={inc.title} terms={terms} /></div>
                 <div className="mt-1.5 flex gap-2 flex-wrap items-center">
-                  <span className={`pill ${sevPill(inc.severity)}`}>{inc.severity}</span>
-                  <span className={`pill ${statusPill(inc.status)}`}>{inc.status}</span>
-                  {inc.subjectName && <span className="pill bg-subtle text-muted">re: {inc.subjectName}</span>}
+                  <span className={`pill ${sevPill(inc.severity)}`}>{t(`sev.${inc.severity}`)}</span>
+                  <span className={`pill ${statusPill(inc.status)}`}>{t(`status.${inc.status}`)}</span>
+                  {inc.subjectName && <span className="pill bg-subtle text-muted">{t("incidents.re", { name: inc.subjectName })}</span>}
                   {inc.locationName && <span className="pill bg-subtle text-muted">{inc.locationName}</span>}
                 </div>
                 <div className="mt-2 text-sm whitespace-pre-wrap"><Highlight text={inc.text} terms={terms} /></div>
@@ -215,20 +207,20 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
                   </div>
                 )}
                 <div className="mt-2 text-[12px] text-muted font-mono">
-                  Filed by {inc.by} · {fmt(inc.ts)}
+                  {t("incidents.filed_by", { name: inc.by })} · {fmt(inc.ts)}
                 </div>
                 {inc.ackAt && (
                   <div className="mt-1.5 text-[13px] bg-panel border border-line-soft rounded-lg px-3 py-2">
-                    <span className="text-muted">Acknowledged {fmt(inc.ackAt)}</span>
+                    <span className="text-muted">{t("incidents.acked_at", { when: fmt(inc.ackAt) })}</span>
                     {inc.ackNote && <div className="mt-1 whitespace-pre-wrap">{inc.ackNote}</div>}
                   </div>
                 )}
                 {inc.closedBy && (
-                  <div className="mt-1.5 text-[12px] text-muted font-mono">Closed by {inc.closedBy} · {fmt(inc.closedAt)}</div>
+                  <div className="mt-1.5 text-[12px] text-muted font-mono">{t("incidents.closed_by", { name: inc.closedBy })} · {fmt(inc.closedAt)}</div>
                 )}
               </div>
               {isManager && inc.status !== "closed" && (
-                <button className="btn-ghost text-[12px] px-2.5 py-1 flex-shrink-0" onClick={() => close(inc)}>Close</button>
+                <button className="btn-ghost text-[12px] px-2.5 py-1 flex-shrink-0" onClick={() => close(inc)}>{t("incidents.close")}</button>
               )}
             </div>
 
@@ -236,18 +228,18 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
               ackFor === inc.id ? (
                 <div className="mt-3 space-y-2">
                   <textarea className="input min-h-[64px]" maxLength={1000} value={ackText}
-                    aria-label="Your side of this write-up"
-                    placeholder="Your side, on the record (optional)…"
+                    aria-label={t("incidents.ack_label")}
+                    placeholder={t("incidents.ack_ph")}
                     onChange={(e) => setAckText(e.target.value)} />
                   <div className="flex gap-2">
                     <button className="btn-primary" disabled={busy} onClick={() => acknowledge(inc)}>
-                      {busy ? "Saving…" : "Acknowledge"}
+                      {busy ? t("common.saving") : t("incidents.acknowledge")}
                     </button>
-                    <button className="btn-ghost" onClick={() => { setAckFor(null); setAckText(""); }}>Cancel</button>
+                    <button className="btn-ghost" onClick={() => { setAckFor(null); setAckText(""); }}>{t("common.cancel")}</button>
                   </div>
                 </div>
               ) : (
-                <button className="btn-primary mt-3" onClick={() => setAckFor(inc.id)}>Acknowledge…</button>
+                <button className="btn-primary mt-3" onClick={() => setAckFor(inc.id)}>{t("incidents.acknowledge_open")}</button>
               )
             )}
           </div>
