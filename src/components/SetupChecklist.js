@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { setupProgress } from "@/lib/setup-progress";
+import { useLang } from "./LangProvider";
 
 // First-run onboarding banner. It reads the same locations / drawers / items
 // the shell already watches, derives what's still missing (setupProgress), and
@@ -13,6 +14,7 @@ import { setupProgress } from "@/lib/setup-progress";
 //  • Once the essentials exist, only the optional "add inventory items" step may
 //    remain; a cash-only store can dismiss it for good (persisted per vendor).
 export default function SetupChecklist({ locations, drawers, items, isManager, vendorId, onGoAdmin }) {
+  const { t } = useLang();
   const p = setupProgress(locations, drawers, items);
   const storageKey = `duocount:setup-dismissed:${vendorId}`;
   const [dismissed, setDismissed] = useState(false);
@@ -38,10 +40,10 @@ export default function SetupChecklist({ locations, drawers, items, isManager, v
         <div className="flex items-center gap-2 min-w-0">
           <span aria-hidden="true">🧭</span>
           <h2 className="font-semibold text-[15px] truncate">
-            {p.essentialsDone ? "Finish setting up" : "Welcome — let's set up your store"}
+            {p.essentialsDone ? t("setup.finish") : t("setup.welcome")}
           </h2>
         </div>
-        <span className="text-[11px] font-mono text-muted flex-shrink-0" aria-label={`${p.doneRequired} of ${p.totalRequired} essentials done`}>
+        <span className="text-[11px] font-mono text-muted flex-shrink-0" aria-label={t("setup.progress_aria", { done: p.doneRequired, total: p.totalRequired })}>
           {p.doneRequired}/{p.totalRequired}
         </span>
       </div>
@@ -56,17 +58,17 @@ export default function SetupChecklist({ locations, drawers, items, isManager, v
               </span>
               <div className="min-w-0">
                 <div className={`text-sm font-medium ${s.done ? "text-muted line-through" : "text-fg"}`}>
-                  {s.label}{s.optional && !s.done ? " (optional)" : ""}
+                  {t(`setup.step_${s.key}`)}{s.optional && !s.done ? ` ${t("setup.optional")}` : ""}
                 </div>
-                {!s.done && <div className="text-[12px] text-muted leading-snug">{s.hint}</div>}
+                {!s.done && <div className="text-[12px] text-muted leading-snug">{t(`setup.hint_${s.key}`)}</div>}
               </div>
             </li>
           ))}
         </ul>
         <div className="flex items-center gap-2 pt-0.5">
-          <button className="btn-primary" onClick={onGoAdmin}>Set up in Admin →</button>
+          <button className="btn-primary" onClick={onGoAdmin}>{t("setup.go_admin")}</button>
           {dismissible && (
-            <button className="btn-ghost w-auto px-4" onClick={dismiss}>Dismiss</button>
+            <button className="btn-ghost w-auto px-4" onClick={dismiss}>{t("setup.dismiss")}</button>
           )}
         </div>
       </div>

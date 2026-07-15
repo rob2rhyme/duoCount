@@ -317,11 +317,19 @@ concerns of the AI specs don't apply here — there is no network and no key.
    line localizes via the `SAVE_FAILED` sentinel. Default English is unchanged;
    the server-authored `login()` error prose is the one deferred string (Phase 2,
    with the API layer).
-2. **Phase 2 — the rest of the app.** Extract and translate the remaining
-   user-facing surfaces: Log (`LogList`), Notes, Incidents, Time, Dashboard, Admin,
-   and the `/guide` + `/docs` pages. Purely more catalog entries and more `t()`
-   calls — the mechanics don't change. The completeness test keeps each screen honest
-   as it lands.
+2. **Phase 2 — the rest of the app. In progress, screen by screen.** Extract and
+   translate the remaining user-facing surfaces; purely more catalog entries and
+   more `t()` calls — the mechanics don't change. The completeness test keeps
+   each screen honest as it lands.
+   - **✅ Shipped:** the count-tab onboarding surfaces (`SetupChecklist` + the
+     six count-tab `EmptyState` variants — they render on the already-Spanish
+     count tabs, so they were the first mixed-language gap to close), **Notes**
+     (`NotesPanel`, complete), and **Incidents** (`IncidentsPanel`, complete —
+     incl. the severity/status/category vocabulary, which now renders through
+     `sev.*` / `status.*` / `cat.*` keys everywhere it appears).
+   - **Remaining:** Log (`LogList`), Time (`TimeClock` + `Schedule`), Dashboard,
+     Admin, the keyboard-shortcuts help, the `/guide` + `/docs` pages, and the
+     server-authored `login()` error prose.
 3. **Phase 3 — more locales + RTL.** Additional locales are *just another object* in
    the catalog and one more entry in `LOCALES`. **RTL / Arabic is explicitly larger
    and later:** it needs `dir="rtl"` on the document, an audit for logical (vs

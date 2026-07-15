@@ -73,6 +73,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Accountant export — close-of-day bookkeeper PDF** (Tier 2: a one-tap single-day reconciliation sheet on the existing `@react-pdf/renderer` path — DC mark, cash reconciliation (sales − paid-outs = expected vs counted, OVER/(SHORT)/BALANCED verdict in the app's tone convention), other sales, and a **journal-entry preview rendered from the same tested `buildJournalEntries` groups the CSV exports** with per-entry Debit = Credit totals, so the paper the bookkeeper signs and the file they import always agree. Pins to the picker's day (or today) and fetches that one day on demand — bounded read, independent of the on-screen period; signature block; read-only, no rules change) | `src/components/ReportModal.js`, `accountant-export-spec.md` | ✅ |
 | **Accountant export — franchise scaffold — feature complete** (Tier 2: `buildFranchiseCSV` + `FRANCHISE_PROFILES` — a profile is an ordered column list + per-column mappers + a date format, shipping the **generic daily-report** profile (StoreNo, BusinessDate, Gross/Cash/Lottery sales, PaidOuts, signed OverShort, DeptCount, VerifiedPct; `GrossSales = CashSales + LotterySales` by construction), one row per business date over the modal's already-scoped rows. Selected at **export time** from a dropdown defaulting to *None* — no vendor write, no rules change. Honestly labeled a **scaffold**, with per-brand profiles gated on a pilot franchisee's real template; 8 new unit tests incl. custom-profile objects and the injection guard) | `src/lib/report-accounting.js`, `tests/report-accounting.test.mjs`, `ReportModal.js`, `accountant-export-spec.md` | ✅ |
 | **Localization — Phase 1: Spanish count path (shipped as one complete slug)** (Tier 2: a pure ~95-key en/es catalog + `translate` in `i18n.js` (no i18n framework, zero new dependencies), `LangProvider` with per-device `duocount-lang` (mirrors the theme/FAB posture — never the vendor record, no rules change), a language picker on the login card and in Settings. The **whole count path** renders in the clerk's language: login, tab bar + mobile bottom nav, all three count forms, validation messages (stable `code`s on `count-validation.js`), the save-failure line (`SAVE_FAILED` sentinel), the blind-count confirm, and every toast. **Icon-forward treatment**: language-neutral tab glyphs, ✓ on Save, 🌅/🌇 shift options, ▲/▼ on over/short. English default is byte-equivalent; a missing key falls back to English, never blank; the **completeness test** pins en/es key sets equal) | `src/lib/i18n.js`, `src/components/LangProvider.js`, `PinLogin.js`, `AppShell.js`, `BottomNav.js`, `CashForm.js`, `ScratchForm.js`, `InventoryForm.js`, `SaveError.js`, `PreferencesMenu.js`, `localization-spec.md` | ✅ |
+| **Localization — Phase 2a: Notes, Incidents + count-tab onboarding** (~130 new en/es keys, each landed screen complete per the no-mixed-screens rule: the **setup checklist + six count-tab empty states** (they render on the already-Spanish count tabs — the first gap to close; step labels/hints resolve by stable step key so the pure `setup-progress` lib and its tests are untouched), the **full Notes screen** (composer, filters, pins/archive actions + toasts, empty states), and the **full Incidents screen** (filing form, severity/status/category vocabulary via `sev.*`/`status.*`/`cat.*` keys everywhere they appear — selects *and* pills — acknowledge flow, evidence-link errors via codes, all toasts). Completeness test keeps en/es pinned equal) | `src/lib/i18n.js`, `NotesPanel.js`, `IncidentsPanel.js`, `SetupChecklist.js`, `AppShell.js` | ✅ |
 
 ## Next up
 
@@ -347,8 +348,13 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     validation/save errors, every toast), and the icon-forward treatment
     (tab glyphs, ✓ Save, 🌅/🌇 shift, ▲/▼ over-short). English default is
     unchanged.
-  - *Next:* Phase 2 the rest of the app (Log, Notes, Incidents, Time,
-    Dashboard, Admin) + the server-authored login error prose.
+  - **Phase 2a — Notes, Incidents + count-tab onboarding — ✅ done** — the
+    setup checklist and count-tab empty states (the first mixed-language gap
+    on the Spanish count path), the full Notes screen, and the full Incidents
+    screen incl. the severity/status/category vocabulary (`sev.*` /
+    `status.*` / `cat.*`).
+  - *Next:* Phase 2b — Log, Time, Dashboard, Admin + the server-authored
+    login error prose.
 - **In-app notification center** (defer web push) — the real-time
   loss-prevention story at a fraction of push's complexity.
 
