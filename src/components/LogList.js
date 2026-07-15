@@ -152,15 +152,15 @@ function EntryDetail({ e, onToast }) {
       {comments.length > 0 && (
         <div className="space-y-2">
           {comments.map((c) => {
-            const t = toDate(c.ts);
+            const ts = toDate(c.ts); // `ts`, not `t` — don't shadow the translation function
             return c.kind === "status" ? (
               <div key={c.id} className="text-xs text-muted italic">
-                — {c.text} · {t ? t.toLocaleDateString() : ""}
+                — {c.text} · {ts ? ts.toLocaleDateString() : ""}
               </div>
             ) : (
               <div key={c.id} className="bg-panel rounded-lg px-3 py-2">
                 <div className="text-[12px] text-muted font-mono">
-                  {c.by} · {t ? `${t.toLocaleDateString()} ${t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "…"}
+                  {c.by} · {ts ? `${ts.toLocaleDateString()} ${ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "…"}
                 </div>
                 <div className="text-sm mt-0.5 whitespace-pre-wrap">{c.text}</div>
               </div>
@@ -338,8 +338,10 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
               action={{ label: t("log.clear_filters"), onClick: clearAll }} />
           )
         ) : rows.map((e) => {
-          const t = toDate(e.ts);
-          const when = `${t ? t.toLocaleDateString() : "…"} ${t ? t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`;
+          // `ts`, not `t` — a `t` here would shadow the translation function
+          // for the whole row block (that shadowing was this screen's crash).
+          const ts = toDate(e.ts);
+          const when = `${ts ? ts.toLocaleDateString() : "…"} ${ts ? ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`;
           const byStamp = <><Highlight text={e.by} terms={terms} /> · {when}</>;
           const locChip = showLocation && e.locationName
             ? <span className="pill bg-subtle text-muted">{e.locationName}</span> : null;

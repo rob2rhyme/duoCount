@@ -63,8 +63,8 @@ export default function TimeClock({ locations = [], locName, onToast }) {
   }, [vendor.id, isManager]);
   const lockedDays = useMemo(() => activeLockDays(locks), [locks]);
   useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 30_000);
-    return () => clearInterval(t);
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const now = Date.now();

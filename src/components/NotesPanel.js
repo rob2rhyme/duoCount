@@ -128,7 +128,9 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
               action={{ label: t("notes.write_first"), onClick: focusComposer }} />
           )
         ) : visible.map((n) => {
-          const t = toDate(n.ts);
+          // `ts`, not `t` — a `t` here shadowed the translation function for
+          // the whole row block, crashing the screen on the t("…") calls below.
+          const ts = toDate(n.ts);
           return (
             <div key={n.id} className={`px-4 py-3.5 border-b border-line last:border-0 ${n.active === false ? "opacity-50" : ""}`}>
               <div className="flex justify-between items-start gap-3">
@@ -136,7 +138,7 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
                   <div className="text-sm whitespace-pre-wrap">{n.pinned && <span title={t("notes.pinned")}>📌 </span>}<Highlight text={n.text} terms={terms} /></div>
                   <div className="mt-2 flex gap-2 flex-wrap items-center">
                     <span className="text-[12px] text-muted font-mono">
-                      {n.by} · {t ? `${t.toLocaleDateString()} ${t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "…"}
+                      {n.by} · {ts ? `${ts.toLocaleDateString()} ${ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "…"}
                     </span>
                     {n.locationName && <span className="pill bg-subtle text-muted">{n.locationName}</span>}
                     {n.shift && <span className="pill bg-highlight text-gold border border-brass/30">{n.shift === "open" ? t("common.opening") : t("common.closing")}</span>}
