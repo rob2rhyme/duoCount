@@ -1,8 +1,10 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
 import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, importTargets, missingRequired } from "@/lib/import-parse";
+import { renderImportMsg } from "@/lib/import-msg";
 import { apiImport } from "@/lib/data";
 import { useSession } from "./SessionProvider";
+import { useLang } from "./LangProvider";
 
 // Owner-only "Import / migrate" card (Phase 1: items, Phase 2: staff, Phase 3:
 // opening inventory counts). Parses a CSV in the browser, lets the owner map
@@ -13,15 +15,11 @@ import { useSession } from "./SessionProvider";
 
 const STATUS_STYLE = { create: "text-pos", update: "text-gold", skip: "text-muted", error: "text-neg" };
 const PREVIEW_CAP = 60;
-
-const TYPES = [
-  { id: "items", label: "Items", noun: "item" },
-  { id: "staff", label: "Staff", noun: "staff member" },
-  { id: "baselines", label: "Opening counts", noun: "opening count" },
-];
+const TYPE_IDS = ["items", "staff", "baselines"];
 
 export default function ImportCard({ locations = [], items = [], staff = [], entries = [], onToast }) {
   const { profile } = useSession();
+  const { t } = useLang();
   const [type, setType] = useState("items");
   const [parsed, setParsed] = useState(null); // { headers, rows, fileName }
   const [mapping, setMapping] = useState({});
@@ -52,7 +50,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
   const targets = importTargets(type);
   const missing = missingRequired(mapping, type);
   const writable = report ? report.summary.create + report.summary.update : 0;
-  const noun = TYPES.find((t) => t.id === type)?.noun || "row";
+  const noun = t(`imp.noun_${type}`);
   // Baselines append to the permanent log, so errors block the whole commit
   // unless the owner explicitly opts into importing just the valid rows.
   const partialBlocked = type === "baselines" && report && report.summary.error > 0 && !allowPartial;
@@ -61,9 +59,9 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
     setParsed(null); setMapping({}); setParseError(""); setAllowPartial(false);
     if (fileRef.current) fileRef.current.value = "";
   }
-  function pickType(t) {
-    if (t === type) return;
-    setType(t); reset();
+  function pickType(id) {
+    if (id === type) return;
+    setType(id); reset();
   }
 
   function onFile(e) {
@@ -74,12 +72,12 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
     reader.onload = () => {
       try {
         const { headers, rows } = parseCsv(String(reader.result || ""));
-        if (!rows.length) throw new Error("No data rows found under the header row.");
+        if (!rows.length) throw Object.assign(new Error("No data rows found under the header row."), { code: "imp.err_no_rows" });
         setParsed({ headers, rows, fileName: file.name });
         setMapping(guessMapping(headers, type));
-      } catch (err) { setParseError(err.message || "Couldn't read that file."); }
+      } catch (err) { setParseError(err.code ? t(err.code) : (err.message || t("imp.err_read"))); }
     };
-    reader.onerror = () => setParseError("Couldn't read that file.");
+    reader.onerror = () => setParseError(t("imp.err_read"));
     reader.readAsText(file);
   }
 
@@ -89,62 +87,63 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
     try {
       const r = await apiImport({ type, mode: "commit", mapping, rows: parsed.rows, allowPartial });
       const c = r.counts || {};
-      onToast?.(`Imported ${c.create || 0} new ${noun}${c.create === 1 ? "" : "s"}` +
-        (c.update ? `, updated ${c.update}` : "") + (c.error ? `, ${c.error} skipped` : ""));
+      onToast?.(t("imp.toast_imported", {
+        create: c.create || 0,
+        noun: c.create === 1 ? t(`imp.noun_${type}`) : t(`imp.nounpl_${type}`),
+        updated: c.update ? t("imp.toast_updated_bit", { n: c.update }) : "",
+        skipped: c.error ? t("imp.toast_skipped_bit", { n: c.error }) : "",
+      }));
       reset();
-    } catch (e) { onToast?.(e.message || "Import failed — check your connection"); }
+    } catch (e) { onToast?.(e.message || t("imp.toast_failed")); }
     setBusy(false);
   }
 
   const detail = (f) => {
     if (type === "items") return f.locationName ? `${f.locationName}` : "";
-    if (type === "staff") return [f.role, f.locationName || (f.role === "manager" ? "all locations" : ""), f.hasPin ? "sets PIN" : "no PIN", f.email].filter(Boolean).join(" · ");
-    return [f.quantity != null ? `${f.quantity} ${f.unit}${f.quantity === 1 ? "" : "s"}` : "", f.locationName, f.date, f.by ? `by ${f.by}` : ""].filter(Boolean).join(" · ");
+    if (type === "staff") return [
+      t(`admin.role_${f.role}`),
+      f.locationName || (f.role === "manager" ? t("imp.detail_all_loc") : ""),
+      f.hasPin ? t("imp.detail_sets_pin") : t("imp.detail_no_pin"),
+      f.email,
+    ].filter(Boolean).join(" · ");
+    return [
+      f.quantity != null ? `${f.quantity} ${f.unit}${f.quantity === 1 ? "" : "s"}` : "",
+      f.locationName, f.date, f.by ? t("imp.detail_by", { name: f.by }) : "",
+    ].filter(Boolean).join(" · ");
   };
 
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
-        <h2 className="font-semibold text-[15px]">Import / migrate</h2>
-        <p className="text-[13px] text-muted mt-0.5">
-          Bring your catalog or roster in from a CSV (from Excel, your old POS, a spreadsheet) instead of keying it
-          in one at a time. This writes your store&apos;s <b>real</b> records — preview every row first.
-        </p>
+        <h2 className="font-semibold text-[15px]">{t("imp.title")}</h2>
+        <p className="text-[13px] text-muted mt-0.5">{t("imp.sub")}</p>
       </div>
       <div className="p-4 space-y-4">
         {/* Type picker */}
         <div className="flex gap-1.5 bg-panel border border-line rounded-xl p-1">
-          {TYPES.map((t) => (
-            <button key={t.id} type="button" onClick={() => pickType(t.id)}
-              className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${type === t.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
-              {t.label}
+          {TYPE_IDS.map((id) => (
+            <button key={id} type="button" onClick={() => pickType(id)}
+              className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${type === id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
+              {t(`imp.type_${id}`)}
             </button>
           ))}
         </div>
 
         {type === "items" && activeLocations.length === 0 && (
-          <p className="text-[13px] text-neg">Add a store location above before importing items — every item lands at a location.</p>
+          <p className="text-[13px] text-neg">{t("imp.err_no_loc_items")}</p>
         )}
         {type === "staff" && (
-          <p className="text-[13px] text-muted">
-            PINs are optional — import names, roles, and locations now, and set each person&apos;s PIN in Admin (or at
-            first sign-in). Owner rows are never imported. An existing person (matched by name) is updated, never duplicated.
-          </p>
+          <p className="text-[13px] text-muted">{t("imp.staff_note")}</p>
         )}
         {type === "baselines" && (
-          <p className="text-[13px] text-muted">
-            An opening count records what&apos;s on each shelf today, so your first real count has a baseline to compare
-            against. Import your <b>items first</b> — each row must name a tracked item. Opening counts land in the
-            permanent log like any signed count: an item that already has a count is skipped, and a wrong number is
-            corrected with a fresh count, never an edit.
-          </p>
+          <p className="text-[13px] text-muted">{t("imp.baselines_note")}</p>
         )}
 
         <div>
-          <label className="label">{TYPES.find((t) => t.id === type)?.label} CSV file</label>
+          <label className="label">{t("imp.csv_file", { label: t(`imp.type_${type}`) })}</label>
           <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" onChange={onFile}
             className="block w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border file:border-line file:bg-subtle file:text-fg file:font-semibold file:text-[13px] file:cursor-pointer" />
-          <p className="text-xs text-muted mt-1.5">A header row plus one {noun} per line. Columns can be in any order — you map them next.</p>
+          <p className="text-xs text-muted mt-1.5">{t("imp.file_hint", { noun })}</p>
         </div>
 
         {parseError && <p role="alert" className="text-[13px] text-neg">{parseError}</p>}
@@ -152,23 +151,23 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
         {parsed && (
           <>
             <div className="text-[13px] text-muted">
-              <b className="text-fg">{parsed.fileName}</b> — {parsed.rows.length} row{parsed.rows.length === 1 ? "" : "s"}, {parsed.headers.length} column{parsed.headers.length === 1 ? "" : "s"}.
+              <b className="text-fg">{parsed.fileName}</b> — {t(`imp.rows_${parsed.rows.length === 1 ? "one" : "other"}`, { n: parsed.rows.length })}, {t(`imp.cols_${parsed.headers.length === 1 ? "one" : "other"}`, { n: parsed.headers.length })}.
             </div>
 
             {/* Column mapping */}
             <div className="space-y-2.5">
-              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">Match your columns</div>
-              {targets.map((t) => (
-                <div key={t.field} className="grid grid-cols-2 gap-3 items-center">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("imp.match_columns")}</div>
+              {targets.map((tg) => (
+                <div key={tg.field} className="grid grid-cols-2 gap-3 items-center">
                   <label className="text-sm font-medium">
-                    {t.label}{t.required && <span className="text-neg"> *</span>}
-                    {t.field === "location" && type === "items" && activeLocations.length === 1 && (
-                      <span className="block text-[11px] text-muted font-normal">Optional — defaults to {activeLocations[0].name}</span>
+                    {t(`imp.tgt.${type}.${tg.field}`)}{tg.required && <span className="text-neg"> *</span>}
+                    {tg.field === "location" && type === "items" && activeLocations.length === 1 && (
+                      <span className="block text-[11px] text-muted font-normal">{t("imp.optional_defaults", { loc: activeLocations[0].name })}</span>
                     )}
                   </label>
-                  <select className="input" value={mapping[t.field] || ""}
-                    onChange={(e) => setMapping((m) => ({ ...m, [t.field]: e.target.value || undefined }))}>
-                    <option value="">{t.required ? "— choose a column —" : "— skip —"}</option>
+                  <select className="input" value={mapping[tg.field] || ""}
+                    onChange={(e) => setMapping((m) => ({ ...m, [tg.field]: e.target.value || undefined }))}>
+                    <option value="">{tg.required ? t("imp.choose_column") : t("imp.skip_column")}</option>
                     {parsed.headers.map((h) => <option key={h} value={h}>{h}</option>)}
                   </select>
                 </div>
@@ -179,32 +178,32 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
             {report && (
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold">
-                  <span className="text-pos">{report.summary.create} create</span>
-                  <span className="text-gold">{report.summary.update} update</span>
-                  <span className="text-muted">{report.summary.skip} skip</span>
-                  <span className="text-neg">{report.summary.error} error</span>
+                  <span className="text-pos">{report.summary.create} {t("imp.status_create")}</span>
+                  <span className="text-gold">{report.summary.update} {t("imp.status_update")}</span>
+                  <span className="text-muted">{report.summary.skip} {t("imp.status_skip")}</span>
+                  <span className="text-neg">{report.summary.error} {t("imp.status_error")}</span>
                 </div>
                 <div className="border border-line rounded-xl overflow-hidden">
                   <div className="max-h-72 overflow-y-auto">
                     <table className="w-full text-[13px]">
                       <thead className="bg-panel text-muted text-[11px] uppercase tracking-wide sticky top-0">
                         <tr>
-                          <th className="text-left font-semibold px-2.5 py-2 w-12">Line</th>
-                          <th className="text-left font-semibold px-2.5 py-2 w-16">Status</th>
-                          <th className="text-left font-semibold px-2.5 py-2">{type === "staff" ? "Person" : "Item"}</th>
-                          <th className="text-left font-semibold px-2.5 py-2">Notes</th>
+                          <th className="text-left font-semibold px-2.5 py-2 w-12">{t("imp.col_line")}</th>
+                          <th className="text-left font-semibold px-2.5 py-2 w-16">{t("imp.col_status")}</th>
+                          <th className="text-left font-semibold px-2.5 py-2">{type === "staff" ? t("imp.col_person") : t("imp.col_item")}</th>
+                          <th className="text-left font-semibold px-2.5 py-2">{t("imp.col_notes")}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {report.rows.slice(0, PREVIEW_CAP).map((r) => (
                           <tr key={r.line} className="border-t border-line-soft align-top">
                             <td className="px-2.5 py-2 font-mono text-muted">{r.line}</td>
-                            <td className={`px-2.5 py-2 font-semibold ${STATUS_STYLE[r.status] || ""}`}>{r.status}</td>
+                            <td className={`px-2.5 py-2 font-semibold ${STATUS_STYLE[r.status] || ""}`}>{t(`imp.status_${r.status}`)}</td>
                             <td className="px-2.5 py-2">
                               {r.fields.name || <span className="text-faint">—</span>}
                               {detail(r.fields) && <span className="text-muted"> · {detail(r.fields)}</span>}
                             </td>
-                            <td className="px-2.5 py-2 text-muted">{r.messages.join(" ")}</td>
+                            <td className="px-2.5 py-2 text-muted">{r.messages.map((msg) => renderImportMsg(msg, t)).join(" ")}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -212,7 +211,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
                   </div>
                   {report.rows.length > PREVIEW_CAP && (
                     <div className="px-2.5 py-2 text-[12px] text-muted border-t border-line-soft bg-panel">
-                      Showing the first {PREVIEW_CAP} of {report.rows.length} rows — all of them import on commit.
+                      {t("imp.preview_more", { cap: PREVIEW_CAP, total: report.rows.length })}
                     </div>
                   )}
                 </div>
@@ -220,7 +219,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
             )}
 
             {missing.length > 0 && (
-              <p className="text-[13px] text-neg">Map a column for <b>{targets.find((t) => t.field === missing[0])?.label}</b> to continue.</p>
+              <p className="text-[13px] text-neg">{t("imp.map_to_continue", { label: t(`imp.tgt.${type}.${missing[0]}`) })}</p>
             )}
 
             {type === "baselines" && report && report.summary.error > 0 && (
@@ -228,25 +227,25 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
                 <input type="checkbox" className="mt-0.5" checked={allowPartial}
                   onChange={(e) => setAllowPartial(e.target.checked)} />
                 <span className="text-muted leading-snug">
-                  <b className="text-fg">Import the valid rows anyway.</b> Opening counts can&apos;t be un-written, so
-                  the safer default is to fix the {report.summary.error} error row{report.summary.error === 1 ? "" : "s"} in
-                  your CSV and re-upload — re-running skips anything already imported.
+                  <b className="text-fg">{t("imp.partial_label")}</b>{" "}
+                  {t(`imp.partial_hint_${report.summary.error === 1 ? "one" : "other"}`, { n: report.summary.error })}
                 </span>
               </label>
             )}
 
             <div className="flex gap-2">
               <button className="btn-primary flex-1" disabled={busy || !!missing.length || !writable || partialBlocked} onClick={commit}>
-                {busy ? "Importing…" : partialBlocked ? "Fix errors to import" : writable ? `Import ${writable} row${writable === 1 ? "" : "s"}` : "Nothing to import"}
+                {busy ? t("imp.importing")
+                  : partialBlocked ? t("imp.fix_errors")
+                  : writable ? t(`imp.import_n_${writable === 1 ? "one" : "other"}`, { n: writable })
+                  : t("imp.nothing_to_import")}
               </button>
-              <button className="btn-ghost w-auto px-4" disabled={busy} onClick={reset}>Cancel</button>
+              <button className="btn-ghost w-auto px-4" disabled={busy} onClick={reset}>{t("imp.cancel")}</button>
             </div>
             <p className="text-xs text-muted leading-relaxed">
               {type === "baselines"
-                ? "Each opening count is a signed, permanent entry (diff 0, nothing flags). Re-running is safe — an item that already has any inventory count is skipped, never double-written."
-                : <>Rows marked <b>error</b> are skipped with a reason and never block the rest. Re-running is safe —
-                  records already in your store are matched and updated or skipped, never duplicated
-                  {type === "staff" && ", and an existing PIN is never changed by import"}.</>}
+                ? t("imp.foot_baselines")
+                : t("imp.foot_other", { pin: type === "staff" ? t("imp.foot_pin") : "" })}
             </p>
           </>
         )}
