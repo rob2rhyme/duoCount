@@ -27,6 +27,7 @@ import { PRODUCT } from "@/lib/store";
 // language-neutral recognition anchor a clerk learns, per the localization
 // spec's icon-forward treatment — the word reinforces it.
 const TABS = [
+  { id: "dashboard", labelKey: "nav.dashboard", glyph: "📊" },
   { id: "cash", labelKey: "nav.cash", glyph: "💵" },
   { id: "scratch", labelKey: "nav.scratch", glyph: "🎟️" },
   { id: "inventory", labelKey: "nav.inventory", glyph: "📦" },
@@ -34,7 +35,6 @@ const TABS = [
   { id: "notes", labelKey: "nav.notes", glyph: "📝" },
   { id: "incidents", labelKey: "nav.incidents", glyph: "⚠️" },
   { id: "time", labelKey: "nav.time", glyph: "⏱️" },
-  { id: "dashboard", labelKey: "nav.dashboard", glyph: "📊" },
   { id: "portfolio", labelKey: "nav.portfolio", glyph: "🏬", ownerOnly: true },
   { id: "admin", labelKey: "nav.admin", glyph: "⚙️", managerOnly: true },
 ];
@@ -47,7 +47,7 @@ const visibleTabs = (isManager, isOwner) =>
 export default function AppShell() {
   const { profile, vendor, logout, isManager, isOwner } = useSession();
   const { t } = useLang();
-  const [tab, setTab] = useState("cash");
+  const [tab, setTab] = useState("dashboard");
   const [entries, setEntries] = useState([]);
   const [locations, setLocations] = useState([]);
   const [drawers, setDrawers] = useState([]);
