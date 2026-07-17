@@ -2,6 +2,7 @@
 import { useEffect, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
+import { parseScratchBarcode } from "@/lib/scratch-barcode";
 import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
@@ -149,8 +150,26 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         hint={t("scratch.scan_hint")}
         onDetected={(code) => {
           setScanOpen(false);
-          setF((p) => ({ ...p, pack: code }));
-          onSaved?.(t("toast.pack_scanned"));
+          // Split the scan into a stable pack id + the ticket the pack is at.
+          // Setting `pack` triggers the last-count prefill (game, price, and the
+          // chained start #); the scanned ticket is the pack's current position,
+          // which is this count's closing/end reading. For a brand-new pack (no
+          // history to chain a start from) seed the start too, so a first scan is
+          // a clean baseline (sold 0) instead of a false full-pack sale. The
+          // entry's timestamp + shift are recorded on save (addEntry).
+          const { pack, ticket } = parseScratchBarcode(code);
+          const packNo = pack || code;
+          setF((p) => {
+            const next = { ...p, pack: packNo };
+            if (ticket != null) {
+              next.endno = String(ticket);
+              const hasPrev = entries.some((e) =>
+                e.kind === "scratch" && e.locationId === p.locationId && (e.pack || "") === packNo);
+              if (!hasPrev) next.startno = String(ticket);
+            }
+            return next;
+          });
+          onSaved?.(ticket != null ? t("toast.scan_ticket", { n: ticket }) : t("toast.pack_scanned"));
         }} />
     </div>
   );
