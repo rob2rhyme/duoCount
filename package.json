@@ -10,6 +10,7 @@
     "test:rules": "firebase emulators:exec --only firestore --project duocount-rules-test \"npm run test:rules:run\"",
     "test:rules:run": "node --test tests/rules.test.mjs",
     "test:patterns": "node --test tests/patterns.test.mjs",
+    "test:pattern-format": "node --test tests/pattern-format.test.mjs",
     "test:seed": "node --test tests/seed.test.mjs",
     "test:shortcuts": "node --test tests/shortcuts.test.mjs",
     "test:auth": "node --test tests/auth.test.mjs",
