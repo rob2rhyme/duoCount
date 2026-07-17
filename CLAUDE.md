@@ -23,6 +23,22 @@ pure per-pack continuity-gap + missing-log detection, surfaced as the Dashboard
 in `src/lib/patterns.js`). Keep new work inside that "opening→closing ticket
 count" framing.
 
+## Product direction — inventory & rewards (July 2026, research-only so far)
+
+- **Inventory:** whole-store per-shift counting is rejected as impractical. The
+  direction is **sync the live inventory from the store's existing POS**
+  (count, price, expiry), with two alerts — "Expiring soon" (default ≤ 30
+  days) and "Need order" (default < 5 units) — both **owner-only adjustable**
+  in settings. The signed per-shift count remains **only** for the high-shrink
+  watch list (the theft spine). Spec: `docs/pos-inventory-sync-spec.md`.
+- **Rewards:** customer rewards with defaults **$1 = 1 point, 100 points =
+  $5 off**, owner-only adjustable in Reward settings, off by default.
+  Compliance defaults matter: tobacco/vape/alcohol/lottery/gift-cards/fuel are
+  excluded (discount bans, minimum-price laws, lottery face-value rules); no
+  SMS in v1 (TCPA). Points ledger must be append-only + signed, with clerk
+  points-fraud detectors. Spec: `docs/rewards-program-spec.md`.
+- Both are **specs only — do not build until asked.**
+
 ## Repo / naming
 
 Repo was renamed `sh-stock-tracking` → `duoCount`. Brand is **DuoCount**
