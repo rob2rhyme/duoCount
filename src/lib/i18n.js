@@ -1009,6 +1009,13 @@ export const CATALOG = {
     "scan.err_start": "Could not start the camera.",
     "scan.point": "Point the camera at the barcode.",
     "scan.default_hint": "The scanned code just fills in the form — nothing is saved until you confirm.",
+
+    // /guide page chrome (the doc body itself comes from docs/getting-started*.md)
+    "guide.title": "User Guide",
+    "guide.search_ph": "Search all guides and docs…",
+    "guide.all_docs": "All documentation",
+    "guide.back_app": "Back to the app",
+    "guide.lang_aria": "Guide language",
   },
 
   es: {
@@ -1951,6 +1958,12 @@ export const CATALOG = {
     "scan.err_start": "No se pudo iniciar la cámara.",
     "scan.point": "Apunta la cámara al código de barras.",
     "scan.default_hint": "El código escaneado solo llena el formulario — nada se guarda hasta que confirmes.",
+
+    "guide.title": "Guía de uso",
+    "guide.search_ph": "Buscar en todas las guías y documentos…",
+    "guide.all_docs": "Toda la documentación",
+    "guide.back_app": "Volver a la app",
+    "guide.lang_aria": "Idioma de la guía",
   },
 };
 
