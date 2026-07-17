@@ -10,6 +10,13 @@
 // all against the same parser and report shape.
 
 import { isValidNewPin } from "./pin.js";
+import { importMsgEn } from "./import-msg.js";
+
+// A validation message as a stable code + params, not baked English — so the
+// import preview localizes (import-msg.js). It stringifies to English (via the
+// i18n catalog), so `messages.join(" ")` and every English surface are byte-
+// identical to the old inline strings, and the import-parse tests are unchanged.
+const m = (key, params = {}) => ({ key, params, toString() { return importMsgEn(this); } });
 
 export const ITEM_UNITS = ["unit", "carton", "pack", "box", "case"];
 export const STAFF_ROLES = ["employee", "manager"]; // owner is never importable
@@ -93,14 +100,17 @@ function tokenize(text, delimiter) {
 // (header = 1) so a fix reads as "line 37 in your CSV", and `values` maps each
 // header to its trimmed cell. Blank rows are dropped but never renumber others.
 export function parseCsv(text) {
-  if (typeof text !== "string") throw new Error("No file contents to read.");
+  // Errors carry a stable `.code` so the (localized) import UI can translate
+  // them; `.message` stays English for logs and any non-UI caller.
+  const err = (code, message) => Object.assign(new Error(message), { code });
+  if (typeof text !== "string") throw err("imp.err.no_contents", "No file contents to read.");
   const s = text.replace(/^﻿/, ""); // strip a leading BOM
-  if (!s.trim()) throw new Error("The file is empty.");
+  if (!s.trim()) throw err("imp.err.empty", "The file is empty.");
   const delimiter = detectDelimiter(s);
   const records = tokenize(s, delimiter);
   const headerCells = records[0] || [];
   const headers = headerCells.map((h) => h.trim());
-  if (!headers.some((h) => h)) throw new Error("The first row must be column headers.");
+  if (!headers.some((h) => h)) throw err("imp.err.no_headers", "The first row must be column headers.");
 
   const rows = [];
   for (let i = 1; i < records.length; i++) {
@@ -144,10 +154,10 @@ function resolveLocation(raw, ctx) {
   if (!cell) {
     if (ctx.defaultLocationId) return { id: ctx.defaultLocationId };
     if (active.length === 1) return { id: active[0].id };
-    return { error: "No location given, and the store has more than one — map a location column." };
+    return { error: m("imp.msg.loc_none_multi") };
   }
   const hit = active.find((l) => l.id === cell || normName(l.name) === normName(cell));
-  if (!hit) return { error: `No active location named "${cell}" — add it in Admin first.` };
+  if (!hit) return { error: m("imp.msg.loc_not_found", { cell }) };
   return { id: hit.id };
 }
 
@@ -173,8 +183,8 @@ export function validateItems(rows = [], mapping = {}, ctx = {}) {
     };
 
     // name (required)
-    if (!name) { push("error", ["Item name is missing."]); continue; }
-    if (name.length < 2) { push("error", ["Item name must be at least 2 characters."]); continue; }
+    if (!name) { push("error", [m("imp.msg.item_name_missing")]); continue; }
+    if (name.length < 2) { push("error", [m("imp.msg.item_name_short")]); continue; }
 
     // category
     fields.category = mapping.category ? (String(get("category") ?? "").trim() || null) : null;
@@ -183,14 +193,14 @@ export function validateItems(rows = [], mapping = {}, ctx = {}) {
     if (mapping.unit) {
       const u = String(get("unit") ?? "").trim().toLowerCase();
       if (u && ITEM_UNITS.includes(u)) fields.unit = u;
-      else if (u) messages.push(`Unit "${u}" isn't one of ${ITEM_UNITS.join(", ")} — using "unit".`);
+      else if (u) messages.push(m("imp.msg.unit_unknown", { unit: u, list: ITEM_UNITS.join(", ") }));
     }
 
     // barcode (digits-only is advisory)
     if (mapping.barcode) {
       const b = String(get("barcode") ?? "").trim();
       fields.barcode = b || null;
-      if (b && !/^\d+$/.test(b)) messages.push("Barcode has non-digit characters.");
+      if (b && !/^\d+$/.test(b)) messages.push(m("imp.msg.barcode_nondigit"));
     }
 
     // location
@@ -201,7 +211,7 @@ export function validateItems(rows = [], mapping = {}, ctx = {}) {
 
     // in-file duplicate
     const key = `${loc.id}|${normName(name)}`;
-    if (seenInFile.has(key)) { push("skip", [`Same item as line ${seenInFile.get(key)} in this file.`]); continue; }
+    if (seenInFile.has(key)) { push("skip", [m("imp.msg.dup_item_line", { n: seenInFile.get(key) })]); continue; }
     seenInFile.set(key, row.line);
 
     // against-store match → update or skip
@@ -214,8 +224,8 @@ export function validateItems(rows = [], mapping = {}, ctx = {}) {
       if (fields.category !== (match.category ?? null)) changed.push("category");
       if (mapping.unit && fields.unit !== (match.unit || "unit")) changed.push("unit");
       if (fields.barcode && fields.barcode !== (match.barcode ?? null)) changed.push("barcode");
-      if (changed.length) push("update", [`Already in the catalog — updates ${changed.join(", ")}.`, ...messages]);
-      else push("skip", ["Already in the catalog, unchanged.", ...messages]);
+      if (changed.length) push("update", [m("imp.msg.item_updates", { changed }), ...messages]);
+      else push("skip", [m("imp.msg.item_unchanged"), ...messages]);
       continue;
     }
 
@@ -251,13 +261,13 @@ export function validateStaff(rows = [], mapping = {}, ctx = {}) {
     };
 
     // name (required)
-    if (!name) { push("error", ["Name is missing."]); continue; }
-    if (name.length < 2) { push("error", ["Name must be at least 2 characters."]); continue; }
+    if (!name) { push("error", [m("imp.msg.name_missing")]); continue; }
+    if (name.length < 2) { push("error", [m("imp.msg.name_short")]); continue; }
 
     // in-file duplicate name — skip the later one rather than risk a duplicate person
     const nameKey = normName(name);
     if (seenNames.has(nameKey)) {
-      push("skip", [`Same name as line ${seenNames.get(nameKey)} in this file — skipped. Import separately if they're different people.`]);
+      push("skip", [m("imp.msg.dup_name_line", { n: seenNames.get(nameKey) })]);
       continue;
     }
     seenNames.set(nameKey, row.line);
@@ -265,8 +275,8 @@ export function validateStaff(rows = [], mapping = {}, ctx = {}) {
     // role (owner never importable)
     if (mapping.role) {
       const raw = String(get("role") ?? "").trim().toLowerCase();
-      if (raw === "owner") { push("error", ["Owner accounts can't be imported — add an owner in Admin."]); continue; }
-      if (raw && !STAFF_ROLES.includes(raw)) { push("error", [`Role "${raw}" must be employee or manager.`]); continue; }
+      if (raw === "owner") { push("error", [m("imp.msg.role_owner_block")]); continue; }
+      if (raw && !STAFF_ROLES.includes(raw)) { push("error", [m("imp.msg.role_invalid", { role: raw })]); continue; }
       if (raw) fields.role = raw;
     }
 
@@ -274,7 +284,7 @@ export function validateStaff(rows = [], mapping = {}, ctx = {}) {
     if (mapping.email) {
       const e = String(get("email") ?? "").trim();
       if (e) {
-        if (!EMAIL_RE.test(e) || e.length > 200) { push("error", [`"${e}" isn't a valid email.`]); continue; }
+        if (!EMAIL_RE.test(e) || e.length > 200) { push("error", [m("imp.msg.email_invalid", { email: e })]); continue; }
         fields.email = e.toLowerCase();
       }
     }
@@ -284,8 +294,8 @@ export function validateStaff(rows = [], mapping = {}, ctx = {}) {
     if (mapping.pin) {
       rawPin = String(get("pin") ?? "").trim();
       if (rawPin) {
-        if (!isValidNewPin(rawPin)) { push("error", ["PIN must be exactly 6 digits (or leave it blank)."]); continue; }
-        if (seenPins.has(rawPin)) { push("error", [`PIN is already used on line ${seenPins.get(rawPin)} in this file.`]); continue; }
+        if (!isValidNewPin(rawPin)) { push("error", [m("imp.msg.pin_invalid")]); continue; }
+        if (seenPins.has(rawPin)) { push("error", [m("imp.msg.pin_dup_line", { n: seenPins.get(rawPin) })]); continue; }
         seenPins.set(rawPin, row.line);
         fields.hasPin = true;
       }
@@ -299,7 +309,7 @@ export function validateStaff(rows = [], mapping = {}, ctx = {}) {
       fields.locationId = r.id;
     } else if (fields.role === "employee") {
       const r = resolveLocation("", ctx);
-      if (r.error) { push("error", ["Employees need a location — add a location column."]); continue; }
+      if (r.error) { push("error", [m("imp.msg.emp_need_loc")]); continue; }
       fields.locationId = r.id;
     }
     fields.locationName = fields.locationId
@@ -310,19 +320,19 @@ export function validateStaff(rows = [], mapping = {}, ctx = {}) {
     const match = existing.find((u) => normName(u.name) === nameKey);
     if (match) {
       fields.id = match.id;
-      if (match.role === "owner") { push("skip", ["Matches an existing owner — owners are managed in Admin, not by import."]); continue; }
-      messages.push("Matches an existing staff member — is this the same person? Owners are managed in Admin.");
-      if (fields.hasPin) messages.push("PIN left unchanged — reset a PIN in Admin, never by import.");
+      if (match.role === "owner") { push("skip", [m("imp.msg.staff_owner_skip")]); continue; }
+      messages.push(m("imp.msg.staff_match"));
+      if (fields.hasPin) messages.push(m("imp.msg.pin_unchanged"));
       const changed = [];
       if (mapping.role && fields.role !== match.role) changed.push("role");
       if (mapping.location && fields.locationId !== (match.locationId ?? null)) changed.push("location");
       if (mapping.email && fields.email !== (match.email ?? null)) changed.push("email");
-      if (changed.length) push("update", [`Updates ${changed.join(", ")}.`, ...messages]);
+      if (changed.length) push("update", [m("imp.msg.staff_updates", { changed }), ...messages]);
       else push("skip", messages);
       continue;
     }
 
-    messages.push(fields.hasPin ? "Sets a sign-in PIN." : "No PIN — set one in Admin or at first sign-in.");
+    messages.push(fields.hasPin ? m("imp.msg.sets_pin") : m("imp.msg.no_pin"));
     push("create", messages);
   }
 
@@ -371,7 +381,7 @@ export function validateBaselines(rows = [], mapping = {}, ctx = {}) {
 
     // item — must resolve to exactly one active item (by name or barcode),
     // optionally narrowed by a location column
-    if (!itemCell) { push("error", ["Item is missing."]); continue; }
+    if (!itemCell) { push("error", [m("imp.msg.item_missing")]); continue; }
     let matches = items.filter((i) => normName(i.name) === normName(itemCell) || (i.barcode && i.barcode === itemCell));
     const locCell = String(get("location") ?? "").trim();
     if (locCell) {
@@ -379,8 +389,8 @@ export function validateBaselines(rows = [], mapping = {}, ctx = {}) {
       if (r.error) { push("error", [r.error]); continue; }
       matches = matches.filter((i) => i.locationId === r.id);
     }
-    if (matches.length === 0) { push("error", [`No tracked item matching "${itemCell}"${locCell ? ` at ${locCell}` : ""} — import the item catalog first.`]); continue; }
-    if (matches.length > 1) { push("error", [`"${itemCell}" matches ${matches.length} items — add a location column to say which.`]); continue; }
+    if (matches.length === 0) { push("error", [m("imp.msg.no_tracked_item", { item: itemCell, atLoc: locCell || "" })]); continue; }
+    if (matches.length > 1) { push("error", [m("imp.msg.item_ambiguous", { item: itemCell, n: matches.length })]); continue; }
     const item = matches[0];
     fields.itemId = item.id;
     fields.itemName = item.name;
@@ -390,16 +400,16 @@ export function validateBaselines(rows = [], mapping = {}, ctx = {}) {
 
     // quantity — a finite number ≥ 0 ("0" is a real, meaningful opening count)
     const qRaw = String(get("quantity") ?? "").trim();
-    if (qRaw === "") { push("error", ["Quantity is missing."]); continue; }
+    if (qRaw === "") { push("error", [m("imp.msg.qty_missing")]); continue; }
     const q = Number(qRaw);
-    if (!Number.isFinite(q) || q < 0) { push("error", [`Quantity "${qRaw}" must be a number ≥ 0.`]); continue; }
+    if (!Number.isFinite(q) || q < 0) { push("error", [m("imp.msg.qty_invalid", { qty: qRaw })]); continue; }
     fields.quantity = q;
 
     // date — blank means today; otherwise a real YYYY-MM-DD
     if (mapping.date) {
       const d = String(get("date") ?? "").trim();
       if (d) {
-        if (!isRealDate(d)) { push("error", [`Date "${d}" must be YYYY-MM-DD.`]); continue; }
+        if (!isRealDate(d)) { push("error", [m("imp.msg.date_invalid", { date: d })]); continue; }
         fields.date = d;
       }
     }
@@ -408,17 +418,17 @@ export function validateBaselines(rows = [], mapping = {}, ctx = {}) {
     const byCell = String(get("countedBy") ?? "").trim();
     if (byCell) {
       const person = staff.find((u) => normName(u.name) === normName(byCell));
-      if (!person) { push("error", [`"${byCell}" isn't on the staff roster — import staff first, or leave the column blank.`]); continue; }
+      if (!person) { push("error", [m("imp.msg.countedby_unknown", { by: byCell })]); continue; }
       fields.by = person.name; fields.byId = person.id; fields.byRole = person.role;
     } else if (ctx.defaultBy) {
       fields.by = ctx.defaultBy.name; fields.byId = ctx.defaultBy.id; fields.byRole = ctx.defaultBy.role;
     }
 
     // write-once-per-item: an item with ANY inventory entry never gets a baseline
-    if (baselined.has(item.id)) { push("skip", ["Already has an inventory count — a baseline would double-write. Correct with a fresh count instead."]); continue; }
+    if (baselined.has(item.id)) { push("skip", [m("imp.msg.baseline_exists")]); continue; }
 
     // in-file duplicate item
-    if (seenItems.has(item.id)) { push("skip", [`Same item as line ${seenItems.get(item.id)} in this file.`]); continue; }
+    if (seenItems.has(item.id)) { push("skip", [m("imp.msg.dup_baseline_line", { n: seenItems.get(item.id) })]); continue; }
     seenItems.set(item.id, row.line);
 
     push("create", messages);
