@@ -369,7 +369,27 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     `SettlementReconcile` no longer exist — pack lifecycle retired).
     Then the keyboard-shortcuts help and `/guide` + `/docs`.
 - **In-app notification center** (defer web push) — the real-time
-  loss-prevention story at a fraction of push's complexity.
+  loss-prevention story at a fraction of push's complexity. First two feed
+  types are already spec'd: the stock expiry/low-stock alerts below.
+- **POS-synced live inventory + expiry/low-stock alerts** —
+  `pos-inventory-sync-spec.md` — **spec'd July 2026, research only, nothing
+  built.** Owner direction: whole-store **per-shift** counting is out; the full
+  catalog (count, price, expiry) syncs from the store's existing POS
+  (CSV-first, then Square/Clover APIs, then petro NAXML file drops), with
+  owner-only adjustable alerts — "Expiring soon" (default ≤ 30 days) and
+  "Need order" (default < 5 units). The signed per-shift count stays for the
+  high-shrink watch list only; the synced quantity doubles as a
+  tamper-resistant expected baseline for it.
+- **Customer rewards** — `rewards-program-spec.md` — **spec'd July 2026,
+  research only, nothing built.** Owner defaults: $1 = 1 point,
+  100 points = $5 off, owner-only adjustable in Reward settings (off by
+  default). Competitive research (Fivestars/SumUp, Square Loyalty, Kangaroo,
+  Loyalzoo, chains: 7Rewards / Speedy / Casey's / Circle K / Sheetz), the
+  compliance layer (tobacco discount bans + minimum-price laws, lottery
+  face-value rules, SNAP equal treatment, TCPA — no SMS in v1, points
+  liability/breakage), and the gap DuoCount uniquely fills: an append-only
+  signed points ledger with clerk points-fraud detectors reconciled against
+  the countersigned shift sales.
 
 ### Tier 3 — bigger bets, de-risk first
 Offline write-queue reliability UX; solo-shift countersign fallback; buddy-punch +
