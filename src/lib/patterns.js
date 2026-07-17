@@ -7,6 +7,18 @@
 // drawer hot-spot detector exists alongside the person detector.
 
 import { buildPackAudit } from "./scratch-audit.js";
+import { renderPattern } from "./pattern-format.js";
+
+// Every alert carries a stable `code` (== kind) + a `params` bag; the prose
+// lives in the i18n catalog (pattern.<code>.*). We pre-render the English
+// title/detail here so the fixed-English digest and the PII redactor keep
+// seeing byte-identical strings, while the Dashboard re-renders from
+// code+params in the reader's locale.
+function alert(a) {
+  const code = a.code || a.kind;
+  const { title, detail } = renderPattern({ code, params: a.params }, "en");
+  return { ...a, code, title, detail };
+}
 
 export const PATTERN_RULES = {
   windowDays: 14,        // trailing window for streak detectors
@@ -85,14 +97,13 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   for (const p of Object.values(byPerson)) {
     if (p.count < R.minShorts) continue;
     const high = -p.total >= R.highShortDollars;
-    alerts.push({
+    alerts.push(alert({
       // id keys off the stable user id (the bucket key), not the display name,
       // so two people who share a name produce two distinct alerts (M6).
       id: `person-shorts:${p.key}`, kind: "person-shorts",
       severity: high ? "high" : "medium",
-      title: `${p.name}: ${p.count} short counts in ${R.windowDays} days`,
-      detail: `Totaling ${money(p.total)} short. Worth a conversation — check the drawer and the till procedure before anything else.`,
-    });
+      params: { name: p.name, count: p.count, windowDays: R.windowDays, total: money(p.total) },
+    }));
   }
 
   // 2. Repeat OVERS by one person (cash). Money that keeps turning up is an
@@ -109,12 +120,11 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   for (const p of Object.values(byPersonOver)) {
     if (p.count < R.minShorts) continue;
     const high = p.total >= R.highShortDollars;
-    alerts.push({
+    alerts.push(alert({
       id: `person-overs:${p.key}`, kind: "person-overs",
       severity: high ? "high" : "medium",
-      title: `${p.name}: ${p.count} over counts in ${R.windowDays} days`,
-      detail: `Totaling ${money(p.total)} over. Consistent overs are worth a look too — check for under-ringing or a counting habit before anything else.`,
-    });
+      params: { name: p.name, count: p.count, windowDays: R.windowDays, total: money(p.total) },
+    }));
   }
 
   // 3. Drawer hot-spot: same drawer short under different hands points at
@@ -130,12 +140,11 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   }
   for (const d of Object.values(byDrawer)) {
     if (d.count < R.minShorts || d.people.size < 2) continue;
-    alerts.push({
+    alerts.push(alert({
       // Keyed by drawerId, so two drawers named alike don't collide (M6).
       id: `drawer-shorts:${d.key}`, kind: "drawer-shorts", severity: "medium",
-      title: `${d.name}: short ${d.count} times across ${d.people.size} people`,
-      detail: `Totaling ${money(d.total)} short in ${R.windowDays} days. Multiple hands, same drawer — suspect the register, the float, or the procedure.`,
-    });
+      params: { name: d.name, count: d.count, people: d.people.size, total: money(d.total), windowDays: R.windowDays },
+    }));
   }
 
   // 4. Verification backlog: counts nobody is countersigning.
@@ -146,11 +155,10 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
     return t && t.getTime() < staleBefore;
   }).length;
   if (backlog >= R.minBacklog) {
-    alerts.push({
+    alerts.push(alert({
       id: "verify-backlog", kind: "verify-backlog", severity: "medium",
-      title: `${backlog} entries unverified for over ${R.staleHours}h`,
-      detail: "Countersigning is the control that makes the log trustworthy — the backlog erodes it.",
-    });
+      params: { count: backlog, hours: R.staleHours },
+    }));
   }
 
   // 5. Unresolved-variance backlog: counts that were flagged but nobody is
@@ -162,11 +170,10 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
     return t && t.getTime() < staleBefore;
   }).length;
   if (openVariances >= R.minBacklog) {
-    alerts.push({
+    alerts.push(alert({
       id: "variance-backlog", kind: "variance-backlog", severity: "medium",
-      title: `${openVariances} flagged counts open for over ${R.staleHours}h`,
-      detail: "Assign a cause code and resolve or dispute these while the shift is still fresh — an open variance nobody touches is a lead going cold.",
-    });
+      params: { count: openVariances, hours: R.staleHours },
+    }));
   }
 
   // 6. Inventory shrink streak: the same item keeps counting short.
@@ -180,12 +187,11 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   }
   for (const it of Object.values(byItem)) {
     if (it.count < R.minShorts) continue;
-    alerts.push({
+    alerts.push(alert({
       // Keyed by itemId, so two items named alike don't collide (M6).
       id: `item-shrink:${it.key}`, kind: "item-shrink", severity: "medium",
-      title: `${it.name}: short on ${it.count} counts in ${R.windowDays} days`,
-      detail: `${it.units} ${it.unit}${it.units === 1 ? "" : "s"} missing in total.`,
-    });
+      params: { name: it.name, count: it.count, windowDays: R.windowDays, units: it.units, unit: `${it.unit}${it.units === 1 ? "" : "s"}` },
+    }));
   }
 
   // 7. Escalating short trend (person): shorts present in BOTH halves of the
@@ -207,12 +213,11 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
     if (earlierMag < 0.005 || recentMag < 0.005) continue;   // need shorts in both halves
     if (p.recentCount < TREND_MIN_RECENT) continue;           // not a single recent blip
     if (recentMag < TREND_FACTOR * earlierMag) continue;      // must be materially worse
-    alerts.push({
+    alerts.push(alert({
       id: `person-trend:${p.key}`, kind: "person-trend",
       severity: recentMag >= R.highShortDollars ? "high" : "medium",
-      title: `${p.name}: shorts trending up`,
-      detail: `${money(p.recentTotal)} short in the recent half of the window vs ${money(p.earlier)} earlier — the gap is widening. Look at what changed before anything else.`,
-    });
+      params: { name: p.name, recent: money(p.recentTotal), earlier: money(p.earlier) },
+    }));
   }
 
   // 8. Pack continuity gaps: between two consecutive counts of the same scratch
@@ -224,12 +229,11 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   //    severity. The full who/when detail lives in the Dashboard pack audit.
   for (const g of buildPackAudit(entries, { days: R.windowDays, now }).gaps) {
     if (g.totalMissing <= 0) continue; // pure rollbacks show in the audit card, not as alerts
-    alerts.push({
+    alerts.push(alert({
       id: `pack-gap:${g.key}`, kind: "pack-gap",
       severity: g.missingDollars >= R.highShortDollars ? "high" : "medium",
-      title: `${g.game} #${g.pack}: ${g.totalMissing} ticket${g.totalMissing === 1 ? "" : "s"} unaccounted between counts`,
-      detail: `~${money(g.missingDollars)} across ${g.events.length} count boundar${g.events.length === 1 ? "y" : "ies"} in ${R.windowDays} days — compare who closed and who opened at each break before anything else.`,
-    });
+      params: { game: g.game, pack: g.pack, tickets: g.totalMissing, dollars: money(g.missingDollars), boundaries: g.events.length, windowDays: R.windowDays },
+    }));
   }
 
   return alerts.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "high" ? -1 : 1));
