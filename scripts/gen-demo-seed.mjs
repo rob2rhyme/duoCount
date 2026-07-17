@@ -49,7 +49,7 @@ for (const { id, ...f } of data.entries) {
 
 const file = {
   _meta: {
-    app: "sh-stock-tracking demo seed",
+    app: "DuoCount demo seed",
     generatedAtNow: now.toISOString(),
     import: "node scripts/import-demo-seed.mjs <vendorId> [demo-seed.json]",
     notes: "Every doc is written with { seed: true } so the in-app clear removes it. Dates are tagged { __ts__: ISO }.",
