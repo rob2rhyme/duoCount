@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { usePrefs } from "./PrefsProvider";
+import { useLang } from "./LangProvider";
 
 // Progressive "scroll to top" floating action button. A ring around the arrow
 // fills to mirror how far down the page you are; the button fades in only once
@@ -13,6 +14,7 @@ const REVEAL_AT = 240; // px scrolled before the button appears
 
 export default function ScrollTopFab() {
   const { fabEnabled } = usePrefs();
+  const { t } = useLang();
   const [progress, setProgress] = useState(0); // 0..1 of scrollable height
   const [visible, setVisible] = useState(false);
 
@@ -49,8 +51,8 @@ export default function ScrollTopFab() {
     <button
       type="button"
       onClick={(e) => { e.currentTarget.blur(); toTop(); }}
-      aria-label="Scroll to top"
-      title="Scroll to top"
+      aria-label={t("prefs.scroll_top")}
+      title={t("prefs.scroll_top")}
       tabIndex={visible ? 0 : -1}
       aria-hidden={!visible}
       className={`scrolltop-fab fixed bottom-safe right-5 z-40 w-12 h-12 rounded-full grid place-items-center

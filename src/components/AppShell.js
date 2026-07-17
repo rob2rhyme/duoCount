@@ -153,7 +153,7 @@ export default function AppShell() {
           <Logo src={vendor.logoUrl || "/logo.png"} alt={`${vendor.name} logo`} size={32} />
           <div className="min-w-0">
             <h1 className="text-base font-semibold truncate leading-tight">{vendor.name}</h1>
-            <p className="text-[11px] text-[#c9c6bd] font-mono leading-tight truncate">code: {vendor.slug}</p>
+            <p className="text-[11px] text-[#c9c6bd] font-mono leading-tight truncate">{t("shell.code", { slug: vendor.slug })}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm">
@@ -163,7 +163,7 @@ export default function AppShell() {
               <span className="hidden sm:inline">{profile.name}</span>
             </b>
             <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${isManager ? "bg-[#c9a25a]" : "bg-brass"} text-ink font-bold`}>
-              {profile.role === "owner" ? "Own" : profile.role === "manager" ? "Mgr" : "Emp"}
+              {t(`shell.role_${profile.role === "owner" ? "owner" : profile.role === "manager" ? "manager" : "employee"}`)}
             </span>
           </span>
           <PreferencesMenu onSignOut={logout} />
@@ -195,7 +195,7 @@ export default function AppShell() {
         {showLocFilter && (
           <div className="mb-4">
             <select className="input" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
-              <option value="all">All locations</option>
+              <option value="all">{t("common.all_locations")}</option>
               {activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </div>
@@ -261,26 +261,26 @@ export default function AppShell() {
           </div>
 
           <p className="text-center text-[12px] text-muted mb-2.5">
-            Paper backup forms — print a stack for the register in case a phone isn&apos;t handy
+            {t("shell.paper_forms")}
           </p>
           <div className="flex justify-center gap-2 flex-wrap">
             <a href="/forms/cash-drawer-log.pdf" download
               className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border bg-subtle text-fg hover:border-brass transition"
               style={{ borderColor: "var(--line)" }}
-              aria-label="Download the cash drawer log PDF form">
-              <span aria-hidden="true">📄</span> Cash drawer log
+              aria-label={t("shell.form_cash_aria")}>
+              <span aria-hidden="true">📄</span> {t("shell.form_cash")}
             </a>
             <a href="/forms/scratch-off-log.pdf" download
               className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border bg-subtle text-fg hover:border-brass transition"
               style={{ borderColor: "var(--line)" }}
-              aria-label="Download the scratch-off log PDF form">
-              <span aria-hidden="true">📄</span> Scratch-off log
+              aria-label={t("shell.form_scratch_aria")}>
+              <span aria-hidden="true">📄</span> {t("shell.form_scratch")}
             </a>
           </div>
 
-          <p className="text-center text-[11px] text-faint mt-5">Built for the register · Works offline</p>
+          <p className="text-center text-[11px] text-faint mt-5">{t("shell.built_for")}</p>
           <p className="hidden sm:block text-center text-[11px] text-faint mt-1.5">
-            Press <Kbd>?</Kbd> for keyboard shortcuts
+            {t("shell.press_help_pre")} <Kbd>?</Kbd> {t("shell.press_help_post")}
           </p>
         </div>
       </footer>
@@ -295,20 +295,20 @@ export default function AppShell() {
 
       {showHelp && (
         <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4"
-          onClick={() => setShowHelp(false)} role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+          onClick={() => setShowHelp(false)} role="dialog" aria-modal="true" aria-label={t("shell.shortcuts_title")}>
           <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-[15px]">Keyboard shortcuts</h2>
-              <button onClick={() => setShowHelp(false)} aria-label="Close"
+              <h2 className="font-semibold text-[15px]">{t("shell.shortcuts_title")}</h2>
+              <button onClick={() => setShowHelp(false)} aria-label={t("shell.close")}
                 className="text-muted hover:text-fg text-lg leading-none px-1">✕</button>
             </div>
             <dl className="space-y-3 text-sm">
               {[
-                [<span key="k" className="flex items-center gap-1"><Kbd>1</Kbd><span className="text-faint">–</span><Kbd>{tabs.length}</Kbd></span>, "Jump to a tab"],
-                [<span key="k" className="flex items-center gap-1"><Kbd>[</Kbd><Kbd>]</Kbd></span>, "Previous / next tab"],
-                [<span key="k" className="flex items-center gap-1"><Kbd>{cmdKey}</Kbd><span className="text-faint">+</span><Kbd>Enter</Kbd></span>, "Save the current form"],
-                [<Kbd key="k">?</Kbd>, "Toggle this help"],
-                [<Kbd key="k">Esc</Kbd>, "Close"],
+                [<span key="k" className="flex items-center gap-1"><Kbd>1</Kbd><span className="text-faint">–</span><Kbd>{tabs.length}</Kbd></span>, t("shell.sc_jump")],
+                [<span key="k" className="flex items-center gap-1"><Kbd>[</Kbd><Kbd>]</Kbd></span>, t("shell.sc_prevnext")],
+                [<span key="k" className="flex items-center gap-1"><Kbd>{cmdKey}</Kbd><span className="text-faint">+</span><Kbd>Enter</Kbd></span>, t("shell.sc_save")],
+                [<Kbd key="k">?</Kbd>, t("shell.sc_toggle")],
+                [<Kbd key="k">Esc</Kbd>, t("shell.sc_close")],
               ].map(([keys, desc], i) => (
                 <div key={i} className="flex items-center justify-between gap-4">
                   <dt className="text-muted">{desc}</dt>

@@ -41,7 +41,7 @@ export default function PreferencesMenu({ onSignOut }) {
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((o) => !o)}
-        aria-label="Settings" aria-haspopup="menu" aria-expanded={open}
+        aria-label={t("prefs.settings")} aria-haspopup="menu" aria-expanded={open}
         className="inline-grid place-items-center w-8 h-8 rounded-full text-paper/90 hover:text-paper hover:bg-white/10 border border-white/15 transition">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3" />
@@ -50,7 +50,7 @@ export default function PreferencesMenu({ onSignOut }) {
       </button>
 
       {open && (
-        <div role="menu" aria-label="Settings"
+        <div role="menu" aria-label={t("prefs.settings")}
           className="card absolute right-0 mt-2 w-64 z-50 p-3 space-y-3.5 text-fg shadow-xl">
           <div>
             <div className="label mb-1.5">{t("lang.language")}</div>
@@ -65,22 +65,22 @@ export default function PreferencesMenu({ onSignOut }) {
           </div>
 
           <div>
-            <div className="label mb-1.5">Appearance</div>
+            <div className="label mb-1.5">{t("prefs.appearance")}</div>
             <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-subtle">
               {["light", "dark"].map((th) => (
                 <button key={th} type="button" onClick={() => setTheme(th)} role="menuitemradio" aria-checked={theme === th}
-                  className={`px-2 py-1.5 rounded-md text-sm font-semibold capitalize transition ${theme === th ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
-                  {th}
+                  className={`px-2 py-1.5 rounded-md text-sm font-semibold transition ${theme === th ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
+                  {t(`prefs.theme_${th}`)}
                 </button>
               ))}
             </div>
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium">Scroll-to-top button</div>
-              <div className="text-xs text-muted">Floating shortcut back to the top</div>
+              <div className="text-sm font-medium">{t("prefs.fab_title")}</div>
+              <div className="text-xs text-muted">{t("prefs.fab_sub")}</div>
             </div>
-            <Switch on={fabEnabled} onChange={setFabEnabled} label="Toggle the scroll-to-top button" />
+            <Switch on={fabEnabled} onChange={setFabEnabled} label={t("prefs.fab_aria")} />
           </div>
 
           {canInstall && (
@@ -89,7 +89,7 @@ export default function PreferencesMenu({ onSignOut }) {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 3v12M8 11l4 4 4-4M4 21h16" />
               </svg>
-              Install app
+              {t("prefs.install")}
             </button>
           )}
 
@@ -101,7 +101,7 @@ export default function PreferencesMenu({ onSignOut }) {
                   <path d="M12 2v10" />
                   <path d="M18.4 6.6a9 9 0 1 1-12.8 0" />
                 </svg>
-                Sign out
+                {t("prefs.sign_out")}
               </button>
             </div>
           )}
