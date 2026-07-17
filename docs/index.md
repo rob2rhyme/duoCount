@@ -20,7 +20,7 @@ title: DuoCount documentation
 A multi-tenant Next.js + Tailwind + Firebase app for retail cash-drawer,
 scratch-off, and inventory tracking. This site is the rendered `docs/` folder;
 the code lives in the
-[GitHub repository](https://github.com/rob2rhyme/sh-stock-tracking).
+[GitHub repository](https://github.com/rob2rhyme/duoCount).
 
 ## Start here
 
