@@ -142,6 +142,7 @@ export const CATALOG = {
     "toast.short_units": "short {n} {unit}",
     "toast.pack_recognized": "Pack recognized — start # carried from last count",
     "toast.pack_scanned": "Pack scanned",
+    "toast.scan_ticket": "Pack scanned — ticket #{n}",
     "toast.item_selected": "Selected {name}",
     "toast.barcode_no_match": "No item with this barcode here — add it in Admin",
 
@@ -1087,6 +1088,7 @@ export const CATALOG = {
     "toast.short_units": "faltan {n} {unit}",
     "toast.pack_recognized": "Paquete reconocido — el n.º inicial viene del último conteo",
     "toast.pack_scanned": "Paquete escaneado",
+    "toast.scan_ticket": "Paquete escaneado — boleto n.º {n}",
     "toast.item_selected": "Seleccionado: {name}",
     "toast.barcode_no_match": "Ningún artículo con este código aquí — agrégalo en Admin",
 
