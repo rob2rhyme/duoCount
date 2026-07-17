@@ -14,6 +14,8 @@ If you work a shift and just need to log your counts, jump to
 > the numbers — every count is signed with a name and a time, and nothing can be
 > edited or deleted after it's saved.
 
+*¿Prefieres leerla en español? → [Guía de inicio](getting-started-es.md).*
+
 ---
 
 ## The 60-second picture
@@ -305,16 +307,18 @@ bin 4 running low." Managers can pin the important ones.
   disappears. Your entry isn't recorded until you see the success note.
 - **Install it like an app.** DuoCount is a PWA — your phone/browser can "Add to
   Home Screen," and it opens full-screen and works offline for the basics.
-- **¿Prefieres español?** The everyday screens speak Spanish: pick **Español**
-  from the language menu on the sign-in screen (next to the sun/moon) or in the
-  header **gear (Settings) → Idioma**. Sign-in (including its error messages),
-  the navigation, the Cash / Scratch-off / Inventory forms, the **Log**,
-  **Notes**, **Incidents**, **Time** (the clock *and* the schedule), and every
-  confirmation switch language; each screen also leads with an icon (💵 🎟️ 📦),
-  so the glyph carries the meaning too. It's a per-device choice, like the
-  theme — your coworker's screen never changes. What's written into the
-  permanent record (notes, comments, exports) stays in the language it was
-  written. (The manager Dashboard and Admin screens are being translated next.)
+- **¿Prefieres español?** The whole app speaks Spanish: pick **Español** from
+  the language menu on the sign-in screen (next to the sun/moon) or in the
+  header **gear (Settings) → Idioma**. Every screen switches — sign-in
+  (including its error messages), the navigation, all three count forms, the
+  **Log**, **Notes**, **Incidents**, **Time**, the manager **Dashboard**
+  (including its pattern alerts and the Pack audit), **Admin** (including the
+  CSV importer's row-by-row preview), and every menu, toast, and confirmation;
+  each screen also leads with an icon (💵 🎟️ 📦), so the glyph carries the
+  meaning too. It's a per-device choice, like the theme — your coworker's
+  screen never changes. What's written into the permanent record (notes,
+  comments, exports) stays in the language it was written, and this guide is
+  available in Spanish too (the /guide page follows your language).
 - **Light or dark.** On the sign-in screen, tap the sun/moon. Once you're signed
   in, open the header **gear (Settings) → Appearance** to switch — it remembers
   your choice per device.

@@ -368,10 +368,16 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
     byte-identical), the Admin tab landed with `ImportCard` (import messages
     via `import-msg.js` codes), and the shell chrome incl. the
     keyboard-shortcuts help sheet, PreferencesMenu, scanner, and FAB.
-  - *Next (content, undecided):* `/guide` + `/docs` — the in-app docs are
-    shared reference material (closer to the permanent-record carve-out than
-    per-device chrome); translating the clerk-facing getting-started guide is
-    the likely scope if pursued, not the 27 internal specs. Owner call.
+  - **`/guide` in Spanish — ✅ done.** `docs/getting-started-es.md` is a full
+    translation of the clerk-facing guide (app-vocabulary-consistent, with
+    working localized anchors); `/guide` now renders both versions at build
+    time and a client wrapper (`GuideView`) follows the reader's per-device
+    `duocount-lang`, with an explicit EN/ES toggle for direct visitors. The
+    Spanish guide is also a normal doc (`/docs/getting-started-es`, indexed +
+    searchable), the two versions cross-link, and the English guide's stale
+    "being translated next" tip was reconciled. **The 27 internal specs stay
+    English by design** — shared reference material, the same posture as the
+    permanent-record carve-out.
 - **In-app notification center** (defer web push) — the real-time
   loss-prevention story at a fraction of push's complexity. First two feed
   types are already spec'd: the stock expiry/low-stock alerts below.
