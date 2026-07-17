@@ -1,16 +1,20 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useModalA11y } from "@/lib/use-modal-a11y";
+import { useLang } from "./LangProvider";
 
 // Camera barcode scanner. @zxing/browser is imported dynamically inside the
 // open effect so it never loads on the server or in the initial bundle.
 // Ported from the legacy inventory app, where the camera lifecycle survived
 // an adversarial review: the stream stops on close, on unmount, and on
 // detect; onDetected lives in a ref so parent re-renders never restart it.
-export default function BarcodeScanner({ open, onClose, onDetected, title = "Scan barcode", hint }) {
+export default function BarcodeScanner({ open, onClose, onDetected, title, hint }) {
+  const { t } = useLang();
   const videoRef = useRef(null);
   const onDetectedRef = useRef(onDetected);
   onDetectedRef.current = onDetected;
+  // Errors are stored as i18n codes and translated at render, so a language
+  // switch mid-error re-renders in the new language.
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(true);
   const panelRef = useModalA11y(onClose, open);
@@ -25,7 +29,7 @@ export default function BarcodeScanner({ open, onClose, onDetected, title = "Sca
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia)
-          throw new Error("Camera not available — needs HTTPS (or localhost) and a device camera.");
+          throw Object.assign(new Error("Camera not available"), { code: "scan.err_unavailable" });
         const { BrowserMultiFormatReader } = await import("@zxing/browser");
         const reader = new BrowserMultiFormatReader();
         controls = await reader.decodeFromVideoDevice(
@@ -44,8 +48,7 @@ export default function BarcodeScanner({ open, onClose, onDetected, title = "Sca
         else setStarting(false);
       } catch (e) {
         if (cancelled) return;
-        setError(e?.name === "NotAllowedError" ? "Camera permission was denied."
-          : e?.message || "Could not start the camera.");
+        setError(e?.name === "NotAllowedError" ? "scan.err_denied" : e?.code || "scan.err_start");
         setStarting(false);
       }
     })();
@@ -57,13 +60,14 @@ export default function BarcodeScanner({ open, onClose, onDetected, title = "Sca
   }, [open]);
 
   if (!open) return null;
+  const shownTitle = title || t("scan.default_title");
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title}
+      <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={shownTitle}
         className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-4 py-3 border-b border-line flex items-center justify-between">
-          <h2 className="font-semibold text-[15px]">{title}</h2>
-          <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose} aria-label="Close"><span aria-hidden="true">✕</span></button>
+          <h2 className="font-semibold text-[15px]">{shownTitle}</h2>
+          <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
         </div>
         <div className="relative bg-black aspect-[4/3]">
           <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
@@ -72,12 +76,12 @@ export default function BarcodeScanner({ open, onClose, onDetected, title = "Sca
           )}
           {(starting || error) && (
             <div className="absolute inset-0 grid place-items-center bg-black/55 text-white text-sm text-center px-6">
-              {error || "Starting camera…"}
+              {error ? t(error) : t("scan.starting")}
             </div>
           )}
         </div>
         <p className="px-4 py-3 text-xs text-muted leading-relaxed">
-          Point the camera at the barcode. {hint || "The scanned code just fills in the form — nothing is saved until you confirm."}
+          {t("scan.point")} {hint || t("scan.default_hint")}
         </p>
       </div>
     </div>
