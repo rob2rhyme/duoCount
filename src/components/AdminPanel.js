@@ -9,7 +9,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
-import { REWARDS, resolveRewards, effectivePercent } from "@/lib/rewards";
+import { REWARDS, MAX_TIERS, resolveRewards, effectivePercent } from "@/lib/rewards";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
@@ -119,6 +119,23 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     setSettings((s) => ({ ...s, stockAlerts: { ...s.stockAlerts, [k]: e.target.value } }));
   const setReward = (k) => (e) =>
     setSettings((s) => ({ ...s, rewards: { ...s.rewards, [k]: k === "enabled" ? e.target.checked : e.target.value } }));
+  // Named reward tiers (optional). Each has a stable id so the ledger can record
+  // which reward was redeemed; blank leaves the single base reward in effect.
+  const rewardTierRows = settings.rewards.tiers || [];
+  const addTier = () =>
+    setSettings((s) => {
+      const tiers = s.rewards.tiers || [];
+      if (tiers.length >= MAX_TIERS) return s;
+      const id = (globalThis.crypto?.randomUUID?.() || `t${tiers.length}-${settings.name || "x"}`);
+      return { ...s, rewards: { ...s.rewards, tiers: [...tiers, { id, name: "", points: "", value: "" }] } };
+    });
+  const setTier = (i, k) => (e) =>
+    setSettings((s) => ({
+      ...s,
+      rewards: { ...s.rewards, tiers: (s.rewards.tiers || []).map((tt, j) => (j === i ? { ...tt, [k]: e.target.value } : tt)) },
+    }));
+  const removeTier = (i) =>
+    setSettings((s) => ({ ...s, rewards: { ...s.rewards, tiers: (s.rewards.tiers || []).filter((_, j) => j !== i) } }));
   const [testing, setTesting] = useState(false);
   async function saveSettings() {
     // Parse + validate digest recipients (cap 10, basic format check).
@@ -566,6 +583,30 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               )}
             </p>
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
+
+            {/* Optional named reward tiers — a menu of rewards at different point
+                levels. Empty leaves the single base reward above in effect. */}
+            <div className="border-t border-line pt-3 space-y-2.5">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("admin.rw_tiers_title")}</div>
+              <p className="text-xs text-muted leading-relaxed">{t("admin.rw_tiers_hint")}</p>
+              {rewardTierRows.length > 0 && (
+                <div className="grid grid-cols-[1fr_4.5rem_5rem_auto] gap-2 items-center text-[11px] uppercase tracking-wide text-muted font-semibold">
+                  <span>{t("admin.rw_tier_name")}</span><span>{t("admin.rw_tier_points")}</span><span>{t("admin.rw_tier_value")}</span><span />
+                </div>
+              )}
+              {rewardTierRows.map((tier, i) => (
+                <div key={tier.id || i} className="grid grid-cols-[1fr_4.5rem_5rem_auto] gap-2 items-center">
+                  <input className="input" placeholder={t("admin.rw_tier_name_ph")} value={tier.name ?? ""} disabled={!isOwner} onChange={setTier(i, "name")} />
+                  <input className="input" type="number" inputMode="numeric" min="10" step="1" placeholder="100" value={tier.points ?? ""} disabled={!isOwner} onChange={setTier(i, "points")} />
+                  <input className="input" type="number" inputMode="decimal" min="0" step="0.5" placeholder="5" value={tier.value ?? ""} disabled={!isOwner} onChange={setTier(i, "value")} />
+                  <button type="button" className="btn-ghost px-2.5 text-[13px]" disabled={!isOwner} onClick={() => removeTier(i)} aria-label={t("admin.rw_tier_remove")}><span aria-hidden="true">✕</span></button>
+                </div>
+              ))}
+              {isOwner && rewardTierRows.length < MAX_TIERS && (
+                <button type="button" className="btn-ghost text-[13px] px-3 py-1.5" onClick={addTier}>+ {t("admin.rw_tier_add")}</button>
+              )}
+            </div>
+
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_bulk_hint")}</p>
             <div className="flex items-center justify-between gap-3 flex-wrap border-t border-line pt-3">
               <span className="text-xs text-muted">{t("admin.rw_balance_url")}</span>

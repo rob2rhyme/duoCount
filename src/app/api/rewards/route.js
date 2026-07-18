@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
-import { resolveRewards, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -31,7 +31,7 @@ const publicCustomer = (id, c) => ({
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { action, phone: rawPhone, name, saleDollars, points, note } = await req.json();
+    const { action, phone: rawPhone, name, saleDollars, points, note, tierId } = await req.json();
     if (!["lookup", "enroll", "earn", "redeem", "adjust"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
 
@@ -78,11 +78,11 @@ export async function POST(req) {
       by: claims.name || "", byId: claims.userId, byRole: claims.role || "employee",
       ts: new Date(), ...extra,
     });
-    const commit = (kind, pts, extra) =>
+    const commit = (kind, pts, extra, minBalance = 0) =>
       adminDb.runTransaction(async (tx) => {
         const snap = await tx.get(customerRef);
         const balance = snap.data()?.pointsBalance || 0;
-        if (kind === "redeem" && balance < rules.redeemPoints)
+        if (kind === "redeem" && balance < minBalance)
           throw Object.assign(new Error("Not enough points to redeem."), { status: 409, code: "insufficient_points" });
         tx.set(events.doc(), signedEvent(kind, pts, extra));
         tx.update(customerRef, {
@@ -103,8 +103,19 @@ export async function POST(req) {
     }
 
     if (action === "redeem") {
-      const balance = await commit("redeem", -rules.redeemPoints);
-      return NextResponse.json({ ok: true, rules, redeemed: rules.redeemPoints, value: rules.redeemValue, balance });
+      // Tier-aware: the reward menu is resolved server-side from the owner's
+      // settings, so the client can only pick which configured tier to redeem —
+      // never its points or value. Missing tierId → the (cheapest) first tier,
+      // which for a store with no tiers is the legacy single reward.
+      const tiers = rewardTiers(vendorSnap.data()?.rewards);
+      const tier = tierId ? tiers.find((tt) => tt.id === tierId) : tiers[0];
+      if (!tier) return err(400, "bad_tier", "That reward isn't available.");
+      const balance = await commit(
+        "redeem", -tier.points,
+        { value: tier.value, rewardName: tier.name || null, tierId: tier.id },
+        tier.points,
+      );
+      return NextResponse.json({ ok: true, rules, redeemed: tier.points, value: tier.value, reward: tier.name || null, balance });
     }
 
     // adjust — owner-only, note required; a correction is a new signed line.
