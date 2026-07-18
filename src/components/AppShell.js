@@ -204,7 +204,10 @@ export default function AppShell() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-4 pb-28 sm:pb-4">
+      {/* No mobile pb-28 here: the footer below already carries the bottom-nav
+          clearance, so padding main too doubled up into a dead band of empty
+          space between the last card and the footer. */}
+      <main className="max-w-3xl mx-auto px-4 py-4">
         <div className="hidden sm:flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
           {tabs.map((tb) => (
             <button key={tb.id} onClick={() => setTab(tb.id)}
@@ -293,7 +296,7 @@ export default function AppShell() {
         {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} scratchCatalog={scratchCatalog} />}
       </main>
 
-      <footer className="mt-10 border-t border-line-soft pb-28 sm:pb-0">
+      <footer className="mt-6 border-t border-line-soft pb-28 sm:pb-0">
         <div className="max-w-3xl mx-auto px-4 px-safe pb-safe pt-6 pb-6">
           {/* Brand lockup centers on the page like every other footer item;
               inside it the wordmark + tagline stay left-aligned beside the logo. */}

@@ -19,7 +19,7 @@ export const CATALOG = {
     // navigation (tab bar + mobile bottom-nav groups)
     "nav.cash": "Cash",
     "nav.scratch": "Scratch-offs",
-    "nav.inventory": "Inventory",
+    "nav.inventory": "Backroom",
     "nav.log": "Log",
     "nav.notes": "Notes",
     "nav.incidents": "Incidents",
@@ -115,7 +115,8 @@ export const CATALOG = {
     "scratch.scan_hint": "The scan fills the pack — nothing saves until you save & sign the count.",
 
     // inventory count
-    "inventory.title": "Inventory count",
+    "inventory.title": "Backroom stock count",
+    "inventory.sub": "Backroom stock only — count the reserve in the back, not the sales floor, so low stock flags a reorder before the shelf runs empty.",
     "inventory.item": "Item",
     "inventory.no_items": "No items — add in Admin",
     "inventory.scan_item": "Scan item barcode",
@@ -202,8 +203,8 @@ export const CATALOG = {
     "empty.scratch_drawer_emp": "Your manager needs to add a drawer before scratch-off packs can be logged.",
     "empty.inv_loc_mgr": "Add a store location in Admin, then add the items you want to track.",
     "empty.inv_loc_emp": "Your manager is still setting up this store. Inventory counts open up once items are added.",
-    "empty.inv_items_mgr": "Add the stock you want to watch — cigarettes, vapes, anything high-shrink — in Admin.",
-    "empty.inv_items_emp": "Your manager hasn't added any inventory items to track yet.",
+    "empty.inv_items_mgr": "Add the backroom stock you want to watch — cigarettes, vapes, anything high-shrink — in Admin.",
+    "empty.inv_items_emp": "Your manager hasn't added any backroom items to track yet.",
 
     // shift notes
     "notes.title": "Shift notes",
@@ -926,8 +927,8 @@ export const CATALOG = {
     "admin.toast_drawer_added": "Drawer added",
 
     // admin — items
-    "admin.items_title": "Inventory items",
-    "admin.items_sub": "The tracked list staff count each shift — start with your 5–15 highest-shrink items, not the whole store.",
+    "admin.items_title": "Backroom items",
+    "admin.items_sub": "The backroom stock list staff count each shift — start with your 5–15 highest-shrink items, not the whole storeroom.",
     "admin.f_item_name": "Item name",
     "admin.ph_item": "Marlboro Red carton",
     "admin.f_category_opt": "Category (optional)",
@@ -1036,7 +1037,7 @@ export const CATALOG = {
 
     // dashboard — stock attention card
     "dash.stock_title": "Stock attention",
-    "dash.stock_sub": "From your synced stock levels — expiring within {days} days, or fewer than {units} left.",
+    "dash.stock_sub": "From your synced backroom stock levels — expiring within {days} days, or fewer than {units} left.",
     "dash.stock_expiring": "Expiring soon",
     "dash.stock_low": "Need order",
     "dash.stock_expired": "expired {date}",
@@ -1242,7 +1243,7 @@ export const CATALOG = {
   es: {
     "nav.cash": "Caja",
     "nav.scratch": "Raspaditos",
-    "nav.inventory": "Inventario",
+    "nav.inventory": "Almacén",
     "nav.log": "Registro",
     "nav.notes": "Notas",
     "nav.incidents": "Incidentes",
@@ -1332,7 +1333,8 @@ export const CATALOG = {
     "scratch.helper": "N.º final − n.º inicial = boletos vendidos. Eso × el precio debe cuadrar con la caja — así el registro se audita solo.",
     "scratch.scan_hint": "El escaneo llena el paquete — nada se guarda hasta que guardes y firmes el conteo.",
 
-    "inventory.title": "Conteo de inventario",
+    "inventory.title": "Conteo de existencias del almacén",
+    "inventory.sub": "Solo el almacén — cuenta la reserva de la trastienda, no el piso de venta, para que el stock bajo avise de reordenar antes de que el estante quede vacío.",
     "inventory.item": "Artículo",
     "inventory.no_items": "Sin artículos — agrégalos en Admin",
     "inventory.scan_item": "Escanear código del artículo",
@@ -1413,8 +1415,8 @@ export const CATALOG = {
     "empty.scratch_drawer_emp": "Tu gerente necesita agregar una caja antes de poder registrar paquetes de raspaditos.",
     "empty.inv_loc_mgr": "Agrega una ubicación en Admin y luego los artículos que quieras controlar.",
     "empty.inv_loc_emp": "Tu gerente todavía está configurando esta tienda. Los conteos de inventario se habilitan cuando haya artículos.",
-    "empty.inv_items_mgr": "Agrega la mercancía que quieras vigilar — cigarros, vapes, todo lo de alta merma — en Admin.",
-    "empty.inv_items_emp": "Tu gerente aún no ha agregado artículos de inventario para controlar.",
+    "empty.inv_items_mgr": "Agrega la mercancía del almacén que quieras vigilar — cigarros, vapes, todo lo de alta merma — en Admin.",
+    "empty.inv_items_emp": "Tu gerente aún no ha agregado artículos del almacén para controlar.",
 
     "notes.title": "Notas de turno",
     "notes.subtitle": "La libreta del mostrador, digital — impresoras atascadas, vales, cambios de caja. Las notas no se pueden editar después de publicarse.",
@@ -2101,8 +2103,8 @@ export const CATALOG = {
     "admin.err_add_loc_first": "Agrega una ubicación primero",
     "admin.toast_drawer_added": "Caja agregada",
 
-    "admin.items_title": "Artículos de inventario",
-    "admin.items_sub": "La lista rastreada que el personal cuenta cada turno — empieza con tus 5–15 artículos de mayor merma, no toda la tienda.",
+    "admin.items_title": "Artículos del almacén",
+    "admin.items_sub": "La lista de existencias del almacén que el personal cuenta cada turno — empieza con tus 5–15 artículos de mayor merma, no todo el almacén.",
     "admin.f_item_name": "Nombre del artículo",
     "admin.ph_item": "Cartón de Marlboro Red",
     "admin.f_category_opt": "Categoría (opcional)",
@@ -2206,7 +2208,7 @@ export const CATALOG = {
     "dash.rw_liability": "Pasivo en puntos",
 
     "dash.stock_title": "Atención de existencias",
-    "dash.stock_sub": "De tus niveles de existencia sincronizados — caducan dentro de {days} días, o quedan menos de {units}.",
+    "dash.stock_sub": "De tus niveles de existencia del almacén sincronizados — caducan dentro de {days} días, o quedan menos de {units}.",
     "dash.stock_expiring": "Por caducar pronto",
     "dash.stock_low": "Pedir más",
     "dash.stock_expired": "caducó {date}",
