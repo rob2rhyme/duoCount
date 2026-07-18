@@ -1,14 +1,18 @@
 # Customer rewards — competitive research & program spec
 
-> **Status: Phase 1 shipped (July 2026).** The core is built: `customers` +
-> the append-only signed `rewardEvents` ledger (all writes via the trusted
+> **Status: Phases 1–2 shipped (July 2026).** Phase 1: `customers` + the
+> append-only signed `rewardEvents` ledger (all writes via the trusted
 > `/api/rewards` route — client rules allow **no** writes), the owner-only
 > Reward settings in Admin (with the live effective-%-back readout and >2%
-> caution), and the register earn/redeem flow as a **Rewards** tab (en/es;
-> phone-number enrollment, masked display, exclusions guidance). No SMS, no
-> app, no tiers, per the phasing. Phase 2 (fraud detectors, digest, liability
-> readout) and Phase 3 remain open; the rules change (`rewards` vendor key +
-> the two read-only collections) wants the usual emulator check.
+> caution), and the register earn/redeem flow as a **Rewards** tab (en/es).
+> Phase 2: the **fraud detectors** (`reward-audit.js` — points-vs-counted-
+> sales reconciliation, per-customer multi-earn, per-clerk redemption bursts)
+> merged into the Dashboard Patterns card and the digest, the **outstanding-
+> liability readout** on the Dashboard and in the digest, and the
+> `privacy-and-data.md` disclosure (done in Phase 1). The rules changes are
+> **emulator-verified** (73 rules tests pass, incl. members-read/nobody-writes
+> on both collections). No SMS, no tiers; Phase 3 (customer-facing balance
+> page, printed enrollment card, category tagging) remains open.
 
 ## Owner decision — July 2026
 
@@ -183,7 +187,7 @@ earnPerDollar × 100` live, with a caution above ~2%.
 | Phase | Scope |
 | --- | --- |
 | **1 — Core — ✅ shipped** | customers + append-only ledger + owner Reward settings + register earn/redeem flow (en/es). No SMS, no app, no tiers. Implementation note: all writes go through the trusted `/api/rewards` route (Admin SDK) — client rules allow no writes at all, so append-only holds by construction; points are computed server-side from the owner's settings, and the balance moves in the same transaction as the ledger line. |
-| **2 — Trust & visibility** | fraud detectors in the pattern engine; digest section; outstanding-liability readout; `privacy-and-data.md` update. |
+| **2 — Trust & visibility — ✅ shipped** | fraud detectors in the pattern engine; digest section; outstanding-liability readout; `privacy-and-data.md` update. Implementation note: `reward-audit.js` (pure, unit-tested) reconciles points issued against the countersigned cash-sales totals (10% slack + 20-pt floor), flags one customer earning 3+/5+ times in a day (masked phone), and one clerk recording 3+/5+ redemptions in a day; alerts are pattern-shaped, ride the same Patterns card / digest / AI-narrative path, and the clerk-named kind joins the PII redactor's person list. |
 | **3 — Customer-facing** | balance check page (PWA, by phone number); printed enrollment card; per-item category tagging to auto-compute qualifying totals. |
 | **Deferred** | SMS marketing (TCPA consent flow), tiers, punch-card mode, POS auto-earn webhooks. |
 

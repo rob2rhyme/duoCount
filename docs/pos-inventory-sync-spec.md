@@ -5,7 +5,8 @@
 > and the digest section are built (`stock-alerts.js`, the "Stock levels"
 > import type, Admin → Stock alerts). Phases 2–3 (Square/Clover live APIs,
 > petro file drops) remain research. The Firestore rules change (the
-> `stockAlerts` vendor key) wants an emulator check (`npm run test:rules`).
+> `stockAlerts` vendor key) is **emulator-verified** (`npm run test:rules`,
+> 73 tests incl. an owner-may/manager-may-not case).
 
 ## Owner decision — July 2026
 

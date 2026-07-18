@@ -121,6 +121,17 @@ export async function apiImport({ type, mode, mapping, rows, allowPartial }) {
     body: JSON.stringify({ type, mode, mapping, rows, allowPartial: !!allowPartial }),
   });
 }
+// Rewards audit feeds (manager-only subscribers): the ledger window for the
+// fraud detectors, and the customer list for the outstanding-liability figure.
+// Reads only — the rules allow no client writes to either collection.
+export function watchRewardEvents(vendorId, since, cb) {
+  const q = query(vcol(vendorId, "rewardEvents"), where("ts", ">=", since));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export function watchCustomers(vendorId, cb) {
+  return onSnapshot(vcol(vendorId, "customers"),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
 // Rewards register flow — every ledger write happens server-side (route signs
 // the event and moves the balance transactionally); the client only asks.
 export async function apiRewards(payload) {

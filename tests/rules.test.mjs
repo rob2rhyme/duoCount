@@ -814,3 +814,33 @@ test("templates: managers manage them; employees can neither read nor write", as
   await assertFails(getDoc(doc(db("empA"), `vendors/${V}/templates/t1`)));
   await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/templates/t1`)));
 });
+
+/* ---------- stock alerts + rewards (owner-only vendor keys) ---------- */
+
+test("stockAlerts and rewards settings: owner may set them; a manager may not", async () => {
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}`),
+    { stockAlerts: { expiryDays: 45, lowStockUnits: 3 } }));
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}`),
+    { rewards: { enabled: true, earnPerDollar: 1, redeemPoints: 100, redeemValue: 5 } }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { stockAlerts: { expiryDays: 10 } }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { rewards: { enabled: false } }));
+});
+
+/* ---------- rewards ledger: readable by members, writable by NOBODY ---------- */
+
+test("customers + rewardEvents: members read, outsiders don't, and no client may write", async () => {
+  await env.withSecurityRulesDisabled(async (c) => {
+    const f = c.firestore();
+    await setDoc(doc(f, `vendors/${V}/customers/c1`), { phone: "5551234567", pointsBalance: 10 });
+    await setDoc(doc(f, `vendors/${V}/rewardEvents/ev1`), { kind: "earn", points: 10, customerId: "c1" });
+  });
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/customers/c1`)));
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/rewardEvents/ev1`)));
+  await assertFails(getDoc(doc(db("outsider"), `vendors/${V}/customers/c1`)));
+  // append-only holds by construction: even the OWNER can't write from the
+  // client — every ledger move goes through the trusted /api/rewards route.
+  await assertFails(setDoc(doc(db("owner"), `vendors/${V}/customers/c2`), { phone: "5550000000", pointsBalance: 0 }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/customers/c1`), { pointsBalance: 9999 }));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/rewardEvents/ev2`), { kind: "earn", points: 500, customerId: "c1" }));
+  await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/rewardEvents/ev1`)));
+});

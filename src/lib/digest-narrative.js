@@ -21,9 +21,10 @@ export const NARRATIVE_MODEL = "claude-haiku-4-5";
 // Pattern kinds whose `title` carries an employee's real display name and must
 // be pseudonymized before egress. detectPatterns writes the name as the leading
 // `"<name>: …"` segment of the title for each of these (patterns.js detectors
-// 1, 2, 7). Every other kind's title is a drawer / item / game label — a
-// process label, not personnel — and stays.
-const PERSON_KINDS = new Set(["person-shorts", "person-overs", "person-trend"]);
+// 1, 2, 7), and the rewards audit's clerk-redemption alert follows the same
+// format. Every other kind's title is a drawer / item / game label or an
+// already-masked customer phone — a process label, not personnel — and stays.
+const PERSON_KINDS = new Set(["person-shorts", "person-overs", "person-trend", "reward-clerk-redemptions"]);
 
 // Allow-lists. The redactor rebuilds the payload by explicitly copying these
 // fields, so a field added to the summary later can never leak to the model by
