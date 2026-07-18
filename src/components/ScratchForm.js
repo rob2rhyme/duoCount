@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState, useId } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
-import { parseScratchBarcode } from "@/lib/scratch-barcode";
+import { parseScratchBarcode, packGameKey } from "@/lib/scratch-barcode";
 import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
@@ -26,7 +26,32 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   const { busy, error, run } = useSaveState();
   const [scanOpen, setScanOpen] = useState(false);
   const packId = useId();
+  const gameListId = useId();
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+
+  // Games sold before, newest first (entries arrive newest-first), deduped by
+  // name — powers the game-name quick-pick and its remembered price, so a brand
+  // new pack of a game with no scan-derived match is still a two-tap entry.
+  const knownGames = useMemo(() => {
+    const seen = new Map();
+    for (const e of entries) {
+      if (e.kind !== "scratch") continue;
+      const name = (e.game || "").trim();
+      if (!name || seen.has(name)) continue;
+      seen.set(name, { game: name, price: Number(e.price) || 0 });
+    }
+    return [...seen.values()];
+  }, [entries]);
+
+  // Picking (or typing) a known game name fills its usual price when price is
+  // still blank — never clobbering a price the clerk already set.
+  const onGame = (e) => {
+    const name = e.target.value;
+    setF((p) => {
+      const hit = knownGames.find((g) => g.game === name);
+      return { ...p, game: name, price: p.price === "" && hit ? String(hit.price) : p.price };
+    });
+  };
 
   useEffect(() => {
     if (f.locationId || !(lockedLoc || locations[0])) return;
@@ -39,11 +64,17 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   // start # from that entry's end # — yesterday's closing number is today's
   // opening number. Fires only on pack/location change, so it never clobbers
   // the counter's later edits; entries arrive newest-first, so find() = latest.
+  //
+  // If the exact book was never counted here but ANOTHER book of the same game
+  // was (same game key, different book #), carry that game's name + price
+  // forward — but NOT the start #, since a fresh book starts at its own ticket,
+  // not the last book's close. The barcode carries no name/price text, so this
+  // sibling match is the only way a brand-new pack of a known game auto-fills.
   useEffect(() => {
     const pack = f.pack.trim();
     if (!pack) return;
-    const prev = entries.find((e) =>
-      e.kind === "scratch" && e.locationId === f.locationId && (e.pack || "") === pack);
+    const here = (e) => e.kind === "scratch" && e.locationId === f.locationId;
+    const prev = entries.find((e) => here(e) && (e.pack || "") === pack);
     if (prev) {
       setF((p) => ({
         ...p,
@@ -52,6 +83,17 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         startno: prev.endno != null ? String(prev.endno) : p.startno,
       }));
       onSaved?.(t("toast.pack_recognized"));
+      return;
+    }
+    const key = packGameKey(pack);
+    const sib = key && entries.find((e) => here(e) && e.game && packGameKey(e.pack || "") === key);
+    if (sib) {
+      setF((p) => ({
+        ...p,
+        game: sib.game || p.game,
+        price: sib.price != null ? String(sib.price) : p.price,
+      }));
+      onSaved?.(t("toast.game_recognized"));
     }
   }, [f.pack, f.locationId]); // eslint-disable-line
 
@@ -113,7 +155,15 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
             </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={t("scratch.game")}><input className="input" value={f.game} onChange={set("game")} placeholder="Lucky 7s" /></Field>
+          <Field label={t("scratch.game")}>
+            <input className="input" value={f.game} onChange={onGame} placeholder="Lucky 7s"
+              list={knownGames.length ? gameListId : undefined} autoComplete="off" />
+            {knownGames.length > 0 && (
+              <datalist id={gameListId}>
+                {knownGames.map((g) => <option key={g.game} value={g.game} />)}
+              </datalist>
+            )}
+          </Field>
           <div><label htmlFor={packId} className="label">{t("scratch.pack_no")}</label>
             <div className="flex gap-2">
               <input id={packId} className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
