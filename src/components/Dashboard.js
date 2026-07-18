@@ -5,7 +5,8 @@ import {
   Tooltip, CartesianGrid, Cell,
 } from "recharts";
 import { money, toDate, isUnresolved } from "@/lib/utils";
-import { detectPatterns } from "@/lib/patterns";
+import { detectPatterns, resolvePatternRules } from "@/lib/patterns";
+import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
 import { renderPattern } from "@/lib/pattern-format";
 import { buildPackAudit } from "@/lib/scratch-audit";
 import { buildStockAlerts } from "@/lib/stock-alerts";
@@ -34,7 +35,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], onOpenLog, onRecord, onToast }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], onOpenLog, onRecord, onToast }) {
   const { isManager, vendor } = useSession();
   const { theme } = useTheme();
   const { t, lang } = useLang();
@@ -45,9 +46,28 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   const [reportOpen, setReportOpen] = useState(false);
   // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink
   // streaks) — manager-facing only, so employees never see them computed.
-  const patterns = useMemo(
+  const basePatterns = useMemo(
     () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules }) : []),
     [entries, isManager, vendor?.patternRules]);
+  // Rewards audit (rewards-program-spec.md Phase 2): the ledger reconciled
+  // against the countersigned cash sales, plus per-day skim/burst detectors.
+  // Its alerts are pattern-shaped and merge into the same Patterns card and
+  // AI-insight flow (clerk names ride the redactor's person list).
+  const rewardsOn = vendor?.rewards?.enabled === true;
+  const rewardAudit = useMemo(
+    () => (isManager && rewardsOn
+      ? buildRewardAudit(rewardEvents, entries, {
+          rules: vendor?.rewards, customers,
+          windowDays: resolvePatternRules(vendor?.patternRules).windowDays,
+        })
+      : { alerts: [], totals: { earned: 0, redeemed: 0, earns: 0, redemptions: 0 } }),
+    [rewardEvents, entries, customers, isManager, rewardsOn, vendor?.rewards, vendor?.patternRules]);
+  const patterns = useMemo(
+    () => [...basePatterns, ...rewardAudit.alerts],
+    [basePatterns, rewardAudit.alerts]);
+  const liability = useMemo(
+    () => outstandingLiability(customers, vendor?.rewards),
+    [customers, vendor?.rewards]);
   // Pack audit: shift-boundary ticket #s checked against each other (gaps +
   // packs that stopped being counted). The pack-gap pattern above is the
   // signal; this card is the who/when detail behind it. Manager-only.
@@ -213,6 +233,17 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
         <Stat label={t("dash.stat_open_disp")} value={a.openDisputes} tone={a.openDisputes ? "neg" : null} />
         <Stat label={t("dash.stat_unverified")} value={a.unverified} tone={null} />
       </div>
+
+      {/* Rewards at a glance — issued/redeemed over the alert window, and the
+          outstanding liability at the store's own settings (what the points
+          would cost if every one were redeemed today). */}
+      {isManager && rewardsOn && (customers.length > 0 || rewardAudit.totals.earns > 0) && (
+        <div className="grid grid-cols-3 gap-3">
+          <Stat label={t("dash.rw_earned", { days: resolvePatternRules(vendor?.patternRules).windowDays })} value={rewardAudit.totals.earned} />
+          <Stat label={t("dash.rw_redeemed", { days: resolvePatternRules(vendor?.patternRules).windowDays })} value={rewardAudit.totals.redeemed} />
+          <Stat label={t("dash.rw_liability")} value={`${liability.points} ≈ ${money(liability.dollars)}`} />
+        </div>
+      )}
 
       {isManager && patterns.length > 0 && (
         <div className="card overflow-hidden">

@@ -614,6 +614,12 @@ export const CATALOG = {
     "pattern.item-shrink.detail": "{units} {unit} missing in total.",
     "pattern.person-trend.title": "{name}: shorts trending up",
     "pattern.person-trend.detail": "{recent} short in the recent half of the window vs {earlier} earlier — the gap is widening. Look at what changed before anything else.",
+    "pattern.reward-outpaced-sales.title": "Points issued outpace logged sales",
+    "pattern.reward-outpaced-sales.detail": "{points} points in {windowDays} days vs {supported} supported by {sales} of counted cash sales — {excess} unexplained. Compare the rewards ledger against the count log before anything else.",
+    "pattern.reward-multi-earn.title": "{who}: {count} point earns in one day ({day})",
+    "pattern.reward-multi-earn.detail": "Several earns on one account in a single day is what points-skimming looks like — check who rang each sale and whether receipts match.",
+    "pattern.reward-clerk-redemptions.title": "{name}: {count} redemptions in one day ({day})",
+    "pattern.reward-clerk-redemptions.detail": "Match each redemption against a register discount before anything else — bursts under one hand are a question, not a verdict.",
     "pattern.pack-gap.title_one": "{game} #{pack}: {tickets} ticket unaccounted between counts",
     "pattern.pack-gap.title_other": "{game} #{pack}: {tickets} tickets unaccounted between counts",
     "pattern.pack-gap.detail_one": "~{dollars} across {boundaries} count boundary in {windowDays} days — compare who closed and who opened at each break before anything else.",
@@ -985,6 +991,11 @@ export const CATALOG = {
     "admin.stock_expiry_label": "\"Expiring soon\" within (days)",
     "admin.stock_low_label": "\"Need order\" below (units)",
     "admin.stock_foot": "Out-of-range values are clamped on save. Bring quantities, prices, and expiry dates in with the Stock levels import below.",
+
+    // dashboard — rewards at a glance
+    "dash.rw_earned": "Points issued ({days}d)",
+    "dash.rw_redeemed": "Points redeemed ({days}d)",
+    "dash.rw_liability": "Points liability",
 
     // dashboard — stock attention card
     "dash.stock_title": "Stock attention",
@@ -1664,6 +1675,12 @@ export const CATALOG = {
     "pattern.item-shrink.detail": "Faltan {units} {unit} en total.",
     "pattern.person-trend.title": "{name}: faltantes en aumento",
     "pattern.person-trend.detail": "{recent} de faltante en la mitad reciente de la ventana vs {earlier} antes — la brecha se amplía. Mira qué cambió antes que nada.",
+    "pattern.reward-outpaced-sales.title": "Los puntos emitidos superan las ventas registradas",
+    "pattern.reward-outpaced-sales.detail": "{points} puntos en {windowDays} días vs {supported} que respaldan {sales} de ventas en efectivo contadas — {excess} sin explicación. Compara el libro de recompensas contra el registro de conteos antes que nada.",
+    "pattern.reward-multi-earn.title": "{who}: {count} sumas de puntos en un solo día ({day})",
+    "pattern.reward-multi-earn.detail": "Varias sumas en una misma cuenta el mismo día es la forma típica del desvío de puntos — revisa quién cobró cada venta y si los recibos cuadran.",
+    "pattern.reward-clerk-redemptions.title": "{name}: {count} canjes en un solo día ({day})",
+    "pattern.reward-clerk-redemptions.detail": "Cruza cada canje con un descuento en la registradora antes que nada — una racha bajo una sola mano es una pregunta, no un veredicto.",
     "pattern.pack-gap.title_one": "{game} #{pack}: {tickets} boleto sin contabilizar entre conteos",
     "pattern.pack-gap.title_other": "{game} #{pack}: {tickets} boletos sin contabilizar entre conteos",
     "pattern.pack-gap.detail_one": "~{dollars} en {boundaries} límite de conteo en {windowDays} días — compara quién cerró y quién abrió en cada corte antes que nada.",
@@ -2018,6 +2035,10 @@ export const CATALOG = {
     "admin.stock_expiry_label": "“Por caducar” dentro de (días)",
     "admin.stock_low_label": "“Pedir más” por debajo de (unidades)",
     "admin.stock_foot": "Los valores fuera de rango se ajustan al guardar. Trae cantidades, precios y fechas de caducidad con la importación de Niveles de existencia de abajo.",
+
+    "dash.rw_earned": "Puntos emitidos ({days}d)",
+    "dash.rw_redeemed": "Puntos canjeados ({days}d)",
+    "dash.rw_liability": "Pasivo en puntos",
 
     "dash.stock_title": "Atención de existencias",
     "dash.stock_sub": "De tus niveles de existencia sincronizados — caducan dentro de {days} días, o quedan menos de {units}.",

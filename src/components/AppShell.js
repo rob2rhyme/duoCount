@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
@@ -57,6 +57,8 @@ export default function AppShell() {
   const [notes, setNotes] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [swaps, setSwaps] = useState([]);
+  const [rewardEvents, setRewardEvents] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
@@ -86,6 +88,18 @@ export default function AppShell() {
     const u7 = isManager ? watchSwapBoard(vendor.id, setSwaps) : () => {};
     return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
   }, [vendor.id, lockedLoc, isManager, profile.id]);
+
+  // Rewards audit feeds — manager-only and only while the program is on. The
+  // ledger window is fixed at 90 days (the pattern-rules lookback maximum);
+  // the audit lib re-filters to the store's actual windowDays.
+  const rewardsOn = vendor?.rewards?.enabled === true;
+  useEffect(() => {
+    if (!isManager || !rewardsOn) { setRewardEvents([]); setCustomers([]); return undefined; }
+    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000);
+    const u1 = watchRewardEvents(vendor.id, since, setRewardEvents);
+    const u2 = watchCustomers(vendor.id, setCustomers);
+    return () => { u1(); u2(); };
+  }, [vendor.id, isManager, rewardsOn]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
   const canPickLocation = isManager || !perLocation;
@@ -251,7 +265,8 @@ export default function AppShell() {
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
-            items={items} onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
+            items={items} rewardEvents={rewardEvents} customers={customers}
+            onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
         )}
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />

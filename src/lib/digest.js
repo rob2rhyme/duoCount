@@ -4,6 +4,8 @@
 
 import { detectPatterns, resolvePatternRules } from "./patterns";
 import { buildStockAlerts } from "./stock-alerts";
+import { buildRewardAudit, outstandingLiability } from "./reward-audit";
+import { resolveRewards } from "./rewards";
 import { isUnresolved } from "./utils";
 import { aiNarrativeEnabled, generateNarrative } from "./digest-narrative";
 
@@ -83,6 +85,9 @@ function composeEmail(vendor, dateStr, s, appUrl, narrative = null) {
     `Open disputes:  ${s.openDisputes}`,
     `Open incidents: ${s.openIncidents ?? 0}`,
     `Unverified:     ${s.unverified}`,
+    ...(s.rewards ? [
+      `Rewards (last ${s.rewards.windowDays}d): ${s.rewards.earned} pts issued · ${s.rewards.redeemed} redeemed · outstanding ${s.rewards.liability.points} pts ≈ ${money(s.rewards.liability.dollars)}`,
+    ] : []),
     ...(s.patterns?.length ? [
       "",
       `Patterns (last ${windowDays} days — signals, not conclusions):`,
@@ -143,6 +148,12 @@ function composeEmail(vendor, dateStr, s, appUrl, narrative = null) {
       Open incidents: <b>${s.openIncidents ?? 0}</b> ·
       Unverified: <b>${s.unverified}</b>
     </p>
+    ${s.rewards ? `
+    <p style="font-size:13px;color:#666;margin-top:2px">
+      Rewards (last ${s.rewards.windowDays}d): <b style="color:#1a1c2e">${s.rewards.earned}</b> pts issued ·
+      <b style="color:#1a1c2e">${s.rewards.redeemed}</b> redeemed ·
+      outstanding <b style="color:#1a1c2e">${s.rewards.liability.points}</b> pts ≈ <b style="color:#1a1c2e">${money(s.rewards.liability.dollars)}</b>
+    </p>` : ""}
     ${s.patterns?.length ? `
     <div style="margin-top:10px;padding:10px 12px;background:#faf8f2;border:1px solid #e6e2d8;border-radius:8px">
       <p style="margin:0 0 6px;font-size:13px;color:#666">Patterns (last ${windowDays} days) — signals worth a look, not conclusions:</p>
@@ -233,6 +244,28 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
     itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
     { now, rules: vendor.stockAlerts },
   );
+
+  // Rewards (rewards-program-spec.md Phase 2) — only when the program is on:
+  // the audit's alerts join the patterns block (clerk names ride the
+  // narrative redactor's person list), and a one-line summary carries the
+  // window totals + the outstanding liability at the store's settings.
+  if (resolveRewards(vendor.rewards).enabled) {
+    const since = new Date(now.getTime() - rules.windowDays * 24 * 3600 * 1000);
+    const [evSnap, custSnap] = await Promise.all([
+      vendorRef.collection("rewardEvents").where("ts", ">=", since).get(),
+      vendorRef.collection("customers").get(),
+    ]);
+    const customersList = custSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const audit = buildRewardAudit(evSnap.docs.map((d) => d.data()), windowEntries, {
+      rules: vendor.rewards, customers: customersList, windowDays: rules.windowDays, now,
+    });
+    summary.patterns = [...summary.patterns, ...audit.alerts];
+    summary.rewards = {
+      ...audit.totals,
+      liability: outstandingLiability(customersList, vendor.rewards),
+      windowDays: rules.windowDays,
+    };
+  }
 
   // Optional AI narrative (ai-features-spec.md). Off by default and additive:
   // stays null when the vendor hasn't opted in, no key is configured, or the
