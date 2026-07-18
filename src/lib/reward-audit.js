@@ -61,16 +61,23 @@ export function buildRewardAudit(events = [], entries = [], { rules, customers =
 
   const alerts = [];
 
-  // 1. points issued vs the signed cash-sales denominator
+  // 1. points issued vs the signed cash-sales denominator. Each earn is
+  // normalized back to the BASE rate by the multiplier its (server-signed)
+  // ledger line recorded, so a VIP customer's ×1.5 earn doesn't read as
+  // invented points — while raw points with no recorded multiplier still do.
   const windowSales = entries
     .filter((e) => e && e.kind === "cash" && (e.date || dayOf(e) || "") >= cut)
     .reduce((s, e) => s + (Number(e.sales) || 0), 0);
   const supported = pointsForSale(windowSales, R);
-  if (totals.earned > supported * OUTPACE_SLACK && totals.earned - supported >= OUTPACE_FLOOR) {
+  const earnedBase = Math.round(earnsList.reduce((s, e) => {
+    const m = Number(e.multiplier);
+    return s + (Number(e.points) || 0) / (m >= 1 ? m : 1);
+  }, 0));
+  if (earnedBase > supported * OUTPACE_SLACK && earnedBase - supported >= OUTPACE_FLOOR) {
     alerts.push(alert({
       id: "reward-outpaced-sales", code: "reward-outpaced-sales", severity: "high",
       params: {
-        points: totals.earned, supported, excess: totals.earned - supported,
+        points: totals.earned, supported, excess: earnedBase - supported,
         sales: money(windowSales), windowDays,
       },
     }));

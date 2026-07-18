@@ -79,3 +79,21 @@ test("outstandingLiability: linear at the store's settings; negatives clamped; e
   assert.equal(custom.dollars, 8);
   assert.deepEqual(outstandingLiability([]), { points: 0, dollars: 0 });
 });
+
+test("VIP-multiplied earns don't false-alarm outpaced-sales; raw excess still does", () => {
+  // $100 of sales supports 100 base points. 150 points issued at a recorded
+  // ×1.5 VIP multiplier normalize back to 100 — fully supported, no alert.
+  const vipEarn = earn({ points: 150, saleDollars: 100, multiplier: 1.5, vipTier: "Gold" });
+  const ok = buildRewardAudit([vipEarn], [cash(100)], { now: NOW });
+  assert.ok(!ok.alerts.some((x) => x.kind === "reward-outpaced-sales"));
+
+  // The same 150 points with NO recorded multiplier are 50 unexplained → alert.
+  const bad = buildRewardAudit([earn({ points: 150, saleDollars: 100 })], [cash(100)], { now: NOW });
+  const a = bad.alerts.find((x) => x.kind === "reward-outpaced-sales");
+  assert.ok(a);
+  assert.match(a.detail, /50 unexplained/);
+
+  // A forged sub-1 multiplier can't shrink the normalization (floors at 1).
+  const forged = buildRewardAudit([earn({ points: 150, saleDollars: 100, multiplier: 0.1 })], [cash(100)], { now: NOW });
+  assert.ok(forged.alerts.some((x) => x.kind === "reward-outpaced-sales"));
+});
