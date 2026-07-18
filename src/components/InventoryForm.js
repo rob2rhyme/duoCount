@@ -110,6 +110,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
         <h2 className="font-semibold text-[15px] flex items-center gap-2"><TabIcon id="inventory" size={18} className="text-gold" /> {t("inventory.title")}</h2>
+        <p className="text-[13px] text-muted mt-0.5">{t("inventory.sub")}</p>
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
