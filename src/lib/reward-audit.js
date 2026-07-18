@@ -19,7 +19,7 @@
 // are handled via toDate, like scratch-audit.
 
 import { toDate } from "./utils.js";
-import { resolveRewards, pointsForSale, maskPhone } from "./rewards.js";
+import { resolveRewards, pointDollarValue, pointsForSale, maskPhone } from "./rewards.js";
 import { renderPattern } from "./pattern-format.js";
 
 const money = (n) => `$${(Math.round(n * 100) / 100).toFixed(2)}`;
@@ -124,7 +124,8 @@ export function buildRewardAudit(events = [], entries = [], { rules, customers =
 // Linear on purpose — a conservative ceiling the owner and the bookkeeper can
 // reason about; breakage only ever makes reality smaller.
 export function outstandingLiability(customersList = [], rules) {
-  const R = resolveRewards(rules);
   const points = (customersList || []).reduce((s, c) => s + Math.max(0, Number(c?.pointsBalance) || 0), 0);
-  return { points, dollars: Math.round((points / R.redeemPoints) * R.redeemValue * 100) / 100 };
+  // Value every point at the MOST generous reward's dollars-per-point, so a
+  // tiered menu is costed at its worst case (never understated).
+  return { points, dollars: Math.round(points * pointDollarValue(rules) * 100) / 100 };
 }

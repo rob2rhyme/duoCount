@@ -2,12 +2,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  REWARDS, resolveRewards, effectivePercent, pointsForSale, canRedeem,
-  normalizePhone, maskPhone,
+  REWARDS, resolveRewards, rewardTiers, effectivePercent, pointsForSale, canRedeem,
+  canRedeemTier, pointDollarValue, normalizePhone, maskPhone,
 } from "../src/lib/rewards.js";
 
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
-  assert.deepEqual(resolveRewards(), { enabled: false, ...((({ earnPerDollar, redeemPoints, redeemValue }) => ({ earnPerDollar, redeemPoints, redeemValue }))(REWARDS)) });
+  assert.deepEqual(resolveRewards(), {
+    enabled: false, earnPerDollar: REWARDS.earnPerDollar,
+    redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue, tiers: [],
+  });
   assert.equal(resolveRewards({}).enabled, false);
   assert.equal(resolveRewards({ enabled: true }).enabled, true);
   assert.equal(resolveRewards({ enabled: "yes" }).enabled, false); // strict boolean
@@ -54,4 +57,59 @@ test("normalizePhone: digits only, US leading-1 dropped, length-bounded", () => 
 test("maskPhone: shows only the last 4", () => {
   assert.equal(maskPhone("5551234567"), "•••-4567");
   assert.ok(!maskPhone("5551234567").includes("555123"));
+});
+
+/* ------------------------------ reward tiers ------------------------------ */
+
+test("rewardTiers: no configured tiers → one implicit tier from the legacy reward", () => {
+  const tiers = rewardTiers();
+  assert.equal(tiers.length, 1);
+  assert.deepEqual(tiers[0], { id: "default", name: "", points: 100, value: 5 });
+});
+
+test("resolveRewards: tiers are clamped, junk dropped, and sorted cheapest-first", () => {
+  const r = resolveRewards({ tiers: [
+    { id: "big", name: "Free hoodie", points: 300, value: 25 },
+    { id: "small", name: "Free coffee", points: 50, value: 2 },
+    { name: "", points: 40, value: 1 },      // no name → dropped
+    { name: "No points", value: 5 },          // no points → dropped
+    { name: "Clamp", points: 3, value: 9999 }, // points→10, value→1000
+  ] });
+  assert.deepEqual(r.tiers.map((t) => t.name), ["Clamp", "Free coffee", "Free hoodie"]);
+  assert.equal(r.tiers[0].points, 10);   // clamped up
+  assert.equal(r.tiers[0].value, 1000);  // clamped down
+});
+
+test("rewardTiers: configured tiers replace the legacy single reward, cheapest first", () => {
+  const tiers = rewardTiers({ redeemPoints: 100, redeemValue: 5, tiers: [
+    { id: "a", name: "A", points: 200, value: 10 },
+    { id: "b", name: "B", points: 75, value: 3 },
+  ] });
+  assert.deepEqual(tiers.map((t) => t.id), ["b", "a"]);
+});
+
+test("canRedeem / canRedeemTier: cheapest-tier threshold and per-tier gating", () => {
+  const rules = { tiers: [
+    { id: "a", name: "A", points: 100, value: 5 },
+    { id: "b", name: "B", points: 50, value: 2 },
+  ] };
+  assert.equal(canRedeem(50, rules), true);   // clears the cheapest (B)
+  assert.equal(canRedeem(49, rules), false);
+  const [b, a] = rewardTiers(rules);
+  assert.equal(canRedeemTier(50, b), true);
+  assert.equal(canRedeemTier(50, a), false);  // not enough for A
+  assert.equal(canRedeemTier(100, a), true);
+});
+
+test("effectivePercent & pointDollarValue: costed at the MOST generous reward", () => {
+  const rules = { earnPerDollar: 1, redeemPoints: 100, redeemValue: 5, tiers: [
+    { id: "a", name: "A", points: 100, value: 5 },   // 5%
+    { id: "b", name: "B", points: 100, value: 8 },   // 8% — the worst case
+  ] };
+  assert.equal(pointDollarValue(rules), 0.08);
+  assert.equal(effectivePercent(rules), 8);
+});
+
+test("pointDollarValue: legacy (no tiers) equals redeemValue/redeemPoints", () => {
+  assert.equal(pointDollarValue({ redeemPoints: 100, redeemValue: 5 }), 0.05);
 });

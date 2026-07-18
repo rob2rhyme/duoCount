@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { apiRewards } from "@/lib/data";
 import { money } from "@/lib/utils";
-import { resolveRewards, canRedeem, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, canRedeem, canRedeemTier, normalizePhone, maskPhone } from "@/lib/rewards";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
@@ -102,10 +102,12 @@ export default function RewardsPanel({ onToast, customers = [] }) {
       setSale("");
       onToast?.(t("rw.toast_earned", { n: r.earned, b: r.balance }));
     });
-  const redeem = () =>
-    run("redeem", { action: "redeem", phone }, (r) => {
+  const redeem = (tier) =>
+    run("redeem", { action: "redeem", phone, tierId: tier.id }, (r) => {
       setCustomer((c) => ({ ...c, pointsBalance: r.balance }));
-      onToast?.(t("rw.toast_redeemed", { value: money(r.value) }));
+      onToast?.(r.reward
+        ? t("rw.toast_redeemed_named", { reward: r.reward, value: money(r.value) })
+        : t("rw.toast_redeemed", { value: money(r.value) }));
     });
 
   if (!rules.enabled) {
@@ -117,7 +119,8 @@ export default function RewardsPanel({ onToast, customers = [] }) {
     );
   }
 
-  const goal = rules.redeemPoints;
+  const tiers = rewardTiers(vendor?.rewards); // configured tiers, or the single legacy reward
+  const goal = tiers[0].points;               // progress tracks the cheapest reward
   const balance = customer?.pointsBalance || 0;
   const pct = Math.min(100, Math.round((balance / goal) * 100));
   const countKey = customers.length === 1 ? "rw.count_one" : "rw.count_other";
@@ -174,8 +177,8 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                   </div>
                   <p className="text-[12px] text-muted mt-1.5">
                     {canRedeem(balance, rules)
-                      ? t("rw.ready", { value: money(rules.redeemValue) })
-                      : t("rw.progress", { n: balance, goal, value: money(rules.redeemValue), left: goal - balance })}
+                      ? t("rw.ready", { value: money(tiers[0].value) })
+                      : t("rw.progress", { n: balance, goal, value: money(tiers[0].value), left: goal - balance })}
                   </p>
                 </div>
 
@@ -194,9 +197,24 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                 </div>
 
                 {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
-                <button className="btn-primary w-full" disabled={!!busy || !canRedeem(balance, rules)} onClick={redeem}>
-                  {busy === "redeem" ? t("rw.redeeming") : t("rw.redeem", { goal, value: money(rules.redeemValue) })}
-                </button>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">{t("rw.rewards_label")}</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {tiers.map((tier) => {
+                      const ok = canRedeemTier(balance, tier);
+                      return (
+                        <button key={tier.id} type="button" disabled={!!busy || !ok} onClick={() => redeem(tier)}
+                          className={`rounded-xl border p-3 text-left transition ${ok ? "border-brass bg-brass/10 hover:bg-brass/20" : "border-line bg-panel opacity-60"}`}>
+                          <div className="font-semibold text-[13px] truncate">{tier.name || t("rw.reward_default", { value: money(tier.value) })}</div>
+                          <div className="text-[12px] text-muted mt-0.5">
+                            {t("rw.tier_cost", { n: tier.points })}{tier.value > 0 ? ` · ${money(tier.value)}` : ""}
+                          </div>
+                          {!ok && <div className="text-[11px] text-muted mt-1">{t("rw.tier_need", { n: tier.points - balance })}</div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </>
