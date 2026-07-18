@@ -1093,6 +1093,28 @@ export const CATALOG = {
     "rewarderr.note_required": "An adjustment needs a note — it's part of the permanent record.",
     "rewarderr.bad_action": "Unknown rewards action.",
 
+    // rewards — public balance page (/rewards)
+    "rwb.title": "Check your rewards",
+    "rwb.sub": "Your points, with just your store's code and your phone number.",
+    "rwb.store_label": "Store code",
+    "rwb.store_ph": "acme-market",
+    "rwb.check": "Check my points",
+    "rwb.checking": "Checking…",
+    "rwb.ready_hint": "Ask for your reward at the register on your next visit.",
+    "rwb.foot": "Your balance only — no name is shown, and nothing changes here. Points are earned and redeemed at the register.",
+    "rwberr.generic": "Balance check failed — try again.",
+    "rwberr.bad_input": "Enter the store code and a valid phone number.",
+    "rwberr.throttled": "Too many attempts — wait a few minutes and try again.",
+    "rwberr.no_store": "No store found for that code.",
+    "rwberr.rewards_disabled": "Rewards are not enabled for this store.",
+    "rwberr.not_enrolled": "That number isn't enrolled at this store yet — join at the register.",
+
+    // rewards — printable counter sign (rendered in BOTH languages on one sheet)
+    "sign.join": "Join our rewards",
+    "sign.line": "$1 = {earn} point(s) · {goal} points = {value} off",
+    "sign.how": "Just give us your phone number at the register — no card, no app.",
+    "sign.check": "Check your balance anytime: {url} (store code: {slug})",
+
     // admin — customer rewards settings (owner-only)
     "admin.rw_title": "Customer rewards",
     "admin.rw_hint": "A phone-number points program at the register: staff look a customer up, points earn on the qualifying sale, and a reward is dollars off applied on your register. Every points move is a signed, append-only ledger line.",
@@ -1102,6 +1124,8 @@ export const CATALOG = {
     "admin.rw_effective": "Effective giveback: {pct}% of qualifying spend.",
     "admin.rw_effective_warn": "That's generous — the big chains run near 1%. Make sure your margins carry it.",
     "admin.rw_exclusions": "Tobacco, vape, alcohol, lottery, gift cards, and fuel are excluded from earning and redeeming — discount bans, minimum-price laws, and lottery face-value rules apply to those categories. Staff enter the qualifying total without them.",
+    "admin.rw_balance_url": "Customers can check their balance at /rewards.",
+    "admin.rw_print_sign": "🖨 Print counter sign",
 
     // /guide page chrome (the doc body itself comes from docs/getting-started*.md)
     "guide.title": "User Guide",
@@ -2131,6 +2155,26 @@ export const CATALOG = {
     "rewarderr.note_required": "Un ajuste necesita una nota — es parte del registro permanente.",
     "rewarderr.bad_action": "Acción de recompensas desconocida.",
 
+    "rwb.title": "Consulta tus recompensas",
+    "rwb.sub": "Tus puntos, solo con el código de tu tienda y tu número de teléfono.",
+    "rwb.store_label": "Código de tienda",
+    "rwb.store_ph": "acme-market",
+    "rwb.check": "Ver mis puntos",
+    "rwb.checking": "Consultando…",
+    "rwb.ready_hint": "Pide tu recompensa en el mostrador en tu próxima visita.",
+    "rwb.foot": "Solo tu saldo — no se muestra ningún nombre y aquí nada cambia. Los puntos se ganan y se canjean en el mostrador.",
+    "rwberr.generic": "Falló la consulta — inténtalo de nuevo.",
+    "rwberr.bad_input": "Ingresa el código de tienda y un número de teléfono válido.",
+    "rwberr.throttled": "Demasiados intentos — espera unos minutos e inténtalo de nuevo.",
+    "rwberr.no_store": "No se encontró ninguna tienda con ese código.",
+    "rwberr.rewards_disabled": "Las recompensas no están activadas en esta tienda.",
+    "rwberr.not_enrolled": "Ese número aún no está inscrito en esta tienda — únete en el mostrador.",
+
+    "sign.join": "Únete a nuestras recompensas",
+    "sign.line": "$1 = {earn} punto(s) · {goal} puntos = {value} de descuento",
+    "sign.how": "Solo danos tu número de teléfono en el mostrador — sin tarjeta, sin app.",
+    "sign.check": "Consulta tu saldo cuando quieras: {url} (código de tienda: {slug})",
+
     "admin.rw_title": "Recompensas para clientes",
     "admin.rw_hint": "Un programa de puntos por número de teléfono en el mostrador: el personal busca al cliente, los puntos se suman sobre la venta que califica, y la recompensa es un descuento aplicado en tu registradora. Cada movimiento de puntos es una línea firmada y de solo agregado.",
     "admin.rw_earn_label": "Puntos por $1",
@@ -2139,6 +2183,8 @@ export const CATALOG = {
     "admin.rw_effective": "Devolución efectiva: {pct}% del gasto que califica.",
     "admin.rw_effective_warn": "Es generoso — las grandes cadenas rondan el 1%. Asegúrate de que tus márgenes lo aguanten.",
     "admin.rw_exclusions": "Tabaco, vape, alcohol, lotería, tarjetas de regalo y gasolina quedan fuera de ganar y canjear — aplican prohibiciones de descuento, leyes de precio mínimo y las reglas de valor nominal de la lotería. El personal ingresa el total que califica sin esas categorías.",
+    "admin.rw_balance_url": "Los clientes pueden consultar su saldo en /rewards.",
+    "admin.rw_print_sign": "🖨 Imprimir letrero de mostrador",
 
     "guide.title": "Guía de uso",
     "guide.search_ph": "Buscar en todas las guías y documentos…",

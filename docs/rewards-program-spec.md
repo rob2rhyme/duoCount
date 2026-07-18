@@ -1,6 +1,6 @@
 # Customer rewards — competitive research & program spec
 
-> **Status: Phases 1–2 shipped (July 2026).** Phase 1: `customers` + the
+> **Status: Phases 1–3 shipped (July 2026).** Phase 1: `customers` + the
 > append-only signed `rewardEvents` ledger (all writes via the trusted
 > `/api/rewards` route — client rules allow **no** writes), the owner-only
 > Reward settings in Admin (with the live effective-%-back readout and >2%
@@ -11,8 +11,9 @@
 > liability readout** on the Dashboard and in the digest, and the
 > `privacy-and-data.md` disclosure (done in Phase 1). The rules changes are
 > **emulator-verified** (73 rules tests pass, incl. members-read/nobody-writes
-> on both collections). No SMS, no tiers; Phase 3 (customer-facing balance
-> page, printed enrollment card, category tagging) remains open.
+> on both collections). Phase 3: the public rate-limited **`/rewards` balance
+> page** (en/es) and the **printable bilingual counter sign**; category
+> tagging moved to the POS-integration phase. No SMS, no tiers.
 
 ## Owner decision — July 2026
 
@@ -188,8 +189,8 @@ earnPerDollar × 100` live, with a caution above ~2%.
 | --- | --- |
 | **1 — Core — ✅ shipped** | customers + append-only ledger + owner Reward settings + register earn/redeem flow (en/es). No SMS, no app, no tiers. Implementation note: all writes go through the trusted `/api/rewards` route (Admin SDK) — client rules allow no writes at all, so append-only holds by construction; points are computed server-side from the owner's settings, and the balance moves in the same transaction as the ledger line. |
 | **2 — Trust & visibility — ✅ shipped** | fraud detectors in the pattern engine; digest section; outstanding-liability readout; `privacy-and-data.md` update. Implementation note: `reward-audit.js` (pure, unit-tested) reconciles points issued against the countersigned cash-sales totals (10% slack + 20-pt floor), flags one customer earning 3+/5+ times in a day (masked phone), and one clerk recording 3+/5+ redemptions in a day; alerts are pattern-shaped, ride the same Patterns card / digest / AI-narrative path, and the clerk-named kind joins the PII redactor's person list. |
-| **3 — Customer-facing** | balance check page (PWA, by phone number); printed enrollment card; per-item category tagging to auto-compute qualifying totals. |
-| **Deferred** | SMS marketing (TCPA consent flow), tiers, punch-card mode, POS auto-earn webhooks. |
+| **3 — Customer-facing — ✅ shipped** | The public **`/rewards` balance page** (store code + phone → points + progress; en/es with a language toggle; returns only the balance, never a name; the endpoint borrows the login route's per-IP + per-store throttles and — stricter than login — counts **every** request, so enumeration hits the wall almost immediately) and the **printable bilingual counter sign** (one sheet, English + Spanish, store name + program economics + the balance URL; printed from Admin → Customer rewards). *Per-item category tagging to auto-compute qualifying totals moved to the POS-integration phase* — it's only honest with real basket data (Square/Clover webhooks); until then the clerk-entered qualifying total plus the exclusions guidance is the mechanism. |
+| **Deferred** | SMS marketing (TCPA consent flow), tiers, punch-card mode, POS auto-earn webhooks + category tagging for auto-computed qualifying totals. |
 
 ## Open questions (owner)
 
