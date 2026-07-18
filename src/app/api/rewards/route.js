@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
-import { resolveRewards, rewardTiers, tierDollarValue, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -24,8 +24,13 @@ export const runtime = "nodejs";
 const err = (status, code, message) =>
   NextResponse.json({ error: message, code }, { status });
 
-const publicCustomer = (id, c) => ({
+// Legacy customers predate lifetimePoints — floor it at the current balance
+// (they earned at least what they hold), so status never starts negative.
+const lifetimeOf = (c) => Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0);
+
+const publicCustomer = (id, c, rules) => ({
   id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
+  lifetimePoints: lifetimeOf(c), vipTier: vipTierFor(lifetimeOf(c), rules)?.name || null,
 });
 
 export async function POST(req) {
@@ -52,20 +57,20 @@ export async function POST(req) {
     if (action === "lookup") {
       return NextResponse.json({
         ok: true, rules,
-        customer: existing ? publicCustomer(existing.id, existing.data()) : null,
+        customer: existing ? publicCustomer(existing.id, existing.data(), rules) : null,
       });
     }
 
     if (action === "enroll") {
       if (existing) // idempotent — typing an enrolled number just pulls them up
-        return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, existing.data()) });
+        return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, existing.data(), rules) });
       const doc = {
         phone, name: String(name ?? "").trim().slice(0, 80) || null,
-        pointsBalance: 0, createdAt: new Date(), lastEarnAt: null,
+        pointsBalance: 0, lifetimePoints: 0, createdAt: new Date(), lastEarnAt: null,
         by: claims.name || "", byId: claims.userId,
       };
       const ref = await customers.add(doc);
-      return NextResponse.json({ ok: true, rules, customer: publicCustomer(ref.id, doc), enrolled: true });
+      return NextResponse.json({ ok: true, rules, customer: publicCustomer(ref.id, doc, rules), enrolled: true });
     }
 
     // earn / redeem / adjust need an enrolled customer.
@@ -78,28 +83,51 @@ export async function POST(req) {
       by: claims.name || "", byId: claims.userId, byRole: claims.role || "employee",
       ts: new Date(), ...extra,
     });
-    const commit = (kind, pts, extra, minBalance = 0) =>
+    // pts/extra may be functions of the live customer doc, so per-customer
+    // state (the VIP multiplier from lifetime points) is read INSIDE the
+    // transaction — no race with a concurrent earn.
+    const commit = (kind, ptsOrFn, extraOrFn, minBalance = 0) =>
       adminDb.runTransaction(async (tx) => {
         const snap = await tx.get(customerRef);
-        const balance = snap.data()?.pointsBalance || 0;
+        const c = snap.data() || {};
+        const balance = c.pointsBalance || 0;
+        const pts = typeof ptsOrFn === "function" ? ptsOrFn(c) : ptsOrFn;
+        const extra = typeof extraOrFn === "function" ? extraOrFn(c) : extraOrFn;
         if (kind === "redeem" && balance < minBalance)
           throw Object.assign(new Error("Not enough points to redeem."), { status: 409, code: "insufficient_points" });
         tx.set(events.doc(), signedEvent(kind, pts, extra));
         tx.update(customerRef, {
           pointsBalance: balance + pts,
-          ...(kind === "earn" ? { lastEarnAt: new Date() } : {}),
+          // Lifetime points are MONOTONIC: they grow with earns and are never
+          // reduced by redeem/adjust — that's what makes VIP status durable.
+          ...(kind === "earn" ? { lastEarnAt: new Date(), lifetimePoints: lifetimeOf(c) + pts } : {}),
         });
-        return balance + pts;
+        return { balance: balance + pts, pts, extra };
       });
 
     if (action === "earn") {
       const d = Number(saleDollars);
       if (!Number.isFinite(d) || d <= 0 || d > 100000)
         return err(400, "bad_sale", "Enter the qualifying sale total (over $0).");
-      const pts = pointsForSale(d, rules); // server-computed — never the client's number
-      if (pts < 1) return err(400, "sale_too_small", "That sale is too small to earn a point.");
-      const balance = await commit("earn", pts, { saleDollars: Math.round(d * 100) / 100 });
-      return NextResponse.json({ ok: true, rules, earned: pts, balance });
+      const base = pointsForSale(d, rules); // server-computed — never the client's number
+      if (base < 1) return err(400, "sale_too_small", "That sale is too small to earn a point.");
+      // The VIP multiplier resolves from the customer's lifetime points inside
+      // the transaction; the ledger line records it so the audit can normalize
+      // issued points back to the base rate (no false outpaced-sales alarms).
+      const vipOf = (c) => vipTierFor(lifetimeOf(c), rules);
+      const r = await commit("earn",
+        (c) => Math.round(base * (vipOf(c)?.multiplier || 1)),
+        (c) => {
+          const vip = vipOf(c);
+          return {
+            saleDollars: Math.round(d * 100) / 100,
+            ...(vip && vip.multiplier !== 1 ? { multiplier: vip.multiplier, vipTier: vip.name } : {}),
+          };
+        });
+      return NextResponse.json({
+        ok: true, rules, earned: r.pts, balance: r.balance,
+        vipTier: r.extra.vipTier || null, multiplier: r.extra.multiplier || 1,
+      });
     }
 
     if (action === "redeem") {
@@ -119,7 +147,7 @@ export async function POST(req) {
         ...(tier.type === "percent" ? { percent: tier.percent, cap: tier.cap } : {}),
         ...(tier.type === "item" && tier.withPurchase ? { withPurchase: true } : {}),
       };
-      const balance = await commit("redeem", -tier.points, grant, tier.points);
+      const { balance } = await commit("redeem", -tier.points, grant, tier.points);
       return NextResponse.json({
         ok: true, rules, redeemed: tier.points, value: tierDollarValue(tier),
         reward: tier.name || null, rewardType: tier.type,
@@ -137,7 +165,7 @@ export async function POST(req) {
       return err(400, "bad_adjust", "Enter a non-zero whole number of points.");
     const trimmedNote = String(note ?? "").trim();
     if (!trimmedNote) return err(400, "note_required", "An adjustment needs a note — it's part of the permanent record.");
-    const balance = await commit("adjust", pts, { note: trimmedNote.slice(0, 300) });
+    const { balance } = await commit("adjust", pts, { note: trimmedNote.slice(0, 300) });
     return NextResponse.json({ ok: true, rules, adjusted: pts, balance });
   } catch (e) {
     if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });

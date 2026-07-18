@@ -2,14 +2,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, effectivePercent,
-  pointsForSale, canRedeem, canRedeemTier, pointDollarValue, normalizePhone, maskPhone,
+  REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, vipTierFor,
+  effectivePercent, pointsForSale, canRedeem, canRedeemTier, pointDollarValue,
+  normalizePhone, maskPhone,
 } from "../src/lib/rewards.js";
 
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
   assert.deepEqual(resolveRewards(), {
     enabled: false, earnPerDollar: REWARDS.earnPerDollar,
-    redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue, tiers: [],
+    redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue, tiers: [], vip: [],
   });
   assert.equal(resolveRewards({}).enabled, false);
   assert.equal(resolveRewards({ enabled: true }).enabled, true);
@@ -165,4 +166,39 @@ test("liability & % -back are costed at the worst-case tier across types", () =>
   ] };
   assert.equal(pointDollarValue(rules), 0.09);
   assert.equal(effectivePercent(rules), 9);
+});
+
+/* ------------------------------- VIP tiers ------------------------------- */
+
+test("resolveRewards.vip: clamped, junk dropped, sorted by threshold; multiplier floors at 1", () => {
+  const r = resolveRewards({ vip: [
+    { id: "g", name: "Gold", threshold: 2000, multiplier: 1.5 },
+    { id: "b", name: "Bronze", threshold: 500, multiplier: 0.5 }, // floors to 1
+    { name: "", threshold: 100, multiplier: 2 },                  // nameless → dropped
+    { id: "n", name: "NoBar", multiplier: 2 },                    // no threshold → dropped
+    { id: "hi", name: "Absurd", threshold: 999999999999, multiplier: 99 }, // clamped
+  ] });
+  assert.deepEqual(r.vip.map((v) => v.id), ["b", "g", "hi"]);
+  assert.equal(r.vip[0].multiplier, 1);        // floored — never earns less than base
+  assert.equal(r.vip[2].threshold, 10000000);  // clamped
+  assert.equal(r.vip[2].multiplier, 10);       // clamped
+});
+
+test("vipTierFor: highest crossed bar wins; below every bar (or none) → null", () => {
+  const rules = { vip: [
+    { id: "b", name: "Bronze", threshold: 500, multiplier: 1.2 },
+    { id: "g", name: "Gold", threshold: 2000, multiplier: 1.5 },
+  ] };
+  assert.equal(vipTierFor(0, rules), null);
+  assert.equal(vipTierFor(499, rules), null);
+  assert.equal(vipTierFor(500, rules).name, "Bronze");  // threshold inclusive
+  assert.equal(vipTierFor(1999, rules).name, "Bronze");
+  assert.equal(vipTierFor(2000, rules).name, "Gold");
+  assert.equal(vipTierFor(50000, rules).name, "Gold");
+  assert.equal(vipTierFor(1000, {}), null); // no ladder configured
+});
+
+test("effectivePercent: worst case includes the highest VIP multiplier", () => {
+  // base 5% at defaults; a ×2 Gold tier doubles the worst-case giveback
+  assert.equal(effectivePercent({ vip: [{ id: "g", name: "Gold", threshold: 1000, multiplier: 2 }] }), 10);
 });

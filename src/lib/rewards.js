@@ -21,6 +21,14 @@ export const REWARDS = {
 // At most this many named tiers — a c-store reward menu, not a catalog.
 export const MAX_TIERS = 8;
 
+// VIP status tiers (loyalty-plan-review.md, port slice 2): named lifetime-
+// points milestones (Bronze/Silver/Gold) with an earn multiplier ≥ 1. Status
+// derives from LIFETIME points, which only ever grow — redeeming never
+// demotes anyone. Kept small: it's a status ladder, not a matrix.
+export const MAX_VIP_TIERS = 5;
+const VIP_THRESHOLD = [1, 10000000];
+const VIP_MULTIPLIER = [1, 10];
+
 // What a reward tier grants (loyalty-plan-review.md, port slice 1):
 //   cash    — a flat $ off (the original model);
 //   percent — a % off the sale, ALWAYS with a $ cap (uncapped % liability is
@@ -77,6 +85,21 @@ export function tierDollarValue(tier) {
   return tier.type === "percent" ? tier.cap : (Number(tier.value) || 0);
 }
 
+// One VIP tier → { id, name, threshold, multiplier }, or null if unusable —
+// the tier clamp-and-drop discipline. Multiplier floors at 1: a status tier
+// can never earn LESS than the base rate.
+function resolveVipTier(raw, i) {
+  if (!raw || typeof raw !== "object") return null;
+  const name = String(raw.name ?? "").trim().slice(0, 40);
+  const threshold = clampNum(raw.threshold, VIP_THRESHOLD[0], VIP_THRESHOLD[1], true);
+  if (!name || !Number.isFinite(threshold)) return null;
+  const multiplier = clampNum(raw.multiplier, VIP_MULTIPLIER[0], VIP_MULTIPLIER[1], false);
+  return {
+    id: String(raw.id ?? "").trim() || `v${i}`, name, threshold,
+    multiplier: Number.isFinite(multiplier) ? multiplier : 1,
+  };
+}
+
 export function resolveRewards(raw = {}) {
   const out = { enabled: raw?.enabled === true };
   for (const [key, [lo, hi]] of Object.entries(BOUNDS)) {
@@ -85,7 +108,19 @@ export function resolveRewards(raw = {}) {
   }
   const rawTiers = Array.isArray(raw?.tiers) ? raw.tiers.slice(0, MAX_TIERS) : [];
   out.tiers = rawTiers.map(resolveTier).filter(Boolean).sort((a, b) => a.points - b.points);
+  const rawVip = Array.isArray(raw?.vip) ? raw.vip.slice(0, MAX_VIP_TIERS) : [];
+  out.vip = rawVip.map(resolveVipTier).filter(Boolean).sort((a, b) => a.threshold - b.threshold);
   return out;
+}
+
+// The customer's current VIP status: the highest tier whose lifetime-points
+// bar they've crossed, or null when below every tier (or none configured).
+export function vipTierFor(lifetimePoints, rules) {
+  const r = resolveRewards(rules);
+  const n = Math.max(0, Number(lifetimePoints) || 0);
+  let hit = null;
+  for (const t of r.vip) if (n >= t.threshold) hit = t;
+  return hit;
 }
 
 // The reward tiers actually offered at the register: the configured ones, or a
@@ -105,9 +140,12 @@ function bestRate(rules) {
 
 // The giveback rate the settings card must surface (rewards-program-spec.md):
 // at the defaults, 100 pts = $5 on $100 spent = 5.0% back. One decimal.
+// Worst case across the menu AND the VIP ladder: the most generous reward at
+// the highest earn multiplier, so the >2% caution never understates.
 export function effectivePercent(rules) {
   const r = resolveRewards(rules);
-  return Math.round(bestRate(rules) * r.earnPerDollar * 100 * 10) / 10;
+  const maxMult = r.vip.length ? Math.max(...r.vip.map((t) => t.multiplier)) : 1;
+  return Math.round(bestRate(rules) * r.earnPerDollar * maxMult * 100 * 10) / 10;
 }
 
 // Dollars-per-point of the most generous reward — for the outstanding-liability

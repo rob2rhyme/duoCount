@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { apiRewards } from "@/lib/data";
 import { money } from "@/lib/utils";
-import { resolveRewards, rewardTiers, tierDollarValue, canRedeem, canRedeemTier, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, canRedeem, canRedeemTier, normalizePhone, maskPhone } from "@/lib/rewards";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
@@ -80,8 +80,13 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   const canAddNew = queryPhone && !enrolledPhones.has(queryPhone);
 
   function selectCustomer(c) {
+    // Same lifetime floor as the server: legacy docs predate lifetimePoints.
+    const lifetime = Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0);
     setPhone(String(c.phone || ""));
-    setCustomer({ id: c.id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0 });
+    setCustomer({
+      id: c.id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
+      lifetimePoints: lifetime, vipTier: vipTierFor(lifetime, vendor?.rewards)?.name || null,
+    });
     setEnrollPhone(null); setName(""); setSale(""); setError("");
   }
   function startEnroll(p) {
@@ -100,7 +105,9 @@ export default function RewardsPanel({ onToast, customers = [] }) {
     run("earn", { action: "earn", phone, saleDollars: Number(sale) }, (r) => {
       setCustomer((c) => ({ ...c, pointsBalance: r.balance }));
       setSale("");
-      onToast?.(t("rw.toast_earned", { n: r.earned, b: r.balance }));
+      onToast?.(r.multiplier > 1
+        ? t("rw.toast_earned_vip", { n: r.earned, b: r.balance, m: r.multiplier, tier: r.vipTier })
+        : t("rw.toast_earned", { n: r.earned, b: r.balance }));
     });
   const redeem = (tier) =>
     run("redeem", { action: "redeem", phone, tierId: tier.id }, (r) => {
@@ -168,7 +175,12 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                 <div className="flex items-center gap-3">
                   <div className="flex-shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-full bg-brass text-ink font-bold text-sm">{initials(customer.name)}</div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium truncate">{customer.name || t("rw.customer_fallback")}</div>
+                    <div className="font-medium truncate flex items-center gap-2">
+                      <span className="truncate">{customer.name || t("rw.customer_fallback")}</span>
+                      {customer.vipTier && (
+                        <span className="flex-shrink-0 text-[10px] uppercase tracking-wide font-bold text-brass border border-brass/50 rounded px-1.5 py-0.5">{customer.vipTier}</span>
+                      )}
+                    </div>
                     <div className="text-[12px] text-muted font-mono">{customer.phone}</div>
                   </div>
                   <div className="text-right flex-shrink-0">

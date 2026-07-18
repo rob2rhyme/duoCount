@@ -9,7 +9,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
-import { REWARDS, MAX_TIERS, TIER_TYPES, resolveRewards, effectivePercent } from "@/lib/rewards";
+import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, TIER_TYPES, resolveRewards, effectivePercent } from "@/lib/rewards";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
@@ -137,6 +137,22 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const setTier = (i, k) => (e) => patchTier(i, { [k]: e.target.value });
   const removeTier = (i) =>
     setSettings((s) => ({ ...s, rewards: { ...s.rewards, tiers: (s.rewards.tiers || []).filter((_, j) => j !== i) } }));
+  // VIP status tiers (lifetime-points milestones with an earn multiplier).
+  const vipRows = settings.rewards.vip || [];
+  const addVip = () =>
+    setSettings((s) => {
+      const vip = s.rewards.vip || [];
+      if (vip.length >= MAX_VIP_TIERS) return s;
+      const id = (globalThis.crypto?.randomUUID?.() || `v${vip.length}-${settings.name || "x"}`);
+      return { ...s, rewards: { ...s.rewards, vip: [...vip, { id, name: "", threshold: "", multiplier: "" }] } };
+    });
+  const setVip = (i, k) => (e) =>
+    setSettings((s) => ({
+      ...s,
+      rewards: { ...s.rewards, vip: (s.rewards.vip || []).map((v, j) => (j === i ? { ...v, [k]: e.target.value } : v)) },
+    }));
+  const removeVip = (i) =>
+    setSettings((s) => ({ ...s, rewards: { ...s.rewards, vip: (s.rewards.vip || []).filter((_, j) => j !== i) } }));
   const [testing, setTesting] = useState(false);
   async function saveSettings() {
     // Parse + validate digest recipients (cap 10, basic format check).
@@ -628,6 +644,29 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               })}
               {isOwner && rewardTierRows.length < MAX_TIERS && (
                 <button type="button" className="btn-ghost text-[13px] px-3 py-1.5" onClick={addTier}>+ {t("admin.rw_tier_add")}</button>
+              )}
+            </div>
+
+            {/* VIP status tiers — lifetime-points milestones with an earn
+                multiplier. Status only ever climbs (lifetime is monotonic). */}
+            <div className="border-t border-line pt-3 space-y-2.5">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("admin.rw_vip_title")}</div>
+              <p className="text-xs text-muted leading-relaxed">{t("admin.rw_vip_hint")}</p>
+              {vipRows.length > 0 && (
+                <div className="grid grid-cols-[1fr_6rem_4.5rem_auto] gap-2 items-center text-[11px] uppercase tracking-wide text-muted font-semibold">
+                  <span>{t("admin.rw_vip_name")}</span><span>{t("admin.rw_vip_threshold")}</span><span>{t("admin.rw_vip_mult")}</span><span />
+                </div>
+              )}
+              {vipRows.map((v, i) => (
+                <div key={v.id || i} className="grid grid-cols-[1fr_6rem_4.5rem_auto] gap-2 items-center">
+                  <input className="input" placeholder={t("admin.rw_vip_name_ph")} value={v.name ?? ""} disabled={!isOwner} onChange={setVip(i, "name")} aria-label={t("admin.rw_vip_name")} />
+                  <input className="input" type="number" inputMode="numeric" min="1" step="1" placeholder="500" value={v.threshold ?? ""} disabled={!isOwner} onChange={setVip(i, "threshold")} aria-label={t("admin.rw_vip_threshold")} />
+                  <input className="input" type="number" inputMode="decimal" min="1" max="10" step="0.1" placeholder="1.5" value={v.multiplier ?? ""} disabled={!isOwner} onChange={setVip(i, "multiplier")} aria-label={t("admin.rw_vip_mult")} />
+                  <button type="button" className="btn-ghost px-2.5 text-[13px]" disabled={!isOwner} onClick={() => removeVip(i)} aria-label={t("admin.rw_vip_remove")}><span aria-hidden="true">✕</span></button>
+                </div>
+              ))}
+              {isOwner && vipRows.length < MAX_VIP_TIERS && (
+                <button type="button" className="btn-ghost text-[13px] px-3 py-1.5" onClick={addVip}>+ {t("admin.rw_vip_add")}</button>
               )}
             </div>
 
