@@ -103,6 +103,7 @@ button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -w
    only the compact fields on touch devices (the large PIN inputs keep their
    size), so text entry never triggers a zoom — without disabling pinch-zoom. */
 @media (pointer: coarse) {
+  .input.text-xs,
   .input.text-sm,
   .input.text-\[13px\] { font-size: 16px; }
 }
