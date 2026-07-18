@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
+import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
 
 /* ------------------------------ parseCsv ------------------------------ */
 
@@ -354,4 +354,67 @@ test("validateBaselines: baselines never report update", () => {
 test("missingRequired: item and quantity are required for baselines", () => {
   assert.deepEqual(missingRequired({}, "baselines"), ["item", "quantity"]);
   assert.deepEqual(missingRequired({ item: "Item", quantity: "Qty" }, "baselines"), []);
+});
+
+/* ----------------------------- validateStock ----------------------------- */
+
+const stockCtx = {
+  locations: [{ id: "l1", name: "Main St", active: true }],
+  items: [
+    { id: "i1", name: "Marlboro", unit: "carton", barcode: "012345", locationId: "l1", active: true },
+    { id: "i2", name: "Juul Pods", unit: "pack", barcode: null, locationId: "l1", active: true },
+  ],
+};
+const stockMap = { item: "item", quantity: "quantity", price: "price", expiry: "expiry" };
+
+test("validateStock: a clean row is an UPDATE (never a create) carrying qty/price/expiry", () => {
+  const { rows, summary } = validateStock(
+    rowsOf({ item: "Marlboro", quantity: "12", price: "$89.50", expiry: "2026-09-01" }), stockMap, stockCtx);
+  assert.equal(rows[0].status, "update");
+  assert.equal(rows[0].fields.itemId, "i1");
+  assert.equal(rows[0].fields.quantity, 12);
+  assert.equal(rows[0].fields.price, 89.5); // leading $ stripped
+  assert.equal(rows[0].fields.expiresAt, "2026-09-01");
+  assert.deepEqual(summary, { create: 0, update: 1, skip: 0, error: 0 });
+});
+
+test("validateStock: resolves by barcode; blank price/expiry cells leave fields null (unchanged)", () => {
+  const { rows } = validateStock(rowsOf({ item: "012345", quantity: "0", price: "", expiry: "" }), stockMap, stockCtx);
+  assert.equal(rows[0].status, "update");
+  assert.equal(rows[0].fields.itemId, "i1");
+  assert.equal(rows[0].fields.quantity, 0); // 0 on hand is a real level
+  assert.equal(rows[0].fields.price, null);
+  assert.equal(rows[0].fields.expiresAt, null);
+});
+
+test("validateStock: unknown item, bad quantity, bad price, bad date are errors", () => {
+  const r = validateStock(rowsOf(
+    { item: "Ghost", quantity: "5" },
+    { item: "Marlboro", quantity: "-1" },
+    { item: "Marlboro", quantity: "5", price: "free" },
+    { item: "Marlboro", quantity: "5", expiry: "soon" },
+  ), stockMap, stockCtx);
+  assert.deepEqual(r.rows.map((x) => x.status), ["error", "error", "error", "error"]);
+  assert.match(r.rows[0].messages.join(" "), /catalog/i);
+  assert.match(r.rows[2].messages.join(" "), /price/i);
+  assert.match(r.rows[3].messages.join(" "), /YYYY-MM-DD/);
+});
+
+test("validateStock: an in-file duplicate item keeps the first row and skips the later one", () => {
+  const { rows, summary } = validateStock(rowsOf(
+    { item: "Marlboro", quantity: "10" },
+    { item: "012345", quantity: "4" }, // same item by barcode
+  ), stockMap, stockCtx);
+  assert.equal(rows[0].status, "update");
+  assert.equal(rows[1].status, "skip");
+  assert.match(rows[1].messages.join(" "), /line 2/);
+  assert.deepEqual(summary, { create: 0, update: 1, skip: 1, error: 0 });
+});
+
+test("validateStock: inactive items don't match; missingRequired needs item + quantity", () => {
+  const ctx = { ...stockCtx, items: [{ ...stockCtx.items[0], active: false }] };
+  const { rows } = validateStock(rowsOf({ item: "Marlboro", quantity: "5" }), stockMap, ctx);
+  assert.equal(rows[0].status, "error");
+  assert.deepEqual(missingRequired({}, "stock"), ["item", "quantity"]);
+  assert.deepEqual(missingRequired({ item: "a", quantity: "b" }, "stock"), []);
 });

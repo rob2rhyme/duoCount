@@ -78,6 +78,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Localization — Phase 2b: Log, Time + auth error prose** (~245 new en/es keys, each screen complete: the **full Log screen** (search + AI-ask chrome, filters, over/short/balanced pills, variance-resolution panel and dispute flow via `vstatus.*`/`cause.*` vocabulary keys — selects *and* pills — verify row, thread chrome, empty states, every toast), the **full Time screen** (clock in/out card, hours-by-employee, payroll approval incl. `confirm()` prose, timesheet corrections, and the whole Schedule: swaps via `swapact.*`/`swaptoast.*` keyed to the `lib/swaps` action ids, templates, publish & notify, availability, roster, attendance), and the **Phase 1 carve-out closed** — login/signup routes send a stable `code` beside the unchanged English `error`, `fetchJson` propagates it (+ `network`/`network_drop`), `PinLogin` renders known codes via `autherr.*` with verbatim fallback for diagnostics. Deliberate carve-outs: permanent-record text (Log status comments + embedded English `causeLabel`) and CSV export headers stay English — shared record/export data, not per-device chrome. No schema/rules change) | `src/lib/i18n.js`, `LogList.js`, `TimeClock.js`, `Schedule.js`, `PinLogin.js`, `SessionProvider.js`, `src/lib/api.js`, `api/auth/*` | ✅ |
 | **Localization — Phase 2c: Dashboard, Admin + the whole app chrome** (the two structural screens plus everything around them, each landed complete: the **Dashboard** via a pattern-alert refactor — detectors in `patterns.js` now emit stable `code` + `params` and pre-render English through the shared catalog (`pattern-format.js`), so the fixed-English digest and the PII redactor stay byte-identical while the Dashboard re-renders alerts in the reader's locale (stat tiles, patterns card + AI insight, pack-audit prose with locale dates/plurals, needs-attention, charts, tables); the **Admin tab** as one unit — `import-parse.js` validation messages moved to codes+params (`import-msg.js`) with byte-identical English so its tests never changed, plus the full `AdminPanel` and `ImportCard`; and the **app chrome** — header/footer, the keyboard-shortcuts help sheet, PreferencesMenu, BarcodeScanner (camera errors as codes translated at render), ScrollTopFab. Also: **Dashboard is now the first tab and the default landing page**) | `src/lib/pattern-format.js`, `src/lib/import-msg.js`, `patterns.js`, `import-parse.js`, `Dashboard.js`, `AdminPanel.js`, `ImportCard.js`, `AppShell.js`, `PreferencesMenu.js`, `BarcodeScanner.js`, `ScrollTopFab.js` | ✅ |
 | **Scratch scan → per-shift auto-populate** (scanning a ticket splits the barcode into a stable pack id + current ticket # via the pure, unit-tested `scratch-barcode.js`; the scan fills game, price, chained start # and the current end reading for both opening and closing counts — a new pack seeds a clean sold-0 baseline; every entry already carries `ts` + `shift`, so each scan is a time-stamped position the pack audit chains across shift boundaries) | `src/lib/scratch-barcode.js`, `tests/scratch-barcode.test.mjs`, `ScratchForm.js` | ✅ |
+| **POS stock sync — Phase 1 (CSV) + expiry/low-stock alerts** (pos-inventory-sync-spec.md Phase 1: the owner-only **"Stock levels"** import type refreshes existing items' synced `quantity` / `price` / `expiresAt` from any POS export — update-only, item-resolution by name/barcode + location, re-running refreshes `quantitySyncedAt`; pure, unit-tested `validateStock`. `vendor.stockAlerts` owner settings (clamped: "Expiring soon" ≤ 30 days, "Need order" < 5 units) in Admin; the pure, unit-tested `stock-alerts.js` feeds a manager-only Dashboard **Stock attention** card (expired-first, en/es) and a digest email section. One-key rules change (`stockAlerts` on the vendor doc) — **emulator check pending**. The signed shift count is untouched) | `src/lib/stock-alerts.js`, `import-parse.js`, `api/import/route.js`, `ImportCard.js`, `AdminPanel.js`, `Dashboard.js`, `digest.js`, `firestore.rules`, `tests/stock-alerts.test.mjs` | ✅ |
 
 ## Next up
 
@@ -382,14 +383,15 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
   loss-prevention story at a fraction of push's complexity. First two feed
   types are already spec'd: the stock expiry/low-stock alerts below.
 - **POS-synced live inventory + expiry/low-stock alerts** —
-  `pos-inventory-sync-spec.md` — **spec'd July 2026, research only, nothing
-  built.** Owner direction: whole-store **per-shift** counting is out; the full
-  catalog (count, price, expiry) syncs from the store's existing POS
-  (CSV-first, then Square/Clover APIs, then petro NAXML file drops), with
-  owner-only adjustable alerts — "Expiring soon" (default ≤ 30 days) and
-  "Need order" (default < 5 units). The signed per-shift count stays for the
-  high-shrink watch list only; the synced quantity doubles as a
-  tamper-resistant expected baseline for it.
+  `pos-inventory-sync-spec.md` — **Phase 1 ✅ shipped July 2026** (CSV stock
+  sync + `vendor.stockAlerts` + Dashboard Stock-attention card + digest
+  section; see Shipped). Owner direction: whole-store **per-shift** counting
+  is out; the full catalog (count, price, expiry) syncs from the store's
+  existing POS — CSV-first (done), then Square/Clover APIs, then petro NAXML
+  file drops — with owner-only adjustable alerts: "Expiring soon" (default
+  ≤ 30 days) and "Need order" (default < 5 units). The signed per-shift count
+  stays for the high-shrink watch list only; the synced quantity doubles as a
+  tamper-resistant expected baseline for it. Phases 2–3 remain research.
 - **Customer rewards** — `rewards-program-spec.md` — **spec'd July 2026,
   research only, nothing built.** Owner defaults: $1 = 1 point,
   100 points = $5 off, owner-only adjustable in Reward settings (off by

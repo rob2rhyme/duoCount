@@ -240,7 +240,7 @@ export default function AppShell() {
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
-            onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
+            items={items} onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
         )}
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />

@@ -3,6 +3,7 @@
 // sends it via the Resend HTTP API — no email SDK needed.
 
 import { detectPatterns, resolvePatternRules } from "./patterns";
+import { buildStockAlerts } from "./stock-alerts";
 import { isUnresolved } from "./utils";
 import { aiNarrativeEnabled, generateNarrative } from "./digest-narrative";
 
@@ -87,6 +88,14 @@ function composeEmail(vendor, dateStr, s, appUrl, narrative = null) {
       `Patterns (last ${windowDays} days — signals, not conclusions):`,
       ...s.patterns.map((p) => `  [${p.severity === "high" ? "HIGH" : "watch"}] ${p.title} — ${p.detail}`),
     ] : []),
+    ...(s.stock && (s.stock.expiring.length || s.stock.lowStock.length) ? [
+      "",
+      `Stock attention (expiring ≤ ${s.stock.rules.expiryDays}d, fewer than ${s.stock.rules.lowStockUnits} left):`,
+      ...s.stock.expiring.map(({ item, daysLeft }) =>
+        `  [expiring] ${item.name} — ${daysLeft < 0 ? `expired ${item.expiresAt}` : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left (${item.expiresAt})`}`),
+      ...s.stock.lowStock.map(({ item, quantity }) =>
+        `  [reorder] ${item.name} — ${quantity} ${item.unit || "unit"}${quantity === 1 ? "" : "s"} left`),
+    ] : []),
     "",
     appUrl ? `Review in DuoCount: ${appUrl}` : "",
   ].join("\n");
@@ -141,6 +150,20 @@ function composeEmail(vendor, dateStr, s, appUrl, narrative = null) {
       <p style="margin:0 0 4px;font-size:14px">
         <b style="color:${p.severity === "high" ? "#b03a3a" : "#8a6d2f"}">${p.severity === "high" ? "HIGH" : "Watch"}</b>
         — ${esc(p.title)} <span style="color:#666">${esc(p.detail)}</span>
+      </p>`).join("")}
+    </div>` : ""}
+    ${s.stock && (s.stock.expiring.length || s.stock.lowStock.length) ? `
+    <div style="margin-top:10px;padding:10px 12px;background:#faf8f2;border:1px solid #e6e2d8;border-radius:8px">
+      <p style="margin:0 0 6px;font-size:13px;color:#666">Stock attention — expiring within ${s.stock.rules.expiryDays} days, or fewer than ${s.stock.rules.lowStockUnits} left:</p>
+      ${s.stock.expiring.map(({ item, daysLeft }) => `
+      <p style="margin:0 0 4px;font-size:14px">
+        <b style="color:${daysLeft < 0 ? "#b03a3a" : "#8a6d2f"}">Expiring</b>
+        — ${esc(item.name)} <span style="color:#666">${daysLeft < 0 ? `expired ${esc(item.expiresAt)}` : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left (${esc(item.expiresAt)})`}</span>
+      </p>`).join("")}
+      ${s.stock.lowStock.map(({ item, quantity }) => `
+      <p style="margin:0 0 4px;font-size:14px">
+        <b style="color:${quantity === 0 ? "#b03a3a" : "#8a6d2f"}">Reorder</b>
+        — ${esc(item.name)} <span style="color:#666">${quantity} ${esc(item.unit || "unit")}${quantity === 1 ? "" : "s"} left</span>
       </p>`).join("")}
     </div>` : ""}
     ${appUrl ? `<p style="font-size:13px"><a href="${esc(appUrl)}">Review in DuoCount →</a></p>` : ""}
@@ -201,6 +224,15 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   summary.patterns = detectPatterns(windowEntries, { now, rules });
   summary.windowDays = rules.windowDays;
   summary.openIncidents = incidentsSnap.size;
+
+  // Stock attention (pos-inventory-sync-spec.md Phase 1): expiring-soon +
+  // need-order lists over the item catalog's synced fields. One extra read per
+  // vendor per send; items without synced data produce empty lists and no block.
+  const itemsSnap = await vendorRef.collection("items").get();
+  summary.stock = buildStockAlerts(
+    itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    { now, rules: vendor.stockAlerts },
+  );
 
   // Optional AI narrative (ai-features-spec.md). Off by default and additive:
   // stays null when the vendor hasn't opted in, no key is configured, or the
