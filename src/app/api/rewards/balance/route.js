@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp } from "@/lib/login-throttle";
-import { resolveRewards, canRedeem, normalizePhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, canRedeem, normalizePhone } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -47,9 +47,13 @@ export async function POST(req) {
     if (cSnap.empty) return err(404, "not_enrolled", "That number isn't enrolled at this store yet — join at the register.");
 
     const points = cSnap.docs[0].data().pointsBalance || 0;
+    // The public progress shape tracks the CHEAPEST reward — for a store with
+    // no tiers that is exactly the legacy redeemPoints/redeemValue.
+    const cheapest = rewardTiers(vendorDoc.data()?.rewards)[0];
     return NextResponse.json({
       ok: true, points,
-      goal: rules.redeemPoints, value: rules.redeemValue,
+      goal: cheapest.points, value: tierDollarValue(cheapest),
+      reward: cheapest.name || null,
       ready: canRedeem(points, rules),
     });
   } catch (e) {

@@ -9,7 +9,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
-import { REWARDS, MAX_TIERS, resolveRewards, effectivePercent } from "@/lib/rewards";
+import { REWARDS, MAX_TIERS, TIER_TYPES, resolveRewards, effectivePercent } from "@/lib/rewards";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
@@ -129,11 +129,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       const id = (globalThis.crypto?.randomUUID?.() || `t${tiers.length}-${settings.name || "x"}`);
       return { ...s, rewards: { ...s.rewards, tiers: [...tiers, { id, name: "", points: "", value: "" }] } };
     });
-  const setTier = (i, k) => (e) =>
+  const patchTier = (i, patch) =>
     setSettings((s) => ({
       ...s,
-      rewards: { ...s.rewards, tiers: (s.rewards.tiers || []).map((tt, j) => (j === i ? { ...tt, [k]: e.target.value } : tt)) },
+      rewards: { ...s.rewards, tiers: (s.rewards.tiers || []).map((tt, j) => (j === i ? { ...tt, ...patch } : tt)) },
     }));
+  const setTier = (i, k) => (e) => patchTier(i, { [k]: e.target.value });
   const removeTier = (i) =>
     setSettings((s) => ({ ...s, rewards: { ...s.rewards, tiers: (s.rewards.tiers || []).filter((_, j) => j !== i) } }));
   const [testing, setTesting] = useState(false);
@@ -589,19 +590,42 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             <div className="border-t border-line pt-3 space-y-2.5">
               <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("admin.rw_tiers_title")}</div>
               <p className="text-xs text-muted leading-relaxed">{t("admin.rw_tiers_hint")}</p>
-              {rewardTierRows.length > 0 && (
-                <div className="grid grid-cols-[1fr_4.5rem_5rem_auto] gap-2 items-center text-[11px] uppercase tracking-wide text-muted font-semibold">
-                  <span>{t("admin.rw_tier_name")}</span><span>{t("admin.rw_tier_points")}</span><span>{t("admin.rw_tier_value")}</span><span />
-                </div>
-              )}
-              {rewardTierRows.map((tier, i) => (
-                <div key={tier.id || i} className="grid grid-cols-[1fr_4.5rem_5rem_auto] gap-2 items-center">
-                  <input className="input" placeholder={t("admin.rw_tier_name_ph")} value={tier.name ?? ""} disabled={!isOwner} onChange={setTier(i, "name")} />
-                  <input className="input" type="number" inputMode="numeric" min="10" step="1" placeholder="100" value={tier.points ?? ""} disabled={!isOwner} onChange={setTier(i, "points")} />
-                  <input className="input" type="number" inputMode="decimal" min="0" step="0.5" placeholder="5" value={tier.value ?? ""} disabled={!isOwner} onChange={setTier(i, "value")} />
-                  <button type="button" className="btn-ghost px-2.5 text-[13px]" disabled={!isOwner} onClick={() => removeTier(i)} aria-label={t("admin.rw_tier_remove")}><span aria-hidden="true">✕</span></button>
-                </div>
-              ))}
+              {rewardTierRows.map((tier, i) => {
+                const type = TIER_TYPES.includes(tier.type) ? tier.type : "cash";
+                return (
+                  <div key={tier.id || i} className="border border-line rounded-lg p-2.5 space-y-2">
+                    <div className="grid grid-cols-[1fr_4.5rem_auto] gap-2 items-center">
+                      <input className="input" placeholder={t("admin.rw_tier_name_ph")} value={tier.name ?? ""} disabled={!isOwner} onChange={setTier(i, "name")} aria-label={t("admin.rw_tier_name")} />
+                      <input className="input" type="number" inputMode="numeric" min="10" step="1" placeholder="100" value={tier.points ?? ""} disabled={!isOwner} onChange={setTier(i, "points")} aria-label={t("admin.rw_tier_points")} />
+                      <button type="button" className="btn-ghost px-2.5 text-[13px]" disabled={!isOwner} onClick={() => removeTier(i)} aria-label={t("admin.rw_tier_remove")}><span aria-hidden="true">✕</span></button>
+                    </div>
+                    <div className="grid grid-cols-[8rem_1fr] gap-2 items-center">
+                      <select className="input" value={type} disabled={!isOwner} onChange={setTier(i, "type")} aria-label={t("admin.rw_tier_type")}>
+                        {TIER_TYPES.map((tt) => <option key={tt} value={tt}>{t(`admin.rw_type_${tt}`)}</option>)}
+                      </select>
+                      {type === "cash" && (
+                        <input className="input" type="number" inputMode="decimal" min="0" step="0.5" placeholder="5" value={tier.value ?? ""} disabled={!isOwner} onChange={setTier(i, "value")} aria-label={t("admin.rw_tier_value")} />
+                      )}
+                      {type === "percent" && (
+                        <div className="flex gap-2 min-w-0">
+                          <input className="input min-w-0" type="number" inputMode="numeric" min="1" max="100" step="1" placeholder="10" value={tier.percent ?? ""} disabled={!isOwner} onChange={setTier(i, "percent")} aria-label={t("admin.rw_tier_percent")} />
+                          <input className="input min-w-0" type="number" inputMode="decimal" min="0.5" step="0.5" placeholder={t("admin.rw_tier_cap_ph")} value={tier.cap ?? ""} disabled={!isOwner} onChange={setTier(i, "cap")} aria-label={t("admin.rw_tier_cap")} title={t("admin.rw_tier_cap")} />
+                        </div>
+                      )}
+                      {type === "item" && (
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input className="input min-w-0 w-24" type="number" inputMode="decimal" min="0" step="0.5" placeholder="3" value={tier.value ?? ""} disabled={!isOwner} onChange={setTier(i, "value")} aria-label={t("admin.rw_tier_value")} title={t("admin.rw_tier_value")} />
+                          <label className="flex items-center gap-1.5 text-[12px] text-muted cursor-pointer whitespace-nowrap">
+                            <input type="checkbox" checked={tier.withPurchase === true} disabled={!isOwner}
+                              onChange={(e) => patchTier(i, { withPurchase: e.target.checked })} />
+                            {t("admin.rw_tier_withpurchase")}
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
               {isOwner && rewardTierRows.length < MAX_TIERS && (
                 <button type="button" className="btn-ghost text-[13px] px-3 py-1.5" onClick={addTier}>+ {t("admin.rw_tier_add")}</button>
               )}

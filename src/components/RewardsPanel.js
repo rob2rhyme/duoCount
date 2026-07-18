@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { apiRewards } from "@/lib/data";
 import { money } from "@/lib/utils";
-import { resolveRewards, rewardTiers, canRedeem, canRedeemTier, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, canRedeem, canRedeemTier, normalizePhone, maskPhone } from "@/lib/rewards";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
@@ -105,9 +105,15 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   const redeem = (tier) =>
     run("redeem", { action: "redeem", phone, tierId: tier.id }, (r) => {
       setCustomer((c) => ({ ...c, pointsBalance: r.balance }));
-      onToast?.(r.reward
-        ? t("rw.toast_redeemed_named", { reward: r.reward, value: money(r.value) })
-        : t("rw.toast_redeemed", { value: money(r.value) }));
+      // The toast tells the clerk exactly what to hand over, per grant type.
+      const msg = r.rewardType === "percent"
+        ? t("rw.toast_redeemed_pct", { reward: r.reward, p: r.percent, cap: money(r.cap) })
+        : r.rewardType === "item"
+          ? t("rw.toast_redeemed_item", { reward: r.reward })
+          : r.reward
+            ? t("rw.toast_redeemed_named", { reward: r.reward, value: money(r.value) })
+            : t("rw.toast_redeemed", { value: money(r.value) });
+      onToast?.(msg);
     });
 
   if (!rules.enabled) {
@@ -177,8 +183,12 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                   </div>
                   <p className="text-[12px] text-muted mt-1.5">
                     {canRedeem(balance, rules)
-                      ? t("rw.ready", { value: money(tiers[0].value) })
-                      : t("rw.progress", { n: balance, goal, value: money(tiers[0].value), left: goal - balance })}
+                      ? (tiers[0].name
+                        ? t("rw.ready_named", { name: tiers[0].name })
+                        : t("rw.ready", { value: money(tierDollarValue(tiers[0])) }))
+                      : (tiers[0].name
+                        ? t("rw.progress_named", { n: balance, goal, name: tiers[0].name, left: goal - balance })
+                        : t("rw.progress", { n: balance, goal, value: money(tierDollarValue(tiers[0])), left: goal - balance }))}
                   </p>
                 </div>
 
@@ -202,13 +212,21 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                   <div className="grid grid-cols-2 gap-2">
                     {tiers.map((tier) => {
                       const ok = canRedeemTier(balance, tier);
+                      // Per-type grant line: cash/item show the $, percent its
+                      // % and cap — what the clerk actually hands over.
+                      const grant = tier.type === "percent"
+                        ? t("rw.tier_pct", { p: tier.percent, cap: money(tier.cap) })
+                        : tierDollarValue(tier) > 0 ? money(tierDollarValue(tier)) : "";
                       return (
                         <button key={tier.id} type="button" disabled={!!busy || !ok} onClick={() => redeem(tier)}
                           className={`rounded-xl border p-3 text-left transition ${ok ? "border-brass bg-brass/10 hover:bg-brass/20" : "border-line bg-panel opacity-60"}`}>
-                          <div className="font-semibold text-[13px] truncate">{tier.name || t("rw.reward_default", { value: money(tier.value) })}</div>
+                          <div className="font-semibold text-[13px] truncate">{tier.name || t("rw.reward_default", { value: money(tierDollarValue(tier)) })}</div>
                           <div className="text-[12px] text-muted mt-0.5">
-                            {t("rw.tier_cost", { n: tier.points })}{tier.value > 0 ? ` · ${money(tier.value)}` : ""}
+                            {t("rw.tier_cost", { n: tier.points })}{grant ? ` · ${grant}` : ""}
                           </div>
+                          {tier.type === "item" && tier.withPurchase && (
+                            <div className="text-[11px] text-muted mt-0.5">{t("rw.tier_wp")}</div>
+                          )}
                           {!ok && <div className="text-[11px] text-muted mt-1">{t("rw.tier_need", { n: tier.points - balance })}</div>}
                         </button>
                       );

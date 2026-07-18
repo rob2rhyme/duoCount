@@ -21,6 +21,15 @@ export const REWARDS = {
 // At most this many named tiers — a c-store reward menu, not a catalog.
 export const MAX_TIERS = 8;
 
+// What a reward tier grants (loyalty-plan-review.md, port slice 1):
+//   cash    — a flat $ off (the original model);
+//   percent — a % off the sale, ALWAYS with a $ cap (uncapped % liability is
+//             unbounded, so a percent tier without a cap is dropped);
+//   item    — a named free item (value = its retail $, for the liability
+//             figure), optionally requiring a purchase (withPurchase — the
+//             plan's freebie_with_purchase).
+export const TIER_TYPES = ["cash", "percent", "item"];
+
 const BOUNDS = {
   earnPerDollar: [0.1, 100],
   redeemPoints: [10, 100000],
@@ -28,6 +37,7 @@ const BOUNDS = {
 };
 const TIER_POINTS = [10, 100000];
 const TIER_VALUE = [0, 1000];
+const TIER_PERCENT = [1, 100];
 
 // A clamped number, or NaN when the input isn't a usable number.
 function clampNum(v, lo, hi, whole) {
@@ -37,16 +47,34 @@ function clampNum(v, lo, hi, whole) {
   return whole ? Math.round(c) : Math.round(c * 100) / 100;
 }
 
-// One reward tier → { id, name, points, value }, or null if unusable. Same
-// clamp-and-drop discipline as the scalar knobs: a nameless or non-numeric-
-// points tier is dropped rather than allowed to break the reward menu.
+// One reward tier → a typed grant, or null if unusable. Same clamp-and-drop
+// discipline as the scalar knobs: a nameless, non-numeric-points, or
+// uncapped-percent tier is dropped rather than allowed to break the menu.
+// A tier without a type is the original cash-off shape (backward compatible).
 function resolveTier(raw, i) {
   if (!raw || typeof raw !== "object") return null;
   const name = String(raw.name ?? "").trim().slice(0, 60);
   const points = clampNum(raw.points, TIER_POINTS[0], TIER_POINTS[1], true);
-  const value = clampNum(raw.value, TIER_VALUE[0], TIER_VALUE[1], false);
   if (!name || !Number.isFinite(points)) return null;
-  return { id: String(raw.id ?? "").trim() || `t${i}`, name, points, value: Number.isFinite(value) ? value : 0 };
+  const id = String(raw.id ?? "").trim() || `t${i}`;
+  const type = TIER_TYPES.includes(raw.type) ? raw.type : "cash";
+  if (type === "percent") {
+    const percent = clampNum(raw.percent, TIER_PERCENT[0], TIER_PERCENT[1], true);
+    const cap = clampNum(raw.cap, TIER_VALUE[0], TIER_VALUE[1], false);
+    if (!Number.isFinite(percent) || !Number.isFinite(cap) || cap <= 0) return null;
+    return { id, name, points, type, percent, cap };
+  }
+  const value = clampNum(raw.value, TIER_VALUE[0], TIER_VALUE[1], false);
+  const v = Number.isFinite(value) ? value : 0;
+  if (type === "item") return { id, name, points, type, value: v, withPurchase: raw.withPurchase === true };
+  return { id, name, points, type: "cash", value: v };
+}
+
+// The worst-case $ a tier can cost when redeemed — cash/item: the configured
+// value; percent: its cap. Drives the liability figure and the % -back caution.
+export function tierDollarValue(tier) {
+  if (!tier) return 0;
+  return tier.type === "percent" ? tier.cap : (Number(tier.value) || 0);
 }
 
 export function resolveRewards(raw = {}) {
@@ -66,13 +94,13 @@ export function resolveRewards(raw = {}) {
 export function rewardTiers(rules) {
   const r = resolveRewards(rules);
   if (r.tiers.length) return r.tiers;
-  return [{ id: "default", name: "", points: r.redeemPoints, value: r.redeemValue }];
+  return [{ id: "default", name: "", points: r.redeemPoints, type: "cash", value: r.redeemValue }];
 }
 
 // The dollars-per-point of the MOST generous reward — the worst-case giveback,
 // so the settings caution and the liability estimate never understate exposure.
 function bestRate(rules) {
-  return Math.max(...rewardTiers(rules).map((t) => (t.points > 0 ? t.value / t.points : 0)));
+  return Math.max(...rewardTiers(rules).map((t) => (t.points > 0 ? tierDollarValue(t) / t.points : 0)));
 }
 
 // The giveback rate the settings card must surface (rewards-program-spec.md):
