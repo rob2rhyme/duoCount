@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, vipTierFor,
+  REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak,
   effectivePercent, pointsForSale, canRedeem, canRedeemTier, pointDollarValue,
   normalizePhone, maskPhone,
 } from "../src/lib/rewards.js";
@@ -10,7 +10,8 @@ import {
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
   assert.deepEqual(resolveRewards(), {
     enabled: false, earnPerDollar: REWARDS.earnPerDollar,
-    redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue, tiers: [], vip: [],
+    redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue,
+    streakHours: REWARDS.streakHours, tiers: [], vip: [],
   });
   assert.equal(resolveRewards({}).enabled, false);
   assert.equal(resolveRewards({ enabled: true }).enabled, true);
@@ -201,4 +202,38 @@ test("vipTierFor: highest crossed bar wins; below every bar (or none) → null",
 test("effectivePercent: worst case includes the highest VIP multiplier", () => {
   // base 5% at defaults; a ×2 Gold tier doubles the worst-case giveback
   assert.equal(effectivePercent({ vip: [{ id: "g", name: "Gold", threshold: 1000, multiplier: 2 }] }), 10);
+});
+
+/* ------------------------------ visit streaks ------------------------------ */
+
+const at = (s) => new Date(s);
+
+test("nextStreak: no history (or junk / future lastEarnAt) starts at 1", () => {
+  assert.equal(nextStreak({}, at("2026-07-18T12:00:00Z")), 1);
+  assert.equal(nextStreak({ lastEarnAt: "not a date", currentStreak: 4 }, at("2026-07-18T12:00:00Z")), 1);
+  assert.equal(nextStreak({ lastEarnAt: "2026-07-19T12:00:00Z", currentStreak: 4 }, at("2026-07-18T12:00:00Z")), 1);
+});
+
+test("nextStreak: several earns the same day are ONE visit — streak unchanged", () => {
+  const c = { lastEarnAt: "2026-07-18T09:00:00Z", currentStreak: 3 };
+  assert.equal(nextStreak(c, at("2026-07-18T20:00:00Z")), 3);
+  // a same-day earn on a legacy doc with no streak yet still reads as 1
+  assert.equal(nextStreak({ lastEarnAt: "2026-07-18T09:00:00Z" }, at("2026-07-18T20:00:00Z")), 1);
+});
+
+test("nextStreak: a new day within the window extends; past the window resets", () => {
+  const c = { lastEarnAt: "2026-07-17T20:00:00Z", currentStreak: 3 };
+  assert.equal(nextStreak(c, at("2026-07-18T10:00:00Z")), 4);  // 14h later, new day
+  assert.equal(nextStreak(c, at("2026-07-19T21:00:00Z")), 1);  // 49h later — reset
+  // custom window: 24h kills the 30h gap that 48h would have kept alive
+  assert.equal(nextStreak(c, at("2026-07-19T02:00:00Z"), { streakHours: 24 }), 1);
+  assert.equal(nextStreak(c, at("2026-07-19T02:00:00Z"), { streakHours: 48 }), 4);
+});
+
+test("resolveRewards.streakHours: whole hours, clamped, defaulting to 48", () => {
+  assert.equal(resolveRewards().streakHours, 48);
+  assert.equal(resolveRewards({ streakHours: 1 }).streakHours, 12);    // clamped up
+  assert.equal(resolveRewards({ streakHours: 500 }).streakHours, 168); // clamped down
+  assert.equal(resolveRewards({ streakHours: "72" }).streakHours, 72);
+  assert.equal(resolveRewards({ streakHours: "junk" }).streakHours, 48);
 });

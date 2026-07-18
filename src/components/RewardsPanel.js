@@ -86,6 +86,7 @@ export default function RewardsPanel({ onToast, customers = [] }) {
     setCustomer({
       id: c.id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
       lifetimePoints: lifetime, vipTier: vipTierFor(lifetime, vendor?.rewards)?.name || null,
+      currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
     });
     setEnrollPhone(null); setName(""); setSale(""); setError("");
   }
@@ -103,7 +104,11 @@ export default function RewardsPanel({ onToast, customers = [] }) {
     });
   const earn = () =>
     run("earn", { action: "earn", phone, saleDollars: Number(sale) }, (r) => {
-      setCustomer((c) => ({ ...c, pointsBalance: r.balance }));
+      setCustomer((c) => ({
+        ...c, pointsBalance: r.balance,
+        currentStreak: r.streak ?? c.currentStreak,
+        longestStreak: Math.max(Number(c.longestStreak) || 0, r.streak || 0),
+      }));
       setSale("");
       onToast?.(r.multiplier > 1
         ? t("rw.toast_earned_vip", { n: r.earned, b: r.balance, m: r.multiplier, tier: r.vipTier })
@@ -179,6 +184,11 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                       <span className="truncate">{customer.name || t("rw.customer_fallback")}</span>
                       {customer.vipTier && (
                         <span className="flex-shrink-0 text-[10px] uppercase tracking-wide font-bold text-brass border border-brass/50 rounded px-1.5 py-0.5">{customer.vipTier}</span>
+                      )}
+                      {customer.currentStreak >= 2 && (
+                        <span className="flex-shrink-0 text-[11px] font-semibold text-muted" title={t("rw.streak_chip", { n: customer.currentStreak })} aria-label={t("rw.streak_chip", { n: customer.currentStreak })}>
+                          🔥{customer.currentStreak}
+                        </span>
                       )}
                     </div>
                     <div className="text-[12px] text-muted font-mono">{customer.phone}</div>

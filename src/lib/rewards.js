@@ -15,6 +15,7 @@ export const REWARDS = {
   earnPerDollar: 1,  // points per $1 of qualifying sale
   redeemPoints: 100, // points needed for one reward (the base/legacy reward)
   redeemValue: 5,    // dollars off per redemption (the base/legacy reward)
+  streakHours: 48,   // a next-day visit within this window extends the streak
   tiers: [],         // optional named reward tiers; empty → the single reward above
 };
 
@@ -42,6 +43,7 @@ const BOUNDS = {
   earnPerDollar: [0.1, 100],
   redeemPoints: [10, 100000],
   redeemValue: [0.5, 1000],
+  streakHours: [12, 168], // how long a streak survives between visits
 };
 const TIER_POINTS = [10, 100000];
 const TIER_VALUE = [0, 1000];
@@ -103,7 +105,7 @@ function resolveVipTier(raw, i) {
 export function resolveRewards(raw = {}) {
   const out = { enabled: raw?.enabled === true };
   for (const [key, [lo, hi]] of Object.entries(BOUNDS)) {
-    const n = clampNum(raw?.[key], lo, hi, key === "redeemPoints");
+    const n = clampNum(raw?.[key], lo, hi, key === "redeemPoints" || key === "streakHours");
     out[key] = Number.isFinite(n) ? n : REWARDS[key];
   }
   const rawTiers = Array.isArray(raw?.tiers) ? raw.tiers.slice(0, MAX_TIERS) : [];
@@ -111,6 +113,23 @@ export function resolveRewards(raw = {}) {
   const rawVip = Array.isArray(raw?.vip) ? raw.vip.slice(0, MAX_VIP_TIERS) : [];
   out.vip = rawVip.map(resolveVipTier).filter(Boolean).sort((a, b) => a.threshold - b.threshold);
   return out;
+}
+
+// Visit streaks (loyalty-plan-review.md, port slice 3): consecutive visit-DAYS.
+// Given the customer's last earn + current streak, the streak after a visit at
+// `now` is: same (UTC) day → unchanged (multiple earns in one day are one
+// visit); a new day within `streakHours` of the last visit → +1; anything
+// later (or no history / junk state) → back to 1. Pure — the server route
+// applies it inside the earn transaction; the UI only displays it.
+export function nextStreak(c = {}, now = new Date(), rules) {
+  const r = resolveRewards(rules);
+  const raw = c.lastEarnAt;
+  const last = raw?.toDate ? raw.toDate() : (raw ? new Date(raw) : null);
+  const cur = Math.max(0, Math.trunc(Number(c.currentStreak) || 0));
+  if (!last || Number.isNaN(last.getTime()) || last > now) return 1;
+  if (last.toISOString().slice(0, 10) === now.toISOString().slice(0, 10)) return Math.max(1, cur);
+  const hours = (now.getTime() - last.getTime()) / 3600000;
+  return hours <= r.streakHours ? Math.max(1, cur) + 1 : 1;
 }
 
 // The customer's current VIP status: the highest tier whose lifetime-points

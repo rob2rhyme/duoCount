@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
-import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -31,6 +31,7 @@ const lifetimeOf = (c) => Math.max(Number(c.lifetimePoints) || 0, Number(c.point
 const publicCustomer = (id, c, rules) => ({
   id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
   lifetimePoints: lifetimeOf(c), vipTier: vipTierFor(lifetimeOf(c), rules)?.name || null,
+  currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
 });
 
 export async function POST(req) {
@@ -96,13 +97,19 @@ export async function POST(req) {
         if (kind === "redeem" && balance < minBalance)
           throw Object.assign(new Error("Not enough points to redeem."), { status: 409, code: "insufficient_points" });
         tx.set(events.doc(), signedEvent(kind, pts, extra));
+        // Streak advances on visits (earns) only, computed from the PRE-earn
+        // lastEarnAt inside this transaction; longest is a high-water mark.
+        const streak = kind === "earn" ? nextStreak(c, new Date(), rules) : null;
         tx.update(customerRef, {
           pointsBalance: balance + pts,
           // Lifetime points are MONOTONIC: they grow with earns and are never
           // reduced by redeem/adjust — that's what makes VIP status durable.
-          ...(kind === "earn" ? { lastEarnAt: new Date(), lifetimePoints: lifetimeOf(c) + pts } : {}),
+          ...(kind === "earn" ? {
+            lastEarnAt: new Date(), lifetimePoints: lifetimeOf(c) + pts,
+            currentStreak: streak, longestStreak: Math.max(Number(c.longestStreak) || 0, streak),
+          } : {}),
         });
-        return { balance: balance + pts, pts, extra };
+        return { balance: balance + pts, pts, extra, streak };
       });
 
     if (action === "earn") {
@@ -127,6 +134,7 @@ export async function POST(req) {
       return NextResponse.json({
         ok: true, rules, earned: r.pts, balance: r.balance,
         vipTier: r.extra.vipTier || null, multiplier: r.extra.multiplier || 1,
+        streak: r.streak,
       });
     }
 
