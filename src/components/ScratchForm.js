@@ -167,15 +167,19 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
             </select></Field>
         </div>
         <div className="grid grid-cols-2 gap-3.5">
-          <Field label={t("scratch.game")}>
-            <input className="input" value={f.game} onChange={onGame} placeholder="Lucky 7s"
-              list={knownGames.length ? gameListId : undefined} autoComplete="off" />
+          {/* datalist is a SIBLING, not a second child of Field — Field clones a
+              single element child, so a second child would crash the tab. */}
+          <div>
+            <Field label={t("scratch.game")}>
+              <input className="input" value={f.game} onChange={onGame} placeholder="Lucky 7s"
+                list={knownGames.length ? gameListId : undefined} autoComplete="off" />
+            </Field>
             {knownGames.length > 0 && (
               <datalist id={gameListId}>
                 {knownGames.map((g) => <option key={g.game} value={g.game} />)}
               </datalist>
             )}
-          </Field>
+          </div>
           <div><label htmlFor={packId} className="label">{t("scratch.pack_no")}</label>
             <div className="flex gap-2">
               <input id={packId} className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
