@@ -80,8 +80,8 @@ Open **Admin** and add the pieces your team will pick from when they count:
 > **Switching from a spreadsheet?** Owners get an **Import / migrate** card in
 > **Admin** that brings in your **tracked items**, your **staff roster**, your
 > **opening shelf counts**, your **stock levels** (on-hand quantity, price,
-> and expiry date — exported from your POS), or your **rewards customers** (one
-> phone number per line) from a **CSV** (from Excel, your old
+> and expiry date — exported from your POS), or your **rewards customers**
+> (phone, optional name and points balance) from a **CSV** (from Excel, your old
 > POS, a spreadsheet). Pick the type, upload the file, match your columns to DuoCount's
 > fields — it guesses most for you — and review a **row-by-row preview** before
 > anything is written. Re-running is safe: a record already in your store is
@@ -215,8 +215,11 @@ margins carry it.
   applied on your register.
 - **Adding customers:** one at a time right at the register — the phone number
   is the whole signup — or all at once: **Admin → Import / migrate → Rewards
-  customers** takes a CSV of one phone number per line (name optional), skips
-  anyone already enrolled, and never touches anyone's points. The Rewards tab
+  customers** takes a CSV of one phone number per line (name and points balance
+  optional) and skips anyone already enrolled. Moving in from another rewards
+  app? Map your export's points column and each **new** customer starts at their
+  old balance, recorded as a signed owner adjustment in the ledger — an already-
+  enrolled customer's points are never changed by an import. The Rewards tab
   itself walks staff through the flow with a numbered "How it works" card.
 - **Trustworthy by construction:** every earn and redemption is a **signed,
   permanent line** in the rewards ledger — nothing can be edited or deleted,

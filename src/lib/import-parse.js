@@ -57,6 +57,7 @@ const TARGETS = {
   customers: [
     { field: "phone", label: "Phone number", required: true, aliases: ["phone", "phonenumber", "mobile", "cell", "cellphone", "telephone", "number", "tel"] },
     { field: "name", label: "Name", required: false, aliases: ["name", "customer", "customername", "fullname", "firstname"] },
+    { field: "points", label: "Points balance", required: false, aliases: ["points", "pointsbalance", "balance", "pointbalance", "rewardpoints", "loyaltypoints", "pts", "credits", "stars"] },
   ],
   games: [
     { field: "game", label: "Game number", required: true, aliases: ["game", "gamenumber", "gameno", "gamenum", "number", "gamecode", "gm"] },
@@ -545,12 +546,15 @@ export function validateStock(rows = [], mapping = {}, ctx = {}) {
 /* --------------------------- validateCustomers --------------------------- */
 
 // Validate rewards-customer rows (rewards-program-spec.md — the bulk answer to
-// "how does an owner add customers?"): a phone number per line, name optional.
-// Phones normalize exactly like the register flow (digits only, US leading 1
-// dropped), so "(555) 123-4567" in the CSV and 5551234567 typed at the counter
-// are the same customer. Idempotent: an enrolled phone is skipped (or gets its
-// name filled in), never duplicated — and importing NEVER touches points.
+// "how does an owner add customers?"): a phone number per line, name and a
+// starting points balance optional (the migration path from another rewards
+// app). Phones normalize exactly like the register flow (digits only, US
+// leading 1 dropped), so "(555) 123-4567" in the CSV and 5551234567 typed at
+// the counter are the same customer. Idempotent: an enrolled phone is skipped
+// (or gets its name filled in), never duplicated — a points column seeds NEW
+// customers only; an enrolled customer's balance is never touched by import.
 // ctx: { existingCustomers }.
+const POINTS_MAX = 100000; // same bound as the owner adjust action
 export function validateCustomers(rows = [], mapping = {}, ctx = {}) {
   const existing = new Map((ctx.existingCustomers || [])
     .filter((c) => c && c.phone)
@@ -579,19 +583,35 @@ export function validateCustomers(rows = [], mapping = {}, ctx = {}) {
     fields.customerName = name || null;
     fields.name = name || phone;
 
+    // Starting balance (optional). Blank → 0; garbage errors the row even for
+    // an already-enrolled customer, so a malformed file is never half-trusted.
+    // Commas stripped ("1,250" from Excel), rounded to a whole point.
+    let pts = null;
+    if (mapping.points) {
+      const ptsRaw = String(get("points") ?? "").trim();
+      if (ptsRaw !== "") {
+        const n = Number(ptsRaw.replace(/,/g, ""));
+        if (!Number.isFinite(n) || n < 0 || n > POINTS_MAX) { push("error", [m("imp.msg.points_invalid", { points: ptsRaw })]); continue; }
+        pts = Math.round(n);
+      }
+    }
+    fields.points = pts;
+
     if (seenPhones.has(phone)) { push("skip", [m("imp.msg.dup_phone_line", { n: seenPhones.get(phone) })]); continue; }
     seenPhones.set(phone, row.line);
 
     const match = existing.get(phone);
     if (match) {
       fields.id = match.id;
-      // Fill in a missing/changed name; otherwise nothing to do.
+      // Fill in a missing/changed name; otherwise nothing to do. The points
+      // column NEVER applies here — an enrolled balance only moves through
+      // the register's signed earn/redeem/adjust flow.
       if (name && name !== (match.name || "")) { fields.newName = name; push("update", [m("imp.msg.customer_name_update")]); }
       else push("skip", [m("imp.msg.customer_exists")]);
       continue;
     }
 
-    push("create", []);
+    push("create", pts > 0 ? [m("imp.msg.points_start", { n: pts })] : []);
   }
 
   return { rows: reports, summary };
