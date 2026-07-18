@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
+import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, validateCustomers, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
 
 /* ------------------------------ parseCsv ------------------------------ */
 
@@ -417,4 +417,53 @@ test("validateStock: inactive items don't match; missingRequired needs item + qu
   assert.equal(rows[0].status, "error");
   assert.deepEqual(missingRequired({}, "stock"), ["item", "quantity"]);
   assert.deepEqual(missingRequired({ item: "a", quantity: "b" }, "stock"), []);
+});
+
+/* --------------------------- validateCustomers --------------------------- */
+
+const custCtx = { existingCustomers: [{ id: "c1", phone: "5551234567", name: "Alex" }, { id: "c2", phone: "5559990000", name: null }] };
+const custMap = { phone: "phone", name: "name" };
+
+test("validateCustomers: a clean row creates at 0 points; formats normalize to one customer", () => {
+  const { rows, summary } = validateCustomers(rowsOf({ phone: "(555) 777-8888", name: "Sam" }), custMap, custCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.phone, "5557778888");
+  assert.equal(rows[0].fields.customerName, "Sam");
+  assert.deepEqual(summary, { create: 1, update: 0, skip: 0, error: 0 });
+  // +1 US prefix collapses to the same number
+  const plus1 = validateCustomers(rowsOf({ phone: "+1 555 777 8888" }), custMap, custCtx);
+  assert.equal(plus1.rows[0].fields.phone, "5557778888");
+});
+
+test("validateCustomers: an enrolled phone is skipped — points never touched, never duplicated", () => {
+  const { rows } = validateCustomers(rowsOf({ phone: "555-123-4567", name: "Alex" }), custMap, custCtx);
+  assert.equal(rows[0].status, "skip");
+  assert.match(rows[0].messages.join(" "), /already enrolled/i);
+});
+
+test("validateCustomers: an enrolled phone with a NEW name becomes a name-only update", () => {
+  const { rows } = validateCustomers(rowsOf({ phone: "5559990000", name: "Brenda" }), custMap, custCtx);
+  assert.equal(rows[0].status, "update");
+  assert.equal(rows[0].fields.newName, "Brenda");
+  assert.equal(rows[0].fields.id, "c2");
+});
+
+test("validateCustomers: missing/invalid phones error; in-file duplicates skip", () => {
+  const { rows, summary } = validateCustomers(rowsOf(
+    { phone: "", name: "NoPhone" },
+    { phone: "12345" },
+    { phone: "5551112222" },
+    { phone: "+1 (555) 111-2222" }, // same number, different format
+  ), custMap, custCtx);
+  assert.deepEqual(rows.map((r) => r.status), ["error", "error", "create", "skip"]);
+  assert.match(rows[3].messages.join(" "), /line 4/);
+  assert.deepEqual(summary, { create: 1, update: 0, skip: 1, error: 2 });
+});
+
+test("validateCustomers: name-less rows preview as the number; missingRequired needs phone", () => {
+  const { rows } = validateCustomers(rowsOf({ phone: "5553334444" }), { phone: "phone" }, custCtx);
+  assert.equal(rows[0].fields.name, "5553334444"); // display fallback
+  assert.equal(rows[0].fields.customerName, null); // what commits
+  assert.deepEqual(missingRequired({}, "customers"), ["phone"]);
+  assert.deepEqual(missingRequired({ phone: "p" }, "customers"), []);
 });

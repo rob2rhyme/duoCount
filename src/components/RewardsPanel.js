@@ -79,6 +79,23 @@ export default function RewardsPanel({ onToast }) {
         <p className="text-[13px] text-muted mt-0.5">{t("rw.sub", { earn: rules.earnPerDollar, goal, value: money(rules.redeemValue) })}</p>
       </div>
       <div className="p-4 space-y-3.5">
+        {/* Beginner rail: the whole flow in four numbered lines, plus the
+            bulk-import pointer for managers. Collapses once a customer is on
+            screen so the working view stays clean. */}
+        {!customer && (
+          <div className="border border-line rounded-xl p-3.5 bg-panel">
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-2">{t("rw.how_title")}</div>
+            <ol className="space-y-1.5 text-[13px] text-muted list-none">
+              {[1, 2, 3, 4].map((n) => (
+                <li key={n} className="flex gap-2.5">
+                  <span className="flex-shrink-0 inline-flex items-center justify-center w-[18px] h-[18px] rounded-full bg-brass text-ink text-[11px] font-bold leading-none mt-0.5">{n}</span>
+                  <span>{t(`rw.how_${n}`)}</span>
+                </li>
+              ))}
+            </ol>
+            {isManager && <p className="text-xs text-muted mt-2.5 pt-2.5 border-t border-line leading-relaxed">{t("rw.bulk_hint")}</p>}
+          </div>
+        )}
         <Field label={t("rw.phone_label")}>
           <div className="flex gap-2">
             <input className="input font-mono min-w-0" inputMode="tel" value={phone} placeholder={t("rw.phone_ph")}
