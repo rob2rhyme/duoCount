@@ -254,7 +254,10 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
           <h2 className="font-semibold text-[15px]">Portfolio</h2>
           <span className="text-[11px] uppercase tracking-wide text-muted font-semibold">All {locations.length} stores</span>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        {/* On phones the ◀ label ▶ stepper can't share a half-column with the
+            Period select — the label wraps word-per-line. Stack to one column
+            below sm (the Reports modal already uses this full-width shape). */}
+        <div className="grid grid-cols-2 max-sm:grid-cols-1 gap-3">
           <Field label="Period">
             <select className="input" value={preset} onChange={(e) => setPreset(e.target.value)}>
               {PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
