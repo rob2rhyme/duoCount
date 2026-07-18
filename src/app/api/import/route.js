@@ -4,7 +4,7 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { requireOwner } from "@/lib/require-manager";
 import { hashPin, verifyPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
-import { validateItems, validateStaff, validateBaselines } from "@/lib/import-parse";
+import { validateItems, validateStaff, validateBaselines, validateStock } from "@/lib/import-parse";
 
 export const runtime = "nodejs";
 
@@ -134,6 +134,28 @@ async function commitStaff(adminDb, adminAuth, vendorRef, claims, report, mappin
   return { create: created, update: updated, skip: report.summary.skip, error: report.summary.error + extraErrors };
 }
 
+// Stock sync (pos-inventory-sync-spec.md Phase 1): refresh existing items'
+// synced stock fields — quantity (+ optionally price / expiry) — from a POS
+// export. Update-only: never creates an item, never touches the count log.
+// quantitySyncedAt records freshness; syncSource marks how the number arrived.
+async function commitStock(adminDb, vendorRef, report, mapping) {
+  const itemsCol = vendorRef.collection("items");
+  const writer = chunkedWriter(adminDb);
+  const syncedAt = new Date();
+  let updated = 0;
+  for (const r of report.rows) {
+    if (r.status !== "update" || !r.fields.itemId) continue;
+    const f = r.fields;
+    const patch = { quantity: f.quantity, quantitySyncedAt: syncedAt, syncSource: "csv" };
+    if (mapping.price && f.price !== null) patch.price = f.price;
+    if (mapping.expiry && f.expiresAt !== null) patch.expiresAt = f.expiresAt;
+    writer.set(itemsCol.doc(f.itemId), patch, { merge: true });
+    updated += 1;
+  }
+  await writer.done();
+  return { create: 0, update: updated, skip: report.summary.skip, error: report.summary.error };
+}
+
 // Opening baselines: one clean, signed, unverified inventory entry per item —
 // the exact shape addEntry + the inventory form would produce for a count with
 // nothing sold/received yet, so an imported baseline is indistinguishable from
@@ -171,7 +193,7 @@ export async function POST(req) {
   try {
     const claims = await requireOwner(req);
     const { type, mode, mapping = {}, rows = [], allowPartial = false } = await req.json();
-    if (!["items", "staff", "baselines"].includes(type))
+    if (!["items", "staff", "baselines", "stock"].includes(type))
       return NextResponse.json({ error: "Unknown import type." }, { status: 400 });
     if (!Array.isArray(rows))
       return NextResponse.json({ error: "No rows to import." }, { status: 400 });
@@ -198,6 +220,16 @@ export async function POST(req) {
       if (mode !== "commit")
         return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
       const counts = await commitStaff(adminDb, adminAuth, vendorRef, claims, report, mapping, rows, userSnap, existingById);
+      return NextResponse.json({ ok: true, type, mode: "commit", counts });
+    }
+
+    if (type === "stock") {
+      const store = await readStore(vendorRef, ["items"]);
+      const items = store.snaps[0].docs.map((d) => ({ id: d.id, ...d.data() }));
+      const report = validateStock(rows, mapping, { locations: store.locations, items, defaultLocationId: store.defaultLocationId });
+      if (mode !== "commit")
+        return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
+      const counts = await commitStock(adminDb, vendorRef, report, mapping);
       return NextResponse.json({ ok: true, type, mode: "commit", counts });
     }
 

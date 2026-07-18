@@ -8,6 +8,7 @@ import {
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
+import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
@@ -107,9 +108,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     digestRecipients: (vendor.digest?.recipients || []).join(", "),
     digestTz: vendor.digest?.tz || "America/New_York",
     patternRules: { ...PATTERN_RULES, ...(vendor.patternRules || {}) },
+    stockAlerts: { ...STOCK_ALERTS, ...(vendor.stockAlerts || {}) },
   });
   const setRule = (k) => (e) =>
     setSettings((s) => ({ ...s, patternRules: { ...s.patternRules, [k]: e.target.value } }));
+  const setStockRule = (k) => (e) =>
+    setSettings((s) => ({ ...s, stockAlerts: { ...s.stockAlerts, [k]: e.target.value } }));
   const [testing, setTesting] = useState(false);
   async function saveSettings() {
     // Parse + validate digest recipients (cap 10, basic format check).
@@ -141,6 +145,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       aiSearch: settings.aiSearch, // opt-in NL log search; off by default
       aiInsights: settings.aiInsights, // opt-in Dashboard AI insight; off by default
       patternRules: resolvePatternRules(settings.patternRules),
+      stockAlerts: resolveStockAlerts(settings.stockAlerts),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
         narrative: settings.digestNarrative, // opt-in AI summary; off by default
@@ -474,6 +479,24 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </Field>
             </div>
             <p className="text-xs text-muted leading-relaxed">{t("admin.alert_sens_foot")}</p>
+          </div>
+
+          <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
+            <div>
+              <span className="font-medium text-[14px]">{t("admin.stock_title")}</span>
+              <p className="text-xs text-muted leading-relaxed">{t("admin.stock_hint")}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("admin.stock_expiry_label")}>
+                <input type="number" inputMode="numeric" min="1" max="365" step="1" className="input"
+                  value={settings.stockAlerts.expiryDays} disabled={!isOwner} onChange={setStockRule("expiryDays")} />
+              </Field>
+              <Field label={t("admin.stock_low_label")}>
+                <input type="number" inputMode="numeric" min="0" max="999" step="1" className="input"
+                  value={settings.stockAlerts.lowStockUnits} disabled={!isOwner} onChange={setStockRule("lowStockUnits")} />
+              </Field>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">{t("admin.stock_foot")}</p>
           </div>
 
           <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">

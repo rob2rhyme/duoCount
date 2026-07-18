@@ -46,6 +46,13 @@ const TARGETS = {
     { field: "date", label: "Count date", required: false, aliases: ["date", "countdate", "asof", "day"] },
     { field: "countedBy", label: "Counted by", required: false, aliases: ["countedby", "by", "counter", "employee", "person", "staff"] },
   ],
+  stock: [
+    { field: "item", label: "Item", required: true, aliases: ["item", "itemname", "name", "product", "productname", "barcode", "upc", "sku", "plu"] },
+    { field: "quantity", label: "Quantity on hand", required: true, aliases: ["quantity", "qty", "onhand", "count", "stock", "units", "amount"] },
+    { field: "price", label: "Price", required: false, aliases: ["price", "retail", "retailprice", "unitprice", "sellprice", "cost"] },
+    { field: "expiry", label: "Expiry date", required: false, aliases: ["expiry", "expires", "expiration", "expirationdate", "expdate", "bestby", "useby", "sellby"] },
+    { field: "location", label: "Location", required: false, aliases: ["location", "store", "site", "loc", "branch", "shop"] },
+  ],
 };
 
 export function importTargets(type) {
@@ -432,6 +439,93 @@ export function validateBaselines(rows = [], mapping = {}, ctx = {}) {
     seenItems.set(item.id, row.line);
 
     push("create", messages);
+  }
+
+  return { rows: reports, summary };
+}
+
+/* ----------------------------- validateStock ----------------------------- */
+
+// Validate stock-level sync rows (pos-inventory-sync-spec.md Phase 1): each row
+// refreshes an EXISTING item's synced quantity (and optionally price / expiry).
+// Statuses are update / skip / error only — a stock sync never creates an item
+// (that's the items import's job) and never touches the count log. Re-running
+// is the point: every valid row is an "update" (it refreshes quantitySyncedAt
+// even when the number didn't move — that freshness is the signal).
+// ctx: { items, locations, defaultLocationId }.
+export function validateStock(rows = [], mapping = {}, ctx = {}) {
+  const items = (ctx.items || []).filter((i) => i && i.active !== false);
+  const locName = (id) => (ctx.locations || []).find((l) => l && l.id === id)?.name || null;
+  const seenItems = new Map(); // itemId -> line (in-file dedup: last write would win silently otherwise)
+  const reports = [];
+  const summary = { create: 0, update: 0, skip: 0, error: 0 };
+
+  for (const row of rows) {
+    const v = row.values || {};
+    const messages = [];
+    const get = (field) => (mapping[field] ? v[mapping[field]] : undefined);
+    const itemCell = String(get("item") ?? "").trim();
+    const fields = {
+      itemId: null, itemName: itemCell || null, name: itemCell || null, unit: "unit",
+      locationId: null, locationName: null,
+      quantity: null, price: null, expiresAt: null,
+    };
+    const push = (status, msgs) => {
+      summary[status] += 1;
+      reports.push({ line: row.line, status, fields: { ...fields }, messages: msgs });
+    };
+
+    // item — must resolve to exactly one active item (by name or barcode),
+    // optionally narrowed by a location column (same rules as baselines)
+    if (!itemCell) { push("error", [m("imp.msg.item_missing")]); continue; }
+    let matches = items.filter((i) => normName(i.name) === normName(itemCell) || (i.barcode && i.barcode === itemCell));
+    const locCell = String(get("location") ?? "").trim();
+    if (locCell) {
+      const r = resolveLocation(locCell, ctx);
+      if (r.error) { push("error", [r.error]); continue; }
+      matches = matches.filter((i) => i.locationId === r.id);
+    }
+    if (matches.length === 0) { push("error", [m("imp.msg.no_tracked_item", { item: itemCell, atLoc: locCell || "" })]); continue; }
+    if (matches.length > 1) { push("error", [m("imp.msg.item_ambiguous", { item: itemCell, n: matches.length })]); continue; }
+    const item = matches[0];
+    fields.itemId = item.id;
+    fields.itemName = item.name;
+    fields.name = item.name;
+    fields.unit = item.unit || "unit";
+    fields.locationId = item.locationId;
+    fields.locationName = locName(item.locationId);
+
+    // quantity — a finite number ≥ 0 ("0" is a real on-hand level)
+    const qRaw = String(get("quantity") ?? "").trim();
+    if (qRaw === "") { push("error", [m("imp.msg.qty_missing")]); continue; }
+    const q = Number(qRaw);
+    if (!Number.isFinite(q) || q < 0) { push("error", [m("imp.msg.qty_invalid", { qty: qRaw })]); continue; }
+    fields.quantity = q;
+
+    // price — optional column; blank cell leaves the stored price unchanged
+    if (mapping.price) {
+      const pRaw = String(get("price") ?? "").trim().replace(/^\$/, "");
+      if (pRaw !== "") {
+        const p = Number(pRaw);
+        if (!Number.isFinite(p) || p < 0) { push("error", [m("imp.msg.price_invalid", { price: pRaw })]); continue; }
+        fields.price = p;
+      }
+    }
+
+    // expiry — optional column; blank leaves it unchanged; must be a real date
+    if (mapping.expiry) {
+      const d = String(get("expiry") ?? "").trim();
+      if (d) {
+        if (!isRealDate(d)) { push("error", [m("imp.msg.date_invalid", { date: d })]); continue; }
+        fields.expiresAt = d;
+      }
+    }
+
+    // in-file duplicate item — keep the first row, skip the later one
+    if (seenItems.has(item.id)) { push("skip", [m("imp.msg.dup_item_line", { n: seenItems.get(item.id) })]); continue; }
+    seenItems.set(item.id, row.line);
+
+    push("update", messages);
   }
 
   return { rows: reports, summary };

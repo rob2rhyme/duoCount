@@ -8,6 +8,7 @@ import { money, toDate, isUnresolved } from "@/lib/utils";
 import { detectPatterns } from "@/lib/patterns";
 import { renderPattern } from "@/lib/pattern-format";
 import { buildPackAudit } from "@/lib/scratch-audit";
+import { buildStockAlerts } from "@/lib/stock-alerts";
 import { apiPatternNarrative } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -33,7 +34,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], onOpenLog, onRecord, onToast }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], onOpenLog, onRecord, onToast }) {
   const { isManager, vendor } = useSession();
   const { theme } = useTheme();
   const { t, lang } = useLang();
@@ -53,6 +54,12 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   const packAudit = useMemo(
     () => (isManager ? buildPackAudit(entries) : { gaps: [], missing: [], packsSeen: 0 }),
     [entries, isManager]);
+  // Stock attention: expiring-soon + need-order lists from the items' synced
+  // quantity/expiry fields (pos-inventory-sync-spec.md Phase 1). Manager-only,
+  // thresholds owner-tuned in Admin → Stock alerts.
+  const stock = useMemo(
+    () => (isManager ? buildStockAlerts(items, { rules: vendor?.stockAlerts }) : { expiring: [], lowStock: [], rules: {} }),
+    [items, isManager, vendor?.stockAlerts]);
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
     const scratch = entries.filter((e) => e.kind === "scratch");
@@ -308,6 +315,58 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
               ))}
               {packAudit.missing.length > 8 && (
                 <div className="text-[12px] text-muted mt-1">{t("dash.pack_more", { n: packAudit.missing.length - 8 })}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stock attention — the synced catalog's two actionable lists: items
+          expiring inside the owner's window, and items below the reorder
+          threshold. Only data the store maintains ever alerts. */}
+      {isManager && (stock.expiring.length > 0 || stock.lowStock.length > 0) && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-line">
+            <h3 className="font-semibold text-[15px]">{t("dash.stock_title")}</h3>
+            <p className="text-[12px] text-muted mt-0.5">{t("dash.stock_sub", { days: stock.rules.expiryDays, units: stock.rules.lowStockUnits })}</p>
+          </div>
+          {stock.expiring.length > 0 && (
+            <div className="px-4 py-3 border-b border-line last:border-0">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("dash.stock_expiring")}</div>
+              {stock.expiring.slice(0, 8).map(({ item, daysLeft }) => (
+                <div key={item.id} className="flex items-baseline justify-between gap-3 py-0.5">
+                  <div className="text-sm font-medium truncate">
+                    {item.name}
+                    {item.locationId && locations.length > 1 && <span className="text-muted font-normal text-[12px]"> · {locName(item.locationId)}</span>}
+                  </div>
+                  <div className={`text-[12px] flex-shrink-0 ${daysLeft < 0 ? "text-neg font-semibold" : "text-muted"}`}>
+                    {daysLeft < 0
+                      ? t("dash.stock_expired", { date: item.expiresAt })
+                      : t(`dash.stock_days_${daysLeft === 1 ? "one" : "other"}`, { n: daysLeft, date: item.expiresAt })}
+                  </div>
+                </div>
+              ))}
+              {stock.expiring.length > 8 && (
+                <div className="text-[12px] text-muted mt-1">{t("dash.stock_more", { n: stock.expiring.length - 8 })}</div>
+              )}
+            </div>
+          )}
+          {stock.lowStock.length > 0 && (
+            <div className="px-4 py-3">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("dash.stock_low")}</div>
+              {stock.lowStock.slice(0, 8).map(({ item, quantity }) => (
+                <div key={item.id} className="flex items-baseline justify-between gap-3 py-0.5">
+                  <div className="text-sm font-medium truncate">
+                    {item.name}
+                    {item.locationId && locations.length > 1 && <span className="text-muted font-normal text-[12px]"> · {locName(item.locationId)}</span>}
+                  </div>
+                  <div className={`text-[12px] flex-shrink-0 font-mono ${quantity === 0 ? "text-neg font-semibold" : "text-muted"}`}>
+                    {t(`dash.stock_left_${quantity === 1 ? "one" : "other"}`, { n: quantity, unit: `${item.unit || "unit"}${quantity === 1 ? "" : "s"}` })}
+                  </div>
+                </div>
+              ))}
+              {stock.lowStock.length > 8 && (
+                <div className="text-[12px] text-muted mt-1">{t("dash.stock_more", { n: stock.lowStock.length - 8 })}</div>
               )}
             </div>
           )}

@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
-import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, importTargets, missingRequired } from "@/lib/import-parse";
+import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, importTargets, missingRequired } from "@/lib/import-parse";
 import { renderImportMsg } from "@/lib/import-msg";
 import { apiImport } from "@/lib/data";
 import { useSession } from "./SessionProvider";
@@ -15,7 +15,7 @@ import { useLang } from "./LangProvider";
 
 const STATUS_STYLE = { create: "text-pos", update: "text-gold", skip: "text-muted", error: "text-neg" };
 const PREVIEW_CAP = 60;
-const TYPE_IDS = ["items", "staff", "baselines"];
+const TYPE_IDS = ["items", "staff", "baselines", "stock"];
 
 export default function ImportCard({ locations = [], items = [], staff = [], entries = [], onToast }) {
   const { profile } = useSession();
@@ -41,6 +41,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
     if (!parsed) return null;
     if (type === "items") return validateItems(parsed.rows, mapping, { locations, existingItems: items, defaultLocationId });
     if (type === "staff") return validateStaff(parsed.rows, mapping, { locations, existingStaff: staff, defaultLocationId });
+    if (type === "stock") return validateStock(parsed.rows, mapping, { locations, items, defaultLocationId });
     return validateBaselines(parsed.rows, mapping, {
       locations, items, existingStaff: staff, baselinedItemIds,
       defaultBy: { id: profile.id, name: profile.name, role: profile.role },
@@ -100,6 +101,12 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
 
   const detail = (f) => {
     if (type === "items") return f.locationName ? `${f.locationName}` : "";
+    if (type === "stock") return [
+      f.quantity != null ? `${f.quantity} ${f.unit}${f.quantity === 1 ? "" : "s"}` : "",
+      f.price != null ? `$${f.price}` : "",
+      f.expiresAt || "",
+      f.locationName,
+    ].filter(Boolean).join(" · ");
     if (type === "staff") return [
       t(`admin.role_${f.role}`),
       f.locationName || (f.role === "manager" ? t("imp.detail_all_loc") : ""),
@@ -137,6 +144,9 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
         )}
         {type === "baselines" && (
           <p className="text-[13px] text-muted">{t("imp.baselines_note")}</p>
+        )}
+        {type === "stock" && (
+          <p className="text-[13px] text-muted">{t("imp.stock_note")}</p>
         )}
 
         <div>

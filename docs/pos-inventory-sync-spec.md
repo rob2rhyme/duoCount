@@ -1,8 +1,11 @@
 # POS-synced live inventory — expiry & low-stock alerts
 
-> **Status: research only (July 2026).** Nothing in this document is built. It
-> records the owner's direction, the research behind it, and a proposed design
-> so the build can be picked up cleanly. No code has changed.
+> **Status: Phase 1 shipped (July 2026).** The CSV stock sync, the
+> `vendor.stockAlerts` owner settings, the Dashboard **Stock attention** card,
+> and the digest section are built (`stock-alerts.js`, the "Stock levels"
+> import type, Admin → Stock alerts). Phases 2–3 (Square/Clover live APIs,
+> petro file drops) remain research. The Firestore rules change (the
+> `stockAlerts` vendor key) wants an emulator check (`npm run test:rules`).
 
 ## Owner decision — July 2026
 
@@ -116,7 +119,7 @@ independent convenience stores, best-first for integration:
 
 | Phase | Scope | Effort |
 | --- | --- | --- |
-| **1 — CSV stock sync** | New “Stock levels” import type on the shipped Import card: columns item/barcode, quantity, price, expiry; **upsert** (refresh quantities on re-run); `vendor.stockAlerts` settings; Dashboard card + digest section. Works with *every* POS via its export. | S–M |
+| **1 — CSV stock sync — ✅ shipped** | New “Stock levels” import type on the shipped Import card: columns item/barcode, quantity, price, expiry; **update-only refresh** (re-running refreshes `quantitySyncedAt` — freshness is the signal); `vendor.stockAlerts` settings; Dashboard card + digest section. Works with *every* POS via its export. | S–M |
 | **2 — Square + Clover live sync** | OAuth connect per location; initial catalog copy then webhook-driven deltas (`inventory.count.updated`); server route + stored tokens. | M |
 | **3 — Petro back-office file drop** | Accept the Verifone/Gilbarco nightly NAXML/price-book file (upload or fetch); documentation-first (per-POS how-to guides). | M |
 
