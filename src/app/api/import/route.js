@@ -263,8 +263,24 @@ export async function POST(req) {
             });
           }
           created += 1;
-        } else if (r.status === "update" && f.id && f.newName) {
-          writer.set(customersCol.doc(f.id), { name: f.newName }, { merge: true });
+        } else if (r.status === "update" && f.id && (f.newName || f.seedPoints)) {
+          // seedPoints only ever appears on a never-active customer —
+          // validateCustomers just re-derived that from the LIVE docs above,
+          // so the client's preview had no say in it. Same clamp as create.
+          const rawSeed = Number(f.seedPoints);
+          const seed = Number.isFinite(rawSeed) && rawSeed > 0 ? Math.min(100000, Math.round(rawSeed)) : 0;
+          const patch = {};
+          if (f.newName) patch.name = f.newName;
+          if (seed > 0) { patch.pointsBalance = seed; patch.lifetimePoints = seed; }
+          writer.set(customersCol.doc(f.id), patch, { merge: true });
+          if (seed > 0) {
+            writer.set(eventsCol.doc(), {
+              kind: "adjust", points: seed, customerId: f.id,
+              by: claims.name || "Owner", byId: claims.userId, byRole: "owner",
+              ts: new Date(), note: "Imported starting balance",
+              source: "import", importBatchId,
+            });
+          }
           updated += 1;
         }
       }
