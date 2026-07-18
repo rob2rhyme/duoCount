@@ -383,6 +383,38 @@ bin 4 running low." Managers can pin the important ones.
 
 ---
 
+## FAQ: your data & your customers' data
+
+**Who owns my store's data?**
+You do — counts, notes, punches, settings, and (if you run rewards) your
+customer list and points ledger. DuoCount is the service that records it for
+you, nothing more. Full details: [Terms of Use](/docs/terms-of-use) and
+[Privacy & Data Handling](/docs/privacy-and-data).
+
+**Can other stores see my data or my customers?**
+No. Every store is walled off by security rules enforced at the database.
+Unlike loyalty "networks" that share customer identities between merchants,
+DuoCount never pools customers across stores and never markets to them.
+
+**What do I owe my rewards customers?**
+Three things: tell them the deal (post the printable counter sign from Admin →
+Reward settings, and keep the program-terms notice from the privacy page
+available — some states require it); use their phone number only for points;
+and honor requests — if someone wants out, stop using their number and ask for
+the record's deletion.
+
+**Can I text my rewards customers?**
+Not through DuoCount — it sends no SMS on purpose. If you run texting
+campaigns with another tool, US law (TCPA) requires each person's express
+written consent first; the rewards signup alone is not that consent.
+
+**How do I take my data out, or leave?**
+Export CSVs anytime (Log tab, Reports center). If you close your store, ask
+your operator for a final export; store data is deleted within 90 days of a
+closure request.
+
+---
+
 ## A few words you'll see
 
 | Word | What it means |

@@ -13,7 +13,7 @@ export const metadata = {
 // getting-started is the hero (its own /guide route); these read as overviews.
 const HERO = "getting-started";
 const OVERVIEW = ["app-summary-spec", "positioning-one-pager", "roadmap"];
-const LEGAL = ["privacy-and-data", "legal-disclaimers"];
+const LEGAL = ["terms-of-use", "privacy-and-data", "legal-disclaimers"];
 
 function DocCard({ doc }) {
   return (

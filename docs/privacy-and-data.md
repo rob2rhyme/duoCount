@@ -96,6 +96,49 @@ actually use in your published notice.
   promptly (see the security notes in `roadmap.md`).
 - Records are append-only and signed, so history can't be quietly altered.
 
+## Who owns rewards-customer data
+
+Loyalty platforms split into two camps. **Network platforms** (e.g. Loyalzoo,
+Fivestars) share a customer's identity across every merchant in their network
+and may market to those customers directly — the merchant's "list" is really
+the network's. **Service-provider platforms** (e.g. Square Loyalty, Smile.io)
+process each merchant's list only on that merchant's behalf.
+
+DuoCount is deliberately in the second camp:
+
+- **The store owns its customer list and points ledger.** DuoCount processes it
+  as a service provider and for no other purpose.
+- **No cross-store pooling** — a customer enrolled at one store does not exist
+  at any other store, even on the same deployment.
+- **No platform marketing** — DuoCount never contacts a store's customers, and
+  sends no SMS at all (which also keeps stores clear of TCPA text-message
+  liability; if a store later runs its own texting campaigns outside DuoCount,
+  it must collect the express written consent US law requires).
+- **Minimal identity** — a phone number and an optional first name; the app
+  displays the number masked (last 4) after entry.
+
+## Rewards notice of financial incentive (template)
+
+Several US state privacy laws — most prominently California's CCPA/CPRA —
+treat a points program as a **financial incentive** and require the business to
+describe its material terms before a customer opts in (the California
+Attorney General has actively enforced this against loyalty programs since
+2022). Adapt the following, print it or link it near the counter sign, and fill
+in your numbers from Admin → Reward settings:
+
+> **[Store name] rewards — program terms.** When you join, we collect your
+> phone number (and, if you share it, your first name) to keep a points
+> balance for you. You earn **[X] point(s) per $1** of qualifying purchases
+> (tobacco, vape, alcohol, lottery, gift cards, and fuel are excluded by law),
+> and **[Y] points are worth [$Z]** in rewards. We estimate the value of your
+> participation to be roughly equal to the rewards you can earn — about
+> **[effective %]** of qualifying spending (shown as "effective giveback" in
+> our settings), which is what the program costs us to offer. We do not sell
+> your information or share it with other businesses, and we will not text or
+> email you. Joining is optional, and you can leave at any time by telling us
+> at the register — we will stop using your number and delete your record on
+> request.
+
 ## Retention & deletion
 
 Operational records are **append-only** and kept for the business's own records
@@ -103,6 +146,13 @@ Operational records are **append-only** and kept for the business's own records
 the store, staff cannot delete them from the app; the store owner controls the
 underlying Firebase data and any retention or deletion outside the app. Demo/sample
 data is separate and can be cleared by the owner at any time.
+
+For **rewards customers**: enrollment lasts until the customer asks to leave.
+On request, the store stops using the number and has the record deleted (today
+that deletion is performed by the deployment's operator on the owner's request;
+the signed points ledger keeps its history, as a financial record, without the
+live profile). If the store closes its account, its customer list is deleted
+with the rest of the store's data within 90 days (see the Terms of Use).
 
 ## Staff rights & requests
 

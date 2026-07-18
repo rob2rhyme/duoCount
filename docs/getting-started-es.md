@@ -420,6 +420,40 @@ importantes.
 
 ---
 
+## Preguntas frecuentes: tus datos y los de tus clientes
+
+**¿De quién son los datos de mi tienda?**
+Tuyos — conteos, notas, marcajes, configuración y (si usas recompensas) tu
+lista de clientes con su libro de puntos. DuoCount es el servicio que los
+registra por ti, nada más. Detalles completos: [Términos de uso](/docs/terms-of-use)
+y [Privacidad y manejo de datos](/docs/privacy-and-data).
+
+**¿Otras tiendas pueden ver mis datos o mis clientes?**
+No. Cada tienda está aislada por reglas de seguridad aplicadas en la base de
+datos. A diferencia de las "redes" de lealtad que comparten la identidad de los
+clientes entre comercios, DuoCount nunca junta clientes entre tiendas y nunca
+les envía publicidad.
+
+**¿Qué les debo a mis clientes de recompensas?**
+Tres cosas: infórmales el trato (imprime el letrero del mostrador desde Admin →
+Configuración de recompensas y ten disponible el aviso de términos del programa
+de la página de privacidad — algunos estados lo exigen); usa su número de
+teléfono solo para los puntos; y respeta sus solicitudes — si alguien quiere
+salirse, deja de usar su número y pide que se elimine su registro.
+
+**¿Puedo enviarles mensajes de texto?**
+No a través de DuoCount — a propósito no envía SMS. Si haces campañas de texto
+con otra herramienta, la ley de EE. UU. (TCPA) exige el consentimiento expreso
+por escrito de cada persona; inscribirse en recompensas no cuenta como ese
+consentimiento.
+
+**¿Cómo saco mis datos o me voy?**
+Exporta CSV cuando quieras (pestaña Registro, centro de Reportes). Si cierras
+tu tienda, pide a tu operador una exportación final; los datos de la tienda se
+eliminan dentro de los 90 días después de la solicitud de cierre.
+
+---
+
 ## Palabras que verás
 
 | Palabra | Qué significa |
