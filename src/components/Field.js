@@ -1,5 +1,5 @@
 "use client";
-import { cloneElement, useId } from "react";
+import { cloneElement, isValidElement, useId } from "react";
 
 // A labelled form field. Renders exactly the markup the forms already use —
 // a `.label` caption above a `.input` control inside a wrapper div — but wires
@@ -14,13 +14,20 @@ import { cloneElement, useId } from "react";
 export default function Field({ label, hint, children, className, ...rest }) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
-  const control = cloneElement(children, {
-    id: children.props.id ?? id,
-    "aria-describedby": [children.props["aria-describedby"], hintId].filter(Boolean).join(" ") || undefined,
-  });
+  // Clone only a single element child (the control). If a caller ever passes
+  // something else (e.g. two children, or a falsy child), render it as-is
+  // rather than reading .props off an array/undefined — a form field must never
+  // crash the whole tab. The label just loses its htmlFor association.
+  const control = isValidElement(children)
+    ? cloneElement(children, {
+        id: children.props.id ?? id,
+        "aria-describedby": [children.props["aria-describedby"], hintId].filter(Boolean).join(" ") || undefined,
+      })
+    : children;
+  const controlId = isValidElement(control) ? control.props.id : undefined;
   return (
     <div className={className} {...rest}>
-      <label htmlFor={control.props.id} className="label">{label}</label>
+      <label htmlFor={controlId} className="label">{label}</label>
       {control}
       {hint && <p id={hintId} className="text-[12px] text-muted mt-1">{hint}</p>}
     </div>
