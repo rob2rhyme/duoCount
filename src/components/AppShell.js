@@ -18,27 +18,28 @@ import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
 import SetupChecklist from "./SetupChecklist";
 import BottomNav from "./BottomNav";
+import TabIcon from "./TabIcon";
 import EmptyState, { IconStore, IconReceipt, IconBox } from "./EmptyState";
 import { setupProgress } from "@/lib/setup-progress";
 import { attentionCounts } from "@/lib/attention";
 import { resolveShortcut } from "@/lib/shortcuts";
 import { PRODUCT } from "@/lib/store";
 
-// Labels resolve through the i18n catalog (t(labelKey)); the glyph is the
-// language-neutral recognition anchor a clerk learns, per the localization
-// spec's icon-forward treatment — the word reinforces it.
+// Labels resolve through the i18n catalog (t(labelKey)); the icon (TabIcon,
+// keyed by tab id) is the language-neutral recognition anchor a clerk learns,
+// per the localization spec's icon-forward treatment — the word reinforces it.
 const TABS = [
-  { id: "dashboard", labelKey: "nav.dashboard", glyph: "📊" },
-  { id: "cash", labelKey: "nav.cash", glyph: "💵" },
-  { id: "scratch", labelKey: "nav.scratch", glyph: "🎟️" },
-  { id: "inventory", labelKey: "nav.inventory", glyph: "📦" },
-  { id: "rewards", labelKey: "nav.rewards", glyph: "⭐" },
-  { id: "log", labelKey: "nav.log", glyph: "📋" },
-  { id: "notes", labelKey: "nav.notes", glyph: "📝" },
-  { id: "incidents", labelKey: "nav.incidents", glyph: "⚠️" },
-  { id: "time", labelKey: "nav.time", glyph: "⏱️" },
-  { id: "portfolio", labelKey: "nav.portfolio", glyph: "🏬", ownerOnly: true },
-  { id: "admin", labelKey: "nav.admin", glyph: "⚙️", managerOnly: true },
+  { id: "dashboard", labelKey: "nav.dashboard" },
+  { id: "cash", labelKey: "nav.cash" },
+  { id: "scratch", labelKey: "nav.scratch" },
+  { id: "inventory", labelKey: "nav.inventory" },
+  { id: "rewards", labelKey: "nav.rewards" },
+  { id: "log", labelKey: "nav.log" },
+  { id: "notes", labelKey: "nav.notes" },
+  { id: "incidents", labelKey: "nav.incidents" },
+  { id: "time", labelKey: "nav.time" },
+  { id: "portfolio", labelKey: "nav.portfolio", ownerOnly: true },
+  { id: "admin", labelKey: "nav.admin", managerOnly: true },
 ];
 
 // Which tabs this person sees. ownerOnly is a product affordance, not a new
@@ -199,7 +200,7 @@ export default function AppShell() {
           {tabs.map((tb) => (
             <button key={tb.id} onClick={() => setTab(tb.id)}
               className={`flex-1 whitespace-nowrap px-3 py-2 rounded-lg font-semibold text-sm transition inline-flex items-center justify-center gap-1.5 ${tab === tb.id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
-              <span aria-hidden="true">{tb.glyph}</span>
+              <TabIcon id={tb.id} />
               {tb.label}
               {tabAttention[tb.id] > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brass text-ink text-[10px] font-bold leading-none"

@@ -7,6 +7,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
 import Field from "./Field";
+import TabIcon from "./TabIcon";
 
 // Customer rewards — the register flow (rewards-program-spec.md, Phase 1).
 // Zero hardware: the customer's phone number IS the card. The clerk looks a
@@ -74,7 +75,7 @@ export default function RewardsPanel({ onToast }) {
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
-        <h2 className="font-semibold text-[15px]"><span aria-hidden="true">⭐</span> {t("rw.title")}</h2>
+        <h2 className="font-semibold text-[15px] flex items-center gap-2"><TabIcon id="rewards" size={18} className="text-gold" /> {t("rw.title")}</h2>
         <p className="text-[13px] text-muted mt-0.5">{t("rw.sub", { earn: rules.earnPerDollar, goal, value: money(rules.redeemValue) })}</p>
       </div>
       <div className="p-4 space-y-3.5">
