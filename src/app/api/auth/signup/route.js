@@ -65,6 +65,9 @@ export async function POST(req) {
         logoUrl: (logoUrl || "").trim() || null,
         sharingMode: "all-locations", // vendor-chosen data sharing scope
         createdAt: now,
+        // Clickwrap record: the sign-up screen states that creating the store
+        // accepts the Terms of Use + privacy notice (docs/terms-of-use.md).
+        termsAcceptedAt: now,
       });
       tx.set(locRef, { name: "Main Location", active: true, createdAt: now });
       // Seed the two drawers the owner asked about; more can be added in Admin.

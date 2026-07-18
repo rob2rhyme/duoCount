@@ -107,6 +107,14 @@ export default function PinLogin() {
             <button className="btn-primary mt-5" disabled={busy || !isValidNewPin(newPin)} onClick={doSignup}>
               {busy ? t("login.creating") : t("login.create")}
             </button>
+            {/* Clickwrap: creating the store is the acceptance action; the
+                server stamps termsAcceptedAt on the vendor record. */}
+            <p className="text-xs text-muted mt-3 leading-relaxed text-center">
+              {t("login.terms_pre")}
+              <a href="/docs/terms-of-use" target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-fg">{t("login.terms_link")}</a>
+              {t("login.terms_and")}
+              <a href="/docs/privacy-and-data" target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-fg">{t("login.privacy_link")}</a>.
+            </p>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
               onClick={() => { setMode("login"); setErr(null); }}>
               {t("login.back_to_login")}
