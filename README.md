@@ -22,8 +22,8 @@ security rules keyed on server-issued auth claims.
     rate limiting (built)
   - `inventory-tracker-spec.md` — spec for the inventory feature (built)
   - `barcode-scanning-spec.md` — spec for camera scanning (built)
-  - `lottery-pack-lifecycle-spec.md` — spec for pack tracking and settlement
-    reconciliation (built)
+  - `lottery-pack-lifecycle-spec.md` — pack lifecycle & settlement history
+    (retired July 2026; replaced by the shift-boundary pack audit)
   - `time-clock-spec.md` — spec for the time clock & scheduling suite (built)
   - `ui-enhancements-spec.md` — spec for the denomination currency counter,
     scroll-to-top FAB, light/dark theme, and Settings menu (built)
@@ -230,11 +230,12 @@ initial bundle. Camera use requires HTTPS (or localhost) plus permission.
 ## Testing the security rules
 
 The rules are the product's trust boundary, so they have an executable test
-suite (`tests/rules.test.mjs`, 64 tests): tenant isolation, per-location
+suite (`tests/rules.test.mjs`, 73 tests): tenant isolation, per-location
 visibility for entries/comments/notes, the five mutually exclusive entry
 update branches (verify / investigate / dispute-open / dispute-manage /
-comment bump), clean-create guards, the owner settings whitelist, item
-lifecycle, the forward-only pack lifecycle, the incident lifecycle
+comment bump), clean-create guards, the owner settings whitelist (incl. the
+stock-alert and rewards keys), item lifecycle, the legacy pack rules, the
+read-only rewards ledger (members read, no client writes), the incident lifecycle
 (subject-only visibility and acknowledgment, manager close, immutable text),
 and the workforce collections — append-only time-clock punches, the schedule
 roster, shift swaps, open-shift claims, staff availability, `schedulePublished`,
@@ -251,24 +252,20 @@ The pattern detectors are pure functions with their own suite (no emulator):
 npm run test:patterns
 ```
 
-## Scratch-off pack lifecycle
+## Scratch-off pack audit
 
-Beyond per-shift counts, each pack (book) can be tracked from safe to last
-ticket (see `docs/lottery-pack-lifecycle-spec.md`): managers receive a pack
-(game, pack #, price, tickets/pack — barcode scan-fillable), activate it to a
-bin, and later settle or return it. Transitions are forward-only and enforced
-by the rules — a settled pack never reopens. Settling snapshots sold-vs-size
-from the count log (`soldAtSettle` / `shortAtSettle`), so per-pack shrink is
-frozen on the record with the responsible shifts traceable in the log. On the
-Scratch form, an "Active pack" picker fills game, price, and pack # in one
-tap; combined with the last-count prefill, a recount is one pick and one
-number. The registry is optional — free-text pack counting still works.
-
-**Settlement reconciliation** (Admin): upload your state lottery settlement CSV
-— any format, you map the pack-number and amount columns — and it matches each
-row to a recorded pack, flagging discrepancies, unknown packs, and settled-but-
-unbilled packs. Parsing + matching are pure and client-side (`src/lib/settlement.js`,
-unit-tested); nothing is uploaded anywhere and there are no new writes.
+The lottery feature is a shift-boundary theft check, nothing more (the pack
+lifecycle and settlement reconciliation were retired on purpose — settlement
+is the state lottery's job; see `docs/lottery-pack-lifecycle-spec.md` for the
+history). Scanning a ticket fills the pack **and the ticket # it's at** (the
+end reading), and a pack the store has counted before carries its game, price,
+and start # forward from the last close (`src/lib/scratch-barcode.js`, pure +
+unit-tested). Across shifts, `src/lib/scratch-audit.js` chains each pack's
+counts: a count that opens above the previous close means tickets went
+unaccounted between two signed counts — the Dashboard **Pack audit** card
+names both signers at every break, lists packs that quietly stopped being
+counted, and the entry-based **pack-gap** pattern alert carries the same
+signal into the digest.
 
 ## Interface: counting, theming & navigation
 

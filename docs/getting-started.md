@@ -22,12 +22,13 @@ If you work a shift and just need to log your counts, jump to
 
 - You sign in with a **store code** (like `acme-market`) and your own **PIN** —
   no email, no password.
-- Move around with the **navigation**: on a phone, a **bottom bar** groups the
-  screens into **Count** (Cash / Scratch-offs / Inventory), **Team** (Time /
-  Incidents / Notes), **Insights** (Dashboard / Portfolio / Log), and **Admin**
-  (managers only) — tap a group to pick a screen. On a wider screen the same
-  screens line up as a **row of tabs** across the top. (**Portfolio** appears
-  for owners only.)
+- The app **opens on the Dashboard** — the day's numbers first. Move around
+  with the **navigation**: on a phone, a **bottom bar** groups the screens into
+  **Count** (Cash / Scratch-offs / Inventory, plus **Rewards** when the store
+  turns that on), **Team** (Time / Incidents / Notes), **Insights** (Dashboard /
+  Portfolio / Log), and **Admin** (managers only) — tap a group to pick a
+  screen. On a wider screen the same screens line up as a **row of tabs**
+  across the top. (**Portfolio** appears for owners only.)
 - Employees **log counts**. Managers **verify** them (a second set of eyes),
   handle anything flagged, and pull **reports**.
 - The app does the arithmetic and shows **over/short** in green (over) or red
@@ -77,9 +78,10 @@ Open **Admin** and add the pieces your team will pick from when they count:
 > count to count. Settlement paperwork stays with the lottery.
 
 > **Switching from a spreadsheet?** Owners get an **Import / migrate** card in
-> **Admin** that brings in your **tracked items**, your **staff roster**, or your
-> **opening shelf counts** from a **CSV** (from Excel, your old POS, a
-> spreadsheet). Pick the type, upload the file, match your columns to DuoCount's
+> **Admin** that brings in your **tracked items**, your **staff roster**, your
+> **opening shelf counts**, or your **stock levels** (on-hand quantity, price,
+> and expiry date — exported from your POS) from a **CSV** (from Excel, your old
+> POS, a spreadsheet). Pick the type, upload the file, match your columns to DuoCount's
 > fields — it guesses most for you — and review a **row-by-row preview** before
 > anything is written. Re-running is safe: a record already in your store is
 > matched and updated or skipped, never duplicated. Two things worth knowing:
@@ -99,8 +101,9 @@ Open **Admin** and add the pieces your team will pick from when they count:
 In the header **Settings** menu, the owner sets the **sharing mode**: either
 every location sees all counts, or each location sees only its own. Managers and
 owners always see everything. You can also set the business **name/logo**, turn
-on an optional **daily email digest** (off by default), and turn on the optional
-**AI helpers** (all off by default — see step 6).
+on an optional **daily email digest** (off by default), turn on **customer
+rewards** (off by default — see step 6), and turn on the optional
+**AI helpers** (all off by default — see step 7).
 
 ### 4. Your daily rhythm
 
@@ -128,13 +131,19 @@ on an optional **daily email digest** (off by default), and turn on the optional
 - **Watch the Dashboard.** Net over/short, short counts, charts by day, employee,
   drawer, and item, plus quiet **pattern alerts** (e.g. "same drawer short under
   three people" — a conversation starter, never a verdict). If you turn on the AI
-  insight (step 6), an **"Explain these signals"** button sums the alerts up and
+  insight (step 7), an **"Explain these signals"** button sums the alerts up and
   says what to look at first.
 - **Check the Pack audit.** The Dashboard compares each scratch pack's opening
   ticket # against its previous closing # and shows every break — how many
   tickets are unaccounted, who signed the close, who signed the reopen — plus
   packs that quietly stopped being counted. Missing tickets get caught at the
   shift boundary, not months later on a settlement statement.
+- **Check Stock attention.** If you sync stock levels from your POS (the
+  **Stock levels** import), the Dashboard lists what's **expiring soon**
+  (default within 30 days) and what **needs ordering** (default fewer than
+  5 left) — both thresholds are owner-adjustable in **Business settings →
+  Stock alerts**, and both lists ride along in the daily digest email. Items
+  without a synced quantity or expiry date simply never alert.
 - **Handle flags.** Any cash count off by more than your threshold (default $5)
   is flagged; close it by recording *why* (Human error, Register error, Training
   gap, etc.). You can also set an **inventory** threshold in units (Business
@@ -187,7 +196,34 @@ Files are named so they sort themselves, e.g. `duocount-report-all-2026-Q3.pdf`.
 > It's a generic layout — check it against your franchisor's actual template
 > before submitting.
 
-### 6. Optional AI helpers (off by default)
+### 6. Customer rewards (optional, off by default)
+
+A phone-number points program at the register — no card, no app, no hardware.
+The owner turns it on in **Business settings → Customer rewards** and sets the
+economics (defaults: **$1 = 1 point, 100 points = $5 off**). The settings card
+shows the **effective % back** live as you edit — the defaults give back 5% of
+qualifying spend, roughly five times what the big chains do, so make sure your
+margins carry it.
+
+- **At the register:** staff open the **Rewards** tab, type the customer's
+  phone number, and either enroll them (name optional) or pull up their
+  balance. Points are earned on the **qualifying sale total** — leave out
+  tobacco, vape, alcohol, lottery, gift cards, and fuel (discount bans,
+  minimum-price laws, and lottery face-value rules apply to those). When the
+  balance clears the bar, one tap records the redemption and the discount is
+  applied on your register.
+- **Trustworthy by construction:** every earn and redemption is a **signed,
+  permanent line** in the rewards ledger — nothing can be edited or deleted,
+  corrections are new signed lines by the owner, and the Dashboard's pattern
+  alerts watch for the classic abuses (points that outpace your counted sales,
+  one account earning several times a day, redemption bursts under one clerk).
+  The Dashboard also shows the **outstanding points liability** in dollars.
+- **For customers:** they can check their own balance any time at **/rewards**
+  with just the store code and their phone number (no name is ever shown), and
+  Admin can print a ready-made **bilingual counter sign** with your program and
+  that address on it.
+
+### 7. Optional AI helpers (off by default)
 
 DuoCount has three small, optional AI features. Each is **off until you turn it
 on** in **Business settings**, each needs an AI key configured on the server, and
@@ -241,10 +277,12 @@ Type the **store code** your manager gave you and **your own PIN**, then
 
 ### Log a scratch-off count
 
-1. Tap **Scratch-offs** and enter the **game** and **pack #** — or **scan** the
-   pack with your phone camera. A pack the store has counted before fills in its
-   game and price, and carries the **start #** from the last count's end #.
-2. Enter the **start** and **end** ticket numbers. Tickets sold = end − start,
+1. Tap **Scratch-offs** and enter the **game** and **pack #** — or **scan** a
+   ticket with your phone camera. A scan fills the pack **and the ticket # the
+   pack is at** (your end reading); a pack the store has counted before also
+   fills in its game and price and carries the **start #** from the last
+   count's end #, so an everyday open or close is scan → glance → save.
+2. Check the **start** and **end** ticket numbers. Tickets sold = end − start,
    and the app multiplies by the ticket price to get the dollars that should be
    in the drawer.
 3. **Save.**
@@ -262,6 +300,16 @@ Type the **store code** your manager gave you and **your own PIN**, then
    **inventory variance threshold**, a count off by that many units or more is
    flagged for a manager to review — just like a cash short. (Blind mode applies
    here too, if it's on.)
+
+### Rewards at the register (if your store turned it on)
+
+On the **Rewards** tab, type the customer's phone number and **Look up**. Not
+enrolled yet? Add them with just the number (name optional). Then enter the
+**qualifying sale total** — leave out tobacco, vape, alcohol, lottery, gift
+cards, and fuel — and tap **Earn points**. When their balance clears the bar,
+the **Redeem** button lights up: tap it, then apply the discount on the
+register. Every earn and redemption is signed with your name and permanent,
+like a count. Customers can check their own balance at **/rewards**.
 
 ### Clock in/out and see your schedule
 
@@ -340,6 +388,7 @@ bin 4 running low." Managers can pin the important ones.
 | **Dispute** | An employee formally disagreeing, on the record. |
 | **Blind count** | Counting without seeing the expected number first. |
 | **Period** | The date range a report covers (a day, month, quarter, etc.). |
+| **Qualifying sale** | The part of a sale that earns rewards points — everything except tobacco, vape, alcohol, lottery, gift cards, and fuel. |
 
 ---
 
