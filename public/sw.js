@@ -4,7 +4,7 @@
 // so Firebase (Firestore/Auth, cross-origin) and this app's own /api/ routes
 // always go straight to the network and are never cached. That keeps counts
 // live and never serves stale data for anything that must be fresh.
-const CACHE = "duocount-v1";
+const CACHE = "duocount-v2"; // bumped so clients refresh the pre-splash cached shell
 const SHELL = ["/", "/offline.html", "/manifest.json", "/favicon.png", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {
