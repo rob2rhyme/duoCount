@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
-import { resolveRewards, rewardTiers, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -110,12 +110,24 @@ export async function POST(req) {
       const tiers = rewardTiers(vendorSnap.data()?.rewards);
       const tier = tierId ? tiers.find((tt) => tt.id === tierId) : tiers[0];
       if (!tier) return err(400, "bad_tier", "That reward isn't available.");
-      const balance = await commit(
-        "redeem", -tier.points,
-        { value: tier.value, rewardName: tier.name || null, tierId: tier.id },
-        tier.points,
-      );
-      return NextResponse.json({ ok: true, rules, redeemed: tier.points, value: tier.value, reward: tier.name || null, balance });
+      // The ledger line records the typed grant so the permanent record says
+      // exactly what was handed over; `value` stays the worst-case $ for the
+      // liability/audit math (percent → its cap).
+      const grant = {
+        value: tierDollarValue(tier), rewardName: tier.name || null,
+        tierId: tier.id, rewardType: tier.type,
+        ...(tier.type === "percent" ? { percent: tier.percent, cap: tier.cap } : {}),
+        ...(tier.type === "item" && tier.withPurchase ? { withPurchase: true } : {}),
+      };
+      const balance = await commit("redeem", -tier.points, grant, tier.points);
+      return NextResponse.json({
+        ok: true, rules, redeemed: tier.points, value: tierDollarValue(tier),
+        reward: tier.name || null, rewardType: tier.type,
+        percent: tier.type === "percent" ? tier.percent : null,
+        cap: tier.type === "percent" ? tier.cap : null,
+        withPurchase: tier.type === "item" && tier.withPurchase === true,
+        balance,
+      });
     }
 
     // adjust — owner-only, note required; a correction is a new signed line.

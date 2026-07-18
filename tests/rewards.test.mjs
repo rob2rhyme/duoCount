@@ -2,8 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  REWARDS, resolveRewards, rewardTiers, effectivePercent, pointsForSale, canRedeem,
-  canRedeemTier, pointDollarValue, normalizePhone, maskPhone,
+  REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, effectivePercent,
+  pointsForSale, canRedeem, canRedeemTier, pointDollarValue, normalizePhone, maskPhone,
 } from "../src/lib/rewards.js";
 
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
@@ -61,10 +61,10 @@ test("maskPhone: shows only the last 4", () => {
 
 /* ------------------------------ reward tiers ------------------------------ */
 
-test("rewardTiers: no configured tiers → one implicit tier from the legacy reward", () => {
+test("rewardTiers: no configured tiers → one implicit cash tier from the legacy reward", () => {
   const tiers = rewardTiers();
   assert.equal(tiers.length, 1);
-  assert.deepEqual(tiers[0], { id: "default", name: "", points: 100, value: 5 });
+  assert.deepEqual(tiers[0], { id: "default", name: "", points: 100, type: "cash", value: 5 });
 });
 
 test("resolveRewards: tiers are clamped, junk dropped, and sorted cheapest-first", () => {
@@ -112,4 +112,57 @@ test("effectivePercent & pointDollarValue: costed at the MOST generous reward", 
 
 test("pointDollarValue: legacy (no tiers) equals redeemValue/redeemPoints", () => {
   assert.equal(pointDollarValue({ redeemPoints: 100, redeemValue: 5 }), 0.05);
+});
+
+/* ---------------------------- typed reward tiers ---------------------------- */
+
+test("resolveTier types: untyped/unknown-type tiers stay cash (backward compatible)", () => {
+  const r = resolveRewards({ tiers: [
+    { id: "a", name: "Legacy", points: 100, value: 5 },
+    { id: "b", name: "Weird", points: 100, value: 5, type: "jackpot" },
+  ] });
+  assert.deepEqual(r.tiers.map((t) => t.type), ["cash", "cash"]);
+  assert.equal(TIER_TYPES.includes("cash"), true);
+});
+
+test("percent tier: clamped % and cap; an UNCAPPED percent tier is dropped", () => {
+  const r = resolveRewards({ tiers: [
+    { id: "p", name: "Happy hour", points: 50, type: "percent", percent: 10, cap: 8 },
+    { id: "hi", name: "Overclamp", points: 50, type: "percent", percent: 250, cap: 9999 },
+    { id: "nc", name: "No cap", points: 50, type: "percent", percent: 10 },          // dropped
+    { id: "zc", name: "Zero cap", points: 50, type: "percent", percent: 10, cap: 0 }, // dropped
+  ] });
+  assert.deepEqual(r.tiers.map((t) => t.id), ["p", "hi"]);
+  assert.deepEqual(r.tiers[0], { id: "p", name: "Happy hour", points: 50, type: "percent", percent: 10, cap: 8 });
+  assert.equal(r.tiers[1].percent, 100);  // clamped
+  assert.equal(r.tiers[1].cap, 1000);     // clamped
+});
+
+test("item tier: carries its $ value and the withPurchase flag (strict boolean)", () => {
+  const r = resolveRewards({ tiers: [
+    { id: "c", name: "Free coffee", points: 50, type: "item", value: 2.5, withPurchase: true },
+    { id: "d", name: "Free donut", points: 30, type: "item", value: 1.5, withPurchase: "yes" },
+  ] });
+  const coffee = r.tiers.find((t) => t.id === "c");
+  const donut = r.tiers.find((t) => t.id === "d");
+  assert.equal(coffee.withPurchase, true);
+  assert.equal(donut.withPurchase, false); // strict boolean, like `enabled`
+  assert.equal(coffee.value, 2.5);
+});
+
+test("tierDollarValue: cash/item use value, percent uses its cap; null-safe", () => {
+  assert.equal(tierDollarValue({ type: "cash", value: 5 }), 5);
+  assert.equal(tierDollarValue({ type: "item", value: 2.5 }), 2.5);
+  assert.equal(tierDollarValue({ type: "percent", percent: 10, cap: 8 }), 8);
+  assert.equal(tierDollarValue(null), 0);
+});
+
+test("liability & % -back are costed at the worst-case tier across types", () => {
+  const rules = { earnPerDollar: 1, redeemPoints: 100, redeemValue: 5, tiers: [
+    { id: "c", name: "Coffee", points: 50, type: "item", value: 2 },              // $0.04/pt
+    { id: "p", name: "Deal", points: 100, type: "percent", percent: 10, cap: 9 }, // $0.09/pt — worst
+    { id: "k", name: "$5 off", points: 100, type: "cash", value: 5 },             // $0.05/pt
+  ] };
+  assert.equal(pointDollarValue(rules), 0.09);
+  assert.equal(effectivePercent(rules), 9);
 });
