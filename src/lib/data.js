@@ -1,6 +1,7 @@
 import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
 import { weekDates } from "./schedule";
+import { VENDOR_SETTING_KEYS } from "./vendor-settings";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, onSnapshot, getDocs, serverTimestamp, increment,
@@ -13,8 +14,9 @@ const vcol = (vendorId, name) => collection(db, "vendors", vendorId, name);
 /* ---------- vendor ---------- */
 export async function updateVendorSettings(vendorId, patch) {
   const allowed = {};
-  const keys = ["name", "logoUrl", "sharingMode", "blindCounts", "varianceThreshold", "digest", "invVarianceThreshold", "patternRules", "fiscalStartMonth", "aiSearch", "aiInsights"];
-  for (const k of keys) if (k in patch) allowed[k] = patch[k];
+  // Allow-list must match the firestore.rules vendor-update hasOnly() set —
+  // kept in one place so they can't drift (see vendor-settings.js).
+  for (const k of VENDOR_SETTING_KEYS) if (k in patch) allowed[k] = patch[k];
   await updateDoc(doc(db, "vendors", vendorId), allowed);
 }
 
