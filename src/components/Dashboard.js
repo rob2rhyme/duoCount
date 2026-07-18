@@ -35,7 +35,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], onOpenLog, onRecord, onToast }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], onOpenLog, onRecord, onToast, locPicker = null }) {
   const { isManager, vendor } = useSession();
   const { theme } = useTheme();
   const { t, lang } = useLang();
@@ -193,11 +193,16 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
     finally { setInsightBusy(false); }
   }
 
-  const reportButton = isManager && (
-    <div className="flex justify-end">
-      <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2" onClick={() => setReportOpen(true)}>
-        <span aria-hidden="true">📄</span> {t("dash.reports_export")}
-      </button>
+  // One row: the location picker (when the shell passes it) beside the
+  // Reports button, instead of stacking on two rows.
+  const reportButton = (isManager || locPicker) && (
+    <div className="flex items-center justify-end gap-3">
+      {locPicker && <div className="flex-1 min-w-0">{locPicker}</div>}
+      {isManager && (
+        <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={() => setReportOpen(true)}>
+          <span aria-hidden="true">📄</span> {t("dash.reports_export")}
+        </button>
+      )}
     </div>
   );
   const reportModal = reportOpen && (

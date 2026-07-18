@@ -37,8 +37,8 @@ const publicCustomer = (id, c, rules) => ({
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { action, phone: rawPhone, name, saleDollars, points, note, tierId } = await req.json();
-    if (!["lookup", "enroll", "earn", "redeem", "adjust"].includes(action))
+    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, newName, newPhone } = await req.json();
+    if (!["lookup", "enroll", "earn", "redeem", "adjust", "update"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
 
     const { adminDb } = await getAdmin();
@@ -74,9 +74,30 @@ export async function POST(req) {
       return NextResponse.json({ ok: true, rules, customer: publicCustomer(ref.id, doc, rules), enrolled: true });
     }
 
-    // earn / redeem / adjust need an enrolled customer.
+    // earn / redeem / adjust / update need an enrolled customer.
     if (!existing) return err(404, "customer_not_found", "No rewards customer with that number — enroll them first.");
     const customerRef = existing.ref;
+
+    if (action === "update") {
+      // Owner-only profile edit (name / phone). Touches identity fields ONLY —
+      // never points, never the ledger. A phone change checks uniqueness so two
+      // customers can't collide on one number.
+      if (claims.role !== "owner") return err(403, "owner_only", "Only the owner can adjust points.");
+      const patch = {};
+      if (newName !== undefined) patch.name = String(newName ?? "").trim().slice(0, 80) || null;
+      if (newPhone !== undefined) {
+        const p = normalizePhone(newPhone);
+        if (!p) return err(400, "bad_phone", "Enter a valid phone number (7–15 digits).");
+        if (p !== phone) {
+          const clash = await customers.where("phone", "==", p).limit(1).get();
+          if (!clash.empty) return err(409, "phone_taken", "Another customer already uses that number.");
+          patch.phone = p;
+        }
+      }
+      if (Object.keys(patch).length) await customerRef.set(patch, { merge: true });
+      const fresh = { ...existing.data(), ...patch };
+      return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, fresh, rules), phoneDigits: fresh.phone });
+    }
 
     // The signed, append-only ledger line + the balance move, atomically.
     const signedEvent = (kind, pts, extra = {}) => ({
