@@ -26,6 +26,18 @@
 export const MIN_TICKET_BARCODE_LEN = 13;
 const TICKET_DIGITS = 3;
 
+// A pack id is game# + book#. The game# is the leading portion; the book# is a
+// specific pack of that game. Splitting them lets a NEW book of an
+// already-sold game carry that game's name + price forward (see packGameKey):
+// the barcode itself has no name/price text, so history is the only source. In
+// delimited barcodes the first group is the game#; in one long run this is the
+// leading-digit count. Like MIN_TICKET_BARCODE_LEN, the exact split varies by
+// state lottery — this constant is the one place to adapt it. A wrong split
+// only affects the name/price CONVENIENCE fill (always editable, and the clerk
+// reviews before the signed save); it never touches the ticket numbers the
+// theft audit is built on.
+export const GAME_DIGITS = 4;
+
 const toTicket = (s) => {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -33,25 +45,47 @@ const toTicket = (s) => {
 
 /**
  * @param {string} raw  the scanner's output
- * @returns {{ pack: string, ticket: number|null }}
+ * @returns {{ pack: string, ticket: number|null, game: string }}
  */
 export function parseScratchBarcode(raw) {
   const s = String(raw ?? "").trim();
-  if (!s) return { pack: "", ticket: null };
+  if (!s) return { pack: "", ticket: null, game: "" };
 
   const groups = s.split(/[^0-9]+/).filter(Boolean);
 
   // Delimited: two or more numeric groups → the last group is the ticket.
   if (groups.length >= 2) {
-    return { pack: groups.slice(0, -1).join("-"), ticket: toTicket(groups[groups.length - 1]) };
+    const pack = groups.slice(0, -1).join("-");
+    return { pack, ticket: toTicket(groups[groups.length - 1]), game: packGameKey(pack) };
   }
 
   // One long run of digits → peel the trailing ticket off.
   const digits = groups[0] || "";
   if (digits.length >= MIN_TICKET_BARCODE_LEN) {
-    return { pack: digits.slice(0, -TICKET_DIGITS), ticket: toTicket(digits.slice(-TICKET_DIGITS)) };
+    const pack = digits.slice(0, -TICKET_DIGITS);
+    return { pack, ticket: toTicket(digits.slice(-TICKET_DIGITS)), game: packGameKey(pack) };
   }
 
   // Too short / non-numeric to hold a ticket — a plain pack/book id.
-  return { pack: s, ticket: null };
+  return { pack: s, ticket: null, game: packGameKey(s) };
+}
+
+/**
+ * Derive the game identifier from a pack id — for a scanned pack or a stored
+ * `entry.pack`, so the two can be matched. A new book of a known game then
+ * shares a game key with the last count of that game and inherits its name +
+ * price. Returns "" when no stable key can be read (so no false match fires).
+ *
+ * @param {string} pack  a pack id from parseScratchBarcode or a saved entry
+ * @returns {string}
+ */
+export function packGameKey(pack) {
+  const p = String(pack ?? "").trim();
+  if (!p) return "";
+  // Delimited (game-book…): the first group is the game#.
+  if (p.includes("-")) return p.split("-")[0];
+  // One run of digits: the leading GAME_DIGITS. Only when there is a book# tail
+  // to distinguish, so two books of one game differ while sharing the game key.
+  if (/^\d+$/.test(p) && p.length > GAME_DIGITS) return p.slice(0, GAME_DIGITS);
+  return "";
 }
