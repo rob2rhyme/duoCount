@@ -23,12 +23,14 @@ solo necesitas registrar tus conteos, salta a
 
 - Inicias sesión con un **código de tienda** (como `acme-market`) y tu propio
   **PIN** — sin correo, sin contraseña.
-- Te mueves con la **navegación**: en un teléfono, una **barra inferior**
-  agrupa las pantallas en **Contar** (Caja / Raspaditos / Inventario),
-  **Equipo** (Horario / Incidentes / Notas), **Análisis** (Panel / Portafolio /
-  Registro) y **Admin** (solo gerentes) — toca un grupo para elegir una
-  pantalla. En una pantalla más ancha, las mismas pantallas se alinean como una
-  **fila de pestañas** arriba. (**Portafolio** aparece solo para dueños.)
+- La app **abre en el Panel** — primero los números del día. Te mueves con la
+  **navegación**: en un teléfono, una **barra inferior** agrupa las pantallas
+  en **Contar** (Caja / Raspaditos / Inventario, más **Recompensas** cuando la
+  tienda lo activa), **Equipo** (Horario / Incidentes / Notas), **Análisis**
+  (Panel / Portafolio / Registro) y **Admin** (solo gerentes) — toca un grupo
+  para elegir una pantalla. En una pantalla más ancha, las mismas pantallas se
+  alinean como una **fila de pestañas** arriba. (**Portafolio** aparece solo
+  para dueños.)
 - Los empleados **registran conteos**. Los gerentes los **verifican** (un
   segundo par de ojos), atienden lo que quede marcado y sacan **reportes**.
 - La app hace la aritmética y muestra el **sobra/falta** en verde (sobra) o
@@ -84,7 +86,9 @@ Abre **Admin** y agrega las piezas que tu equipo elegirá al contar:
 
 > **¿Vienes de una hoja de cálculo?** Los dueños tienen una tarjeta
 > **Importar / migrar** en **Admin** que trae tus **artículos rastreados**, tu
-> **lista de personal** o tus **conteos de apertura de estantes** desde un
+> **lista de personal**, tus **conteos de apertura de estantes** o tus
+> **niveles de existencia** (cantidad en existencia, precio y fecha de
+> caducidad — exportados de tu POS) desde un
 > **CSV** (de Excel, tu POS anterior, una hoja de cálculo). Elige el tipo, sube
 > el archivo, empareja tus columnas con los campos de DuoCount — adivina la
 > mayoría por ti — y revisa una **vista previa fila por fila** antes de que se
@@ -108,8 +112,9 @@ En la **Configuración del negocio**, el dueño define el **modo de
 compartición**: o cada ubicación ve todos los conteos, o cada una ve solo los
 suyos. Los gerentes y dueños siempre ven todo. También puedes cambiar el
 **nombre/logo** del negocio, activar un **resumen diario por correo** opcional
-(desactivado por defecto) y activar las **funciones de IA** opcionales (todas
-desactivadas por defecto — mira el paso 6).
+(desactivado por defecto), activar las **recompensas para clientes**
+(desactivadas por defecto — mira el paso 6) y activar las **funciones de IA**
+opcionales (todas desactivadas por defecto — mira el paso 7).
 
 ### 4. Tu ritmo diario
 
@@ -139,7 +144,7 @@ desactivadas por defecto — mira el paso 6).
 - **Mira el Panel.** Sobra/falta neto, conteos con faltante, gráficas por día,
   empleado, caja y artículo, más **alertas de patrones** discretas (p. ej. "la
   misma caja con faltante bajo tres personas" — un arranque de conversación,
-  nunca un veredicto). Si activas el análisis de IA (paso 6), un botón
+  nunca un veredicto). Si activas el análisis de IA (paso 7), un botón
   **"Explicar estas señales"** resume las alertas y dice qué mirar primero.
 - **Revisa la Auditoría de paquetes.** El Panel compara el boleto de apertura
   de cada paquete de raspaditos contra su cierre anterior y muestra cada
@@ -147,6 +152,14 @@ desactivadas por defecto — mira el paso 6).
   quién firmó la reapertura — además de los paquetes que dejaron de contarse
   sin aviso. Los boletos faltantes se atrapan en el cambio de turno, no meses
   después en un estado de cuenta.
+- **Revisa la Atención de existencias.** Si sincronizas los niveles de
+  existencia desde tu POS (la importación de **Niveles de existencia**), el
+  Panel lista lo que está **por caducar** (por defecto dentro de 30 días) y lo
+  que **hay que pedir** (por defecto menos de 5 unidades) — ambos umbrales se
+  ajustan, solo por el dueño, en **Configuración del negocio → Alertas de
+  existencias**, y ambas listas viajan también en el resumen diario por
+  correo. Los artículos sin cantidad sincronizada o sin fecha de caducidad
+  simplemente no alertan.
 - **Atiende lo marcado.** Cualquier conteo de efectivo desviado más de tu
   umbral (por defecto $5) queda marcado; ciérralo registrando *por qué* (Error
   humano, Error de la registradora, Falta de capacitación, etc.). También
@@ -207,7 +220,36 @@ Los archivos se nombran para ordenarse solos, p. ej.
 > sobra/falta, % verificado), una fila por día. Es un formato genérico —
 > compáralo con la plantilla real de tu franquiciante antes de entregarlo.
 
-### 6. Funciones de IA opcionales (desactivadas por defecto)
+### 6. Recompensas para clientes (opcional, desactivado por defecto)
+
+Un programa de puntos por número de teléfono en el mostrador — sin tarjeta,
+sin app, sin hardware. El dueño lo activa en **Configuración del negocio →
+Recompensas para clientes** y define la economía (por defecto: **$1 = 1
+punto, 100 puntos = $5 de descuento**). La tarjeta de configuración muestra
+en vivo el **% efectivo de devolución** mientras editas — los valores por
+defecto devuelven el 5% del gasto que califica, unas cinco veces lo de las
+grandes cadenas, así que asegúrate de que tus márgenes lo aguanten.
+
+- **En el mostrador:** el personal abre la pestaña **Recompensas**, escribe el
+  teléfono del cliente y lo inscribe (nombre opcional) o consulta su saldo.
+  Los puntos se suman sobre el **total de la venta que califica** — sin
+  tabaco, vape, alcohol, lotería, tarjetas de regalo ni gasolina (aplican
+  prohibiciones de descuento, leyes de precio mínimo y las reglas de valor
+  nominal de la lotería). Cuando el saldo llega a la meta, un toque registra
+  el canje y el descuento se aplica en tu registradora.
+- **Confiable por construcción:** cada suma y cada canje es una **línea
+  firmada y permanente** en el libro de recompensas — nada se edita ni se
+  borra, las correcciones son líneas nuevas firmadas por el dueño, y las
+  alertas de patrones del Panel vigilan los abusos clásicos (puntos que
+  superan tus ventas contadas, una cuenta que suma varias veces al día,
+  rachas de canjes bajo un solo empleado). El Panel también muestra el
+  **pasivo en puntos pendiente** en dólares.
+- **Para los clientes:** pueden consultar su propio saldo cuando quieran en
+  **/rewards** con solo el código de tienda y su teléfono (nunca se muestra
+  ningún nombre), y desde Admin se imprime un **letrero bilingüe de
+  mostrador** listo, con tu programa y esa dirección.
+
+### 7. Funciones de IA opcionales (desactivadas por defecto)
 
 DuoCount tiene tres funciones de IA pequeñas y opcionales. Cada una está
 **apagada hasta que la actives** en la **Configuración del negocio**, cada una
@@ -265,10 +307,12 @@ registres.
 ### Registrar un conteo de raspaditos
 
 1. Toca **Raspaditos** e ingresa el **juego** y el **n.º de paquete** — o
-   **escanea** el paquete con la cámara del teléfono. Un paquete que la tienda
-   ya contó llena su juego y su precio, y trae el **n.º inicial** desde el n.º
-   final del último conteo.
-2. Ingresa los números de boleto **inicial** y **final**. Boletos vendidos =
+   **escanea** un boleto con la cámara del teléfono. El escaneo llena el
+   paquete **y el n.º de boleto en el que va** (tu lectura final); un paquete
+   que la tienda ya contó también llena su juego y su precio y trae el **n.º
+   inicial** desde el final del último conteo — así una apertura o un cierre
+   de todos los días es escanear → revisar → guardar.
+2. Revisa los números de boleto **inicial** y **final**. Boletos vendidos =
    final − inicial, y la app multiplica por el precio del boleto para obtener
    los dólares que deberían estar en la caja.
 3. **Guarda.**
@@ -288,6 +332,17 @@ registres.
    por esas unidades o más queda marcado para que un gerente lo revise — igual
    que un faltante de efectivo. (El modo ciego también aplica aquí, si está
    activado.)
+
+### Recompensas en el mostrador (si tu tienda las activó)
+
+En la pestaña **Recompensas**, escribe el teléfono del cliente y toca
+**Buscar**. ¿Aún no está inscrito? Agrégalo solo con el número (el nombre es
+opcional). Luego ingresa el **total de la venta que califica** — sin tabaco,
+vape, alcohol, lotería, tarjetas de regalo ni gasolina — y toca **Sumar
+puntos**. Cuando su saldo llegue a la meta, el botón de **Canjear** se
+enciende: tócalo y aplica el descuento en la registradora. Cada suma y cada
+canje queda firmado con tu nombre y es permanente, como un conteo. Los
+clientes pueden consultar su propio saldo en **/rewards**.
 
 ### Marcar entrada/salida y ver tu horario
 
@@ -369,6 +424,7 @@ importantes.
 | **Disputa** | Un empleado en desacuerdo formal, que queda en el registro. |
 | **Conteo ciego** | Contar sin ver antes el número esperado. |
 | **Período** | El rango de fechas que cubre un reporte (un día, un mes, un trimestre…). |
+| **Venta que califica** | La parte de una venta que gana puntos de recompensa — todo excepto tabaco, vape, alcohol, lotería, tarjetas de regalo y gasolina. |
 
 ---
 
