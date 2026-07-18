@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useId } from "react";
 import { addEntry } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { parseScratchBarcode, packGameKey } from "@/lib/scratch-barcode";
+import { resolveCatalogGame } from "@/lib/scratch-catalog";
 import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
@@ -70,6 +71,11 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   // forward — but NOT the start #, since a fresh book starts at its own ticket,
   // not the last book's close. The barcode carries no name/price text, so this
   // sibling match is the only way a brand-new pack of a known game auto-fills.
+  //
+  // Failing both, look the game number up in the bundled lottery catalog: a game
+  // never sold here before still fills its name + price from the pack's game #.
+  // Precedence is store history first (the real prices this store charges), then
+  // the catalog as the broad fallback. None of these touch the audited start/end.
   useEffect(() => {
     const pack = f.pack.trim();
     if (!pack) return;
@@ -94,6 +100,12 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         price: sib.price != null ? String(sib.price) : p.price,
       }));
       onSaved?.(t("toast.game_recognized"));
+      return;
+    }
+    const cat = resolveCatalogGame(pack);
+    if (cat) {
+      setF((p) => ({ ...p, game: cat.name, price: String(cat.price) }));
+      onSaved?.(t("toast.game_catalog"));
     }
   }, [f.pack, f.locationId]); // eslint-disable-line
 
