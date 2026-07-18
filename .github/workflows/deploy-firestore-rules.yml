@@ -1,0 +1,64 @@
+# Deploys Firestore security rules + indexes to the live Firebase project.
+#
+# Why this exists: Vercel deploys the app but NOT firestore.rules — a rules
+# change merged to main silently never reaches production without a manual
+# `firebase deploy`. This workflow closes that gap.
+#
+# One-time setup (GitHub repo → Settings):
+#   Secrets → Actions → new secret  FIREBASE_SERVICE_ACCOUNT_KEY
+#     — the service-account JSON (the same value as the Vercel env var of the
+#       same name). The account needs the "Firebase Rules Admin" and
+#       "Cloud Datastore Index Admin" roles (or simply "Editor").
+#   Variables → Actions → new variable  FIREBASE_PROJECT_ID
+#     — the Firebase project id (same as NEXT_PUBLIC_FIREBASE_PROJECT_ID).
+#
+# Runs when rules/indexes change on main, or on demand from the Actions tab.
+
+name: Deploy Firestore rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "firestore.indexes.json"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-firestore-rules
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fail early if the secret or project id is missing
+        env:
+          KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          PROJECT: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::Missing repo secret FIREBASE_SERVICE_ACCOUNT_KEY (Settings → Secrets → Actions)."; exit 1; fi
+          if [ -z "$PROJECT" ]; then
+            echo "::error::Missing repo variable FIREBASE_PROJECT_ID (Settings → Variables → Actions)."; exit 1; fi
+
+      - name: Write service-account credentials
+        env:
+          KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        run: printf '%s' "$KEY" > "$RUNNER_TEMP/firebase-sa.json"
+
+      - name: Deploy rules + indexes
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+          PROJECT: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: npx firebase-tools@15 deploy --only firestore --project "$PROJECT" --non-interactive --force
+
+      - name: Scrub credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-sa.json"
