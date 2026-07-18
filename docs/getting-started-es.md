@@ -243,10 +243,13 @@ grandes cadenas, así que asegúrate de que tus márgenes lo aguanten.
   migrar → Clientes de recompensas** acepta un CSV con un teléfono por línea
   (nombre y saldo de puntos opcionales) y omite a quien ya esté inscrito.
   ¿Vienes de otra app de recompensas? Asigna la columna de puntos de tu
-  exportación y cada cliente **nuevo** empieza con su saldo anterior,
-  registrado como un ajuste firmado del dueño en el libro — una importación
-  jamás cambia los puntos de un cliente ya inscrito. La propia pestaña
-  Recompensas guía al personal con una tarjeta numerada de "Cómo funciona".
+  exportación y cada cliente empieza con su saldo anterior, registrado como un
+  ajuste firmado del dueño en el libro. Esa siembra aplica a clientes nuevos y
+  a inscritos que aún no tengan actividad de puntos (así re-importar con
+  puntos corrige una importación anterior sin ellos) — en cuanto un cliente
+  tiene actividad real, una importación jamás puede cambiar sus puntos. La
+  propia pestaña Recompensas guía al personal con una tarjeta numerada de
+  "Cómo funciona".
 - **Confiable por construcción:** cada suma y cada canje es una **línea
   firmada y permanente** en el libro de recompensas — nada se edita ni se
   borra, las correcciones son líneas nuevas firmadas por el dueño, y las

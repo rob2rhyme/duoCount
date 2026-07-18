@@ -217,10 +217,13 @@ margins carry it.
   is the whole signup — or all at once: **Admin → Import / migrate → Rewards
   customers** takes a CSV of one phone number per line (name and points balance
   optional) and skips anyone already enrolled. Moving in from another rewards
-  app? Map your export's points column and each **new** customer starts at their
-  old balance, recorded as a signed owner adjustment in the ledger — an already-
-  enrolled customer's points are never changed by an import. The Rewards tab
-  itself walks staff through the flow with a numbered "How it works" card.
+  app? Map your export's points column and each customer starts at their old
+  balance, recorded as a signed owner adjustment in the ledger. That seeding
+  applies to new customers and to enrolled customers with no points activity
+  yet (so re-importing with points fixes an earlier import that had none) —
+  once a customer has any real activity, an import can never change their
+  points. The Rewards tab itself walks staff through the flow with a numbered
+  "How it works" card.
 - **Trustworthy by construction:** every earn and redemption is a **signed,
   permanent line** in the rewards ledger — nothing can be edited or deleted,
   corrections are new signed lines by the owner, and the Dashboard's pattern

@@ -603,10 +603,18 @@ export function validateCustomers(rows = [], mapping = {}, ctx = {}) {
     const match = existing.get(phone);
     if (match) {
       fields.id = match.id;
-      // Fill in a missing/changed name; otherwise nothing to do. The points
-      // column NEVER applies here — an enrolled balance only moves through
-      // the register's signed earn/redeem/adjust flow.
-      if (name && name !== (match.name || "")) { fields.newName = name; push("update", [m("imp.msg.customer_name_update")]); }
+      // An enrolled customer's balance is protected — with ONE carve-out: a
+      // customer with no activity at all (zero balance, zero lifetime, never
+      // earned — e.g. enrolled by an earlier import that had no points column)
+      // can be seeded once, so a re-import with points mapped repairs them.
+      // Anyone with real history only ever moves through the register's
+      // signed earn/redeem/adjust flow.
+      const neverActive = !(Number(match.pointsBalance) > 0)
+        && !(Number(match.lifetimePoints) > 0) && !match.lastEarnAt;
+      const messages = [];
+      if (pts > 0 && neverActive) { fields.seedPoints = pts; messages.push(m("imp.msg.points_seed_existing", { n: pts })); }
+      if (name && name !== (match.name || "")) { fields.newName = name; messages.push(m("imp.msg.customer_name_update")); }
+      if (fields.seedPoints || fields.newName) push("update", messages);
       else push("skip", [m("imp.msg.customer_exists")]);
       continue;
     }

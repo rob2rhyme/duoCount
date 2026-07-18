@@ -468,18 +468,36 @@ test("validateCustomers: name-less rows preview as the number; missingRequired n
   assert.deepEqual(missingRequired({ phone: "p" }, "customers"), []);
 });
 
-test("validateCustomers: a mapped points column seeds NEW customers only", () => {
+test("validateCustomers: a mapped points column seeds new customers' starting balances", () => {
   const map = { ...custMap, points: "points" };
   const { rows, summary } = validateCustomers(rowsOf(
     { phone: "5557778888", name: "Sam", points: "1,250" }, // new — starting balance (Excel commas ok)
-    { phone: "5551234567", name: "Alex", points: "900" },  // enrolled — skipped, points ignored
     { phone: "5552223333", points: "" },                   // blank points → starts at 0
   ), map, custCtx);
-  assert.deepEqual(rows.map((r) => r.status), ["create", "skip", "create"]);
+  assert.deepEqual(rows.map((r) => r.status), ["create", "create"]);
   assert.equal(rows[0].fields.points, 1250);
   assert.match(rows[0].messages.join(" "), /1250 points/);
-  assert.equal(rows[2].fields.points, null);
-  assert.deepEqual(summary, { create: 2, update: 0, skip: 1, error: 0 });
+  assert.equal(rows[1].fields.points, null);
+  assert.deepEqual(summary, { create: 2, update: 0, skip: 0, error: 0 });
+});
+
+test("validateCustomers: enrolled with activity is immune; enrolled never-active seeds once", () => {
+  const map = { ...custMap, points: "points" };
+  const ctx = { existingCustomers: [
+    { id: "a", phone: "5551111111", name: "Active", pointsBalance: 40, lifetimePoints: 200, lastEarnAt: "2026-07-01" },
+    { id: "b", phone: "5552222222", name: "Spent", pointsBalance: 0, lifetimePoints: 500 }, // redeemed to 0 — still real history
+    { id: "c", phone: "5553333333", name: "Fresh", pointsBalance: 0 },                      // earlier import, untouched since
+  ] };
+  const { rows } = validateCustomers(rowsOf(
+    { phone: "5551111111", name: "Active", points: "900" },
+    { phone: "5552222222", name: "Spent", points: "900" },
+    { phone: "5553333333", name: "Fresh", points: "300" },
+  ), map, ctx);
+  assert.deepEqual(rows.map((r) => r.status), ["skip", "skip", "update"]);
+  assert.equal(rows[0].fields.seedPoints, undefined);
+  assert.equal(rows[1].fields.seedPoints, undefined);
+  assert.equal(rows[2].fields.seedPoints, 300);
+  assert.match(rows[2].messages.join(" "), /starting balance to 300 points/);
 });
 
 test("validateCustomers: junk or out-of-range points error the row; fractions round", () => {
