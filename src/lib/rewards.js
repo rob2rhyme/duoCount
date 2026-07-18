@@ -20,7 +20,7 @@ export const REWARDS = {
 };
 
 // At most this many named tiers — a c-store reward menu, not a catalog.
-export const MAX_TIERS = 8;
+export const MAX_TIERS = 12;
 
 // VIP status tiers (loyalty-plan-review.md, port slice 2): named lifetime-
 // points milestones (Bronze/Silver/Gold) with an earn multiplier ≥ 1. Status

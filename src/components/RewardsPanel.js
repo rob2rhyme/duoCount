@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useId } from "react";
 import { apiRewards } from "@/lib/data";
 import { money } from "@/lib/utils";
 import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, canRedeem, canRedeemTier, normalizePhone, maskPhone } from "@/lib/rewards";
@@ -8,6 +8,7 @@ import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
 import Field from "./Field";
 import TabIcon from "./TabIcon";
+import BarcodeScanner from "./BarcodeScanner";
 
 // Customer rewards — the register flow (rewards-program-spec.md, Phase 1).
 // Zero hardware: the customer's phone number IS the card. A clerk finds a
@@ -31,9 +32,10 @@ const lastEarnDate = (c) => {
 };
 
 export default function RewardsPanel({ onToast, customers = [] }) {
-  const { vendor, isManager } = useSession();
+  const { vendor, isManager, isOwner } = useSession();
   const { t } = useLang();
   const rules = resolveRewards(vendor?.rewards);
+  const searchId = useId();
 
   const [query, setQuery] = useState("");
   const [phone, setPhone] = useState("");         // the working phone (real digits) for API calls
@@ -41,8 +43,16 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   const [enrollPhone, setEnrollPhone] = useState(null); // set while adding a new number
   const [name, setName] = useState("");
   const [sale, setSale] = useState("");
-  const [busy, setBusy] = useState("");           // "" | enroll | earn | redeem
+  const [busy, setBusy] = useState("");           // "" | enroll | earn | redeem | update | adjust
   const [error, setError] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
+  // Owner-only controls on the customer card: inline profile edit + a signed
+  // points adjustment (the server requires the note — it's a ledger line).
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [adjPts, setAdjPts] = useState("");
+  const [adjNote, setAdjNote] = useState("");
 
   const localize = (e) => (e?.code ? t(`rewarderr.${e.code}`) : e?.message || t("rewarderr.generic"));
 
@@ -95,7 +105,37 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   }
   function back() {
     setCustomer(null); setEnrollPhone(null); setSale(""); setError("");
+    setEditing(false); setAdjPts(""); setAdjNote("");
   }
+
+  // Scan a customer code (a QR or barcode that encodes their phone number —
+  // e.g. a printed loyalty card). Enrolled → open their card; new but valid →
+  // jump straight into enrollment with the number filled.
+  function onScanned(code) {
+    setScanOpen(false);
+    const digits = normalizePhone(String(code || "").replace(/\D/g, ""));
+    if (!digits) { setError(t("rewarderr.bad_phone")); return; }
+    const hit = customers.find((c) => String(c.phone || "") === digits);
+    if (hit) selectCustomer(hit);
+    else startEnroll(digits);
+  }
+
+  function startEdit() {
+    setEditName(customer?.name || ""); setEditPhone(phone); setEditing(true); setError("");
+  }
+  const saveEdit = () =>
+    run("update", { action: "update", phone, newName: editName, newPhone: editPhone }, (r) => {
+      setCustomer((c) => ({ ...c, ...r.customer }));
+      if (r.phoneDigits) setPhone(r.phoneDigits);
+      setEditing(false);
+      onToast?.(t("rw.toast_updated"));
+    });
+  const adjust = () =>
+    run("adjust", { action: "adjust", phone, points: Math.trunc(Number(adjPts)), note: adjNote }, (r) => {
+      setCustomer((c) => ({ ...c, pointsBalance: r.balance }));
+      setAdjPts(""); setAdjNote("");
+      onToast?.(t("rw.toast_adjusted", { n: r.adjusted, b: r.balance }));
+    });
 
   const enroll = () =>
     run("enroll", { action: "enroll", phone, name }, (r) => {
@@ -255,16 +295,65 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                     })}
                   </div>
                 </div>
+
+                {/* Owner tools: profile edit + a signed points adjustment.
+                    Both write through the trusted route only. */}
+                {isOwner && (
+                  <div className="border-t border-line pt-3 space-y-3">
+                    {!editing ? (
+                      <button type="button" className="text-[13px] text-muted hover:text-fg font-semibold underline underline-offset-2"
+                        onClick={startEdit}>{t("rw.edit_profile")}</button>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <Field label={t("rw.name_label")}>
+                          <input className="input" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t("rw.name_ph")} />
+                        </Field>
+                        <Field label={t("rw.phone_label")}>
+                          <input className="input font-mono" inputMode="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+                        </Field>
+                        <div className="flex gap-2">
+                          <button className="btn-primary flex-1" disabled={!!busy} onClick={saveEdit}>
+                            {busy === "update" ? t("common.saving") : t("rw.edit_save")}
+                          </button>
+                          <button className="btn-ghost w-auto px-4" disabled={!!busy} onClick={() => setEditing(false)}>{t("rw.edit_cancel")}</button>
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">{t("rw.adjust_title")}</div>
+                      {/* flex ratios, not a fixed width — .input carries w-full,
+                          and stacking w-24 on it loses to CSS order. */}
+                      <div className="flex gap-2">
+                        <input className="input min-w-0 flex-1 font-mono" type="number" step="1" value={adjPts}
+                          placeholder="+50" onChange={(e) => setAdjPts(e.target.value)} aria-label={t("rw.adjust_title")} />
+                        <input className="input min-w-0 flex-[2.5]" value={adjNote} placeholder={t("rw.adjust_note_ph")}
+                          onChange={(e) => setAdjNote(e.target.value)} />
+                        <button className="btn-ghost px-3 flex-shrink-0" disabled={!!busy || !Math.trunc(Number(adjPts)) || !adjNote.trim()} onClick={adjust}>
+                          {busy === "adjust" ? t("common.saving") : t("rw.adjust_btn")}
+                        </button>
+                      </div>
+                      <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("rw.adjust_hint")}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
         ) : (
           /* ---- List view: search + browsable customer list ---- */
           <>
-            <Field label={t("rw.search_label")}>
-              <input className="input" value={query} placeholder={t("rw.search_ph")}
-                onChange={(e) => setQuery(e.target.value)} />
-            </Field>
+            {/* Search + customer-code scan share one row (datalist lesson:
+                keep this a manual label, not a second Field child). */}
+            <div>
+              <label htmlFor={searchId} className="label">{t("rw.search_label")}</label>
+              <div className="flex gap-2">
+                <input id={searchId} className="input min-w-0" value={query} placeholder={t("rw.search_ph")}
+                  onChange={(e) => setQuery(e.target.value)} />
+                <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg"
+                  title={t("rw.scan_customer")} aria-label={t("rw.scan_customer")}
+                  onClick={() => setScanOpen(true)}>📷</button>
+              </div>
+            </div>
 
             {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
 
@@ -321,6 +410,10 @@ export default function RewardsPanel({ onToast, customers = [] }) {
 
         <p className="text-xs text-muted leading-relaxed">{t("rw.footer")}</p>
       </div>
+
+      <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
+        title={t("rw.scan_customer")} hint={t("rw.scan_customer_hint")}
+        onDetected={onScanned} />
     </div>
   );
 }

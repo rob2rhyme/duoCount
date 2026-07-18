@@ -226,7 +226,10 @@ export default function AppShell() {
             isManager={isManager} vendorId={vendor.id} onGoAdmin={goAdmin} />
         )}
 
-        {showLocFilter && (
+        {/* On the Dashboard the picker is passed INTO the component so it can
+            share one row with the "Reports & export" button; other tabs keep
+            the standalone row. */}
+        {showLocFilter && tab !== "dashboard" && (
           <div className="mb-4">
             <select className="input" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
               <option value="all">{t("common.all_locations")}</option>
@@ -276,7 +279,13 @@ export default function AppShell() {
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
             items={items} rewardEvents={rewardEvents} customers={customers}
-            onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping} />
+            onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping}
+            locPicker={showLocFilter ? (
+              <select className="input" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
+                <option value="all">{t("common.all_locations")}</option>
+                {activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            ) : null} />
         )}
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />

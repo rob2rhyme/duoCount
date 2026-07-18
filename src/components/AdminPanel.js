@@ -262,10 +262,35 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
 
   const locName = (id) => locations.find((l) => l.id === id)?.name || t("common.all_locations");
 
+  // Sticky in-page section nav — the Admin page is long; chips jump to each
+  // card. Sits just below the sticky app header (whose height is its safe-area
+  // top padding + ~45px of content); scroll-mt on the cards keeps headings
+  // clear of both bars after the jump.
+  const NAV_SECTIONS = [
+    ["adm-staff", "admin.staff_title"],
+    ["adm-locations", "admin.locations_title"],
+    ["adm-drawers", "admin.drawers_title"],
+    ["adm-items", "admin.items_title"],
+    ["adm-settings", "admin.settings_title"],
+    ["adm-rewards", "admin.rw_title"],
+    ...(isOwner ? [["adm-import", "imp.title"], ["adm-demo", "admin.demo_title"]] : []),
+  ];
+  const jumpTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
     <div className="space-y-4">
+      <nav aria-label={t("admin.nav_aria")}
+        className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+45px)] z-10 -mx-4 px-4 py-2 bg-[var(--bg)]/95 backdrop-blur-sm flex gap-1.5 overflow-x-auto">
+        {NAV_SECTIONS.map(([id, key]) => (
+          <button key={id} type="button" onClick={() => jumpTo(id)}
+            className="flex-shrink-0 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border border-line bg-subtle text-muted hover:text-fg hover:border-brass transition">
+            {t(key)}
+          </button>
+        ))}
+      </nav>
+
       {/* ---------------- staff ---------------- */}
-      <div className="card overflow-hidden">
+      <div id="adm-staff" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">{t("admin.staff_title")}</h2>
           <p className="text-[13px] text-muted mt-0.5">{t("admin.staff_sub")}</p>
@@ -353,7 +378,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       </div>
 
       {/* ---------------- locations ---------------- */}
-      <div className="card overflow-hidden">
+      <div id="adm-locations" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line"><h2 className="font-semibold text-[15px]">{t("admin.locations_title")}</h2></div>
         <div className="p-4 border-b border-line bg-panel flex gap-2">
           <input className="input" value={newLoc} onChange={(e) => setNewLoc(e.target.value)} placeholder={t("admin.ph_location")} aria-label={t("admin.aria_loc_name")} />
@@ -374,7 +399,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       </div>
 
       {/* ---------------- drawers ---------------- */}
-      <div className="card overflow-hidden">
+      <div id="adm-drawers" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">{t("admin.drawers_title")}</h2>
           <p className="text-[13px] text-muted mt-0.5">{t("admin.drawers_sub")}</p>
@@ -407,7 +432,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       </div>
 
       {/* ---------------- inventory items ---------------- */}
-      <div className="card overflow-hidden">
+      <div id="adm-items" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">{t("admin.items_title")}</h2>
           <p className="text-[13px] text-muted mt-0.5">{t("admin.items_sub")}</p>
@@ -466,7 +491,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       </div>
 
       {/* ---------------- settings (owner) ---------------- */}
-      <div className="card overflow-hidden">
+      <div id="adm-settings" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
           <h2 className="font-semibold text-[15px]">{t("admin.settings_title")}</h2>
           <p className="text-[13px] text-muted mt-0.5">{t("admin.store_code_label")}: <b className="font-mono">{vendor.slug}</b> {t("admin.store_code_hint")}</p>
@@ -570,7 +595,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             <p className="text-xs text-muted leading-relaxed">{t("admin.stock_foot")}</p>
           </div>
 
-          <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
+          <div id="adm-rewards" className="border border-line rounded-xl p-3.5 space-y-3 bg-panel scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
             <div className="flex items-start gap-3">
               <input id="rewardsEnabled" type="checkbox" className="mt-1" checked={settings.rewards.enabled === true}
                 disabled={!isOwner} onChange={setReward("enabled")} />
@@ -755,10 +780,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         </div>
       </div>
 
-      {isOwner && <ImportCard locations={locations} items={items} staff={staff} entries={entries} customers={customers} scratchCatalog={scratchCatalog} onToast={onToast} />}
+      {isOwner && (
+        <div id="adm-import" className="scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
+          <ImportCard locations={locations} items={items} staff={staff} entries={entries} customers={customers} scratchCatalog={scratchCatalog} onToast={onToast} />
+        </div>
+      )}
 
       {isOwner && (
-        <div className="card overflow-hidden">
+        <div id="adm-demo" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
           <div className="px-4 py-3.5 border-b border-line">
             <h2 className="font-semibold text-[15px]">{t("admin.demo_title")}</h2>
             <p className="text-[13px] text-muted mt-0.5">{t("admin.demo_sub")}</p>
