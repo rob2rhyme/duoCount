@@ -9,6 +9,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
+import { REWARDS, resolveRewards, effectivePercent } from "@/lib/rewards";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
@@ -109,11 +110,14 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     digestTz: vendor.digest?.tz || "America/New_York",
     patternRules: { ...PATTERN_RULES, ...(vendor.patternRules || {}) },
     stockAlerts: { ...STOCK_ALERTS, ...(vendor.stockAlerts || {}) },
+    rewards: { ...REWARDS, ...(vendor.rewards || {}) },
   });
   const setRule = (k) => (e) =>
     setSettings((s) => ({ ...s, patternRules: { ...s.patternRules, [k]: e.target.value } }));
   const setStockRule = (k) => (e) =>
     setSettings((s) => ({ ...s, stockAlerts: { ...s.stockAlerts, [k]: e.target.value } }));
+  const setReward = (k) => (e) =>
+    setSettings((s) => ({ ...s, rewards: { ...s.rewards, [k]: k === "enabled" ? e.target.checked : e.target.value } }));
   const [testing, setTesting] = useState(false);
   async function saveSettings() {
     // Parse + validate digest recipients (cap 10, basic format check).
@@ -146,6 +150,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       aiInsights: settings.aiInsights, // opt-in Dashboard AI insight; off by default
       patternRules: resolvePatternRules(settings.patternRules),
       stockAlerts: resolveStockAlerts(settings.stockAlerts),
+      rewards: resolveRewards(settings.rewards),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
         narrative: settings.digestNarrative, // opt-in AI summary; off by default
@@ -497,6 +502,38 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </Field>
             </div>
             <p className="text-xs text-muted leading-relaxed">{t("admin.stock_foot")}</p>
+          </div>
+
+          <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
+            <div className="flex items-start gap-3">
+              <input id="rewardsEnabled" type="checkbox" className="mt-1" checked={settings.rewards.enabled === true}
+                disabled={!isOwner} onChange={setReward("enabled")} />
+              <label htmlFor="rewardsEnabled" className="min-w-0">
+                <span className="font-medium text-[14px]">{t("admin.rw_title")} <span className="text-muted font-normal">{t("admin.off_by_default")}</span></span>
+                <p className="text-xs text-muted leading-relaxed">{t("admin.rw_hint")}</p>
+              </label>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label={t("admin.rw_earn_label")}>
+                <input type="number" inputMode="decimal" min="0.1" max="100" step="0.1" className="input"
+                  value={settings.rewards.earnPerDollar} disabled={!isOwner} onChange={setReward("earnPerDollar")} />
+              </Field>
+              <Field label={t("admin.rw_goal_label")}>
+                <input type="number" inputMode="numeric" min="10" max="100000" step="1" className="input"
+                  value={settings.rewards.redeemPoints} disabled={!isOwner} onChange={setReward("redeemPoints")} />
+              </Field>
+              <Field label={t("admin.rw_value_label")}>
+                <input type="number" inputMode="decimal" min="0.5" max="1000" step="0.5" className="input"
+                  value={settings.rewards.redeemValue} disabled={!isOwner} onChange={setReward("redeemValue")} />
+              </Field>
+            </div>
+            <p className="text-xs leading-relaxed">
+              <span className="font-semibold">{t("admin.rw_effective", { pct: effectivePercent(settings.rewards) })}</span>
+              {effectivePercent(settings.rewards) > 2 && (
+                <span className="text-neg"> {t("admin.rw_effective_warn")}</span>
+              )}
+            </p>
+            <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
           </div>
 
           <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">

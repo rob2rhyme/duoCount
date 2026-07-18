@@ -44,7 +44,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
              .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold',
                        'blindCounts', 'varianceThreshold', 'digest', 'patternRules',
-                       'fiscalStartMonth', 'aiSearch', 'aiInsights', 'stockAlerts']);
+                       'fiscalStartMonth', 'aiSearch', 'aiInsights', 'stockAlerts',
+                       'rewards']);
       allow create, delete: if false; // vendors are created by the signup API
 
       match /locations/{locationId} {
@@ -64,6 +65,19 @@ service cloud.firestore {
         allow read: if member();
         allow create, update: if mgr() && liveActive();
         allow delete: if false;
+      }
+
+      // Customer rewards (rewards-program-spec.md): every write goes through
+      // the trusted /api/rewards route (Admin SDK), which signs each ledger
+      // line and moves the balance in the same transaction — so client rules
+      // allow NO writes at all. The ledger is append-only by construction.
+      match /customers/{customerId} {
+        allow read: if member();
+        allow create, update, delete: if false;
+      }
+      match /rewardEvents/{eventId} {
+        allow read: if member();
+        allow create, update, delete: if false;
       }
 
       // Scratch-off packs: received -> active -> settled | returned,

@@ -79,6 +79,7 @@ live in their own `docs/*-spec.md`; this file is the index and the backlog.
 | **Localization — Phase 2c: Dashboard, Admin + the whole app chrome** (the two structural screens plus everything around them, each landed complete: the **Dashboard** via a pattern-alert refactor — detectors in `patterns.js` now emit stable `code` + `params` and pre-render English through the shared catalog (`pattern-format.js`), so the fixed-English digest and the PII redactor stay byte-identical while the Dashboard re-renders alerts in the reader's locale (stat tiles, patterns card + AI insight, pack-audit prose with locale dates/plurals, needs-attention, charts, tables); the **Admin tab** as one unit — `import-parse.js` validation messages moved to codes+params (`import-msg.js`) with byte-identical English so its tests never changed, plus the full `AdminPanel` and `ImportCard`; and the **app chrome** — header/footer, the keyboard-shortcuts help sheet, PreferencesMenu, BarcodeScanner (camera errors as codes translated at render), ScrollTopFab. Also: **Dashboard is now the first tab and the default landing page**) | `src/lib/pattern-format.js`, `src/lib/import-msg.js`, `patterns.js`, `import-parse.js`, `Dashboard.js`, `AdminPanel.js`, `ImportCard.js`, `AppShell.js`, `PreferencesMenu.js`, `BarcodeScanner.js`, `ScrollTopFab.js` | ✅ |
 | **Scratch scan → per-shift auto-populate** (scanning a ticket splits the barcode into a stable pack id + current ticket # via the pure, unit-tested `scratch-barcode.js`; the scan fills game, price, chained start # and the current end reading for both opening and closing counts — a new pack seeds a clean sold-0 baseline; every entry already carries `ts` + `shift`, so each scan is a time-stamped position the pack audit chains across shift boundaries) | `src/lib/scratch-barcode.js`, `tests/scratch-barcode.test.mjs`, `ScratchForm.js` | ✅ |
 | **POS stock sync — Phase 1 (CSV) + expiry/low-stock alerts** (pos-inventory-sync-spec.md Phase 1: the owner-only **"Stock levels"** import type refreshes existing items' synced `quantity` / `price` / `expiresAt` from any POS export — update-only, item-resolution by name/barcode + location, re-running refreshes `quantitySyncedAt`; pure, unit-tested `validateStock`. `vendor.stockAlerts` owner settings (clamped: "Expiring soon" ≤ 30 days, "Need order" < 5 units) in Admin; the pure, unit-tested `stock-alerts.js` feeds a manager-only Dashboard **Stock attention** card (expired-first, en/es) and a digest email section. One-key rules change (`stockAlerts` on the vendor doc) — **emulator check pending**. The signed shift count is untouched) | `src/lib/stock-alerts.js`, `import-parse.js`, `api/import/route.js`, `ImportCard.js`, `AdminPanel.js`, `Dashboard.js`, `digest.js`, `firestore.rules`, `tests/stock-alerts.test.mjs` | ✅ |
+| **Customer rewards — Phase 1 (core)** (rewards-program-spec.md Phase 1: phone-number enrollment at the register — no card, no app, no hardware; `customers` + the **append-only signed `rewardEvents` ledger** where every write goes through the trusted `/api/rewards` route (client rules allow **no** writes; points computed server-side from the owner's settings; the balance moves in the same transaction as the ledger line; owner-only `adjust` with a required note — corrections are new signed lines). Owner **Reward settings** in Admin ($1 = 1 pt, 100 pts = $5 off defaults, clamped, off by default) with the **live effective-%-back readout** + >2% caution and the legal exclusions note (tobacco/vape/alcohol/lottery/gift-cards/fuel). The **Rewards** tab (en/es): lookup by phone (masked display), enroll, earn on the qualifying sale, progress bar, one-tap redeem; employees see the tab only when the program is on. Pure, unit-tested `rewards.js`; `privacy-and-data.md` gains the rewards-customer disclosure (no marketing, no cross-merchant pooling). Rules change (`rewards` key + two read-only collections) — **emulator check pending**. No SMS (TCPA), no tiers; fraud detectors + liability readout are Phase 2) | `src/lib/rewards.js`, `api/rewards/route.js`, `RewardsPanel.js`, `AdminPanel.js`, `AppShell.js`, `BottomNav.js`, `require-manager.js`, `firestore.rules`, `tests/rewards.test.mjs`, `privacy-and-data.md` | ✅ |
 
 ## Next up
 
@@ -392,16 +393,17 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
   ≤ 30 days) and "Need order" (default < 5 units). The signed per-shift count
   stays for the high-shrink watch list only; the synced quantity doubles as a
   tamper-resistant expected baseline for it. Phases 2–3 remain research.
-- **Customer rewards** — `rewards-program-spec.md` — **spec'd July 2026,
-  research only, nothing built.** Owner defaults: $1 = 1 point,
-  100 points = $5 off, owner-only adjustable in Reward settings (off by
-  default). Competitive research (Fivestars/SumUp, Square Loyalty, Kangaroo,
-  Loyalzoo, chains: 7Rewards / Speedy / Casey's / Circle K / Sheetz), the
-  compliance layer (tobacco discount bans + minimum-price laws, lottery
-  face-value rules, SNAP equal treatment, TCPA — no SMS in v1, points
-  liability/breakage), and the gap DuoCount uniquely fills: an append-only
-  signed points ledger with clerk points-fraud detectors reconciled against
-  the countersigned shift sales.
+- **Customer rewards** — `rewards-program-spec.md` — **Phase 1 ✅ shipped
+  July 2026** (see Shipped). Owner defaults: $1 = 1 point, 100 points = $5
+  off, owner-only adjustable in Reward settings (off by default, with the
+  live effective-%-back readout). Competitive research (Fivestars/SumUp,
+  Square Loyalty, Kangaroo, Loyalzoo, chains: 7Rewards / Speedy / Casey's /
+  Circle K / Sheetz), the compliance layer (tobacco discount bans +
+  minimum-price laws, lottery face-value rules, SNAP equal treatment, TCPA —
+  no SMS in v1, points liability/breakage), and the gap DuoCount uniquely
+  fills: an append-only signed points ledger with clerk points-fraud
+  detectors reconciled against the countersigned shift sales. Phase 2 (fraud
+  detectors, digest, liability readout) and Phase 3 remain open.
 
 ### Tier 3 — bigger bets, de-risk first
 Offline write-queue reliability UX; solo-shift countersign fallback; buddy-punch +

@@ -17,6 +17,16 @@ async function verifyBearer(req) {
   }
 }
 
+// Require any signed-in, token-valid member of a vendor (employee, manager, or
+// owner). Used by the rewards register flow — earning/redeeming is a clerk
+// action; the route enforces anything role-specific (e.g. owner-only adjust).
+export async function requireMember(req) {
+  const claims = await verifyBearer(req);
+  if (!claims.vendorId || !claims.userId)
+    throw Object.assign(new Error("Not signed in."), { status: 401 });
+  return claims;
+}
+
 // Require a manager or owner. Shared by the staff and schedule-publish routes.
 export async function requireManager(req) {
   const claims = await verifyBearer(req);

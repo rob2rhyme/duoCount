@@ -121,6 +121,15 @@ export async function apiImport({ type, mode, mapping, rows, allowPartial }) {
     body: JSON.stringify({ type, mode, mapping, rows, allowPartial: !!allowPartial }),
   });
 }
+// Rewards register flow — every ledger write happens server-side (route signs
+// the event and moves the balance transactionally); the client only asks.
+export async function apiRewards(payload) {
+  return fetchJson("/api/rewards", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
+  });
+}
 // Manager-only natural-language log search: turns a query into a filter object
 // (ai-log-search-spec.md). Returns { filter } or { filter: null } — the caller
 // falls back to keyword search on null.

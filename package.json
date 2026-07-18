@@ -21,6 +21,7 @@
     "test:scratch-audit": "node --test tests/scratch-audit.test.mjs",
     "test:scratch-barcode": "node --test tests/scratch-barcode.test.mjs",
     "test:stock-alerts": "node --test tests/stock-alerts.test.mjs",
+    "test:rewards": "node --test tests/rewards.test.mjs",
     "test:api": "node --test tests/api.test.mjs",
     "test:entry": "node --test tests/entry-consistency.test.mjs",
     "test:payroll": "node --test tests/payroll-lock.test.mjs",
