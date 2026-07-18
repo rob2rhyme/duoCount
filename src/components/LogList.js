@@ -300,7 +300,9 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
       ) : (
         <SearchInput value={query} onChange={setQuery} placeholder={t("log.search_ph")} label={t("log.search_label")} />
       )}
-      <div className="flex gap-2 flex-wrap">
+      {/* Below sm the wrap-row becomes a 2-per-row grid: three+ selects on one
+          393px row squeeze to ~117px each and clip their own labels. */}
+      <div className="max-sm:grid max-sm:grid-cols-2 flex gap-2 flex-wrap">
         <select className="input w-auto flex-1 min-w-[110px]" value={fType} onChange={(e) => setFType(e.target.value)}>
           <option value="all">{t("log.f_all_entries")}</option>
           <option value="cash">{t("log.f_cash")}</option>
