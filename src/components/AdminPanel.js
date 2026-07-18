@@ -10,6 +10,7 @@ import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
 import { REWARDS, resolveRewards, effectivePercent } from "@/lib/rewards";
+import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
@@ -163,6 +164,37 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       onToast?.(t("admin.toast_settings_saved"));
     } catch (e) { onToast?.(t("admin.err_owner_settings")); }
   }
+  // A print-ready counter sign for the rewards program — deliberately
+  // BILINGUAL (both catalog languages on one sheet, like a real c-store sign).
+  // Values are esc()'d; the print window is the report-print pattern.
+  function printRewardsSign() {
+    const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const R = resolveRewards(settings.rewards);
+    const url = `${window.location.origin}/rewards`;
+    const vars = {
+      earn: R.earnPerDollar, goal: R.redeemPoints,
+      value: `$${R.redeemValue.toFixed(2)}`, url, slug: vendor.slug,
+    };
+    const block = (loc) => `
+      <div style="margin-top:26px">
+        <div style="font-size:30px;font-weight:800">${esc(translate(loc, "sign.join"))}</div>
+        <div style="font-size:22px;margin-top:10px">${esc(translate(loc, "sign.line", vars))}</div>
+        <div style="font-size:16px;color:#444;margin-top:10px">${esc(translate(loc, "sign.how"))}</div>
+        <div style="font-size:14px;color:#444;margin-top:8px">${esc(translate(loc, "sign.check", vars))}</div>
+      </div>`;
+    const w = window.open("", "_blank", "width=800,height=900");
+    if (!w) return;
+    w.document.write(`<!doctype html><title>${esc(vendor.name)} — rewards</title>
+      <body style="font-family:Helvetica,Arial,sans-serif;color:#1a1c2e;text-align:center;padding:48px 32px">
+        <div style="font-size:38px;font-weight:800">${esc(vendor.name)}</div>
+        ${block("en")}
+        <hr style="margin:30px auto;width:60%;border:none;border-top:1px solid #ddd" />
+        ${block("es")}
+      </body>`);
+    w.document.close();
+    w.print();
+  }
+
   async function sendTestDigest() {
     setTesting(true);
     try { const r = await apiTestDigest(); onToast?.(r.message || t("admin.toast_test_sent")); }
@@ -534,6 +566,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               )}
             </p>
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
+            <div className="flex items-center justify-between gap-3 flex-wrap border-t border-line pt-3">
+              <span className="text-xs text-muted">{t("admin.rw_balance_url")}</span>
+              <button type="button" className="btn-ghost text-[13px] px-3 py-1.5"
+                disabled={settings.rewards.enabled !== true} onClick={printRewardsSign}>
+                {t("admin.rw_print_sign")}
+              </button>
+            </div>
           </div>
 
           <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
