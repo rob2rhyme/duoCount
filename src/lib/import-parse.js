@@ -10,6 +10,7 @@
 // all against the same parser and report shape.
 
 import { isValidNewPin } from "./pin.js";
+import { normalizePhone } from "./rewards.js";
 import { importMsgEn } from "./import-msg.js";
 
 // A validation message as a stable code + params, not baked English — so the
@@ -52,6 +53,10 @@ const TARGETS = {
     { field: "price", label: "Price", required: false, aliases: ["price", "retail", "retailprice", "unitprice", "sellprice", "cost"] },
     { field: "expiry", label: "Expiry date", required: false, aliases: ["expiry", "expires", "expiration", "expirationdate", "expdate", "bestby", "useby", "sellby"] },
     { field: "location", label: "Location", required: false, aliases: ["location", "store", "site", "loc", "branch", "shop"] },
+  ],
+  customers: [
+    { field: "phone", label: "Phone number", required: true, aliases: ["phone", "phonenumber", "mobile", "cell", "cellphone", "telephone", "number", "tel"] },
+    { field: "name", label: "Name", required: false, aliases: ["name", "customer", "customername", "fullname", "firstname"] },
   ],
 };
 
@@ -526,6 +531,61 @@ export function validateStock(rows = [], mapping = {}, ctx = {}) {
     seenItems.set(item.id, row.line);
 
     push("update", messages);
+  }
+
+  return { rows: reports, summary };
+}
+
+/* --------------------------- validateCustomers --------------------------- */
+
+// Validate rewards-customer rows (rewards-program-spec.md — the bulk answer to
+// "how does an owner add customers?"): a phone number per line, name optional.
+// Phones normalize exactly like the register flow (digits only, US leading 1
+// dropped), so "(555) 123-4567" in the CSV and 5551234567 typed at the counter
+// are the same customer. Idempotent: an enrolled phone is skipped (or gets its
+// name filled in), never duplicated — and importing NEVER touches points.
+// ctx: { existingCustomers }.
+export function validateCustomers(rows = [], mapping = {}, ctx = {}) {
+  const existing = new Map((ctx.existingCustomers || [])
+    .filter((c) => c && c.phone)
+    .map((c) => [String(c.phone), c]));
+  const seenPhones = new Map(); // normalized phone -> line
+  const reports = [];
+  const summary = { create: 0, update: 0, skip: 0, error: 0 };
+
+  for (const row of rows) {
+    const v = row.values || {};
+    const get = (field) => (mapping[field] ? v[mapping[field]] : undefined);
+    const rawPhone = String(get("phone") ?? "").trim();
+    const name = String(get("name") ?? "").trim().slice(0, 80);
+    const fields = { phone: null, name: name || null };
+    const push = (status, msgs) => {
+      summary[status] += 1;
+      reports.push({ line: row.line, status, fields: { ...fields }, messages: msgs });
+    };
+
+    if (!rawPhone) { push("error", [m("imp.msg.phone_missing")]); continue; }
+    const phone = normalizePhone(rawPhone);
+    if (!phone) { push("error", [m("imp.msg.phone_invalid", { phone: rawPhone })]); continue; }
+    fields.phone = phone;
+    // `customerName` is what commits (null when the CSV had none); `name` is
+    // the preview's display column — the name when given, else the number.
+    fields.customerName = name || null;
+    fields.name = name || phone;
+
+    if (seenPhones.has(phone)) { push("skip", [m("imp.msg.dup_phone_line", { n: seenPhones.get(phone) })]); continue; }
+    seenPhones.set(phone, row.line);
+
+    const match = existing.get(phone);
+    if (match) {
+      fields.id = match.id;
+      // Fill in a missing/changed name; otherwise nothing to do.
+      if (name && name !== (match.name || "")) { fields.newName = name; push("update", [m("imp.msg.customer_name_update")]); }
+      else push("skip", [m("imp.msg.customer_exists")]);
+      continue;
+    }
+
+    push("create", []);
   }
 
   return { rows: reports, summary };

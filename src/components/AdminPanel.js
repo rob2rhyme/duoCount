@@ -17,7 +17,7 @@ import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
 import Field from "./Field";
 
-export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [] }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const { t, lang } = useLang();
   const [staff, setStaff] = useState([]);
@@ -566,6 +566,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               )}
             </p>
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
+            <p className="text-xs text-muted leading-relaxed">{t("admin.rw_bulk_hint")}</p>
             <div className="flex items-center justify-between gap-3 flex-wrap border-t border-line pt-3">
               <span className="text-xs text-muted">{t("admin.rw_balance_url")}</span>
               <button type="button" className="btn-ghost text-[13px] px-3 py-1.5"
@@ -650,7 +651,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         </div>
       </div>
 
-      {isOwner && <ImportCard locations={locations} items={items} staff={staff} entries={entries} onToast={onToast} />}
+      {isOwner && <ImportCard locations={locations} items={items} staff={staff} entries={entries} customers={customers} onToast={onToast} />}
 
       {isOwner && (
         <div className="card overflow-hidden">

@@ -86,9 +86,10 @@ Abre **Admin** y agrega las piezas que tu equipo elegirá al contar:
 
 > **¿Vienes de una hoja de cálculo?** Los dueños tienen una tarjeta
 > **Importar / migrar** en **Admin** que trae tus **artículos rastreados**, tu
-> **lista de personal**, tus **conteos de apertura de estantes** o tus
+> **lista de personal**, tus **conteos de apertura de estantes**, tus
 > **niveles de existencia** (cantidad en existencia, precio y fecha de
-> caducidad — exportados de tu POS) desde un
+> caducidad — exportados de tu POS) o tus **clientes de recompensas** (un
+> teléfono por línea) desde un
 > **CSV** (de Excel, tu POS anterior, una hoja de cálculo). Elige el tipo, sube
 > el archivo, empareja tus columnas con los campos de DuoCount — adivina la
 > mayoría por ti — y revisa una **vista previa fila por fila** antes de que se
@@ -237,6 +238,12 @@ grandes cadenas, así que asegúrate de que tus márgenes lo aguanten.
   prohibiciones de descuento, leyes de precio mínimo y las reglas de valor
   nominal de la lotería). Cuando el saldo llega a la meta, un toque registra
   el canje y el descuento se aplica en tu registradora.
+- **Para agregar clientes:** uno a la vez en el mostrador — el número de
+  teléfono es todo el registro — o todos de una vez: **Admin → Importar /
+  migrar → Clientes de recompensas** acepta un CSV con un teléfono por línea
+  (nombre opcional), omite a quien ya esté inscrito y jamás toca los puntos de
+  nadie. La propia pestaña Recompensas guía al personal con una tarjeta
+  numerada de "Cómo funciona".
 - **Confiable por construcción:** cada suma y cada canje es una **línea
   firmada y permanente** en el libro de recompensas — nada se edita ni se
   borra, las correcciones son líneas nuevas firmadas por el dueño, y las

@@ -4,7 +4,7 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { requireOwner } from "@/lib/require-manager";
 import { hashPin, verifyPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
-import { validateItems, validateStaff, validateBaselines, validateStock } from "@/lib/import-parse";
+import { validateItems, validateStaff, validateBaselines, validateStock, validateCustomers } from "@/lib/import-parse";
 
 export const runtime = "nodejs";
 
@@ -193,7 +193,7 @@ export async function POST(req) {
   try {
     const claims = await requireOwner(req);
     const { type, mode, mapping = {}, rows = [], allowPartial = false } = await req.json();
-    if (!["items", "staff", "baselines", "stock"].includes(type))
+    if (!["items", "staff", "baselines", "stock", "customers"].includes(type))
       return NextResponse.json({ error: "Unknown import type." }, { status: 400 });
     if (!Array.isArray(rows))
       return NextResponse.json({ error: "No rows to import." }, { status: 400 });
@@ -221,6 +221,40 @@ export async function POST(req) {
         return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
       const counts = await commitStaff(adminDb, adminAuth, vendorRef, claims, report, mapping, rows, userSnap, existingById);
       return NextResponse.json({ ok: true, type, mode: "commit", counts });
+    }
+
+    if (type === "customers") {
+      // Rewards enrollment in bulk. Same trusted write path as the register
+      // flow's route — the client rules allow no writes to customers — and
+      // importing never touches points: new customers start at 0, existing
+      // ones only ever gain a missing name.
+      const custSnap = await vendorRef.collection("customers").get();
+      const existingCustomers = custSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const report = validateCustomers(rows, mapping, { existingCustomers });
+      if (mode !== "commit")
+        return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
+      const customersCol = vendorRef.collection("customers");
+      const importBatchId = randomUUID();
+      const writer = chunkedWriter(adminDb);
+      let created = 0;
+      let updated = 0;
+      for (const r of report.rows) {
+        const f = r.fields;
+        if (r.status === "create") {
+          writer.set(customersCol.doc(), {
+            phone: f.phone, name: f.customerName ?? null,
+            pointsBalance: 0, createdAt: new Date(), lastEarnAt: null,
+            by: claims.name || "Owner", byId: claims.userId,
+            source: "import", importBatchId,
+          });
+          created += 1;
+        } else if (r.status === "update" && f.id && f.newName) {
+          writer.set(customersCol.doc(f.id), { name: f.newName }, { merge: true });
+          updated += 1;
+        }
+      }
+      await writer.done();
+      return NextResponse.json({ ok: true, type, mode: "commit", counts: { create: created, update: updated, skip: report.summary.skip, error: report.summary.error } });
     }
 
     if (type === "stock") {

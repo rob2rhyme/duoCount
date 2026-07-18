@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
-import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, importTargets, missingRequired } from "@/lib/import-parse";
+import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, validateCustomers, importTargets, missingRequired } from "@/lib/import-parse";
 import { renderImportMsg } from "@/lib/import-msg";
 import { apiImport } from "@/lib/data";
 import { useSession } from "./SessionProvider";
@@ -15,9 +15,9 @@ import { useLang } from "./LangProvider";
 
 const STATUS_STYLE = { create: "text-pos", update: "text-gold", skip: "text-muted", error: "text-neg" };
 const PREVIEW_CAP = 60;
-const TYPE_IDS = ["items", "staff", "baselines", "stock"];
+const TYPE_IDS = ["items", "staff", "baselines", "stock", "customers"];
 
-export default function ImportCard({ locations = [], items = [], staff = [], entries = [], onToast }) {
+export default function ImportCard({ locations = [], items = [], staff = [], entries = [], customers = [], onToast }) {
   const { profile } = useSession();
   const { t } = useLang();
   const [type, setType] = useState("items");
@@ -42,11 +42,14 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
     if (type === "items") return validateItems(parsed.rows, mapping, { locations, existingItems: items, defaultLocationId });
     if (type === "staff") return validateStaff(parsed.rows, mapping, { locations, existingStaff: staff, defaultLocationId });
     if (type === "stock") return validateStock(parsed.rows, mapping, { locations, items, defaultLocationId });
+    // The preview matches against the live customer list the shell already
+    // watches (empty when rewards is off); the route re-checks at commit.
+    if (type === "customers") return validateCustomers(parsed.rows, mapping, { existingCustomers: customers });
     return validateBaselines(parsed.rows, mapping, {
       locations, items, existingStaff: staff, baselinedItemIds,
       defaultBy: { id: profile.id, name: profile.name, role: profile.role },
     });
-  }, [parsed, mapping, type, locations, items, staff, baselinedItemIds, defaultLocationId, profile]);
+  }, [parsed, mapping, type, locations, items, staff, customers, baselinedItemIds, defaultLocationId, profile]);
 
   const targets = importTargets(type);
   const missing = missingRequired(mapping, type);
@@ -101,6 +104,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
 
   const detail = (f) => {
     if (type === "items") return f.locationName ? `${f.locationName}` : "";
+    if (type === "customers") return f.customerName && f.phone ? f.phone : "";
     if (type === "stock") return [
       f.quantity != null ? `${f.quantity} ${f.unit}${f.quantity === 1 ? "" : "s"}` : "",
       f.price != null ? `$${f.price}` : "",
@@ -147,6 +151,9 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
         )}
         {type === "stock" && (
           <p className="text-[13px] text-muted">{t("imp.stock_note")}</p>
+        )}
+        {type === "customers" && (
+          <p className="text-[13px] text-muted">{t("imp.customers_note")}</p>
         )}
 
         <div>
@@ -200,7 +207,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
                         <tr>
                           <th className="text-left font-semibold px-2.5 py-2 w-12">{t("imp.col_line")}</th>
                           <th className="text-left font-semibold px-2.5 py-2 w-16">{t("imp.col_status")}</th>
-                          <th className="text-left font-semibold px-2.5 py-2">{type === "staff" ? t("imp.col_person") : t("imp.col_item")}</th>
+                          <th className="text-left font-semibold px-2.5 py-2">{type === "staff" || type === "customers" ? t("imp.col_person") : t("imp.col_item")}</th>
                           <th className="text-left font-semibold px-2.5 py-2">{t("imp.col_notes")}</th>
                         </tr>
                       </thead>
