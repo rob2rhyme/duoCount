@@ -138,8 +138,10 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
         <p className="text-[13px] text-muted mt-0.5">{t("imp.sub")}</p>
       </div>
       <div className="p-4 space-y-4">
-        {/* Type picker */}
-        <div className="flex gap-1.5 bg-panel border border-line rounded-xl p-1">
+        {/* Type picker. Six types no longer fit one no-wrap phone row (the last
+            ones clipped unreachably past the card edge), so below sm the row
+            becomes a 3-per-row grid; desktop keeps the single flex row. */}
+        <div className="max-sm:grid max-sm:grid-cols-3 flex gap-1.5 bg-panel border border-line rounded-xl p-1">
           {TYPE_IDS.map((id) => (
             <button key={id} type="button" onClick={() => pickType(id)}
               className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${type === id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
