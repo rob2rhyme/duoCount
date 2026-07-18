@@ -9,6 +9,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import SaveError from "./SaveError";
 import Field from "./Field";
+import TabIcon from "./TabIcon";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -107,7 +108,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
-        <h2 className="font-semibold text-[15px]"><span aria-hidden="true">💵</span> {t("cash.title")}</h2>
+        <h2 className="font-semibold text-[15px] flex items-center gap-2"><TabIcon id="cash" size={18} className="text-gold" /> {t("cash.title")}</h2>
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">

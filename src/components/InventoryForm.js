@@ -10,6 +10,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import SaveError from "./SaveError";
 import Field from "./Field";
+import TabIcon from "./TabIcon";
 import SearchInput from "./SearchInput";
 import BarcodeScanner from "./BarcodeScanner";
 
@@ -108,7 +109,7 @@ export default function InventoryForm({ onSaved, locations, items, entries, locN
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line">
-        <h2 className="font-semibold text-[15px]"><span aria-hidden="true">📦</span> {t("inventory.title")}</h2>
+        <h2 className="font-semibold text-[15px] flex items-center gap-2"><TabIcon id="inventory" size={18} className="text-gold" /> {t("inventory.title")}</h2>
       </div>
       <div className="p-4 space-y-3.5">
         <div className="grid grid-cols-2 gap-3.5">
