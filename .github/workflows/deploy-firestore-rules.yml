@@ -38,15 +38,12 @@ jobs:
         with:
           node-version: 20
 
-      - name: Fail early if the secret or project id is missing
+      - name: Fail early if the secret is missing
         env:
           KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
-          PROJECT: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
           if [ -z "$KEY" ]; then
-            echo "::error::Missing repo secret FIREBASE_SERVICE_ACCOUNT_KEY (Settings → Secrets → Actions)."; exit 1; fi
-          if [ -z "$PROJECT" ]; then
-            echo "::error::Missing repo variable FIREBASE_PROJECT_ID (Settings → Variables → Actions)."; exit 1; fi
+            echo "::error::Missing repo secret FIREBASE_SERVICE_ACCOUNT_KEY (Settings → Secrets and variables → Actions → Secrets tab)."; exit 1; fi
 
       - name: Write service-account credentials
         env:
@@ -56,8 +53,19 @@ jobs:
       - name: Deploy rules + indexes
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
-          PROJECT: ${{ vars.FIREBASE_PROJECT_ID }}
-        run: npx firebase-tools@15 deploy --only firestore --project "$PROJECT" --non-interactive --force
+          # Optional overrides; when absent, the project id is read from the
+          # service-account JSON itself (its `project_id` field).
+          PROJECT_VAR: ${{ vars.FIREBASE_PROJECT_ID }}
+          PROJECT_SECRET: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          PROJECT="${PROJECT_VAR:-$PROJECT_SECRET}"
+          if [ -z "$PROJECT" ]; then
+            PROJECT=$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS,'utf8')).project_id||'')")
+          fi
+          if [ -z "$PROJECT" ]; then
+            echo "::error::Couldn't determine the Firebase project id — the service-account JSON has no project_id and no FIREBASE_PROJECT_ID variable/secret is set."; exit 1; fi
+          echo "Deploying Firestore rules + indexes to project: $PROJECT"
+          npx firebase-tools@15 deploy --only firestore --project "$PROJECT" --non-interactive --force
 
       - name: Scrub credentials
         if: always()
