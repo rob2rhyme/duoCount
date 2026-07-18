@@ -94,16 +94,21 @@ export default function AppShell() {
     return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); };
   }, [vendor.id, lockedLoc, isManager, profile.id]);
 
-  // Rewards audit feeds — manager-only and only while the program is on. The
+  const rewardsOn = vendor?.rewards?.enabled === true;
+  // Customer list: anyone who can see the Rewards tab needs it to serve
+  // customers (the register flow), so it isn't manager-gated — the rules allow
+  // every member to read customers, and phones are masked in the UI.
+  useEffect(() => {
+    if (!rewardsOn) { setCustomers([]); return undefined; }
+    return watchCustomers(vendor.id, setCustomers);
+  }, [vendor.id, rewardsOn]);
+  // Rewards AUDIT feed — manager-only and only while the program is on. The
   // ledger window is fixed at 90 days (the pattern-rules lookback maximum);
   // the audit lib re-filters to the store's actual windowDays.
-  const rewardsOn = vendor?.rewards?.enabled === true;
   useEffect(() => {
-    if (!isManager || !rewardsOn) { setRewardEvents([]); setCustomers([]); return undefined; }
+    if (!isManager || !rewardsOn) { setRewardEvents([]); return undefined; }
     const since = new Date(Date.now() - 90 * 24 * 3600 * 1000);
-    const u1 = watchRewardEvents(vendor.id, since, setRewardEvents);
-    const u2 = watchCustomers(vendor.id, setCustomers);
-    return () => { u1(); u2(); };
+    return watchRewardEvents(vendor.id, since, setRewardEvents);
   }, [vendor.id, isManager, rewardsOn]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
@@ -263,7 +268,7 @@ export default function AppShell() {
             <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
           )
         )}
-        {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} />}
+        {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} customers={customers} />}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}
