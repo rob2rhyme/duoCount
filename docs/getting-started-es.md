@@ -88,8 +88,8 @@ Abre **Admin** y agrega las piezas que tu equipo elegirá al contar:
 > **Importar / migrar** en **Admin** que trae tus **artículos rastreados**, tu
 > **lista de personal**, tus **conteos de apertura de estantes**, tus
 > **niveles de existencia** (cantidad en existencia, precio y fecha de
-> caducidad — exportados de tu POS) o tus **clientes de recompensas** (un
-> teléfono por línea) desde un
+> caducidad — exportados de tu POS) o tus **clientes de recompensas**
+> (teléfono, nombre y saldo de puntos opcionales) desde un
 > **CSV** (de Excel, tu POS anterior, una hoja de cálculo). Elige el tipo, sube
 > el archivo, empareja tus columnas con los campos de DuoCount — adivina la
 > mayoría por ti — y revisa una **vista previa fila por fila** antes de que se
@@ -241,9 +241,12 @@ grandes cadenas, así que asegúrate de que tus márgenes lo aguanten.
 - **Para agregar clientes:** uno a la vez en el mostrador — el número de
   teléfono es todo el registro — o todos de una vez: **Admin → Importar /
   migrar → Clientes de recompensas** acepta un CSV con un teléfono por línea
-  (nombre opcional), omite a quien ya esté inscrito y jamás toca los puntos de
-  nadie. La propia pestaña Recompensas guía al personal con una tarjeta
-  numerada de "Cómo funciona".
+  (nombre y saldo de puntos opcionales) y omite a quien ya esté inscrito.
+  ¿Vienes de otra app de recompensas? Asigna la columna de puntos de tu
+  exportación y cada cliente **nuevo** empieza con su saldo anterior,
+  registrado como un ajuste firmado del dueño en el libro — una importación
+  jamás cambia los puntos de un cliente ya inscrito. La propia pestaña
+  Recompensas guía al personal con una tarjeta numerada de "Cómo funciona".
 - **Confiable por construcción:** cada suma y cada canje es una **línea
   firmada y permanente** en el libro de recompensas — nada se edita ni se
   borra, las correcciones son líneas nuevas firmadas por el dueño, y las

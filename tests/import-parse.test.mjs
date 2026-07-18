@@ -468,6 +468,39 @@ test("validateCustomers: name-less rows preview as the number; missingRequired n
   assert.deepEqual(missingRequired({ phone: "p" }, "customers"), []);
 });
 
+test("validateCustomers: a mapped points column seeds NEW customers only", () => {
+  const map = { ...custMap, points: "points" };
+  const { rows, summary } = validateCustomers(rowsOf(
+    { phone: "5557778888", name: "Sam", points: "1,250" }, // new — starting balance (Excel commas ok)
+    { phone: "5551234567", name: "Alex", points: "900" },  // enrolled — skipped, points ignored
+    { phone: "5552223333", points: "" },                   // blank points → starts at 0
+  ), map, custCtx);
+  assert.deepEqual(rows.map((r) => r.status), ["create", "skip", "create"]);
+  assert.equal(rows[0].fields.points, 1250);
+  assert.match(rows[0].messages.join(" "), /1250 points/);
+  assert.equal(rows[2].fields.points, null);
+  assert.deepEqual(summary, { create: 2, update: 0, skip: 1, error: 0 });
+});
+
+test("validateCustomers: junk or out-of-range points error the row; fractions round", () => {
+  const map = { ...custMap, points: "points" };
+  const { rows } = validateCustomers(rowsOf(
+    { phone: "5557778888", points: "lots" },
+    { phone: "5556667777", points: "-5" },
+    { phone: "5554445555", points: "2000000" },
+    { phone: "5553334444", points: "12.4" },
+  ), map, custCtx);
+  assert.deepEqual(rows.map((r) => r.status), ["error", "error", "error", "create"]);
+  assert.match(rows[0].messages.join(" "), /whole number between 0 and 100,000/);
+  assert.equal(rows[3].fields.points, 12);
+});
+
+test("validateCustomers: without a mapped points column the CSV's points are inert", () => {
+  const { rows } = validateCustomers(rowsOf({ phone: "5557778888", points: "500" }), custMap, custCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.points, null);
+});
+
 /* ----------------------------- validateGames ----------------------------- */
 
 const gameMap = { game: "game", name: "name", price: "price", perPack: "perPack" };

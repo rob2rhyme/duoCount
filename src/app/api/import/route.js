@@ -225,15 +225,18 @@ export async function POST(req) {
 
     if (type === "customers") {
       // Rewards enrollment in bulk. Same trusted write path as the register
-      // flow's route — the client rules allow no writes to customers — and
-      // importing never touches points: new customers start at 0, existing
-      // ones only ever gain a missing name.
+      // flow's route — the client rules allow no writes to customers. A mapped
+      // points column seeds a NEW customer's starting balance (the migration
+      // path from another rewards app), recorded as a signed owner-adjust
+      // ledger line so balance == sum-of-ledger holds from day one. An
+      // existing customer's balance is never touched: only ever a missing name.
       const custSnap = await vendorRef.collection("customers").get();
       const existingCustomers = custSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
       const report = validateCustomers(rows, mapping, { existingCustomers });
       if (mode !== "commit")
         return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
       const customersCol = vendorRef.collection("customers");
+      const eventsCol = vendorRef.collection("rewardEvents");
       const importBatchId = randomUUID();
       const writer = chunkedWriter(adminDb);
       let created = 0;
@@ -241,12 +244,24 @@ export async function POST(req) {
       for (const r of report.rows) {
         const f = r.fields;
         if (r.status === "create") {
-          writer.set(customersCol.doc(), {
+          // Re-clamp server-side — a commit is never gated on the client's word.
+          const rawPts = Number(f.points);
+          const pts = Number.isFinite(rawPts) && rawPts > 0 ? Math.min(100000, Math.round(rawPts)) : 0;
+          const ref = customersCol.doc();
+          writer.set(ref, {
             phone: f.phone, name: f.customerName ?? null,
-            pointsBalance: 0, createdAt: new Date(), lastEarnAt: null,
+            pointsBalance: pts, lifetimePoints: pts, createdAt: new Date(), lastEarnAt: null,
             by: claims.name || "Owner", byId: claims.userId,
             source: "import", importBatchId,
           });
+          if (pts > 0) {
+            writer.set(eventsCol.doc(), {
+              kind: "adjust", points: pts, customerId: ref.id,
+              by: claims.name || "Owner", byId: claims.userId, byRole: "owner",
+              ts: new Date(), note: "Imported starting balance",
+              source: "import", importBatchId,
+            });
+          }
           created += 1;
         } else if (r.status === "update" && f.id && f.newName) {
           writer.set(customersCol.doc(f.id), { name: f.newName }, { merge: true });
