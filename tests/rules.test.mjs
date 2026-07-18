@@ -844,3 +844,19 @@ test("customers + rewardEvents: members read, outsiders don't, and no client may
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/rewardEvents/ev2`), { kind: "earn", points: 500, customerId: "c1" }));
   await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/rewardEvents/ev1`)));
 });
+
+test("catalog: members read, outsiders don't, and no client may write", async () => {
+  await env.withSecurityRulesDisabled(async (c) => {
+    const f = c.firestore();
+    await setDoc(doc(f, `vendors/${V}/catalog/scratch`), { games: { 1801: { name: "Glinda", price: 1 } }, count: 1 });
+  });
+  // The whole team reads the game catalog (the scratch form uses it).
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/catalog/scratch`)));
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/catalog/scratch`)));
+  await assertFails(getDoc(doc(db("outsider"), `vendors/${V}/catalog/scratch`)));
+  // Written only through the trusted owner-only /api/import route — no client
+  // write, not even the owner (mirrors customers/rewardEvents).
+  await assertFails(setDoc(doc(db("owner"), `vendors/${V}/catalog/scratch`), { games: {}, count: 0 }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/catalog/scratch`), { count: 99 }));
+  await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/catalog/scratch`)));
+});

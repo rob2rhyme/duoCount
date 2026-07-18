@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useRef, useState } from "react";
-import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, validateCustomers, importTargets, missingRequired } from "@/lib/import-parse";
+import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, validateCustomers, validateGames, importTargets, missingRequired } from "@/lib/import-parse";
 import { renderImportMsg } from "@/lib/import-msg";
 import { apiImport } from "@/lib/data";
 import { useSession } from "./SessionProvider";
@@ -15,9 +15,9 @@ import { useLang } from "./LangProvider";
 
 const STATUS_STYLE = { create: "text-pos", update: "text-gold", skip: "text-muted", error: "text-neg" };
 const PREVIEW_CAP = 60;
-const TYPE_IDS = ["items", "staff", "baselines", "stock", "customers"];
+const TYPE_IDS = ["items", "staff", "baselines", "stock", "customers", "games"];
 
-export default function ImportCard({ locations = [], items = [], staff = [], entries = [], customers = [], onToast }) {
+export default function ImportCard({ locations = [], items = [], staff = [], entries = [], customers = [], scratchCatalog = null, onToast }) {
   const { profile } = useSession();
   const { t } = useLang();
   const [type, setType] = useState("items");
@@ -45,11 +45,14 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
     // The preview matches against the live customer list the shell already
     // watches (empty when rewards is off); the route re-checks at commit.
     if (type === "customers") return validateCustomers(parsed.rows, mapping, { existingCustomers: customers });
+    // Games match against the already-uploaded catalog (null → empty) to show
+    // create vs. update; the route re-reads the stored catalog at commit.
+    if (type === "games") return validateGames(parsed.rows, mapping, { existingGames: scratchCatalog || {} });
     return validateBaselines(parsed.rows, mapping, {
       locations, items, existingStaff: staff, baselinedItemIds,
       defaultBy: { id: profile.id, name: profile.name, role: profile.role },
     });
-  }, [parsed, mapping, type, locations, items, staff, customers, baselinedItemIds, defaultLocationId, profile]);
+  }, [parsed, mapping, type, locations, items, staff, customers, scratchCatalog, baselinedItemIds, defaultLocationId, profile]);
 
   const targets = importTargets(type);
   const missing = missingRequired(mapping, type);
@@ -105,6 +108,11 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
   const detail = (f) => {
     if (type === "items") return f.locationName ? `${f.locationName}` : "";
     if (type === "customers") return f.customerName && f.phone ? f.phone : "";
+    if (type === "games") return [
+      f.game ? `#${f.game}` : "",
+      f.price != null ? `$${f.price}` : "",
+      f.perPack ? t("imp.detail_perpack", { n: f.perPack }) : "",
+    ].filter(Boolean).join(" · ");
     if (type === "stock") return [
       f.quantity != null ? `${f.quantity} ${f.unit}${f.quantity === 1 ? "" : "s"}` : "",
       f.price != null ? `$${f.price}` : "",
@@ -154,6 +162,9 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
         )}
         {type === "customers" && (
           <p className="text-[13px] text-muted">{t("imp.customers_note")}</p>
+        )}
+        {type === "games" && (
+          <p className="text-[13px] text-muted">{t("imp.games_note")}</p>
         )}
 
         <div>
@@ -207,7 +218,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
                         <tr>
                           <th className="text-left font-semibold px-2.5 py-2 w-12">{t("imp.col_line")}</th>
                           <th className="text-left font-semibold px-2.5 py-2 w-16">{t("imp.col_status")}</th>
-                          <th className="text-left font-semibold px-2.5 py-2">{type === "staff" || type === "customers" ? t("imp.col_person") : t("imp.col_item")}</th>
+                          <th className="text-left font-semibold px-2.5 py-2">{type === "staff" || type === "customers" ? t("imp.col_person") : type === "games" ? t("imp.col_game") : t("imp.col_item")}</th>
                           <th className="text-left font-semibold px-2.5 py-2">{t("imp.col_notes")}</th>
                         </tr>
                       </thead>

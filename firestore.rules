@@ -80,6 +80,16 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // Reference catalogs (e.g. the uploaded scratch-game listing). Written
+      // only through the trusted owner-only /api/import route (Admin SDK), like
+      // the customer ledger — so client rules allow reads for the team and no
+      // client writes. Pure reference data: it holds no count and no audited
+      // ticket number, and the scratch audit never consults it.
+      match /catalog/{docId} {
+        allow read: if member();
+        allow create, update, delete: if false;
+      }
+
       // Scratch-off packs: received -> active -> settled | returned,
       // forward-only and never deleted — enforced here, not just in the UI.
       match /packs/{packId} {

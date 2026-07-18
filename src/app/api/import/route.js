@@ -4,7 +4,7 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { requireOwner } from "@/lib/require-manager";
 import { hashPin, verifyPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
-import { validateItems, validateStaff, validateBaselines, validateStock, validateCustomers } from "@/lib/import-parse";
+import { validateItems, validateStaff, validateBaselines, validateStock, validateCustomers, validateGames } from "@/lib/import-parse";
 
 export const runtime = "nodejs";
 
@@ -193,7 +193,7 @@ export async function POST(req) {
   try {
     const claims = await requireOwner(req);
     const { type, mode, mapping = {}, rows = [], allowPartial = false } = await req.json();
-    if (!["items", "staff", "baselines", "stock", "customers"].includes(type))
+    if (!["items", "staff", "baselines", "stock", "customers", "games"].includes(type))
       return NextResponse.json({ error: "Unknown import type." }, { status: 400 });
     if (!Array.isArray(rows))
       return NextResponse.json({ error: "No rows to import." }, { status: 400 });
@@ -254,6 +254,39 @@ export async function POST(req) {
         }
       }
       await writer.done();
+      return NextResponse.json({ ok: true, type, mode: "commit", counts: { create: created, update: updated, skip: report.summary.skip, error: report.summary.error } });
+    }
+
+    if (type === "games") {
+      // Owner-uploadable scratch-game catalog (the state's published game
+      // listing). Stored as ONE doc — game# -> {name, price, perPack} — read by
+      // the scratch form to fill name + price on scan. Pure reference data:
+      // never a count, never an audited ticket number. Upsert per game number
+      // (create/update); an upload never deletes a game already in the catalog.
+      const catRef = vendorRef.collection("catalog").doc("scratch");
+      const catSnap = await catRef.get();
+      const existingGames = catSnap.exists ? (catSnap.data().games || {}) : {};
+      const report = validateGames(rows, mapping, { existingGames });
+      if (mode !== "commit")
+        return NextResponse.json({ ok: true, type, mode: "preview", summary: report.summary, rows: report.rows });
+      const games = { ...existingGames };
+      let created = 0;
+      let updated = 0;
+      for (const r of report.rows) {
+        if (r.status !== "create" && r.status !== "update") continue;
+        const f = r.fields;
+        games[f.game] = f.perPack != null
+          ? { name: f.name, price: f.price, perPack: f.perPack }
+          : { name: f.name, price: f.price };
+        if (r.status === "create") created += 1; else updated += 1;
+      }
+      // Full replace (not merge): `games` already holds the complete upserted
+      // map, and a plain set avoids Firestore deep-merging a stale perPack back
+      // onto a game whose re-upload dropped it.
+      await catRef.set({
+        games, count: Object.keys(games).length, source: "import",
+        updatedAt: new Date(), by: claims.name || "Owner", byId: claims.userId,
+      });
       return NextResponse.json({ ok: true, type, mode: "commit", counts: { create: created, update: updated, skip: report.summary.skip, error: report.summary.error } });
     }
 

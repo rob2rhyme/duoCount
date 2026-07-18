@@ -17,7 +17,7 @@ import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
 import Field from "./Field";
 
-export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [] }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], scratchCatalog = null }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const { t, lang } = useLang();
   const [staff, setStaff] = useState([]);
@@ -651,7 +651,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         </div>
       </div>
 
-      {isOwner && <ImportCard locations={locations} items={items} staff={staff} entries={entries} customers={customers} onToast={onToast} />}
+      {isOwner && <ImportCard locations={locations} items={items} staff={staff} entries={entries} customers={customers} scratchCatalog={scratchCatalog} onToast={onToast} />}
 
       {isOwner && (
         <div className="card overflow-hidden">

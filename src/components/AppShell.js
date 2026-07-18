@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
@@ -60,6 +60,7 @@ export default function AppShell() {
   const [swaps, setSwaps] = useState([]);
   const [rewardEvents, setRewardEvents] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [scratchCatalog, setScratchCatalog] = useState(null);
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
@@ -87,7 +88,10 @@ export default function AppShell() {
     const u6 = watchIncidents(vendor.id, isManager ? null : profile.id, setIncidents);
     // Swap board — only a manager needs it, and only to badge pending approvals.
     const u7 = isManager ? watchSwapBoard(vendor.id, setSwaps) : () => {};
-    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); };
+    // Scratch-game catalog: powers the scan name/price fill; every team member
+    // reads it (the scratch form uses it), so it's not manager-gated.
+    const u8 = watchScratchCatalog(vendor.id, setScratchCatalog);
+    return () => { u1(); u2(); u3(); u4(); u5(); u6(); u7(); u8(); };
   }, [vendor.id, lockedLoc, isManager, profile.id]);
 
   // Rewards audit feeds — manager-only and only while the program is on. The
@@ -245,7 +249,7 @@ export default function AppShell() {
             <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title_scratch")} action={adminAction}
               subtitle={isManager ? t("empty.scratch_drawer_mgr") : t("empty.scratch_drawer_emp")} />
           ) : (
-            <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} />
+            <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} catalog={scratchCatalog} />
           )
         )}
         {tab === "inventory" && (
@@ -272,7 +276,7 @@ export default function AppShell() {
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
-        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} />}
+        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} scratchCatalog={scratchCatalog} />}
       </main>
 
       <footer className="mt-10 border-t border-line-soft pb-28 sm:pb-0">

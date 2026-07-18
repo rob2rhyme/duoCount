@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, validateCustomers, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
+import { parseCsv, guessMapping, validateItems, validateStaff, validateBaselines, validateStock, validateCustomers, validateGames, missingRequired, ITEM_UNITS } from "../src/lib/import-parse.js";
 
 /* ------------------------------ parseCsv ------------------------------ */
 
@@ -466,4 +466,76 @@ test("validateCustomers: name-less rows preview as the number; missingRequired n
   assert.equal(rows[0].fields.customerName, null); // what commits
   assert.deepEqual(missingRequired({}, "customers"), ["phone"]);
   assert.deepEqual(missingRequired({ phone: "p" }, "customers"), []);
+});
+
+/* ----------------------------- validateGames ----------------------------- */
+
+const gameMap = { game: "game", name: "name", price: "price", perPack: "perPack" };
+// existing stored catalog: game 1801 already known
+const gameCtx = { existingGames: { 1801: { name: "Glinda", price: 1, perPack: 100 } } };
+
+test("validateGames: a clean new row creates; game # normalizes leading zeros", () => {
+  const { rows, summary } = validateGames(
+    rowsOf({ game: "01799", name: "Yellow Brick Road", price: "$5", perPack: "60" }), gameMap, gameCtx);
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[0].fields.game, "1799"); // leading zero dropped
+  assert.equal(rows[0].fields.name, "Yellow Brick Road");
+  assert.equal(rows[0].fields.price, 5); // leading $ stripped
+  assert.equal(rows[0].fields.perPack, 60);
+  assert.deepEqual(summary, { create: 1, update: 0, skip: 0, error: 0 });
+});
+
+test("validateGames: an already-stored game is a skip when identical, an update when a field differs", () => {
+  const same = validateGames(rowsOf({ game: "1801", name: "Glinda", price: "1", perPack: "100" }), gameMap, gameCtx);
+  assert.equal(same.rows[0].status, "skip");
+  const diff = validateGames(rowsOf({ game: "1801", name: "Glinda", price: "2", perPack: "100" }), gameMap, gameCtx);
+  assert.equal(diff.rows[0].status, "update");
+  assert.match(diff.rows[0].messages.join(" "), /price/);
+});
+
+test("validateGames: missing game #, missing name, and bad/zero price are errors", () => {
+  const r = validateGames(rowsOf(
+    { game: "", name: "X", price: "1" },
+    { game: "1700", name: "", price: "1" },
+    { game: "1700", name: "Y", price: "free" },
+    { game: "1700", name: "Y", price: "0" },
+    { game: "abc", name: "Y", price: "1" },
+  ), gameMap, gameCtx);
+  assert.deepEqual(r.rows.map((x) => x.status), ["error", "error", "error", "error", "error"]);
+  assert.match(r.rows[0].messages.join(" "), /game number/i);
+  assert.match(r.rows[1].messages.join(" "), /name/i);
+  assert.match(r.rows[2].messages.join(" "), /price/i);
+});
+
+test("validateGames: tickets-per-pack is optional but must be a whole number ≥ 1 when given", () => {
+  const ok = validateGames(rowsOf({ game: "1700", name: "Y", price: "1" }), { game: "game", name: "name", price: "price" }, {});
+  assert.equal(ok.rows[0].status, "create");
+  assert.equal(ok.rows[0].fields.perPack, null);
+  const bad = validateGames(rowsOf({ game: "1700", name: "Y", price: "1", perPack: "2.5" }), gameMap, {});
+  assert.equal(bad.rows[0].status, "error");
+  assert.match(bad.rows[0].messages.join(" "), /pack/i);
+});
+
+test("validateGames: in-file duplicate game # skips the second row, citing the first line", () => {
+  const { rows, summary } = validateGames(rowsOf(
+    { game: "1700", name: "A", price: "1" },
+    { game: "1700", name: "A again", price: "1" },
+  ), gameMap, {});
+  assert.equal(rows[0].status, "create");
+  assert.equal(rows[1].status, "skip");
+  assert.match(rows[1].messages.join(" "), /line 2/);
+  assert.equal(summary.skip, 1);
+});
+
+test("missingRequired: game, name and price are required for games", () => {
+  assert.deepEqual(missingRequired({}, "games"), ["game", "name", "price"]);
+  assert.deepEqual(missingRequired({ game: "g", name: "n", price: "p" }, "games"), []);
+});
+
+test("guessMapping: PA-style headers map onto game targets (# Tickets → perPack, $$ Amount → price)", () => {
+  const mapping = guessMapping(["Number", "Name", "$$ Amount", "# Tickets"], "games");
+  assert.equal(mapping.game, "Number");
+  assert.equal(mapping.name, "Name");
+  assert.equal(mapping.price, "$$ Amount"); // "amount" alias
+  assert.equal(mapping.perPack, "# Tickets"); // "tickets" alias
 });
