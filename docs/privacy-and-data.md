@@ -35,6 +35,14 @@ DuoCount only stores what the business and its staff enter to run shift counts:
   user and are not client-deletable, by design, so the record stays trustworthy.
 - **Device preferences** — your light/dark theme choice and a scroll-to-top
   toggle are stored **locally in your browser** (localStorage), not on a server.
+- **Rewards customers (only if the owner turns rewards on)** — a customer's
+  phone number, an optional first name, and their points ledger (earn/redeem
+  lines signed by the staff member who recorded them). The phone number is used
+  **only** to look the customer up at the register; the app shows it masked
+  (last 4 digits) after entry. DuoCount sends customers **no marketing** — no
+  texts, no emails — and their data is **never sold, shared, or pooled** across
+  businesses (there is no cross-merchant network). The points ledger is
+  append-only like every other record; corrections are new signed lines.
 
 DuoCount does **not** collect analytics, advertising identifiers, location data,
 or any third-party tracking. There is no ad network and no analytics SDK in the

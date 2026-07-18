@@ -7,6 +7,7 @@ import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
 import InventoryForm from "./InventoryForm";
 import LogList from "./LogList";
+import RewardsPanel from "./RewardsPanel";
 import NotesPanel from "./NotesPanel";
 import IncidentsPanel from "./IncidentsPanel";
 import Dashboard from "./Dashboard";
@@ -31,6 +32,7 @@ const TABS = [
   { id: "cash", labelKey: "nav.cash", glyph: "💵" },
   { id: "scratch", labelKey: "nav.scratch", glyph: "🎟️" },
   { id: "inventory", labelKey: "nav.inventory", glyph: "📦" },
+  { id: "rewards", labelKey: "nav.rewards", glyph: "⭐" },
   { id: "log", labelKey: "nav.log", glyph: "📋" },
   { id: "notes", labelKey: "nav.notes", glyph: "📝" },
   { id: "incidents", labelKey: "nav.incidents", glyph: "⚠️" },
@@ -97,7 +99,13 @@ export default function AppShell() {
 
   function ping(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
 
-  const tabs = visibleTabs(isManager, isOwner).map((tb) => ({ ...tb, label: t(tb.labelKey) }));
+  // Rewards is a register action, so employees only see the tab once the owner
+  // enables the program; managers always see it (its empty state routes them
+  // to the Reward settings). Both the strip and the shortcut ids share this.
+  const rewardsVisible = vendor?.rewards?.enabled === true || isManager;
+  const tabs = visibleTabs(isManager, isOwner)
+    .filter((tb) => tb.id !== "rewards" || rewardsVisible)
+    .map((tb) => ({ ...tb, label: t(tb.labelKey) }));
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
 
   // First-run onboarding: derive what's set up, and only trust "empty" once the
@@ -130,7 +138,9 @@ export default function AppShell() {
   // The decision logic lives in resolveShortcut (unit-tested); this effect only
   // wires it to the DOM.
   useEffect(() => {
-    const ids = visibleTabs(isManager, isOwner).map((tb) => tb.id);
+    const ids = visibleTabs(isManager, isOwner)
+      .filter((tb) => tb.id !== "rewards" || rewardsVisible)
+      .map((tb) => tb.id);
     function onKey(e) {
       const el = e.target;
       const typing = el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable);
@@ -144,7 +154,7 @@ export default function AppShell() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isManager, isOwner, tab]);
+  }, [isManager, isOwner, tab, rewardsVisible]);
 
   return (
     <div className="min-h-screen">
@@ -234,6 +244,7 @@ export default function AppShell() {
             <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
           )
         )}
+        {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} />}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}

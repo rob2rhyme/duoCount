@@ -23,7 +23,7 @@ const ICONS = {
 // Order + membership of each group. `key` picks the icon above; labels resolve
 // through the i18n catalog so the mobile nav follows the clerk's language.
 const GROUPS = [
-  { key: "count", labelKey: "nav.group_count", ids: ["cash", "scratch", "inventory"] },
+  { key: "count", labelKey: "nav.group_count", ids: ["cash", "scratch", "inventory", "rewards"] },
   { key: "team", labelKey: "nav.group_team", ids: ["time", "incidents", "notes"] },
   { key: "insights", labelKey: "nav.group_insights", ids: ["dashboard", "portfolio", "log"] },
   { key: "admin", labelKey: "nav.admin", ids: ["admin"] },
