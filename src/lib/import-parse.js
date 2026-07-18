@@ -58,6 +58,12 @@ const TARGETS = {
     { field: "phone", label: "Phone number", required: true, aliases: ["phone", "phonenumber", "mobile", "cell", "cellphone", "telephone", "number", "tel"] },
     { field: "name", label: "Name", required: false, aliases: ["name", "customer", "customername", "fullname", "firstname"] },
   ],
+  games: [
+    { field: "game", label: "Game number", required: true, aliases: ["game", "gamenumber", "gameno", "gamenum", "number", "gamecode", "gm"] },
+    { field: "name", label: "Game name", required: true, aliases: ["name", "gamename", "gametitle", "title", "description", "desc"] },
+    { field: "price", label: "Ticket price", required: true, aliases: ["price", "ticketprice", "amount", "cost", "denomination", "denom", "facevalue", "face"] },
+    { field: "perPack", label: "Tickets per pack", required: false, aliases: ["tickets", "perpack", "packsize", "ticketsperpack", "ticketsperbook", "booksize", "packcount"] },
+  ],
 };
 
 export function importTargets(type) {
@@ -582,6 +588,85 @@ export function validateCustomers(rows = [], mapping = {}, ctx = {}) {
       // Fill in a missing/changed name; otherwise nothing to do.
       if (name && name !== (match.name || "")) { fields.newName = name; push("update", [m("imp.msg.customer_name_update")]); }
       else push("skip", [m("imp.msg.customer_exists")]);
+      continue;
+    }
+
+    push("create", []);
+  }
+
+  return { rows: reports, summary };
+}
+
+/* ----------------------------- validateGames ----------------------------- */
+
+// Validate lottery scratch-game catalog rows: game number + name + ticket price
+// (+ optional tickets-per-pack). This is the owner-uploadable version of the
+// bundled state catalog (scratch-catalog.js) — so a store in any state, or a
+// store wanting the current game list, can drop in the lottery's published
+// listing and have a scan fill Game name + Ticket price for every game. Pure
+// reference data: it NEVER writes a count and never touches audited ticket
+// numbers. Idempotent by game number: re-uploading upserts (create/update),
+// never duplicates and never deletes a game. ctx: { existingGames } (the stored
+// game# -> {name, price, perPack} map).
+export function validateGames(rows = [], mapping = {}, ctx = {}) {
+  const existing = ctx.existingGames || {};
+  const seen = new Map(); // game# -> line (in-file dedup)
+  const reports = [];
+  const summary = { create: 0, update: 0, skip: 0, error: 0 };
+
+  for (const row of rows) {
+    const v = row.values || {};
+    const get = (field) => (mapping[field] ? v[mapping[field]] : undefined);
+    const gameRaw = String(get("game") ?? "").trim();
+    const fields = { game: null, name: null, price: null, perPack: null };
+    const push = (status, msgs) => {
+      summary[status] += 1;
+      reports.push({ line: row.line, status, fields: { ...fields }, messages: msgs });
+    };
+
+    // game number — required, numeric (tolerate a leading '#'); leading zeros
+    // normalized so "01801" and "1801" are the same game.
+    if (!gameRaw) { push("error", [m("imp.msg.game_missing")]); continue; }
+    const digits = gameRaw.replace(/\D/g, "");
+    if (!digits) { push("error", [m("imp.msg.game_invalid", { game: gameRaw })]); continue; }
+    const game = String(Number(digits));
+    fields.game = game;
+
+    // name — required
+    const name = String(get("name") ?? "").trim();
+    if (!name) { push("error", [m("imp.msg.gname_missing")]); continue; }
+    fields.name = name.slice(0, 120);
+
+    // price — required, a finite number > 0 (a $0 face value fills nothing useful)
+    const pRaw = String(get("price") ?? "").trim().replace(/^\$/, "");
+    if (pRaw === "") { push("error", [m("imp.msg.gprice_missing")]); continue; }
+    const price = Number(pRaw);
+    if (!Number.isFinite(price) || price <= 0) { push("error", [m("imp.msg.price_invalid", { price: pRaw })]); continue; }
+    fields.price = price;
+
+    // tickets-per-pack — optional; a whole number ≥ 1 when given
+    if (mapping.perPack) {
+      const ppRaw = String(get("perPack") ?? "").trim();
+      if (ppRaw !== "") {
+        const pp = Number(ppRaw);
+        if (!Number.isInteger(pp) || pp < 1) { push("error", [m("imp.msg.perpack_invalid", { n: ppRaw })]); continue; }
+        fields.perPack = pp;
+      }
+    }
+
+    // in-file duplicate game number — keep the first row, skip the later one
+    if (seen.has(game)) { push("skip", [m("imp.msg.dup_game_line", { n: seen.get(game) })]); continue; }
+    seen.set(game, row.line);
+
+    // against the stored catalog → update (a field changed) or skip (identical)
+    const prior = existing[game];
+    if (prior) {
+      const changed = [];
+      if (fields.name !== (prior.name ?? "")) changed.push("name");
+      if (fields.price !== (prior.price ?? null)) changed.push("price");
+      if (mapping.perPack && fields.perPack !== (prior.perPack ?? null)) changed.push("perPack");
+      if (changed.length) push("update", [m("imp.msg.item_updates", { changed })]);
+      else push("skip", [m("imp.msg.item_unchanged")]);
       continue;
     }
 

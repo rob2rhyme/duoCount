@@ -16,7 +16,7 @@ import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [] }) {
+export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [], catalog = null }) {
   const { profile, vendor, isManager } = useSession();
   const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
@@ -102,7 +102,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       onSaved?.(t("toast.game_recognized"));
       return;
     }
-    const cat = resolveCatalogGame(pack);
+    const cat = resolveCatalogGame(pack, catalog || undefined);
     if (cat) {
       setF((p) => ({ ...p, game: cat.name, price: String(cat.price) }));
       onSaved?.(t("toast.game_catalog"));

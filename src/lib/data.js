@@ -132,6 +132,19 @@ export function watchCustomers(vendorId, cb) {
   return onSnapshot(vcol(vendorId, "customers"),
     (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
+// The owner-uploaded scratch-game catalog (one doc: game# -> {name, price,
+// perPack}). Read-only for the team; written only via /api/import. cb gets the
+// games map, or null when no catalog has been uploaded (the scratch form then
+// falls back to the bundled state catalog).
+export function watchScratchCatalog(vendorId, cb) {
+  return onSnapshot(doc(db, "vendors", vendorId, "catalog", "scratch"),
+    (s) => {
+      const games = s.exists() ? s.data().games : null;
+      // An empty catalog counts as none, so a scan still falls back to the bundle.
+      cb(games && Object.keys(games).length ? games : null);
+    },
+    () => cb(null)); // a transient listen error just falls back to the bundle
+}
 // Rewards register flow — every ledger write happens server-side (route signs
 // the event and moves the balance transactionally); the client only asks.
 export async function apiRewards(payload) {
