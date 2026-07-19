@@ -189,7 +189,7 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
         ) : rows.length === 0 ? (
           <p className="text-[13px] text-muted">{t("br.no_match")}</p>
         ) : (
-          <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[26rem] overflow-y-auto">
+          <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
             {rows.map((i) => {
               const qty = qtyOf(i);
               const low = lowIds.has(i.id);
@@ -238,7 +238,7 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
             history.length === 0 ? (
               <p className="px-3.5 py-3 text-[12px] text-muted border-t border-line">{t("br.hist_empty")}</p>
             ) : (
-              <div className="divide-y divide-line-soft border-t border-line max-h-72 overflow-y-auto">
+              <div className="divide-y divide-line-soft border-t border-line">
                 {history.map((m) => {
                   const d = tsOf(m);
                   const out = Number(m.delta) < 0;
