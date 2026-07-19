@@ -10,7 +10,8 @@ import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
 import { renderPattern } from "@/lib/pattern-format";
 import { buildPackAudit } from "@/lib/scratch-audit";
 import { buildStockAlerts } from "@/lib/stock-alerts";
-import { apiPatternNarrative } from "@/lib/data";
+import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange } from "@/lib/data";
+import { buildTheftReport } from "@/lib/theft-report";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
 import { useLang } from "./LangProvider";
@@ -36,7 +37,8 @@ function Stat({ label, value, tone }) {
 }
 
 export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], onOpenLog, onRecord, onToast, locPicker = null }) {
-  const { isManager, vendor } = useSession();
+  const { isManager, vendor, profile } = useSession();
+  const profileName = profile?.name || "";
   const { theme } = useTheme();
   const { t, lang } = useLang();
   // en + es both pluralize the pack-audit prose on the 1-vs-not-1 boundary.
@@ -193,11 +195,79 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
     finally { setInsightBusy(false); }
   }
 
+  // Theft & loss report: pick a range, print every theft signal with its
+  // signers — flagged cash/backroom counts, scratch gaps, rewards alerts.
+  const [theftOpen, setTheftOpen] = useState(false);
+  const [theftBusy, setTheftBusy] = useState(false);
+  const [theftErr, setTheftErr] = useState("");
+  const [theftRange, setTheftRange] = useState(() => ({
+    from: new Date(Date.now() - 13 * 86400000).toISOString().slice(0, 10),
+    to: new Date().toISOString().slice(0, 10),
+  }));
+  async function runTheftReport() {
+    setTheftBusy(true); setTheftErr("");
+    try {
+      const [rangedEntries, rangedEvents] = await Promise.all([
+        fetchEntriesInRange(vendor.id, theftRange.from, theftRange.to, null),
+        fetchRewardEventsInRange(vendor.id, theftRange.from, theftRange.to),
+      ]);
+      const r = buildTheftReport(rangedEntries, rangedEvents, {
+        from: theftRange.from, to: theftRange.to, rewardRules: vendor?.rewards,
+      });
+      const win = window.open("", "_blank");
+      if (!win) { setTheftErr(t("scratch.report_popup")); setTheftBusy(false); return; }
+      const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+      const sec = (title, bodyHtml, empty) =>
+        `<h2>${esc(title)}</h2>${bodyHtml || `<p class="muted">${esc(empty)}</p>`}`;
+      const cashRows = r.flaggedCash.length ? `<table><thead><tr><th>${esc(t("trpt.h_date"))}</th><th>${esc(t("common.location"))}</th><th>${esc(t("trpt.h_drawer"))}</th><th>${esc(t("trpt.h_by"))}</th><th class="num">${esc(t("trpt.h_expected"))}</th><th class="num">${esc(t("trpt.h_counted"))}</th><th class="num">${esc(t("trpt.h_overshort"))}</th></tr></thead><tbody>${
+        r.flaggedCash.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.locationName)}</td><td>${esc(e.drawerName)}</td><td>${esc(e.by)}</td><td class="num">${esc(money(e.expected))}</td><td class="num">${esc(money(e.counted))}</td><td class="num${e.diff < 0 ? " gap" : ""}">${e.diff >= 0 ? "+" : ""}${esc(money(e.diff))}</td></tr>`).join("")
+      }</tbody></table>` : "";
+      const invRows = r.flaggedInventory.length ? `<table><thead><tr><th>${esc(t("trpt.h_date"))}</th><th>${esc(t("common.location"))}</th><th>${esc(t("trpt.h_item"))}</th><th>${esc(t("trpt.h_by"))}</th><th class="num">${esc(t("trpt.h_expected"))}</th><th class="num">${esc(t("trpt.h_counted"))}</th><th class="num">±</th></tr></thead><tbody>${
+        r.flaggedInventory.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.locationName)}</td><td>${esc(e.itemName)}</td><td>${esc(e.by)}</td><td class="num">${esc(e.expected)}</td><td class="num">${esc(e.counted)}</td><td class="num${e.diff < 0 ? " gap" : ""}">${e.diff >= 0 ? "+" : ""}${esc(e.diff)}</td></tr>`).join("")
+      }</tbody></table>` : "";
+      const packRows = r.packGaps.length ? r.packGaps.map((row) => `<p><b>${esc(row.game)}</b> (…${esc(row.pack.slice(-6))}) — <span class="gap">${esc(t("trpt.pack_line", { n: row.gapTickets, d: money(row.gapDollars) }))}</span></p>${
+        row.gaps.map((g) => `<p class="muted">· ${esc(g.selloutShort
+          ? t("srpt.short_line", { game: row.game, pack: row.pack.slice(-6), end: g.prevEnd, n: g.nextStart, missing: g.missing, by: g.prevBy, date: g.prevDate || "" })
+          : t("srpt.gap_line", { game: row.game, pack: row.pack.slice(-6), missing: g.missing, prevBy: g.prevBy, prevEnd: g.prevEnd, prevDate: g.prevDate || "", nextBy: g.nextBy, nextStart: g.nextStart, nextDate: g.nextDate || "" }))}</p>`).join("")
+      }`).join("") : "";
+      const rewardRows = r.rewardAlerts.length
+        ? r.rewardAlerts.map((al) => `<p><b>${esc(al.title)}</b> — ${esc(al.detail)}</p>`).join("") : "";
+      win.document.write(`<!doctype html><html><head><title>${esc(vendor.name)} — ${esc(t("trpt.title"))}</title>
+      <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a241c}h1{font-size:18px;margin:0}h2{font-size:14px;margin:22px 0 6px;border-bottom:2px solid #14532d;padding-bottom:2px}p{margin:3px 0}
+      table{border-collapse:collapse;width:100%;margin-top:6px;font-size:11px}
+      th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+      .gap{color:#b91c1c;font-weight:bold}.muted{color:#666;font-size:11px}
+      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:#298050;color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}</style>
+      </head><body>
+      <div class="brand"><div class="mark">D</div><div><h1>${esc(vendor.name)} — ${esc(t("trpt.title"))}</h1>
+      <p class="muted">${esc(t("srpt.range", { from: theftRange.from, to: theftRange.to }))} · ${esc(t("srpt.generated", { date: new Date().toLocaleString(), name: profileName }))}</p></div></div>
+      <p><b>${esc(t("trpt.summary", { flags: r.totals.flags, cash: money(r.cashShort), tickets: r.packGapTickets, dollars: money(r.packGapDollars), ralerts: r.totals.rewardAlerts }))}</b></p>
+      ${sec(t("trpt.s_cash"), cashRows, t("trpt.none"))}
+      ${sec(t("trpt.s_inv"), invRows, t("trpt.none"))}
+      ${sec(t("trpt.s_pack"), packRows, t("trpt.none"))}
+      ${sec(t("trpt.s_rewards"), rewardRows, t("trpt.none"))}
+      <p class="muted">${esc(t("trpt.foot"))}</p>
+      </body></html>`);
+      win.document.close(); win.focus();
+      setTimeout(() => { try { win.print(); } catch { /* manual print */ } }, 250);
+      setTheftOpen(false);
+    } catch (err) {
+      console.error(err);
+      setTheftErr(t("admin.engage_range_err"));
+    }
+    setTheftBusy(false);
+  }
+
   // One row: the location picker (when the shell passes it) beside the
   // Reports button, instead of stacking on two rows.
   const reportButton = (isManager || locPicker) && (
-    <div className="flex items-center justify-end gap-3">
+    <div className="flex items-center justify-end gap-3 flex-wrap">
       {locPicker && <div className="flex-1 min-w-0">{locPicker}</div>}
+      {isManager && (
+        <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={() => { setTheftErr(""); setTheftOpen(true); }}>
+          <span aria-hidden="true">🚨</span> {t("dash.theft_btn")}
+        </button>
+      )}
       {isManager && (
         <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={() => setReportOpen(true)}>
           <span aria-hidden="true">📄</span> {t("dash.reports_export")}
@@ -208,6 +278,36 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   const reportModal = reportOpen && (
     <ReportModal locations={locations} locName={locName} incidents={incidents}
       onClose={() => setReportOpen(false)} onToast={onToast} />
+  );
+  const theftModal = theftOpen && (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setTheftOpen(false)}>
+      <div role="dialog" aria-modal="true" aria-label={t("trpt.title")}
+        className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="px-4 py-3 border-b border-line flex items-center justify-between">
+          <h2 className="font-semibold text-[15px]">{t("trpt.title")}</h2>
+          <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={() => setTheftOpen(false)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">{t("scratch.report_from")}</label>
+              <input type="date" className="input" value={theftRange.from} max={theftRange.to}
+                onChange={(e) => setTheftRange((p) => ({ ...p, from: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">{t("scratch.report_to")}</label>
+              <input type="date" className="input" value={theftRange.to} min={theftRange.from}
+                onChange={(e) => setTheftRange((p) => ({ ...p, to: e.target.value }))} />
+            </div>
+          </div>
+          <p className="text-xs text-muted leading-relaxed">{t("trpt.hint")}</p>
+          {theftErr && <p role="alert" className="text-[13px] text-neg">{theftErr}</p>}
+          <button className="btn-primary" disabled={theftBusy || !theftRange.from || !theftRange.to || theftRange.from > theftRange.to} onClick={runTheftReport}>
+            🚨 {theftBusy ? t("scratch.report_busy") : t("scratch.report_print")}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   if (!entries.length) {
@@ -220,6 +320,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
             action={onRecord ? { label: t("dash.record_count"), onClick: onRecord } : undefined} />
         </div>
         {reportModal}
+        {theftModal}
       </div>
     );
   }
@@ -227,6 +328,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   return (
     <div className="space-y-4">
       {reportButton}
+      {reportModal}
+      {theftModal}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label={t("dash.stat_total")} value={a.count} />
         <Stat label={t("dash.stat_net")} value={`${a.netDiff >= 0 ? "+" : ""}${money(a.netDiff)}`} tone={a.netDiff < -0.005 ? "neg" : a.netDiff > 0.005 ? "pos" : null} />

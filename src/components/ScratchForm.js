@@ -23,7 +23,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
     date: today(), shift: defaultShift(new Date().getHours()), locationId: "", drawerId: "",
-    game: "", pack: "", price: "", startno: "", endno: "",
+    game: "", pack: "", price: "", startno: "", endno: "", soldOut: false,
   });
   const { busy, error, run } = useSaveState();
   const [scanOpen, setScanOpen] = useState(false);
@@ -143,31 +143,59 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
 
   const valid = validateScratch(f);
 
+  // How many tickets this book holds — from its own history, else the catalog.
+  // Powers the sold-out final count (end # = the book's last ticket).
+  const packSize = useMemo(() => {
+    const pack = f.pack.trim();
+    if (!pack) return null;
+    const prev = entries.find((e) => e.kind === "scratch" && (e.pack || "") === pack && Number(e.perPack) > 0);
+    if (prev) return Number(prev.perPack);
+    const cat = resolveCatalogGame(pack, catalog || undefined);
+    return cat?.perPack ? Number(cat.perPack) : null;
+  }, [f.pack, entries, catalog]);
+
+  // Was a book of this game FINALED (sold out) here recently? Then a scanned
+  // pack with no history is a FRESH book — it starts at ticket #0, not at a
+  // baseline of "wherever it is now" (which would hide its first sales).
+  function freshBookLikely(packNo, locationId) {
+    const key = packGameKey(packNo);
+    if (!key) return false;
+    const cut = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+    return entries.some((e) => e.kind === "scratch" && e.locationId === locationId
+      && e.soldOut === true && (e.date || "") >= cut && packGameKey(e.pack || "") === key);
+  }
+
   // Resolve a scanned pack the same way the single-pack prefill does: exact
   // pack history first (chains start # from the last end #), then a sibling
   // book of the same game, then the lottery catalog. Pure lookup — no state.
   function resolvePack(packNo, ticket) {
     const here = (e) => e.kind === "scratch" && e.locationId === f.locationId;
+    const cat = resolveCatalogGame(packNo, catalog || undefined);
     const prev = entries.find((e) => here(e) && (e.pack || "") === packNo);
     if (prev) {
       return {
         game: prev.game || "", price: prev.price != null ? String(prev.price) : "",
         startno: prev.endno != null ? String(prev.endno) : (ticket != null ? String(ticket) : ""),
-        isNew: false,
+        isNew: false, fresh: false,
+        perPack: Number(prev.perPack) > 0 ? Number(prev.perPack) : (cat?.perPack || null),
       };
     }
+    // No history: a book whose game just FINALED here is a FRESH book — start
+    // at #0 so its first sales count; otherwise baseline at the scanned #.
+    const fresh = freshBookLikely(packNo, f.locationId);
+    const startno = fresh ? "0" : (ticket != null ? String(ticket) : "");
     const key = packGameKey(packNo);
     const sib = key && entries.find((e) => here(e) && e.game && packGameKey(e.pack || "") === key);
     if (sib) {
       return {
         game: sib.game || "", price: sib.price != null ? String(sib.price) : "",
-        startno: ticket != null ? String(ticket) : "", isNew: true,
+        startno, isNew: true, fresh,
+        perPack: Number(sib.perPack) > 0 ? Number(sib.perPack) : (cat?.perPack || null),
       };
     }
-    const cat = resolveCatalogGame(packNo, catalog || undefined);
     return {
       game: cat ? cat.name : "", price: cat ? String(cat.price) : "",
-      startno: ticket != null ? String(ticket) : "", isNew: true,
+      startno, isNew: true, fresh, perPack: cat?.perPack || null,
     };
   }
 
@@ -189,12 +217,12 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       return [...w, {
         pack: packNo, game: res.game, price: res.price,
         startno: res.startno, endno: ticket != null ? String(ticket) : "",
-        isNew: res.isNew,
+        isNew: res.isNew, soldOut: false, perPack: res.perPack ?? null,
       }];
     });
     const label = res.game || `…${packNo.slice(-6)}`;
     const count = known ? walk.length : walk.length + 1;
-    setLastScan(`✓ ${label}${ticket != null ? ` · #${ticket}` : ""} — ${t("scratch.walk_scanned", { n: count })}`);
+    setLastScan(`✓ ${label}${ticket != null ? ` · #${ticket}` : ""}${res.fresh ? ` · ${t("scratch.walk_fresh")}` : ""} — ${t("scratch.walk_scanned", { n: count })}`);
   }
 
   const setWalkRow = (i, k) => (e) => {
@@ -202,6 +230,16 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     setWalk((w) => w.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   };
   const removeWalkRow = (i) => setWalk((w) => w.filter((_, j) => j !== i));
+  // FINAL = this book sold out this shift: the end # snaps to the book's last
+  // ticket (when known), and the audit stops expecting the pack afterwards.
+  const toggleSoldOut = (i) => setWalk((w) => w.map((r, j) => {
+    if (j !== i) return r;
+    const on = !r.soldOut;
+    return {
+      ...r, soldOut: on,
+      endno: on && Number(r.perPack) > 0 && String(r.endno).trim() === "" ? String(r.perPack) : r.endno,
+    };
+  }));
 
   // Known packs at this location (counted in the last 14 days) that are NOT in
   // the current walk — the "did I miss a slot?" checklist. Entries arrive
@@ -217,7 +255,8 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       seen.set(p, e);
     }
     const inWalk = new Set(walk.map((r) => r.pack));
-    return [...seen.values()].filter((e) => !inWalk.has(String(e.pack).trim()));
+    // A FINALED (sold-out) book is retired — never nag anyone to scan it again.
+    return [...seen.values()].filter((e) => !inWalk.has(String(e.pack).trim()) && e.soldOut !== true);
   }, [entries, f.locationId, walk]);
 
   // Tap a missed pack → it joins the walk with the start chained; the clerk
@@ -227,6 +266,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     setWalk((w) => w.some((r) => r.pack === packNo) ? w : [...w, {
       pack: packNo, game: e.game || "", price: e.price != null ? String(e.price) : "",
       startno: e.endno != null ? String(e.endno) : "", endno: "", isNew: false,
+      soldOut: false, perPack: Number(e.perPack) > 0 ? Number(e.perPack) : null,
     }]);
     setShowMissing(false);
   }
@@ -254,6 +294,8 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           game: (r.game || "").trim() || "Game", pack: r.pack,
           price: Number(r.price) || 0, startno, endno,
           sold: rowSold, dollars: rowSold * (Number(r.price) || 0),
+          soldOut: r.soldOut === true,
+          ...(Number(r.perPack) > 0 ? { perPack: Number(r.perPack) } : {}),
           by: profile.name, byId: profile.id, byRole: profile.role,
         });
       }
@@ -302,7 +344,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         ${allLocs ? `<td>${esc(r.locationName)}</td>` : ""}
         <td>${esc(r.game)}</td><td>…${esc(r.pack.slice(-6))}</td><td class="num">${esc(money(r.price))}</td>
         <td class="num">#${esc(r.openStart ?? "—")}<div class="muted">${esc(r.openDate || "")} · ${esc(r.openBy)}</div></td>
-        <td class="num">#${esc(r.closeEnd ?? "—")}<div class="muted">${esc(r.closeDate || "")} · ${esc(r.closeBy)}</div></td>
+        <td class="num">#${esc(r.closeEnd ?? "—")}${r.soldOut ? `<div class="muted"><b>${esc(t("srpt.soldout"))}</b></div>` : ""}<div class="muted">${esc(r.closeDate || "")} · ${esc(r.closeBy)}</div></td>
         <td class="num">${esc(r.sold)}</td><td class="num">${esc(money(r.dollars))}</td>
         <td class="num">${r.gapTickets > 0 ? `<span class="gap">⚠ ${esc(r.gapTickets)}</span>` : "—"}</td>
       </tr>`).join("")}
@@ -312,11 +354,16 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       </tbody></table>
       <h2>${esc(t("srpt.gaps_title"))}</h2>
       ${gapRows.length === 0 ? `<p>${esc(t("srpt.no_gaps"))}</p>`
-        : gapRows.map((r) => r.gaps.map((g) => `<p class="gap">${esc(t("srpt.gap_line", {
-          game: r.game, pack: r.pack.slice(-6), missing: g.missing,
-          prevBy: g.prevBy, prevEnd: g.prevEnd, prevDate: g.prevDate || "",
-          nextBy: g.nextBy, nextStart: g.nextStart, nextDate: g.nextDate || "",
-        }))}</p>`).join("")).join("")}
+        : gapRows.map((r) => r.gaps.map((g) => `<p class="gap">${esc(g.selloutShort
+          ? t("srpt.short_line", {
+            game: r.game, pack: r.pack.slice(-6), end: g.prevEnd, n: g.nextStart,
+            missing: g.missing, by: g.prevBy, date: g.prevDate || "",
+          })
+          : t("srpt.gap_line", {
+            game: r.game, pack: r.pack.slice(-6), missing: g.missing,
+            prevBy: g.prevBy, prevEnd: g.prevEnd, prevDate: g.prevDate || "",
+            nextBy: g.nextBy, nextStart: g.nextStart, nextDate: g.nextDate || "",
+          }))}</p>`).join("")).join("")}
       </body></html>`);
       win.document.close(); win.focus();
       setTimeout(() => { try { win.print(); } catch { /* user prints manually */ } }, 250);
@@ -336,10 +383,12 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       drawerId: drawer.id, drawerName: drawer.name,
       game: f.game.trim() || "Game", pack: f.pack.trim(),
       price: Number(f.price) || 0, startno: Number(f.startno) || 0, endno: Number(f.endno) || 0,
-      sold, dollars, by: profile.name, byId: profile.id, byRole: profile.role,
+      sold, dollars, soldOut: f.soldOut === true,
+      ...(packSize ? { perPack: packSize } : {}),
+      by: profile.name, byId: profile.id, byRole: profile.role,
     });
     saveContext(vendor.id, profile.id, { locationId: f.locationId, scratchDrawerId: drawer.id });
-    setF((p) => ({ ...p, pack: "", startno: "", endno: "" }));
+    setF((p) => ({ ...p, pack: "", startno: "", endno: "", soldOut: false }));
     onSaved?.(t("toast.saved_scratch"));
   }
 
@@ -395,6 +444,10 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
                       {r.isNew && <span className="ml-1.5 text-[9px] uppercase tracking-wide font-bold text-gold border border-brass/50 rounded px-1 py-px align-middle">{t("scratch.walk_new")}</span>}
                     </div>
                     <div className="text-[11px] text-muted font-mono">…{r.pack.slice(-6)}{Number(r.price) > 0 ? ` · ${money(Number(r.price))}` : ""}</div>
+                    <button type="button" onClick={() => toggleSoldOut(i)} title={t("scratch.soldout_label")}
+                      className={`mt-1 text-[9px] uppercase tracking-wide font-bold rounded px-1.5 py-0.5 border transition ${r.soldOut ? "border-neg text-neg bg-neg/10" : "border-line text-muted hover:text-fg"}`}>
+                      {r.soldOut ? "✓ " : ""}{t("scratch.walk_final")}
+                    </button>
                   </div>
                   {/* fixed-width wrappers — .input carries w-full, so a width
                       utility stacked on it would lose to CSS order */}
@@ -482,6 +535,20 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           <Field label={t("scratch.endno")}><input type="number" inputMode="numeric" className="input" value={f.endno} onChange={set("endno")} placeholder="0" /></Field>
         </div>
 
+        {/* Mid-shift pack swap: FINAL the finished book here, and the next
+            book of this game auto-starts at #0 — no more "lost" packs. */}
+        <div className="flex items-start gap-3">
+          <input id="scratchSoldOut" type="checkbox" className="mt-1" checked={f.soldOut === true}
+            onChange={(e) => setF((p) => ({
+              ...p, soldOut: e.target.checked,
+              endno: e.target.checked && packSize && String(p.endno).trim() === "" ? String(packSize) : p.endno,
+            }))} />
+          <label htmlFor="scratchSoldOut" className="min-w-0">
+            <span className="font-medium text-[14px]">{t("scratch.soldout_label")}</span>
+            <p className="text-xs text-muted leading-relaxed">{t("scratch.soldout_hint", { n: packSize ?? "—" })}</p>
+          </label>
+        </div>
+
         <div className="grid grid-cols-2 gap-px bg-line rounded-xl overflow-hidden">
           <div className="bg-panel px-3.5 py-3">
             <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("scratch.sold")}</div>
@@ -521,7 +588,9 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
               next.endno = String(ticket);
               const hasPrev = entries.some((e) =>
                 e.kind === "scratch" && e.locationId === p.locationId && (e.pack || "") === packNo);
-              if (!hasPrev) next.startno = String(ticket);
+              // A fresh book (its game just FINALED here) starts at #0, so its
+              // first sales are counted; an untracked old book baselines.
+              if (!hasPrev) next.startno = freshBookLikely(packNo, p.locationId) ? "0" : String(ticket);
             }
             return next;
           });
