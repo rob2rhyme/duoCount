@@ -22,8 +22,11 @@ import BarcodeScanner from "./BarcodeScanner";
 // address), owner-editable; History — that customer's slice of the signed
 // ledger (manager-gated, same feed as the Dashboard reward audit).
 
-const LIST_CAP = 60;    // render a bounded list; search finds the rest
-const HISTORY_CAP = 100; // newest ledger lines shown on the History tab
+// The list flows the full length of the page (no inner scroll box); these caps
+// are the render backstop so a 1000+ customer store doesn't paint every row at
+// once — the "showing X of Y, search to see the rest" line covers the overflow.
+const LIST_CAP = 200;   // customers rendered before the search-to-see-more line
+const HISTORY_CAP = 200; // newest ledger lines shown on the History tab
 
 // Two initials for the avatar chip — from the name, else a phone glyph.
 const initials = (name) => {
@@ -550,7 +553,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                       <p className="text-[13px] text-muted leading-relaxed">{t("rw.h_empty")}</p>
                     ) : (
                       <div>
-                        <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[24rem] overflow-y-auto">
+                        <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
                           {history.map((e) => {
                             const pts = Number(e.points) || 0;
                             const green = e.kind === "redeem" || e.kind === "stampRedeem";
@@ -639,7 +642,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
             ) : filtered.length === 0 ? (
               <p className="text-[13px] text-muted">{t("rw.no_match", { q: query.trim() })}</p>
             ) : (
-              <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[26rem] overflow-y-auto">
+              <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
                 {filtered.slice(0, LIST_CAP).map((c) => {
                   const lifetime = Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0);
                   const vip = vipTierFor(lifetime, vendor?.rewards)?.name;

@@ -1144,8 +1144,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               <p className="text-[12px] text-muted font-semibold">
                 {t("admin.engage_totals", { earned: engageTotals.earned, redeemed: engageTotals.redeemed, events: engageRows.length })}
               </p>
-              <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[30rem] overflow-y-auto">
-                {engageRows.slice(0, 150).map((e) => {
+              <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
+                {engageRows.slice(0, 300).map((e) => {
                   const c = custById.get(e.customerId);
                   const pts = Number(e.points) || 0;
                   const green = e.kind === "redeem" || e.kind === "stampRedeem";
@@ -1186,8 +1186,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                   );
                 })}
               </div>
-              {engageRows.length > 150 && (
-                <p className="text-[12px] text-muted">{t("admin.engage_more", { shown: 150, total: engageRows.length })}</p>
+              {engageRows.length > 300 && (
+                <p className="text-[12px] text-muted">{t("admin.engage_more", { shown: 300, total: engageRows.length })}</p>
               )}
             </>
           )}

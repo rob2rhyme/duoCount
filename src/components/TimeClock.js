@@ -194,7 +194,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
               subtitle={t("time.empty_hours_sub")} />
           ) : (
             <>
-              <div className="overflow-auto max-h-[26rem]">
+              <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-[11px] uppercase tracking-wide text-muted [&_th]:sticky [&_th]:top-0 [&_th]:bg-surface [&_th]:z-10 [&_th]:shadow-[inset_0_-1px_0_var(--line)]">
                     <th className="px-4 py-2 font-semibold">{t("common.employee")}</th>
@@ -448,7 +448,7 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
         <EmptyState icon={<IconClock />} title={t("time.empty_period_title")}
           subtitle={t("time.empty_corrections_sub")} />
       ) : (
-        <div className="max-h-[26rem] overflow-auto divide-y divide-line">
+        <div className="divide-y divide-line">
           {shifts.map((s) => {
             const isEditing = editing && editing.inId === s.inId && editing.outId === s.outId && editing.inMs === s.inMs;
             // Any day the shift touches being payroll-approved locks it here too.
