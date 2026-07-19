@@ -281,7 +281,6 @@ test("a deactivated user cannot write, even holding a valid token", async () => 
 test("a deactivated manager cannot manage; a deactivated author cannot resolve", async () => {
   await env.withSecurityRulesDisabled(async (c) =>
     updateDoc(doc(c.firestore(), `vendors/${V}/users/u-mgr`), { active: false }));
-  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/packs/deadPack`), pack()));
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/flagged`),
     { varianceStatus: "under-review" }));
   await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/incidents/deadInc`), incident()));
@@ -485,53 +484,15 @@ test("only the owner edits settings, and only whitelisted keys", async () => {
   await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { slug: "stolen-code" }));
 });
 
-/* ---------- scratch-off packs (forward-only lifecycle) ---------- */
+/* ---------- scratch-off packs — RETIRED (PR #125) ---------- */
 
-const pack = (over = {}) => ({
-  game: "Lucky 7s", packNumber: "111", price: 5, ticketCount: 60, barcode: null,
-  locationId: "locA", locationName: "A", bin: null,
-  status: "received", receivedBy: "Mia",
-  activatedAt: null, activatedBy: null, settledAt: null, settledBy: null,
-  returnedAt: null, returnedBy: null, returnNote: null,
-  soldAtSettle: null, shortAtSettle: null, createdAt: new Date(),
-  ...over,
-});
-
-test("packs: manager lifecycle is forward-only; employees read-only; no deletes", async () => {
-  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/packs/p1`), pack()));
-  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/packs/p2`), pack()));
-  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/packs/p3`), pack({ status: "settled" })));
-  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/packs/p1`)));
-
-  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`),
-    { status: "active", activatedAt: new Date(), activatedBy: "Mia", bin: "4" }));
-  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`), { status: "received" }));
-  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`),
-    { status: "settled", settledAt: new Date(), settledBy: "Mia", soldAtSettle: 58, shortAtSettle: 2 }));
-  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p1`), { status: "active" }));
-  await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/packs/p1`)));
-});
-
-test("packs: no skipping received -> settled; metadata edits keep the status", async () => {
-  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/packs/p4`), pack({ packNumber: "222" })));
-  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p4`),
-    { status: "settled", settledAt: new Date(), settledBy: "Mia" }));
-  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/packs/p4`), { bin: "7" }));
-  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/packs/p4`), { bin: "9" }));
-});
-
-test("packs: a settled pack is terminal — its settle snapshot is frozen", async () => {
-  const f = db("mgr");
-  await assertSucceeds(setDoc(doc(f, `vendors/${V}/packs/term`), pack()));
-  await assertSucceeds(updateDoc(doc(f, `vendors/${V}/packs/term`),
-    { status: "active", activatedAt: new Date(), activatedBy: "Mia" }));
-  await assertSucceeds(updateDoc(doc(f, `vendors/${V}/packs/term`),
-    { status: "settled", settledAt: new Date(), settledBy: "Mia", soldAtSettle: 58, shortAtSettle: 2 }));
-  // Rewriting the snapshot to erase a short after the fact is refused...
-  await assertFails(updateDoc(doc(f, `vendors/${V}/packs/term`), { soldAtSettle: 60 }));
-  await assertFails(updateDoc(doc(f, `vendors/${V}/packs/term`), { shortAtSettle: 0 }));
-  // ...and so is any other edit — a terminal pack is frozen whole.
-  await assertFails(updateDoc(doc(f, `vendors/${V}/packs/term`), { bin: "9" }));
+// The pack-lifecycle state machine is gone; scratch theft-protection lives in
+// the signed shift counts. With no match block the old collection is default-
+// deny: nobody can read or write it, so stale clients can't resurrect it.
+test("packs: the retired collection is fully closed — no reads, no writes", async () => {
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/packs/p1`), { status: "received" }));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/packs/p2`), { status: "received" }));
+  await assertFails(getDoc(doc(db("mgr"), `vendors/${V}/packs/p1`)));
 });
 
 /* ---------- incidents (tier-two write-ups) ---------- */

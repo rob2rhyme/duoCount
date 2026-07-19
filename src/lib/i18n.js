@@ -1217,6 +1217,7 @@ export const CATALOG = {
     "rw.visited_days": "Visited {n} days ago",
     "rw.no_visit": "No visits yet",
     "rw.badge_new": "New",
+    "rw.bday_chip": "Birthday this month",
     "rw.tab_register": "Register",
     "rw.tab_profile": "Profile",
     "rw.tab_history": "History",
@@ -1264,6 +1265,9 @@ export const CATALOG = {
     "admin.engage_empty": "No customer engagement in the last 90 days — activity appears here the moment it's recorded.",
     "admin.engage_more": "Showing the {shown} most recent of {total} lines.",
     "admin.engage_unknown": "Unknown customer",
+    "admin.engage_export": "Export ledger CSV",
+    "admin.engage_export_cust": "Export customers CSV",
+    "admin.engage_export_hint": "Your data is yours: the customer export is the full take-it-with-you file — names, real phone numbers, balances, and profile details.",
 
     // rewards — public balance page (/rewards)
     "rwb.title": "Check your rewards",
@@ -2476,6 +2480,7 @@ export const CATALOG = {
     "rw.visited_days": "Visitó hace {n} días",
     "rw.no_visit": "Sin visitas aún",
     "rw.badge_new": "Nuevo",
+    "rw.bday_chip": "Cumpleaños este mes",
     "rw.tab_register": "Caja",
     "rw.tab_profile": "Perfil",
     "rw.tab_history": "Historial",
@@ -2523,6 +2528,9 @@ export const CATALOG = {
     "admin.engage_empty": "Sin interacciones de clientes en los últimos 90 días — la actividad aparece aquí en cuanto se registra.",
     "admin.engage_more": "Mostrando las {shown} líneas más recientes de {total}.",
     "admin.engage_unknown": "Cliente desconocido",
+    "admin.engage_export": "Exportar libro CSV",
+    "admin.engage_export_cust": "Exportar clientes CSV",
+    "admin.engage_export_hint": "Tus datos son tuyos: la exportación de clientes es el archivo completo para llevar — nombres, teléfonos reales, saldos y detalles del perfil.",
 
     "rwb.title": "Consulta tus recompensas",
     "rwb.sub": "Tus puntos, solo con el código de tu tienda y tu número de teléfono.",

@@ -10,7 +10,7 @@ import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
-import { money } from "@/lib/utils";
+import { money, csvCell, downloadCSV } from "@/lib/utils";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
@@ -292,6 +292,50 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     earned: engageRows.reduce((s, e) => s + (e.kind === "earn" ? Number(e.points) || 0 : 0), 0),
     redeemed: engageRows.reduce((s, e) => s + (e.kind === "redeem" ? Math.abs(Number(e.points) || 0) : 0), 0),
   }), [engageRows]);
+
+  // CSV exports — the "your data is yours" promise in a file. The ledger
+  // export honors the on-screen filters (chronological); the customer export
+  // (owner-only) is the full take-it-with-you list, real phone numbers and
+  // all. Both go through csvCell, so a "=cmd" customer name can't become a
+  // spreadsheet formula.
+  const stamp = () => new Date().toISOString().slice(0, 10);
+  function exportLedgerCsv() {
+    const head = ["Date", "Time", "Customer", "Phone", "Action", "Points", "Reward", "Note", "Sale", "Multiplier", "Staff"];
+    const lines = [head.join(",")];
+    for (const e of [...engageRows].reverse()) {
+      const c = custById.get(e.customerId);
+      lines.push([
+        csvCell(e._d.toISOString().slice(0, 10)), csvCell(e._d.toLocaleTimeString()),
+        csvCell(c?.name || ""), csvCell(c ? (isOwner ? c.phone : maskPhone(c.phone)) : ""),
+        csvCell(e.kind), csvCell(Number(e.points) || 0),
+        csvCell(e.rewardName || ""), csvCell(e.note || ""),
+        csvCell(e.saleDollars ?? ""), csvCell(e.multiplier ?? ""),
+        csvCell(e.by || ""),
+      ].join(","));
+    }
+    downloadCSV(lines.join("\n"), `rewards-ledger-${stamp()}.csv`);
+  }
+  function exportCustomersCsv() {
+    const iso = (v) => {
+      const x = v?.toDate ? v.toDate() : (v ? new Date(v) : null);
+      return x && !Number.isNaN(x.getTime()) ? x.toISOString().slice(0, 10) : "";
+    };
+    const head = ["Name", "Phone", "Points", "Lifetime points", "Current streak", "Longest streak",
+      "Last visit", "Email", "Birthday month", "Birthday day", "Address", "Note", "Enrolled"];
+    const lines = [head.join(",")];
+    for (const c of customers) {
+      lines.push([
+        csvCell(c.name || ""), csvCell(c.phone || ""),
+        csvCell(Number(c.pointsBalance) || 0),
+        csvCell(Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0)),
+        csvCell(Number(c.currentStreak) || 0), csvCell(Number(c.longestStreak) || 0),
+        csvCell(iso(c.lastEarnAt)), csvCell(c.email || ""),
+        csvCell(c.birthdayMonth ?? ""), csvCell(c.birthdayDay ?? ""),
+        csvCell(c.address || ""), csvCell(c.note || ""), csvCell(iso(c.createdAt)),
+      ].join(","));
+    }
+    downloadCSV(lines.join("\n"), `rewards-customers-${stamp()}.csv`);
+  }
 
   const NAV_SECTIONS = [
     ["adm-staff", "admin.staff_title"],
@@ -825,6 +869,17 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </button>
             ))}
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={!engageRows.length} onClick={exportLedgerCsv}>
+              ⬇ {t("admin.engage_export")}
+            </button>
+            {isOwner && (
+              <button type="button" className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={!customers.length} onClick={exportCustomersCsv}>
+                ⬇ {t("admin.engage_export_cust")}
+              </button>
+            )}
+          </div>
+          {isOwner && <p className="text-[11px] text-muted leading-relaxed">{t("admin.engage_export_hint")}</p>}
           {engageRows.length === 0 ? (
             <p className="text-[13px] text-muted leading-relaxed">{t("admin.engage_empty")}</p>
           ) : (
