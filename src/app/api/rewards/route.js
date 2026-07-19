@@ -35,14 +35,15 @@ const publicCustomer = (id, c, rules) => ({
   // CRM fields the register card shows (staff serve the customer with them).
   note: c.note || null, email: c.email || null, address: c.address || null,
   birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
+  stamps: c.stamps || {},
 });
 
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy,
+    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy, cardId,
       newName, newPhone, newNote, newEmail, newBirthdayMonth, newBirthdayDay, newAddress } = await req.json();
-    if (!["lookup", "enroll", "earn", "redeem", "adjust", "update"].includes(action))
+    if (!["lookup", "enroll", "earn", "redeem", "adjust", "update", "stamp", "stampRedeem"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
 
     const { adminDb } = await getAdmin();
@@ -155,6 +156,36 @@ export async function POST(req) {
       if (Object.keys(patch).length) await customerRef.set(patch, { merge: true });
       const fresh = { ...existing.data(), ...patch };
       return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, fresh, rules), phoneDigits: fresh.phone });
+    }
+
+    // Punch cards (port slice 5): a stamp is a signed ledger line + the card
+    // counter move, atomically — the same posture as points, but a separate
+    // currency (points: 0 on every stamp line, so no points math ever shifts).
+    if (action === "stamp" || action === "stampRedeem") {
+      const card = rules.stamps.find((cd) => cd.id === cardId);
+      if (!card) return err(400, "bad_card", "That punch card isn't configured.");
+      const out = await adminDb.runTransaction(async (tx) => {
+        const snap = await tx.get(customerRef);
+        const c = snap.data() || {};
+        const cur = Math.max(0, Math.trunc(Number(c.stamps?.[card.id]) || 0));
+        if (action === "stampRedeem" && cur < card.goal)
+          throw Object.assign(new Error("The card isn't full yet."), { status: 409, code: "stamps_short" });
+        const next = action === "stamp" ? cur + 1 : cur - card.goal;
+        tx.set(events.doc(), {
+          kind: action === "stamp" ? "stamp" : "stampRedeem", points: 0,
+          customerId: customerRef.id, cardId: card.id, cardName: card.name,
+          count: next, goal: card.goal,
+          ...(action === "stampRedeem" ? { reward: card.reward } : {}),
+          by: claims.name || "", byId: claims.userId, byRole: claims.role || "employee",
+          ts: new Date(),
+        });
+        tx.update(customerRef, { [`stamps.${card.id}`]: next });
+        return { count: next };
+      });
+      return NextResponse.json({
+        ok: true, rules, cardId: card.id, count: out.count, goal: card.goal,
+        ...(action === "stampRedeem" ? { reward: card.reward } : {}),
+      });
     }
 
     // The signed, append-only ledger line + the balance move, atomically.

@@ -12,7 +12,7 @@ test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback",
     enabled: false, earnPerDollar: REWARDS.earnPerDollar,
     redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue,
     streakHours: REWARDS.streakHours, tiers: [], vip: [],
-    referral: { ...REWARDS.referral },
+    referral: { ...REWARDS.referral }, stamps: [],
   });
   assert.equal(resolveRewards({}).enabled, false);
   assert.equal(resolveRewards({ enabled: true }).enabled, true);
@@ -303,4 +303,22 @@ test("resolveRewards referral: whole-point clamps, zero allowed, junk falls back
   assert.deepEqual(resolveRewards({ referral: { referrer: "junk" } }).referral,
     { referrer: REWARDS.referral.referrer, friend: REWARDS.referral.friend });
   assert.deepEqual(resolveRewards({}).referral, { ...REWARDS.referral });
+});
+
+test("resolveRewards stamps: clamp-and-drop punch cards, capped at MAX_STAMP_CARDS", () => {
+  const r = resolveRewards({ stamps: [
+    { id: "c", name: "Coffee card", goal: 10, reward: "Free coffee" },
+    { id: "b", name: "Big goal", goal: 500 },              // goal clamps to 50, reward falls back to name
+    { name: "", goal: 10, reward: "Nameless" },            // dropped
+    { name: "No goal", reward: "x" },                      // dropped
+    "junk",                                                // dropped
+  ] });
+  assert.deepEqual(r.stamps.map((c) => c.id), ["c", "b"]);
+  assert.deepEqual(r.stamps[0], { id: "c", name: "Coffee card", goal: 10, reward: "Free coffee" });
+  assert.equal(r.stamps[1].goal, 50);
+  assert.equal(r.stamps[1].reward, "Big goal");
+  assert.equal(resolveRewards({ stamps: [{ name: "Low", goal: 1 }] }).stamps[0].goal, 2); // clamped up
+  const many = Array.from({ length: 10 }, (_, i) => ({ id: `x${i}`, name: `Card ${i}`, goal: 5 }));
+  assert.equal(resolveRewards({ stamps: many }).stamps.length, 6);
+  assert.deepEqual(resolveRewards({}).stamps, []);
 });

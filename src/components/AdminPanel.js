@@ -9,7 +9,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
-import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
+import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
@@ -159,6 +159,22 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     }));
   const removeVip = (i) =>
     setSettings((s) => ({ ...s, rewards: { ...s.rewards, vip: (s.rewards.vip || []).filter((_, j) => j !== i) } }));
+  // Punch cards — buy-N-get-one stamps beside the points program.
+  const stampRows = settings.rewards.stamps || [];
+  const addStamp = () =>
+    setSettings((s) => {
+      const stamps = s.rewards.stamps || [];
+      if (stamps.length >= MAX_STAMP_CARDS) return s;
+      const id = (globalThis.crypto?.randomUUID?.() || `s${stamps.length}-${settings.name || "x"}`);
+      return { ...s, rewards: { ...s.rewards, stamps: [...stamps, { id, name: "", goal: "", reward: "" }] } };
+    });
+  const setStamp = (i, k) => (e) =>
+    setSettings((s) => ({
+      ...s,
+      rewards: { ...s.rewards, stamps: (s.rewards.stamps || []).map((cd, j) => (j === i ? { ...cd, [k]: e.target.value } : cd)) },
+    }));
+  const removeStamp = (i) =>
+    setSettings((s) => ({ ...s, rewards: { ...s.rewards, stamps: (s.rewards.stamps || []).filter((_, j) => j !== i) } }));
   const [testing, setTesting] = useState(false);
   async function saveSettings() {
     // Parse + validate digest recipients (cap 10, basic format check).
@@ -281,7 +297,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     const q = engageQ.trim().toLowerCase();
     const qDigits = engageQ.replace(/\D/g, "");
     return rewardEvents
-      .filter((e) => engageKind === "all" || e.kind === engageKind)
+      .filter((e) => engageKind === "all" || e.kind === engageKind
+        || (engageKind === "stamps" && (e.kind === "stamp" || e.kind === "stampRedeem")))
       .filter((e) => {
         if (!q) return true;
         const c = custById.get(e.customerId);
@@ -768,6 +785,24 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               )}
             </div>
 
+            {/* Punch cards — buy-N-get-one stamps, a separate currency from
+                points; every stamp/redeem is a signed ledger line. */}
+            <div className="border-t border-line pt-3 space-y-2.5">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("admin.rw_stamps_title")}</div>
+              <p className="text-xs text-muted leading-relaxed">{t("admin.rw_stamps_hint")}</p>
+              {stampRows.map((cd, i) => (
+                <div key={cd.id || i} className="grid grid-cols-[1fr_4rem_1fr_auto] gap-2 items-center">
+                  <input className="input" placeholder={t("admin.rw_stamp_name_ph")} value={cd.name ?? ""} disabled={!isOwner} onChange={setStamp(i, "name")} aria-label={t("admin.rw_stamp_name")} />
+                  <input className="input" type="number" inputMode="numeric" min="2" max="50" step="1" placeholder="10" value={cd.goal ?? ""} disabled={!isOwner} onChange={setStamp(i, "goal")} aria-label={t("admin.rw_stamp_goal")} />
+                  <input className="input" placeholder={t("admin.rw_stamp_reward_ph")} value={cd.reward ?? ""} disabled={!isOwner} onChange={setStamp(i, "reward")} aria-label={t("admin.rw_stamp_reward")} />
+                  <button type="button" className="btn-ghost px-2.5 text-[13px]" disabled={!isOwner} onClick={() => removeStamp(i)} aria-label={t("admin.rw_stamp_remove")}><span aria-hidden="true">✕</span></button>
+                </div>
+              ))}
+              {isOwner && stampRows.length < MAX_STAMP_CARDS && (
+                <button type="button" className="btn-ghost text-[13px] px-3 py-1.5" onClick={addStamp}>+ {t("admin.rw_stamp_add")}</button>
+              )}
+            </div>
+
             {/* VIP status tiers — lifetime-points milestones with an earn
                 multiplier. Status only ever climbs (lifetime is monotonic). */}
             <div className="border-t border-line pt-3 space-y-2.5">
@@ -886,7 +921,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <input className="input" value={engageQ} onChange={(e) => setEngageQ(e.target.value)}
             placeholder={t("admin.engage_search_ph")} aria-label={t("admin.engage_search_ph")} />
           <div className="flex gap-1.5 overflow-x-auto">
-            {[["all", "admin.engage_f_all"], ["earn", "admin.engage_f_earn"], ["redeem", "admin.engage_f_redeem"], ["adjust", "admin.engage_f_adjust"], ["referral", "admin.engage_f_referral"]].map(([k, key]) => (
+            {[["all", "admin.engage_f_all"], ["earn", "admin.engage_f_earn"], ["redeem", "admin.engage_f_redeem"], ["adjust", "admin.engage_f_adjust"], ["referral", "admin.engage_f_referral"], ["stamps", "admin.engage_f_stamps"]].map(([k, key]) => (
               <button key={k} type="button" onClick={() => setEngageKind(k)}
                 className={`flex-shrink-0 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border transition ${engageKind === k ? "border-brass text-fg bg-brass/10" : "border-line bg-subtle text-muted hover:text-fg"}`}>
                 {t(key)}
@@ -915,14 +950,20 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                 {engageRows.slice(0, 150).map((e) => {
                   const c = custById.get(e.customerId);
                   const pts = Number(e.points) || 0;
-                  const isRedeem = e.kind === "redeem";
+                  const green = e.kind === "redeem" || e.kind === "stampRedeem";
                   const label = e.kind === "earn"
                     ? `${t("rw.h_earn")}${e.saleDollars ? ` · ${money(e.saleDollars)}` : ""}${Number(e.multiplier) > 1 ? ` · ×${e.multiplier}` : ""}`
-                    : isRedeem
+                    : e.kind === "redeem"
                       ? t("rw.h_redeem", { reward: e.rewardName || money(Number(e.value) || 0) })
                       : e.kind === "referral"
                         ? t("rw.h_referral")
-                        : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                        : e.kind === "stamp"
+                          ? t("rw.h_stamp", { card: e.cardName || "", n: e.count, goal: e.goal })
+                          : e.kind === "stampRedeem"
+                            ? t("rw.h_stamp_redeem", { reward: e.reward || e.cardName || "" })
+                            : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                  const ptsCell = e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
+                    : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;
                   return (
                     <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
                       <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">
@@ -931,11 +972,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                       </div>
                       <div className="min-w-0 flex-1 leading-snug">
                         <span className="block text-[13px] font-medium truncate">{c?.name || (c ? maskPhone(c.phone) : t("admin.engage_unknown"))}</span>
-                        <span className={`block text-[12px] ${isRedeem ? "text-pos font-semibold" : "text-muted"}`}>{label}</span>
+                        <span className={`block text-[12px] ${green ? "text-pos font-semibold" : "text-muted"}`}>{label}</span>
                         {e.by && <span className="block text-[11px] text-muted">{t("rw.h_by", { name: e.by })}</span>}
                       </div>
-                      <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${isRedeem ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>
-                        {pts > 0 ? `+${pts}` : pts} {t("rw.pts")}
+                      <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${green ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>
+                        {ptsCell}
                       </div>
                     </div>
                   );
