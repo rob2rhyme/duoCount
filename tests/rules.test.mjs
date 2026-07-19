@@ -484,6 +484,17 @@ test("only the owner edits settings, and only whitelisted keys", async () => {
   await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { slug: "stolen-code" }));
 });
 
+/* ---------- backroom stock movements (trusted-route only) ---------- */
+
+test("stockMoves: members read the movement log; nobody writes it from a client", async () => {
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/stockMoves/m1`)));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/stockMoves/m2`),
+    { itemId: "i1", delta: -1, by: "Mia", ts: new Date() }));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/stockMoves/m3`),
+    { itemId: "i1", delta: -1, by: "Eve", ts: new Date() }));
+  await assertFails(getDoc(doc(db("outsider"), `vendors/${V}/stockMoves/m1`)));
+});
+
 /* ---------- scratch-off packs — RETIRED (PR #125) ---------- */
 
 // The pack-lifecycle state machine is gone; scratch theft-protection lives in

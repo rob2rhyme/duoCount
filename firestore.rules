@@ -67,6 +67,15 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Backroom stock movements: written ONLY via the trusted /api/stock-move
+      // route (one transaction with the item's quantity), so the movement log
+      // is append-only by construction. Members read it — the Backroom history
+      // and the flow charts.
+      match /stockMoves/{moveId} {
+        allow read: if member();
+        allow create, update, delete: if false;
+      }
+
       // Customer rewards (rewards-program-spec.md): every write goes through
       // the trusted /api/rewards route (Admin SDK), which signs each ledger
       // line and moves the balance in the same transaction — so client rules
