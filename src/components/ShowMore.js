@@ -13,7 +13,7 @@ export function usePaged(items, { initial = PAGE_INITIAL, step = PAGE_STEP, from
   useEffect(() => { setCount(initial); }, [resetKey, initial]);
   const list = items || [];
   const st = pageState(list.length, count, { initial, step, from });
-  const visible = useMemo(() => list.slice(0, st.shown), [items, st.shown]);
+  const visible = useMemo(() => (items || []).slice(0, st.shown), [items, st.shown]);
   const showMore = () => setCount((c) => Math.max(c, initial) + step);
   return { visible, showMore, hasMore: st.hasMore, remaining: st.remaining, nextStep: st.nextStep, total: list.length };
 }
