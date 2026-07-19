@@ -7,6 +7,7 @@ import {
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import Field from "./Field";
+import ShowMore, { usePaged } from "./ShowMore";
 
 // Staff time-off. Employees file a request (needs a decision) or log a
 // predictable future event that will need time off, and watch the live status
@@ -53,6 +54,7 @@ export default function TimeOffPanel({ onToast }) {
     [vendor.id, isManager, profile.id]);
 
   const list = useMemo(() => [...rows].sort(compareTimeOff), [rows]);
+  const toPage = usePaged(list); // reveal 20 at a time once the team list passes 25
   const nameSpan = (r) => (isManager ? `${r.userName} · ` : "");
 
   async function run(key, fn) {
@@ -163,7 +165,7 @@ export default function TimeOffPanel({ onToast }) {
           <p className="text-[13px] text-muted leading-relaxed">{t("toff.none")}</p>
         ) : (
           <div className="card overflow-hidden divide-y divide-line-soft">
-            {list.map((r) => {
+            {toPage.visible.map((r) => {
               const overlap = isManager && (r.status === "pending" || r.status === "planned")
                 ? clashes(r, rows, { excludeId: r.id, excludeUserId: r.userId }) : [];
               return (
@@ -222,6 +224,7 @@ export default function TimeOffPanel({ onToast }) {
                 </div>
               );
             })}
+            <ShowMore hasMore={toPage.hasMore} nextStep={toPage.nextStep} onMore={toPage.showMore} />
           </div>
         )}
         <p className="text-xs text-muted leading-relaxed mt-2">{t("toff.footer")}</p>

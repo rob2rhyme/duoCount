@@ -12,6 +12,7 @@ import { CATALOG } from "@/lib/i18n";
 import EmptyState, { IconReceipt } from "./EmptyState";
 import SearchInput from "./SearchInput";
 import Highlight from "./Highlight";
+import ShowMore, { usePaged } from "./ShowMore";
 
 export const CAUSE_CODES = [
   ["human-error", "Human error"],
@@ -230,6 +231,11 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
     terms,
   }, { causeLabel });
 
+  // Reveal the log 20 rows at a time; any filter change snaps back to the top.
+  const logPage = usePaged(rows, {
+    resetKey: `${fType}|${fStatus}|${fWho}|${fDrawer}|${fOutcome}|${fDateFrom}|${fDateTo}|${query}`,
+  });
+
   // Apply a model-returned filter to the controls (values were validated
   // server-side against the vocabulary; re-guard who/drawer here too).
   function applyAiFilter(filter) {
@@ -339,7 +345,8 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
               subtitle={t("log.no_match_sub")}
               action={{ label: t("log.clear_filters"), onClick: clearAll }} />
           )
-        ) : rows.map((e) => {
+        ) : (<>
+        {logPage.visible.map((e) => {
           // `ts`, not `t` — a `t` here would shadow the translation function
           // for the whole row block (that shadowing was this screen's crash).
           const ts = toDate(e.ts);
@@ -427,6 +434,8 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
             </div>
           );
         })}
+        <ShowMore hasMore={logPage.hasMore} nextStep={logPage.nextStep} onMore={logPage.showMore} />
+        </>)}
       </div>
     </div>
   );

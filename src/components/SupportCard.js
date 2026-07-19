@@ -6,6 +6,7 @@ import { TICKET_CATEGORIES, TICKET_PRIORITIES, ATTACH_MAX_PER_MSG, ownerUnread, 
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import Field from "./Field";
+import ShowMore, { usePaged } from "./ShowMore";
 
 // Owner "Help & support" card: report an app issue with screenshots, then
 // follow the thread — the developer replies and sets status, the owner sees it
@@ -89,6 +90,7 @@ export default function SupportCard() {
 
   const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleString(lang === "es" ? "es" : "en") : ""; };
   const open = useMemo(() => tickets.find((x) => x.id === openId) || null, [tickets, openId]);
+  const ticketPage = usePaged(tickets); // reveal 20 at a time once past 25
 
   async function run(fn) {
     setBusy(true); setError("");
@@ -223,7 +225,7 @@ export default function SupportCard() {
               <p className="text-[13px] text-muted leading-relaxed">{t("sup.none")}</p>
             ) : (
               <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
-                {tickets.map((tk) => {
+                {ticketPage.visible.map((tk) => {
                   const unread = ownerUnread(tk, toMs(tk.ownerSeenAt));
                   return (
                     <button key={tk.id} type="button" onClick={() => openTicket(tk.id)}
@@ -239,6 +241,7 @@ export default function SupportCard() {
                     </button>
                   );
                 })}
+                <ShowMore hasMore={ticketPage.hasMore} nextStep={ticketPage.nextStep} onMore={ticketPage.showMore} />
               </div>
             )}
           </div>

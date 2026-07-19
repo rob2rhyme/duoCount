@@ -9,6 +9,7 @@ import EmptyState, { IconReceipt } from "./EmptyState";
 import Field from "./Field";
 import TabIcon from "./TabIcon";
 import BarcodeScanner from "./BarcodeScanner";
+import ShowMore, { usePaged } from "./ShowMore";
 
 // Customer rewards — the register flow (rewards-program-spec.md, Phase 1).
 // Zero hardware: the customer's phone number IS the card. A clerk finds a
@@ -22,11 +23,11 @@ import BarcodeScanner from "./BarcodeScanner";
 // address), owner-editable; History — that customer's slice of the signed
 // ledger (manager-gated, same feed as the Dashboard reward audit).
 
-// The list flows the full length of the page (no inner scroll box); these caps
-// are the render backstop so a 1000+ customer store doesn't paint every row at
-// once — the "showing X of Y, search to see the rest" line covers the overflow.
-const LIST_CAP = 200;   // customers rendered before the search-to-see-more line
-const HISTORY_CAP = 200; // newest ledger lines shown on the History tab
+// The list flows the full length of the page (no inner scroll box). The
+// customer roster and each customer's ledger reveal progressively via the
+// shared "show more" control (usePaged), so a 1000+ customer store never paints
+// every row at once. HISTORY_CAP stays as the outer backstop on ledger reads.
+const HISTORY_CAP = 200; // newest ledger lines pulled for the History tab
 
 // Two initials for the avatar chip — from the name, else a phone glyph.
 const initials = (name) => {
@@ -98,6 +99,9 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
     });
     return rows;
   }, [customers, query]);
+
+  // Show 20 customers, reveal +10 per tap; a new search snaps back to the top.
+  const custPage = usePaged(filtered, { initial: 20, step: 10, from: 20, resetKey: query });
 
   const enrolledPhones = useMemo(
     () => new Set(customers.map((c) => String(c.phone || ""))), [customers]);
@@ -252,6 +256,9 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       .sort((a, b) => b._d - a._d)
       .slice(0, HISTORY_CAP);
   }, [rewardEvents, customer]);
+
+  // Paginate a customer's ledger the same way; reset when the customer changes.
+  const histPage = usePaged(history, { resetKey: customer?.id });
 
   if (!rules.enabled) {
     return (
@@ -554,7 +561,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                     ) : (
                       <div>
                         <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
-                          {history.map((e) => {
+                          {histPage.visible.map((e) => {
                             const pts = Number(e.points) || 0;
                             const green = e.kind === "redeem" || e.kind === "stampRedeem";
                             const label = e.kind === "earn"
@@ -590,6 +597,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                               </div>
                             );
                           })}
+                          <ShowMore hasMore={histPage.hasMore} nextStep={histPage.nextStep} onMore={histPage.showMore} />
                         </div>
                         <p className="text-[11px] text-muted mt-1.5">{t("rw.h_window")}</p>
                       </div>
@@ -643,7 +651,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
               <p className="text-[13px] text-muted">{t("rw.no_match", { q: query.trim() })}</p>
             ) : (
               <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
-                {filtered.slice(0, LIST_CAP).map((c) => {
+                {custPage.visible.map((c) => {
                   const lifetime = Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0);
                   const vip = vipTierFor(lifetime, vendor?.rewards)?.name;
                   return (
@@ -667,9 +675,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                     </button>
                   );
                 })}
-                {filtered.length > LIST_CAP && (
-                  <div className="px-3 py-2 text-[12px] text-muted bg-panel">{t("rw.list_more", { shown: LIST_CAP, total: filtered.length })}</div>
-                )}
+                <ShowMore hasMore={custPage.hasMore} nextStep={custPage.nextStep} onMore={custPage.showMore} />
               </div>
             )}
           </>

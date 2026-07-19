@@ -14,6 +14,7 @@ import { useLang } from "./LangProvider";
 import EmptyState, { IconClock } from "./EmptyState";
 import Schedule from "./Schedule";
 import TimeOffPanel from "./TimeOffPanel";
+import ShowMore, { usePaged } from "./ShowMore";
 import { csvCell } from "@/lib/utils";
 
 const DAY = 24 * 3600 * 1000;
@@ -338,6 +339,7 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
     () => computeShifts(punches).filter((s) => s.inMs >= now - days * DAY).sort((a, b) => b.inMs - a.inMs),
     [punches, days, now]
   );
+  const shiftPage = usePaged(shifts, { resetKey: days }); // reveal 20 at a time
   const employees = useMemo(() => {
     const m = new Map();
     for (const p of punches) if (p.userId && p.kind !== "correction") m.set(p.userId, p.userName || p.userId);
@@ -453,7 +455,7 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
           subtitle={t("time.empty_corrections_sub")} />
       ) : (
         <div className="divide-y divide-line">
-          {shifts.map((s) => {
+          {shiftPage.visible.map((s) => {
             const isEditing = editing && editing.inId === s.inId && editing.outId === s.outId && editing.inMs === s.inMs;
             // Any day the shift touches being payroll-approved locks it here too.
             const locked = lockedDays.has(dayOfMs(s.inMs)) || (s.outMs && lockedDays.has(dayOfMs(s.outMs)));
@@ -504,6 +506,7 @@ function TimesheetCorrections({ punches, days, now, lockedDays = new Set(), vend
               </div>
             );
           })}
+          <ShowMore hasMore={shiftPage.hasMore} nextStep={shiftPage.nextStep} onMore={shiftPage.showMore} />
         </div>
       )}
     </div>
