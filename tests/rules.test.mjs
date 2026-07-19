@@ -484,6 +484,23 @@ test("only the owner edits settings, and only whitelisted keys", async () => {
   await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { slug: "stolen-code" }));
 });
 
+/* ---------- support tickets (top-level, trusted-route only) ---------- */
+
+test("supportTickets: an owner reads only their store's tickets; nobody writes from a client", async () => {
+  // Seed two tickets (different vendors) with the Admin SDK (rules disabled).
+  await env.withSecurityRulesDisabled(async (c) => {
+    const f = c.firestore();
+    await setDoc(doc(f, "supportTickets/tA"), { vendorId: V, subject: "A", status: "open", lastActivityAt: new Date() });
+    await setDoc(doc(f, "supportTickets/tOther"), { vendorId: V2, subject: "B", status: "open", lastActivityAt: new Date() });
+  });
+  await assertSucceeds(getDoc(doc(db("owner"), "supportTickets/tA")));       // owner reads own
+  await assertFails(getDoc(doc(db("mgr"), "supportTickets/tA")));            // manager: no
+  await assertFails(getDoc(doc(db("empA"), "supportTickets/tA")));          // employee: no
+  await assertFails(getDoc(doc(db("owner"), "supportTickets/tOther")));     // not this owner's store
+  await assertFails(setDoc(doc(db("owner"), "supportTickets/tNew"), { vendorId: V, subject: "X", status: "open", lastActivityAt: new Date() })); // no client writes
+  await assertFails(updateDoc(doc(db("owner"), "supportTickets/tA"), { status: "resolved" }));
+});
+
 /* ---------- backroom stock movements (trusted-route only) ---------- */
 
 test("stockMoves: members read the movement log; nobody writes it from a client", async () => {

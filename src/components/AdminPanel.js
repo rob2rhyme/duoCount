@@ -19,6 +19,7 @@ import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
+import SupportCard from "./SupportCard";
 import Field from "./Field";
 
 export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null }) {
@@ -472,6 +473,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     ["adm-settings", "admin.settings_title"],
     ["adm-rewards", "admin.rw_title"],
     ["adm-engage", "admin.engage_nav"],
+    ["adm-support", "sup.nav"],
     ...(isOwner ? [["adm-import", "imp.title"], ["adm-demo", "admin.demo_title"]] : []),
   ];
   const jumpTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -481,7 +483,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const [activeSection, setActiveSection] = useState("adm-staff");
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return undefined;
-    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-settings", "adm-rewards", "adm-engage", "adm-import", "adm-demo"];
+    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
     const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
     if (!els.length) return undefined;
     const obs = new IntersectionObserver((es) => {
@@ -1193,6 +1195,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           )}
         </div>
       </div>
+
+      <SupportCard />
 
       {isOwner && (
         <div id="adm-import" className="scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">

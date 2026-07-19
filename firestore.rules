@@ -609,5 +609,19 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+
+    // ---- Support desk (top-level, cross-tenant by design) ----
+    // Owner-reported app issues. Like loginAttempts, all WRITES go through the
+    // trusted /api/support (owner) and /api/dev (platform admin) routes — the
+    // Admin SDK bypasses these rules — so the message thread is append-only by
+    // construction. An owner may READ only their OWN store's tickets (the doc
+    // carries vendorId; the query must filter by it). The platform admin reads
+    // every ticket via the Admin SDK, never as a client, so no rule grants it.
+    match /supportTickets/{ticketId} {
+      allow read: if request.auth != null
+        && request.auth.token.role == 'owner'
+        && resource.data.vendorId == request.auth.token.vendorId;
+      allow create, update, delete: if false;
+    }
   }
 }
