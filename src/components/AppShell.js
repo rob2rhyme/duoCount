@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
@@ -121,6 +121,13 @@ export default function AppShell() {
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
     return watchStockMoves(vendor.id, since, setStockMoves);
   }, [vendor.id]);
+  // Pending time-off requests — managers only, to badge the Time tab (the
+  // Time-off panel below subscribes on its own for the full list).
+  const [timeOff, setTimeOff] = useState([]);
+  useEffect(() => {
+    if (!isManager) { setTimeOff([]); return undefined; }
+    return watchTimeOff(vendor.id, null, setTimeOff);
+  }, [vendor.id, isManager]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
   const canPickLocation = isManager || !perLocation;
@@ -173,8 +180,8 @@ export default function AppShell() {
   // (Log), open write-ups (Incidents), and swaps awaiting approval (Time). Pure
   // tally over data we already watch; employees see none.
   const att = useMemo(
-    () => (isManager ? attentionCounts({ entries, incidents, swaps }) : null),
-    [isManager, entries, incidents, swaps]
+    () => (isManager ? attentionCounts({ entries, incidents, swaps, timeOff }) : null),
+    [isManager, entries, incidents, swaps, timeOff]
   );
   // Stock notifications for the owner/managers: items past the low-stock or
   // expiry bars badge the Backroom tab, so a live pull that crosses the line

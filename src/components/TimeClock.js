@@ -13,6 +13,7 @@ import { activeLockDays, weekLockInfo } from "@/lib/payroll-lock";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconClock } from "./EmptyState";
 import Schedule from "./Schedule";
+import TimeOffPanel from "./TimeOffPanel";
 import { csvCell } from "@/lib/utils";
 
 const DAY = 24 * 3600 * 1000;
@@ -48,7 +49,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
   const [locks, setLocks] = useState([]);
   const [busy, setBusy] = useState(false);
   const [days, setDays] = useState(7);
-  const [view, setView] = useState("clock"); // "clock" | "schedule"
+  const [view, setView] = useState("clock"); // "clock" | "schedule" | "timeoff"
   const [, setTick] = useState(0); // re-render so the running duration stays live
 
   // Managers watch the whole store; employees watch their own (rules enforce it).
@@ -119,7 +120,7 @@ export default function TimeClock({ locations = [], locName, onToast }) {
   return (
     <div className="space-y-4">
       <div className="flex gap-1.5 bg-subtle rounded-xl p-1">
-        {[["clock", t("time.tab_clock")], ["schedule", t("time.tab_schedule")]].map(([id, label]) => (
+        {[["clock", t("time.tab_clock")], ["schedule", t("time.tab_schedule")], ["timeoff", t("time.tab_timeoff")]].map(([id, label]) => (
           <button key={id} onClick={() => setView(id)}
             className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${view === id ? "bg-surface text-fg shadow-sm" : "text-muted hover:text-fg"}`}>
             {label}
@@ -129,6 +130,8 @@ export default function TimeClock({ locations = [], locName, onToast }) {
 
       {view === "schedule" ? (
         <Schedule punches={punches} locations={locations} locName={locName} onToast={onToast} />
+      ) : view === "timeoff" ? (
+        <TimeOffPanel onToast={onToast} />
       ) : (
       <>
       {/* self clock in/out — everyone */}
@@ -225,8 +228,9 @@ export default function TimeClock({ locations = [], locName, onToast }) {
         </div>
       )}
 
-      {/* manager: pay-period approval (lock a week's timesheet) */}
-      {isManager && (
+      {/* manager: pay-period approval (lock a week's timesheet) — belongs with
+          the clock/schedule, not the time-off view. */}
+      {isManager && view !== "timeoff" && (
         <PayrollApproval
           locks={locks} vendorId={vendor.id} actor={profile} isOwner={isOwner} onToast={onToast}
         />

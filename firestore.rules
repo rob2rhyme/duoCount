@@ -576,6 +576,47 @@ service cloud.firestore {
           || (member() && resource.data.userId == request.auth.token.userId));
       }
 
+      // Staff time-off — employees file a request (needs a manager's decision)
+      // or log a predictable future event that will need time off; a manager
+      // approves/denies with a reason the requester sees. Self-authored like
+      // availability; the manager's decision is a rules-gated field patch like
+      // the swap board's approve/reject. Pure logic + tests in lib/timeoff.js.
+      match /timeOff/{reqId} {
+        allow read: if mgr()
+          || (member() && resource.data.userId == request.auth.token.userId);
+
+        allow create: if member() && liveActive()
+          && request.resource.data.userId == request.auth.token.userId
+          && request.resource.data.userName == request.auth.token.name
+          && request.resource.data.startDate is string
+          && request.resource.data.endDate is string
+          && request.resource.data.status in ['pending', 'planned']
+          && request.resource.data.kind in ['request', 'event']
+          && request.resource.data.get('decidedById', null) == null;
+
+        // A manager decides — touching ONLY the decision fields, and signing it
+        // with their own identity (an honest audit of who approved/denied).
+        function managerDecision() {
+          return mgr()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['status', 'decidedBy', 'decidedById', 'decidedAt', 'decisionNote'])
+            && request.resource.data.status in ['approved', 'denied', 'pending', 'planned']
+            && request.resource.data.decidedById == request.auth.token.userId
+            && request.resource.data.decidedBy == request.auth.token.name;
+        }
+        // The requester cancels their own still-open request (status → canceled).
+        function requesterCancel() {
+          return member()
+            && resource.data.userId == request.auth.token.userId
+            && resource.data.status in ['pending', 'planned']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            && request.resource.data.status == 'canceled';
+        }
+        allow update: if liveActive() && (managerDecision() || requesterCancel());
+        allow delete: if liveActive() && (mgr()
+          || (member() && resource.data.userId == request.auth.token.userId));
+      }
+
       // Week templates — saved roster patterns, a manager-only planning tool.
       // Not employee-facing (they're applied to produce real schedule shifts).
       match /templates/{templateId} {

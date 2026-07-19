@@ -113,6 +113,10 @@ beforeEach(async () => {
     await setDoc(doc(f, `vendors/${V}/schedule/sClaimed`), sched({ date: "2026-07-14", swapStatus: "claimed", claimedById: "u-empB", claimedByName: "Bob" }));
     await setDoc(doc(f, `vendors/${V}/schedule/sOpen`), sched({ date: "2026-07-15", userId: null, userName: null, open: true }));
     await setDoc(doc(f, `vendors/${V}/availability/avA`), { userId: "u-empA", userName: "Eve", date: "2026-07-20", ts: new Date() });
+    // Staff time-off: a pending request + a planned event by empA, and one by empB.
+    await setDoc(doc(f, `vendors/${V}/timeOff/toReq`), { userId: "u-empA", userName: "Eve", kind: "request", type: "vacation", startDate: "2026-08-01", endDate: "2026-08-03", allDay: true, startTime: null, endTime: null, reason: "trip", status: "pending", createdAt: new Date(), ts: new Date() });
+    await setDoc(doc(f, `vendors/${V}/timeOff/toEvt`), { userId: "u-empA", userName: "Eve", kind: "event", type: "other", startDate: "2026-12-24", endDate: "2026-12-26", allDay: true, startTime: null, endTime: null, reason: "holidays", status: "planned", createdAt: new Date(), ts: new Date() });
+    await setDoc(doc(f, `vendors/${V}/timeOff/toB`), { userId: "u-empB", userName: "Bob", kind: "request", type: "sick", startDate: "2026-08-05", endDate: "2026-08-05", allDay: true, startTime: null, endTime: null, reason: "", status: "pending", createdAt: new Date(), ts: new Date() });
     await setDoc(doc(f, `vendors/${V}/schedulePublished/2026-07-06`), { weekStart: "2026-07-06", publishedAt: new Date(), publishedBy: "Mia", notified: 2, recipients: 2 });
   });
 });
@@ -792,6 +796,46 @@ test("availability: employees mark their own days; managers see all; not editabl
 test("availability: the owner or a manager removes an entry; a coworker cannot", async () => {
   await assertFails(deleteDoc(doc(db("empB"), `vendors/${V}/availability/avA`)));   // coworker
   await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/availability/avA`))); // manager
+});
+
+/* ---------- staff time-off ---------- */
+
+const tOff = (over = {}) => ({
+  userId: "u-empA", userName: "Eve", kind: "request", type: "vacation",
+  startDate: "2026-08-01", endDate: "2026-08-03", allDay: true, startTime: null, endTime: null,
+  reason: "trip", status: "pending", createdAt: new Date(), ts: new Date(), ...over,
+});
+
+test("timeOff: an employee files their own; not for someone else; must start pending/planned, undecided", async () => {
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/timeOff/n1`), tOff()));
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/timeOff/n1b`), tOff({ kind: "event", status: "planned" })));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeOff/n2`), tOff({ userId: "u-empB", userName: "Bob" }))); // someone else
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeOff/n3`), tOff({ status: "approved" })));                 // can't self-approve
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/timeOff/n4`), tOff({ decidedById: "u-empA" })));             // can't pre-decide
+});
+
+test("timeOff: manager sees all + decides (signed); requester sees own; coworker can't", async () => {
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/timeOff/toReq`)));
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/timeOff/toReq`)));   // own
+  await assertFails(getDoc(doc(db("empB"), `vendors/${V}/timeOff/toReq`)));      // coworker
+  // A manager approves — signed with their own identity, only the decision fields.
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/timeOff/toReq`),
+    { status: "approved", decidedBy: "Mia", decidedById: "u-mgr", decidedAt: new Date(), decisionNote: "ok" }));
+  // Can't sign someone else's name, and can't edit non-decision fields.
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/timeOff/toEvt`),
+    { status: "approved", decidedBy: "Eve", decidedById: "u-empA", decidedAt: new Date(), decisionNote: "x" }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/timeOff/toEvt`), { startDate: "2026-09-01" }));
+  // An employee cannot decide.
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/timeOff/toEvt`),
+    { status: "approved", decidedBy: "Eve", decidedById: "u-empA", decidedAt: new Date(), decisionNote: "" }));
+});
+
+test("timeOff: requester cancels own open request; can't cancel a coworker's; both sides delete own", async () => {
+  await assertSucceeds(updateDoc(doc(db("empB"), `vendors/${V}/timeOff/toB`), { status: "canceled" })); // own → canceled
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/timeOff/toEvt`), { status: "canceled", extra: 1 })); // must touch only status
+  await assertFails(updateDoc(doc(db("empB"), `vendors/${V}/timeOff/toEvt`), { status: "canceled" }));   // not yours (toEvt is empA's)
+  await assertSucceeds(deleteDoc(doc(db("empA"), `vendors/${V}/timeOff/toEvt`)));   // requester deletes own
+  await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/timeOff/toB`)));      // manager deletes any
 });
 
 /* ---------- week templates ---------- */

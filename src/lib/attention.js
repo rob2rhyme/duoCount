@@ -1,5 +1,6 @@
 import { isUnresolved } from "./utils.js";
 import { swapStatusOf } from "./swaps.js";
+import { pendingTimeOff } from "./timeoff.js";
 
 // Manager "needs attention" counts, derived from data the app already holds in
 // real time — no new query shapes, just a tally over the live arrays. Pure so
@@ -7,15 +8,16 @@ import { swapStatusOf } from "./swaps.js";
 //
 //  • log       — counts with an unresolved variance OR dispute (open / under-review)
 //  • incidents — write-ups still open (not acknowledged or closed)
-//  • time      — shifts a coworker has claimed, waiting on a manager's approve/reject
+//  • time      — shifts a coworker has claimed (swap awaiting approve/reject)
+//                PLUS time-off requests awaiting a decision — both live on Time.
 //
 // Employees don't resolve any of these, so the shell only asks for a manager.
-export function attentionCounts({ entries = [], incidents = [], swaps = [] } = {}) {
+export function attentionCounts({ entries = [], incidents = [], swaps = [], timeOff = [] } = {}) {
   let log = 0;
   for (const e of entries) {
     if (isUnresolved(e?.varianceStatus) || isUnresolved(e?.disputeStatus)) log += 1;
   }
   const incidentsOpen = incidents.filter((i) => i?.status === "open").length;
-  const time = swaps.filter((s) => swapStatusOf(s) === "claimed").length;
+  const time = swaps.filter((s) => swapStatusOf(s) === "claimed").length + pendingTimeOff(timeOff);
   return { log, incidents: incidentsOpen, time };
 }
