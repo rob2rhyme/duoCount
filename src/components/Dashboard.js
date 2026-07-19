@@ -21,8 +21,8 @@ import EmptyState, { IconChart } from "./EmptyState";
 // SVG presentation attributes), so the chart palette is resolved from the
 // active theme in JS rather than through Tailwind tokens.
 const CHART = {
-  light: { grid: "#e6e2d8", axis: "#8a8780", tipBg: "#ffffff", tipBorder: "#dcd8cc", tipText: "#1a1c2e", bar: "#1a1c2e" },
-  dark: { grid: "#2b2d37", axis: "#6b6d78", tipBg: "#1d1f28", tipBorder: "#343643", tipText: "#e9e8ee", bar: "#c9a34f" },
+  light: { grid: "#e1e9dc", axis: "#7f8b80", tipBg: "#ffffff", tipBorder: "#d4ded0", tipText: "#1a241c", bar: "#14532d" },
+  dark: { grid: "#29322a", axis: "#6e7d70", tipBg: "#19211a", tipBorder: "#324034", tipText: "#e8eee9", bar: "#7fd39e" },
 };
 
 function Stat({ label, value, tone }) {
@@ -471,7 +471,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
             <YAxis tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
             <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
-            <Line type="monotone" dataKey="sales" stroke="#b8863b" strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="sales" stroke="#298050" strokeWidth={2.5} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

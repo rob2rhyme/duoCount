@@ -8,43 +8,43 @@
    config; anything that should shift by theme lives here. */
 :root {
   color-scheme: light;
-  --bg: #f6f4ee;
+  --bg: #f1f5ef;
   --surface: #ffffff;
-  --panel: #faf8f2;
-  --subtle: #edeae1;
-  --field: #fdfcf9;
-  --line: #dcd8cc;
-  --line-soft: #e6e2d8;
-  --highlight: #fbf6ec;
-  --fg: #1a1c2e;
-  --muted: #67645b;
-  --faint: #7a766c;
-  --gold: #8a6428;
+  --panel: #f6faf3;
+  --subtle: #e7efe3;
+  --field: #fbfdf9;
+  --line: #d4ded0;
+  --line-soft: #e1e9dc;
+  --highlight: #e9f4e9;
+  --fg: #1a241c;
+  --muted: #5f6b60;
+  --faint: #737e72;
+  --gold: #1f6b3e;
   --pos: #0f7a37;
   --neg: #cf2020;
-  --btn-bg: #1a1c2e;
-  --btn-fg: #f6f4ee;
+  --btn-bg: #14532d;
+  --btn-fg: #f1f5ef;
   /* Chart ink — read by Recharts through the ThemeProvider, not CSS. */
 }
 
 .dark {
   color-scheme: dark;
-  --bg: #13141b;
-  --surface: #1d1f28;
-  --panel: #23252f;
-  --subtle: #2c2f3a;
-  --field: #191b22;
-  --line: #343643;
-  --line-soft: #2b2d37;
-  --highlight: #2c2618;
-  --fg: #e9e8ee;
-  --muted: #9a9ba7;
-  --faint: #83858f;
-  --gold: #dcbb79;
+  --bg: #101511;
+  --surface: #19211a;
+  --panel: #1e271f;
+  --subtle: #273128;
+  --field: #141a15;
+  --line: #324034;
+  --line-soft: #29322a;
+  --highlight: #1c2f21;
+  --fg: #e8eee9;
+  --muted: #9aa89c;
+  --faint: #849183;
+  --gold: #7fd39e;
   --pos: #45c877;
   --neg: #f87171;
-  --btn-bg: #e9e8ee;
-  --btn-fg: #14151c;
+  --btn-bg: #b7e2c6;
+  --btn-fg: #10241a;
 }
 
 body {
@@ -57,7 +57,7 @@ body {
 .label { @apply block text-xs font-semibold uppercase tracking-wide mb-1.5; color: var(--muted); }
 .input { @apply w-full px-3 py-2.5 rounded-lg outline-none transition border; background: var(--field); color: var(--fg); border-color: var(--line); }
 .input::placeholder { color: var(--faint); }
-.input:focus { @apply ring-2 ring-brass/20; border-color: #b8863b; }
+.input:focus { @apply ring-2 ring-brass/20; border-color: #298050; }
 /* The search boxes render their own magnifier + clear (×) button; WebKit's
    native search-cancel/decoration pseudo-elements would double them up. */
 input[type="search"]::-webkit-search-decoration,
@@ -137,7 +137,7 @@ button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -w
 .doc-content pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 1rem 0; }
 .doc-content pre code { background: none; padding: 0; font-size: 0.82rem; overflow-wrap: normal; }
 /* Blockquotes read as info callouts (the guide uses them for tips/asides). */
-.doc-content blockquote { border-left: 3px solid #b8863b; background: var(--highlight); padding: 0.65rem 0.95rem; margin: 1rem 0; border-radius: 0 8px 8px 0; color: var(--fg); }
+.doc-content blockquote { border-left: 3px solid #298050; background: var(--highlight); padding: 0.65rem 0.95rem; margin: 1rem 0; border-radius: 0 8px 8px 0; color: var(--fg); }
 .doc-content blockquote > :first-child { margin-top: 0; }
 .doc-content blockquote > :last-child { margin-bottom: 0; }
 .doc-content hr { border: 0; border-top: 1px solid var(--line); margin: 1.9rem 0; }

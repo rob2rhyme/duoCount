@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 210" role="img" aria-label="How a cash count adds up: expected equals starting cash plus sales minus paid-outs; over or short equals counted minus expected; if the absolute over/short is at least the store threshold, the count is flagged for review.">
   <style>
-    .bg{fill:#faf7f0}.chip{fill:#fff;stroke:#dcd4c2;stroke-width:1.5}.gold{fill:#f3e9d6;stroke:#b8863b;stroke-width:1.5}
+    .bg{fill:#f3f7f1}.chip{fill:#fff;stroke:#cfdccd;stroke-width:1.5}.gold{fill:#e2f1e4;stroke:#298050;stroke-width:1.5}
     .t{fill:#1a1c2e;font-family:ui-sans-serif,system-ui,Segoe UI,Helvetica,Arial,sans-serif;font-weight:600}
-    .op{fill:#b8863b;font-family:ui-sans-serif,system-ui,Helvetica,Arial,sans-serif;font-weight:700}
+    .op{fill:#298050;font-family:ui-sans-serif,system-ui,Helvetica,Arial,sans-serif;font-weight:700}
     .m{fill:#6f6a5f;font-family:ui-sans-serif,system-ui,Helvetica,Arial,sans-serif}
     @media (prefers-color-scheme:dark){.bg{fill:#1e2028}.chip{fill:#262932;stroke:#3a3d49}.gold{fill:#33302a;stroke:#c59a4e}.t{fill:#e8e6df}.op{fill:#c59a4e}.m{fill:#a2a09a}}
   </style>

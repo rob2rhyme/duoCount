@@ -38,7 +38,7 @@ export const metadata = {
 // themeColor colors the standalone title/status bar (the app header is dark in
 // both themes, so one dark value fits). viewportFit: cover exposes the
 // env(safe-area-inset-*) values the header and FAB pad against on notched phones.
-export const viewport = { themeColor: "#1a1c2e", viewportFit: "cover" };
+export const viewport = { themeColor: "#14532d", viewportFit: "cover" };
 
 export default function RootLayout({ children }) {
   return (

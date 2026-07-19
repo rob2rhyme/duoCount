@@ -79,7 +79,7 @@ export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
                     <span>{byId[id].label}</span>
                     <span className="flex items-center gap-2">
                       {attention[id] > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brass text-ink text-[10px] font-bold leading-none"
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-alert text-white text-[10px] font-bold leading-none"
                           aria-label={t("nav.need_attention", { n: attention[id] })}>{attention[id]}</span>
                       )}
                       {current === id && <span aria-hidden="true" className="text-brass">●</span>}
@@ -102,7 +102,7 @@ export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
                   <span className={`relative ${active ? "text-brass" : ""}`}>
                     {ICONS[g.key]}
                     {g.count > 0 && (
-                      <span className="absolute -top-1 -right-2 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-brass text-ink text-[9px] font-bold leading-none"
+                      <span className="absolute -top-1 -right-2 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-alert text-white text-[9px] font-bold leading-none"
                         aria-label={t("nav.need_attention", { n: g.count })}>{g.count}</span>
                     )}
                   </span>

@@ -9,7 +9,7 @@ export default function Logo({ src = null, alt = "logo", size = 32, rounded = "r
 
   if (failed || !src) {
     return (
-      <div className={`${rounded} bg-brass grid place-items-center text-ink font-bold flex-shrink-0 tracking-tight`}
+      <div className={`${rounded} bg-brass grid place-items-center text-white font-bold flex-shrink-0 tracking-tight`}
         style={{ width: px, height: px, fontSize: size * 0.42 }}>
         DC
       </div>

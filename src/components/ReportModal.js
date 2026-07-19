@@ -131,8 +131,8 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       const s = StyleSheet.create({
         page: { padding: 28, fontSize: 10, fontFamily: "Helvetica", color: "#1a1c2e" },
         brandRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
-        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#b8863b", alignItems: "center", justifyContent: "center", marginRight: 7 },
-        markText: { color: "#1a1c2e", fontFamily: "Helvetica-Bold", fontSize: 11 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#298050", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        markText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
         h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
         meta: { color: "#666", marginBottom: 2, fontSize: 8 },
         section: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 16, marginBottom: 5, borderBottomWidth: 1, borderBottomColor: "#1a1c2e", paddingBottom: 2 },
@@ -248,8 +248,8 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
         // The DuoCount "DC" mark, drawn with primitives (no external image, which
         // can fail to load and blank the whole render). Brass on ink, matching the
         // app's Logo fallback.
-        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#b8863b", alignItems: "center", justifyContent: "center", marginRight: 7 },
-        markText: { color: "#1a1c2e", fontFamily: "Helvetica-Bold", fontSize: 11 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#298050", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        markText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
         h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
         meta: { color: "#666", marginBottom: 2, fontSize: 8 },
         section: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 14, marginBottom: 5 },
@@ -410,7 +410,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a1c2e}h1{font-size:18px;margin:0}p{color:#666;margin:2px 0}
       h2{font-size:13px;margin:18px 0 6px}table{width:100%;border-collapse:collapse;font-size:11px}
       th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}th{border-bottom:2px solid #1a1c2e}
-      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:#b8863b;color:#1a1c2e;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}
+      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:#298050;color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}
       .sig{display:flex;justify-content:space-between;margin-top:48px}.sig div{width:44%;border-top:1px solid #1a1c2e;padding-top:4px;font-size:10px;color:#666}</style>
       <div class="brand"><span class="mark">DC</span><h1>${esc(vendor.name)} — Records Report</h1></div>
       <p>Store code: ${esc(vendor.slug)} · ${esc(locLabel)} · ${esc(range.label)} (${range.startISO} → ${range.endISO})</p>
