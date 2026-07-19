@@ -204,6 +204,21 @@ export async function fetchEntriesInRange(vendorId, startISO, endISO, locationId
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
+// One-shot rewards-ledger slice for the Admin engagement audit's on-demand
+// range (the live feed covers 90 days; this reaches any period). rewardEvents
+// carry a server-stamped `ts` (never backdated), so a ts range query IS the
+// business period; the end is extended one day to make `endISO` inclusive.
+// Rides the automatic single-field `ts` index; manager read access already
+// covers the collection, so no rules change.
+export async function fetchRewardEventsInRange(vendorId, startISO, endISO) {
+  const endPlus = new Date(Date.parse(`${endISO}T00:00:00`) + 86_400_000);
+  const q = query(vcol(vendorId, "rewardEvents"),
+    where("ts", ">=", new Date(`${startISO}T00:00:00`)),
+    where("ts", "<", endPlus),
+    orderBy("ts", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
 // One-shot punches for a report's labor roll-up, fetched by business `day`
 // (punches are never backdated — `day` is stamped at write time). The end is
 // extended by one day so an overnight shift that clocked IN within the period
