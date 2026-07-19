@@ -557,13 +557,22 @@ test("incidents: managers close (acknowledged or not); text immutable; no delete
   await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/incidents/incGeneral`)));
 });
 
-test("items: managers manage, employees read, nobody deletes", async () => {
-  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/items/i2`),
+test("items: owner-only management (Admin is the owner's room), everyone reads, nobody deletes", async () => {
+  await assertSucceeds(setDoc(doc(db("owner"), `vendors/${V}/items/i2`),
     { name: "Elf Bar", category: "Vapes", unit: "unit", barcode: null, locationId: "locA", active: true, createdAt: new Date() }));
-  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/items/i3`),
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/items/i3`),
+    { name: "Nope", unit: "unit", locationId: "locA", active: true, createdAt: new Date() }));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/items/i4`),
     { name: "Nope", unit: "unit", locationId: "locA", active: true, createdAt: new Date() }));
   await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/items/i1`)));
-  await assertFails(deleteDoc(doc(db("mgr"), `vendors/${V}/items/i1`)));
+  await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/items/i1`)));
+});
+
+test("locations & drawers: owner-only writes too — the manager path is closed", async () => {
+  await assertSucceeds(setDoc(doc(db("owner"), `vendors/${V}/locations/locNew`), { name: "Annex", active: true }));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/locations/locNope`), { name: "Nope", active: true }));
+  await assertSucceeds(setDoc(doc(db("owner"), `vendors/${V}/drawers/drNew`), { name: "Register 3", locationId: "locA", active: true }));
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/drawers/drNope`), { name: "Nope", locationId: "locA", active: true }));
 });
 
 /* ---------- time clock ---------- */

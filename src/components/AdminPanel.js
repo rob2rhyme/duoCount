@@ -51,6 +51,25 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     try { await apiUpdateStaff({ userId, ...patch }); onToast?.(okMsg || t("admin.toast_updated")); }
     catch (e) { onToast?.(e.message); }
   }
+  // Proper dialogs for the PIN-reset and email edits (they were browser
+  // prompt()s — functional, but off-brand and awkward on mobile).
+  const [staffModal, setStaffModal] = useState(null); // { kind: "pin"|"email", user } | null
+  const [staffModalVal, setStaffModalVal] = useState("");
+  function openStaffModal(kind, user) {
+    setStaffModal({ kind, user });
+    setStaffModalVal(kind === "email" ? (user.email || "") : "");
+  }
+  async function saveStaffModal() {
+    const { kind, user } = staffModal;
+    if (kind === "pin") {
+      const v = staffModalVal.trim();
+      if (!isValidNewPin(v)) return onToast?.(t("admin.err_pin", { n: PIN_LENGTH }));
+      await patchStaff(user.id, { pin: v }, t("admin.toast_pin_reset"));
+    } else {
+      await patchStaff(user.id, { email: staffModalVal.trim() }, t("admin.toast_email_updated"));
+    }
+    setStaffModal(null);
+  }
 
   /* ---- locations ---- */
   const [newLoc, setNewLoc] = useState("");
@@ -398,6 +417,23 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   ];
   const jumpTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  // Scrollspy: highlight the section chip you're actually looking at. The
+  // rootMargin band tracks the section crossing under the sticky chrome.
+  const [activeSection, setActiveSection] = useState("adm-staff");
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return undefined;
+    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-settings", "adm-rewards", "adm-engage", "adm-import", "adm-demo"];
+    const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
+    if (!els.length) return undefined;
+    const obs = new IntersectionObserver((es) => {
+      const vis = es.filter((e) => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (vis[0]) setActiveSection(vis[0].target.id);
+    }, { rootMargin: "-130px 0px -55% 0px" });
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+
   // At-a-glance strip: live counts, each tile a jump link into its section.
   const [itemQ, setItemQ] = useState("");
   const itemTerms = useMemo(() => searchTerms(itemQ), [itemQ]);
@@ -438,7 +474,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+45px)] z-10 -mx-4 px-4 py-2 bg-[var(--bg)]/95 backdrop-blur-sm flex gap-1.5 overflow-x-auto">
         {NAV_SECTIONS.map(([id, key]) => (
           <button key={id} type="button" onClick={() => jumpTo(id)}
-            className="flex-shrink-0 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border border-line bg-subtle text-muted hover:text-fg hover:border-brass transition">
+            className={`flex-shrink-0 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border transition ${activeSection === id ? "border-brass text-fg bg-brass/10" : "border-line bg-subtle text-muted hover:text-fg hover:border-brass"}`}>
             {t(key)}
           </button>
         ))}
@@ -508,21 +544,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                     {active ? t("admin.disable") : t("admin.enable")}
                   </button>
                   <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={isMe}
-                    onClick={() => {
-                      const p = prompt(t("admin.prompt_reset_pin", { name: u.name, n: PIN_LENGTH }));
-                      if (p == null) return;
-                      const v = p.trim();
-                      if (!isValidNewPin(v)) return onToast?.(t("admin.err_pin", { n: PIN_LENGTH }));
-                      patchStaff(u.id, { pin: v }, t("admin.toast_pin_reset"));
-                    }}>
+                    onClick={() => openStaffModal("pin", u)}>
                     {t("admin.reset_pin")}
                   </button>
                   <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={isMe}
-                    onClick={() => {
-                      const p = prompt(t("admin.prompt_email", { name: u.name }), u.email || "");
-                      if (p == null) return;
-                      patchStaff(u.id, { email: p.trim() }, t("admin.toast_email_updated"));
-                    }}>
+                    onClick={() => openStaffModal("email", u)}>
                     {u.email ? t("admin.edit_email") : t("admin.set_email")}
                   </button>
                 </div>
@@ -1108,6 +1134,40 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </button>
             </div>
             <p className="text-xs text-muted leading-relaxed">{t("admin.demo_foot")}</p>
+          </div>
+        </div>
+      )}
+
+      {/* PIN-reset / email dialog — replaces the old browser prompt()s. */}
+      {staffModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setStaffModal(null)}>
+          <div role="dialog" aria-modal="true" className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-2">
+              <h2 className="font-semibold text-[15px] min-w-0">
+                {staffModal.kind === "pin"
+                  ? t("admin.prompt_reset_pin", { name: staffModal.user.name, n: PIN_LENGTH })
+                  : t("admin.modal_email_title", { name: staffModal.user.name })}
+              </h2>
+              <button className="btn-ghost text-[13px] px-2.5 py-1 flex-shrink-0" onClick={() => setStaffModal(null)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
+            </div>
+            <div className="p-4 space-y-3">
+              {staffModal.kind === "pin" ? (
+                <input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} autoFocus
+                  value={staffModalVal} placeholder="123456"
+                  onChange={(e) => setStaffModalVal(e.target.value.replace(/\D/g, ""))} />
+              ) : (
+                <input className="input" type="email" inputMode="email" autoFocus value={staffModalVal}
+                  placeholder={t("admin.ph_email")} onChange={(e) => setStaffModalVal(e.target.value)} />
+              )}
+              {staffModal.kind === "email" && <p className="text-xs text-muted">{t("admin.modal_email_hint")}</p>}
+              <div className="flex gap-2">
+                <button className="btn-primary flex-1" onClick={saveStaffModal}
+                  disabled={staffModal.kind === "pin" && !isValidNewPin(staffModalVal.trim())}>
+                  {t("admin.modal_save")}
+                </button>
+                <button className="btn-ghost w-auto px-4" onClick={() => setStaffModal(null)}>{t("admin.modal_cancel")}</button>
+              </div>
+            </div>
           </div>
         </div>
       )}

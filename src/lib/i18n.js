@@ -1309,6 +1309,10 @@ export const CATALOG = {
     "rewarderr.stamps_short": "The card isn't full yet.",
 
     // admin — customer engagement audit
+    "admin.modal_email_title": "Email for {name}",
+    "admin.modal_email_hint": "Used for schedule notifications. Leave blank to remove the email.",
+    "admin.modal_save": "Save",
+    "admin.modal_cancel": "Cancel",
     "admin.ov_staff": "Staff",
     "admin.ov_locations": "Locations",
     "admin.ov_drawers": "Drawers",
@@ -2657,6 +2661,10 @@ export const CATALOG = {
     "rewarderr.stamps_short": "La tarjeta aún no está llena.",
 
     // admin — auditoría de interacciones con clientes
+    "admin.modal_email_title": "Correo de {name}",
+    "admin.modal_email_hint": "Se usa para avisos de horario. Déjalo en blanco para quitar el correo.",
+    "admin.modal_save": "Guardar",
+    "admin.modal_cancel": "Cancelar",
     "admin.ov_staff": "Personal",
     "admin.ov_locations": "Ubicaciones",
     "admin.ov_drawers": "Cajas",
