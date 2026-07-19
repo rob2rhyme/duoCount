@@ -92,6 +92,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   /* ---- inventory items ---- */
   const [ni, setNi] = useState({ name: "", category: "", unit: "unit", locationId: "", barcode: "" });
   const [scanOpen, setScanOpen] = useState(false);
+  const [scanTarget, setScanTarget] = useState("new"); // "new" (add form) | "edit" (item editor)
   async function createItem() {
     const loc = ni.locationId || locations.find((l) => l.active !== false)?.id;
     if (ni.name.trim().length < 2) return onToast?.(t("admin.err_item_name"));
@@ -102,21 +103,39 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       onToast?.(t("admin.toast_item_added"));
     } catch (e) { onToast?.(t("admin.err_managers_only")); }
   }
-  async function editItem(it) {
-    const name = prompt(t("admin.prompt_item_name"), it.name);
-    if (name === null) return;
-    const category = prompt(t("admin.prompt_item_cat"), it.category || "");
-    if (category === null) return;
-    const barcode = prompt(t("admin.prompt_item_barcode"), it.barcode || "");
-    if (barcode === null) return;
+  // Full item editor (was three chained browser prompt()s that only reached
+  // name/category/barcode). Every field the Add form sets is editable, plus
+  // the stock-sync fields the alerts read (price, expiry). Quantity is NOT
+  // here on purpose — stock only moves through the signed Backroom − / +.
+  const [editModal, setEditModal] = useState(null);
+  function openEditItem(it) {
+    setEditModal({
+      id: it.id, name: it.name || "", category: it.category || "",
+      unit: it.unit || "unit", locationId: it.locationId || "",
+      barcode: it.barcode || "", price: it.price != null ? String(it.price) : "",
+      expiresAt: it.expiresAt || "",
+    });
+  }
+  const setEdit = (k) => (e) => setEditModal((p) => ({ ...p, [k]: e.target.value }));
+  async function saveEditItem() {
+    const m = editModal;
+    const name = m.name.trim();
+    if (name.length < 2) return onToast?.(t("admin.err_item_name"));
+    let price = null;
+    if (String(m.price).trim() !== "") {
+      const n = Number(m.price);
+      if (!Number.isFinite(n) || n < 0) return onToast?.(t("admin.err_item_price"));
+      price = n;
+    }
     try {
-      await updateItem(vendor.id, it.id, {
-        name: name.trim() || it.name,
-        category: category.trim() || null,
-        barcode: barcode.trim() || null,
+      await updateItem(vendor.id, m.id, {
+        name, category: m.category.trim() || null, unit: m.unit || "unit",
+        locationId: m.locationId, barcode: m.barcode.trim() || null,
+        price, expiresAt: m.expiresAt || null,
       });
       onToast?.(t("admin.toast_item_updated"));
-    } catch (e) { onToast?.(t("admin.err_managers_only")); }
+      setEditModal(null);
+    } catch (e) { onToast?.(t("admin.toast_failed")); }
   }
 
   /* ---- settings ---- */
@@ -642,7 +661,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             <div className="flex gap-2">
               <input id={barcodeFieldId} className="input font-mono" value={ni.barcode} placeholder={t("admin.ph_scan_type")}
                 onChange={(e) => setNi({ ...ni, barcode: e.target.value })} />
-              <button type="button" className="btn-ghost whitespace-nowrap px-3" onClick={() => setScanOpen(true)}>{t("admin.scan_btn")}</button>
+              <button type="button" className="btn-ghost whitespace-nowrap px-3" onClick={() => { setScanTarget("new"); setScanOpen(true); }}>{t("admin.scan_btn")}</button>
             </div>
           </div>
           <button className="btn-ghost w-full" onClick={createItem}>{t("admin.add_item")}</button>
@@ -663,11 +682,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </div>
               <div className="text-[13px] text-muted">
                 {locName(it.locationId)} · {t("admin.counted_in", { unit: `${it.unit || "unit"}s` })}
+                {Number(it.price) > 0 && <span> · {money(Number(it.price))}</span>}
+                {it.expiresAt && <span> · {t("admin.item_exp", { date: it.expiresAt })}</span>}
                 {it.barcode && <span className="font-mono"> · ▮▯ {it.barcode}</span>}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => editItem(it)}>{t("admin.edit")}</button>
+              <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => openEditItem(it)}>{t("admin.edit")}</button>
               <button className="btn-ghost text-[13px] px-3 py-1.5"
                 onClick={() => updateItem(vendor.id, it.id, { active: !(it.active !== false) }).then(() => onToast?.(t("admin.toast_updated"))).catch(() => onToast?.(t("admin.toast_failed")))}>
                 {it.active !== false ? t("admin.disable") : t("admin.enable")}
@@ -1138,6 +1159,64 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         </div>
       )}
 
+      {/* Full item editor — every Add-form field plus price & expiry. */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setEditModal(null)}>
+          <div role="dialog" aria-modal="true" className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-2">
+              <h2 className="font-semibold text-[15px] min-w-0 truncate">{t("admin.edit_item_title", { name: editModal.name || "—" })}</h2>
+              <button className="btn-ghost text-[13px] px-2.5 py-1 flex-shrink-0" onClick={() => setEditModal(null)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <Field label={t("admin.f_item_name")}>
+                <input className="input" value={editModal.name} onChange={setEdit("name")} />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t("admin.f_category_opt")}>
+                  <input className="input" value={editModal.category} onChange={setEdit("category")} placeholder={t("admin.ph_category")} />
+                </Field>
+                <Field label={t("admin.f_unit")}>
+                  <select className="input" value={editModal.unit} onChange={setEdit("unit")}>
+                    <option value="unit">{t("admin.unit_unit")}</option>
+                    <option value="carton">{t("admin.unit_carton")}</option>
+                    <option value="pack">{t("admin.unit_pack")}</option>
+                    <option value="box">{t("admin.unit_box")}</option>
+                    <option value="case">{t("admin.unit_case")}</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label={t("common.location")}>
+                <select className="input" value={editModal.locationId} onChange={setEdit("locationId")}>
+                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </Field>
+              <div>
+                <span className="label">{t("admin.f_barcode_opt")}</span>
+                <div className="flex gap-2">
+                  <input className="input font-mono min-w-0" value={editModal.barcode} onChange={setEdit("barcode")} placeholder={t("admin.ph_scan_type")} />
+                  <button type="button" className="btn-ghost whitespace-nowrap px-3 flex-shrink-0"
+                    onClick={() => { setScanTarget("edit"); setScanOpen(true); }}>{t("admin.scan_btn")}</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t("admin.f_price_opt")}>
+                  <input className="input font-mono" type="number" inputMode="decimal" min="0" step="0.01"
+                    value={editModal.price} onChange={setEdit("price")} placeholder="0.00" />
+                </Field>
+                <Field label={t("admin.f_expiry_opt")}>
+                  <input className="input" type="date" value={editModal.expiresAt} onChange={setEdit("expiresAt")} />
+                </Field>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">{t("admin.edit_item_hint")}</p>
+              <div className="flex gap-2">
+                <button className="btn-primary flex-1" onClick={saveEditItem}>{t("admin.modal_save")}</button>
+                <button className="btn-ghost w-auto px-4" onClick={() => setEditModal(null)}>{t("admin.modal_cancel")}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PIN-reset / email dialog — replaces the old browser prompt()s. */}
       {staffModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setStaffModal(null)}>
@@ -1190,7 +1269,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
         title={t("admin.scan_item_title")}
         hint={t("admin.scan_item_hint")}
-        onDetected={(code) => { setNi((p) => ({ ...p, barcode: code })); setScanOpen(false); onToast?.(t("admin.toast_scanned")); }} />
+        onDetected={(code) => {
+          if (scanTarget === "edit") setEditModal((p) => (p ? { ...p, barcode: code } : p));
+          else setNi((p) => ({ ...p, barcode: code }));
+          setScanOpen(false);
+          onToast?.(t("admin.toast_scanned"));
+        }} />
     </div>
   );
 }
