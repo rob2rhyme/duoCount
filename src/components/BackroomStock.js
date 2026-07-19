@@ -97,9 +97,17 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
     try {
       const r = await apiStockMove({ itemId: item.id, delta });
       const low = r.quantity < alerts.rules.lowStockUnits;
+      // Undo = a NEW compensating signed move (the ledger stays append-only;
+      // both the mistake and the correction are permanent lines).
+      const undo = {
+        fn: async () => {
+          const u = await apiStockMove({ itemId: item.id, delta: -r.applied, note: "undo" });
+          onToast?.(t("br.toast_undone", { name: item.name, q: u.quantity }));
+        },
+      };
       onToast?.(low && delta < 0
         ? t("br.toast_low", { name: item.name, n: r.quantity })
-        : t(delta < 0 ? "br.toast_pulled" : "br.toast_restocked", { name: item.name, n: Math.abs(r.applied), q: r.quantity }));
+        : t(delta < 0 ? "br.toast_pulled" : "br.toast_restocked", { name: item.name, n: Math.abs(r.applied), q: r.quantity }), undo);
     } catch (e) {
       onToast?.(e?.code === "stock_empty" ? t("br.err_empty", { name: item.name }) : (e?.message || t("br.err_move")));
     }

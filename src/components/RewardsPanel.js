@@ -176,7 +176,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
     run("adjust", { action: "adjust", phone, points: Math.trunc(Number(adjPts)), note: adjNote }, (r) => {
       setCustomer((c) => ({ ...c, pointsBalance: r.balance }));
       setAdjPts(""); setAdjNote("");
-      onToast?.(t("rw.toast_adjusted", { n: r.adjusted, b: r.balance }));
+      onToast?.(t("rw.toast_adjusted", { n: r.adjusted, b: r.balance }), undoOf(r.eventId));
     });
 
   const enroll = () =>
@@ -198,8 +198,18 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       setSale("");
       onToast?.(r.multiplier > 1
         ? t("rw.toast_earned_vip", { n: r.earned, b: r.balance, m: r.multiplier, tier: r.vipTier })
-        : t("rw.toast_earned", { n: r.earned, b: r.balance }));
+        : t("rw.toast_earned", { n: r.earned, b: r.balance }), undoOf(r.eventId));
     });
+  // One-tap take-back for the toast: the server writes a NEW signed "undo"
+  // line reversing the event (15-minute window, your own lines only).
+  const undoOf = (eventId) => eventId ? {
+    fn: async () => {
+      const u = await apiRewards({ action: "undo", phone, eventId });
+      setCustomer((c) => ({ ...c, pointsBalance: u.balance, ...(u.stamps ? { stamps: u.stamps } : {}) }));
+      onToast?.(t("rw.toast_undone"));
+    },
+  } : undefined;
+
   // Punch cards: +1 stamp / give the reward — both signed ledger lines, a
   // separate currency from points (the server writes points: 0 on each).
   const stamp = (card) =>
@@ -207,12 +217,12 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       setCustomer((c) => ({ ...c, stamps: { ...(c.stamps || {}), [r.cardId]: r.count } }));
       onToast?.(r.count >= r.goal
         ? t("rw.toast_stamp_full", { name: card.name })
-        : t("rw.toast_stamp", { name: card.name, n: r.count, goal: r.goal }));
+        : t("rw.toast_stamp", { name: card.name, n: r.count, goal: r.goal }), undoOf(r.eventId));
     });
   const stampRedeem = (card) =>
     run(`stampredeem:${card.id}`, { action: "stampRedeem", phone, cardId: card.id }, (r) => {
       setCustomer((c) => ({ ...c, stamps: { ...(c.stamps || {}), [r.cardId]: r.count } }));
-      onToast?.(t("rw.toast_stamp_redeemed", { reward: r.reward }));
+      onToast?.(t("rw.toast_stamp_redeemed", { reward: r.reward }), undoOf(r.eventId));
     });
 
   const redeem = (tier) =>
@@ -226,7 +236,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
           : r.reward
             ? t("rw.toast_redeemed_named", { reward: r.reward, value: money(r.value) })
             : t("rw.toast_redeemed", { value: money(r.value) });
-      onToast?.(msg);
+      onToast?.(msg, undoOf(r.eventId));
     });
 
   // This customer's slice of the signed ledger, newest first (History tab).
@@ -554,17 +564,21 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                                     ? t("rw.h_stamp", { card: e.cardName || "", n: e.count, goal: e.goal })
                                     : e.kind === "stampRedeem"
                                       ? t("rw.h_stamp_redeem", { reward: e.reward || e.cardName || "" })
-                                      : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
-                            const ptsCell = e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
-                              : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;
+                                      : e.kind === "undo"
+                                        ? t("rw.h_undo")
+                                        : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                            const ptsCell = e.kind === "undo" && pts === 0 ? "↩"
+                              : e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
+                                : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;
                             return (
-                              <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
+                              <div key={e.id} className={`px-3 py-2.5 flex items-start gap-3 ${e.reversedBy ? "opacity-50" : ""}`}>
                                 <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">
                                   <div>{e._d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
                                   <div>{e._d.toLocaleDateString()}</div>
                                 </div>
                                 <div className={`min-w-0 flex-1 text-[13px] leading-snug ${green ? "text-pos font-semibold" : ""}`}>
-                                  {label}
+                                  <span className={e.reversedBy ? "line-through" : ""}>{label}</span>
+                                  {e.reversedBy && <span className="text-[11px] text-muted font-normal"> {t("rw.h_undone_mark")}</span>}
                                   {e.by && <span className="block text-[11px] text-muted font-normal">{t("rw.h_by", { name: e.by })}</span>}
                                 </div>
                                 <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${green ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>

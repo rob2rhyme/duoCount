@@ -47,9 +47,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     } catch (e) { onToast?.(e.message); }
     setBusy(false);
   }
-  async function patchStaff(userId, patch, okMsg) {
-    try { await apiUpdateStaff({ userId, ...patch }); onToast?.(okMsg || t("admin.toast_updated")); }
-    catch (e) { onToast?.(e.message); }
+  // `undoPatch` (the prior values) arms the toast's one-tap Undo.
+  async function patchStaff(userId, patch, okMsg, undoPatch) {
+    try {
+      await apiUpdateStaff({ userId, ...patch });
+      onToast?.(okMsg || t("admin.toast_updated"),
+        undoPatch ? { fn: () => patchStaff(userId, undoPatch, t("common.undone")) } : undefined);
+    } catch (e) { onToast?.(e.message); }
   }
   // Proper dialogs for the PIN-reset and email edits (they were browser
   // prompt()s — functional, but off-brand and awkward on mobile).
@@ -128,12 +132,22 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       price = n;
     }
     try {
+      const prev = items.find((x) => x.id === m.id);
       await updateItem(vendor.id, m.id, {
         name, category: m.category.trim() || null, unit: m.unit || "unit",
         locationId: m.locationId, barcode: m.barcode.trim() || null,
         price, expiresAt: m.expiresAt || null,
       });
-      onToast?.(t("admin.toast_item_updated"));
+      onToast?.(t("admin.toast_item_updated"), prev ? {
+        fn: async () => {
+          await updateItem(vendor.id, m.id, {
+            name: prev.name, category: prev.category ?? null, unit: prev.unit || "unit",
+            locationId: prev.locationId, barcode: prev.barcode ?? null,
+            price: prev.price ?? null, expiresAt: prev.expiresAt ?? null,
+          });
+          onToast?.(t("common.undone"));
+        },
+      } : undefined);
       setEditModal(null);
     } catch (e) { onToast?.(t("admin.toast_failed")); }
   }
@@ -255,11 +269,37 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         lastSentDate: vendor.digest?.lastSentDate ?? null, // preserved; cron owns it
       },
     };
+    // The prior vendor state, captured before the write, arms the Undo.
+    const prevVendor = vendor;
+    const prevPatch = {
+      name: vendor.name, logoUrl: vendor.logoUrl || null, sharingMode: vendor.sharingMode,
+      blindCounts: vendor.blindCounts === true,
+      varianceThreshold: vendor.varianceThreshold ?? 5,
+      invVarianceThreshold: vendor.invVarianceThreshold ?? null,
+      fiscalStartMonth: vendor.fiscalStartMonth ?? 1,
+      aiSearch: vendor.aiSearch === true, aiInsights: vendor.aiInsights === true,
+      patternRules: resolvePatternRules(vendor.patternRules || {}),
+      stockAlerts: resolveStockAlerts(vendor.stockAlerts || {}),
+      rewards: resolveRewards(vendor.rewards || {}),
+      digest: {
+        enabled: vendor.digest?.enabled === true, recipients: vendor.digest?.recipients || [],
+        tz: vendor.digest?.tz || "America/New_York", narrative: vendor.digest?.narrative === true,
+        lastSentDate: vendor.digest?.lastSentDate ?? null,
+      },
+    };
+    const prevSnap = savedSettingsRef.current;
     try {
       await updateVendorSettings(vendor.id, patch);
       setVendor({ ...vendor, ...patch });
       savedSettingsRef.current = JSON.stringify(settings);
-      onToast?.(t("admin.toast_settings_saved"));
+      onToast?.(t("admin.toast_settings_saved"), {
+        fn: async () => {
+          await updateVendorSettings(prevVendor.id, prevPatch);
+          setVendor({ ...prevVendor, ...prevPatch });
+          if (prevSnap) { setSettings(JSON.parse(prevSnap)); savedSettingsRef.current = prevSnap; }
+          onToast?.(t("common.undone"));
+        },
+      });
     } catch (e) { onToast?.(t("admin.err_owner_settings")); }
   }
   // Unsaved-changes detection: the settings card is long, and its Save button
@@ -547,19 +587,19 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <select className="input w-auto py-1.5 text-sm" value={u.role} disabled={isMe || (u.role === "owner" && !isOwner)}
                     aria-label={t("admin.aria_role_for", { name: u.name })}
-                    onChange={(e) => patchStaff(u.id, { role: e.target.value }, t("admin.toast_now_role", { name: u.name, role: t(`admin.role_${e.target.value}`) }))}>
+                    onChange={(e) => patchStaff(u.id, { role: e.target.value }, t("admin.toast_now_role", { name: u.name, role: t(`admin.role_${e.target.value}`) }), { role: u.role })}>
                     <option value="employee">{t("admin.role_employee")}</option>
                     <option value="manager">{t("admin.role_manager")}</option>
                     <option value="owner" disabled={!isOwner}>{t("admin.role_owner")}</option>
                   </select>
                   <select className="input w-auto py-1.5 text-sm" value={u.locationId || ""} disabled={isMe}
                     aria-label={t("admin.aria_loc_for", { name: u.name })}
-                    onChange={(e) => patchStaff(u.id, { locationId: e.target.value || null })}>
+                    onChange={(e) => patchStaff(u.id, { locationId: e.target.value || null }, undefined, { locationId: u.locationId || null })}>
                     <option value="">{t("common.all_locations")}</option>
                     {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                   <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={isMe}
-                    onClick={() => patchStaff(u.id, { active: !active }, active ? t("admin.toast_disabled") : t("admin.toast_enabled"))}>
+                    onClick={() => patchStaff(u.id, { active: !active }, active ? t("admin.toast_disabled") : t("admin.toast_enabled"), { active })}>
                     {active ? t("admin.disable") : t("admin.enable")}
                   </button>
                   <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={isMe}
@@ -591,7 +631,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               {l.active === false && <span className="pill bg-red-100 text-red-700">{t("admin.pill_inactive")}</span>}
             </div>
             <button className="btn-ghost text-[13px] px-3 py-1.5"
-              onClick={() => updateLocation(vendor.id, l.id, { active: !(l.active !== false) }).then(() => onToast?.(t("admin.toast_updated"))).catch(() => onToast?.(t("admin.toast_failed")))}>
+              onClick={() => {
+                const next = !(l.active !== false);
+                updateLocation(vendor.id, l.id, { active: next })
+                  .then(() => onToast?.(t("admin.toast_updated"), { fn: () => updateLocation(vendor.id, l.id, { active: !next }).then(() => onToast?.(t("common.undone"))) }))
+                  .catch(() => onToast?.(t("admin.toast_failed")));
+              }}>
               {l.active !== false ? t("admin.disable") : t("admin.enable")}
             </button>
           </div>
@@ -624,7 +669,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               <div className="text-[13px] text-muted">{locName(d.locationId)}</div>
             </div>
             <button className="btn-ghost text-[13px] px-3 py-1.5"
-              onClick={() => updateDrawer(vendor.id, d.id, { active: !(d.active !== false) }).then(() => onToast?.(t("admin.toast_updated"))).catch(() => onToast?.(t("admin.toast_failed")))}>
+              onClick={() => {
+                const next = !(d.active !== false);
+                updateDrawer(vendor.id, d.id, { active: next })
+                  .then(() => onToast?.(t("admin.toast_updated"), { fn: () => updateDrawer(vendor.id, d.id, { active: !next }).then(() => onToast?.(t("common.undone"))) }))
+                  .catch(() => onToast?.(t("admin.toast_failed")));
+              }}>
               {d.active !== false ? t("admin.disable") : t("admin.enable")}
             </button>
           </div>
@@ -690,7 +740,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             <div className="flex items-center gap-2 flex-shrink-0">
               <button className="btn-ghost text-[13px] px-3 py-1.5" onClick={() => openEditItem(it)}>{t("admin.edit")}</button>
               <button className="btn-ghost text-[13px] px-3 py-1.5"
-                onClick={() => updateItem(vendor.id, it.id, { active: !(it.active !== false) }).then(() => onToast?.(t("admin.toast_updated"))).catch(() => onToast?.(t("admin.toast_failed")))}>
+                onClick={() => {
+                  const next = !(it.active !== false);
+                  updateItem(vendor.id, it.id, { active: next })
+                    .then(() => onToast?.(t("admin.toast_updated"), { fn: () => updateItem(vendor.id, it.id, { active: !next }).then(() => onToast?.(t("common.undone"))) }))
+                    .catch(() => onToast?.(t("admin.toast_failed")));
+                }}>
                 {it.active !== false ? t("admin.disable") : t("admin.enable")}
               </button>
             </div>
@@ -1104,18 +1159,24 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                           ? t("rw.h_stamp", { card: e.cardName || "", n: e.count, goal: e.goal })
                           : e.kind === "stampRedeem"
                             ? t("rw.h_stamp_redeem", { reward: e.reward || e.cardName || "" })
-                            : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
-                  const ptsCell = e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
-                    : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;
+                            : e.kind === "undo"
+                              ? t("rw.h_undo")
+                              : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                  const ptsCell = e.kind === "undo" && pts === 0 ? "↩"
+                    : e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
+                      : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;
                   return (
-                    <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
+                    <div key={e.id} className={`px-3 py-2.5 flex items-start gap-3 ${e.reversedBy ? "opacity-50" : ""}`}>
                       <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">
                         <div>{e._d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
                         <div>{e._d.toLocaleDateString()}</div>
                       </div>
                       <div className="min-w-0 flex-1 leading-snug">
                         <span className="block text-[13px] font-medium truncate">{c?.name || (c ? maskPhone(c.phone) : t("admin.engage_unknown"))}</span>
-                        <span className={`block text-[12px] ${green ? "text-pos font-semibold" : "text-muted"}`}>{label}</span>
+                        <span className={`block text-[12px] ${green ? "text-pos font-semibold" : "text-muted"}`}>
+                          <span className={e.reversedBy ? "line-through" : ""}>{label}</span>
+                          {e.reversedBy && <span className="text-[11px] text-muted"> {t("rw.h_undone_mark")}</span>}
+                        </span>
                         {e.by && <span className="block text-[11px] text-muted">{t("rw.h_by", { name: e.by })}</span>}
                       </div>
                       <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${green ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>

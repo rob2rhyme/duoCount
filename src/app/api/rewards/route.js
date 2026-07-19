@@ -41,9 +41,9 @@ const publicCustomer = (id, c, rules) => ({
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy, cardId,
+    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy, cardId, eventId,
       newName, newPhone, newNote, newEmail, newBirthdayMonth, newBirthdayDay, newAddress } = await req.json();
-    if (!["lookup", "enroll", "earn", "redeem", "adjust", "update", "stamp", "stampRedeem"].includes(action))
+    if (!["lookup", "enroll", "earn", "redeem", "adjust", "update", "stamp", "stampRedeem", "undo"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
 
     const { adminDb } = await getAdmin();
@@ -171,7 +171,8 @@ export async function POST(req) {
         if (action === "stampRedeem" && cur < card.goal)
           throw Object.assign(new Error("The card isn't full yet."), { status: 409, code: "stamps_short" });
         const next = action === "stamp" ? cur + 1 : cur - card.goal;
-        tx.set(events.doc(), {
+        const eventRef = events.doc();
+        tx.set(eventRef, {
           kind: action === "stamp" ? "stamp" : "stampRedeem", points: 0,
           customerId: customerRef.id, cardId: card.id, cardName: card.name,
           count: next, goal: card.goal,
@@ -180,12 +181,67 @@ export async function POST(req) {
           ts: new Date(),
         });
         tx.update(customerRef, { [`stamps.${card.id}`]: next });
-        return { count: next };
+        return { count: next, eventId: eventRef.id };
       });
       return NextResponse.json({
-        ok: true, rules, cardId: card.id, count: out.count, goal: card.goal,
+        ok: true, rules, cardId: card.id, count: out.count, goal: card.goal, eventId: out.eventId,
         ...(action === "stampRedeem" ? { reward: card.reward } : {}),
       });
+    }
+
+    // Undo — the register's 15-minute take-back. NEVER an edit: the reversal
+    // is a NEW signed "undo" ledger line, and the original merely gains a
+    // reversedBy pointer so it can't be reversed twice. Your own recent lines
+    // only (the owner can undo anyone's); referrals are excluded (two-sided).
+    if (action === "undo") {
+      const UNDO_WINDOW_MS = 15 * 60 * 1000;
+      if (!eventId) return err(404, "undo_not_found", "Nothing to undo.");
+      const evRef = events.doc(String(eventId));
+      const out = await adminDb.runTransaction(async (tx) => {
+        const [evSnap, cSnap] = await Promise.all([tx.get(evRef), tx.get(customerRef)]);
+        const boom = (status, code, message) => Object.assign(new Error(message), { status, code });
+        if (!evSnap.exists) throw boom(404, "undo_not_found", "Nothing to undo.");
+        const ev = evSnap.data();
+        if (ev.customerId !== customerRef.id) throw boom(404, "undo_not_found", "Nothing to undo.");
+        if (ev.reversedBy) throw boom(409, "undo_already", "Already undone.");
+        if (ev.kind === "undo" || ev.kind === "referral")
+          throw boom(400, "undo_not_allowed", "That line can't be undone.");
+        if (ev.byId !== claims.userId && claims.role !== "owner")
+          throw boom(403, "undo_not_yours", "Only the person who made it (or the owner) can undo it.");
+        const ts = ev.ts?.toDate ? ev.ts.toDate() : (ev.ts ? new Date(ev.ts) : null);
+        if (!ts || Number.isNaN(ts.getTime()) || Date.now() - ts.getTime() > UNDO_WINDOW_MS)
+          throw boom(409, "undo_expired", "Too late to undo — it's part of the permanent record now.");
+
+        const c = cSnap.data() || {};
+        const undoRef = events.doc();
+        const base = {
+          kind: "undo", reversesId: evRef.id, reversesKind: ev.kind, customerId: customerRef.id,
+          by: claims.name || "", byId: claims.userId, byRole: claims.role || "employee", ts: new Date(),
+        };
+        const patch = {};
+        if (ev.kind === "stamp" || ev.kind === "stampRedeem") {
+          const cur = Math.max(0, Math.trunc(Number(c.stamps?.[ev.cardId]) || 0));
+          const next = ev.kind === "stamp" ? Math.max(0, cur - 1) : cur + (Number(ev.goal) || 0);
+          patch[`stamps.${ev.cardId}`] = next;
+          tx.set(undoRef, { ...base, points: 0, cardId: ev.cardId, cardName: ev.cardName || "", count: next, goal: ev.goal ?? null });
+        } else {
+          const pts = -(Number(ev.points) || 0);
+          patch.pointsBalance = Math.max(0, (c.pointsBalance || 0) + pts);
+          // A mistaken EARN inflated lifetime too — deflate it, or VIP status
+          // could be farmed with earn+undo loops. Redeem/adjust never touch it.
+          if (ev.kind === "earn") patch.lifetimePoints = Math.max(0, lifetimeOf(c) + pts);
+          tx.set(undoRef, { ...base, points: pts });
+        }
+        tx.update(evRef, { reversedBy: undoRef.id });
+        tx.update(customerRef, patch);
+        const stamps = { ...(c.stamps || {}) };
+        if (patch[`stamps.${ev.cardId}`] !== undefined) stamps[ev.cardId] = patch[`stamps.${ev.cardId}`];
+        return {
+          balance: patch.pointsBalance ?? (c.pointsBalance || 0),
+          stamps, undoneKind: ev.kind,
+        };
+      });
+      return NextResponse.json({ ok: true, rules, ...out });
     }
 
     // The signed, append-only ledger line + the balance move, atomically.
@@ -206,7 +262,8 @@ export async function POST(req) {
         const extra = typeof extraOrFn === "function" ? extraOrFn(c) : extraOrFn;
         if (kind === "redeem" && balance < minBalance)
           throw Object.assign(new Error("Not enough points to redeem."), { status: 409, code: "insufficient_points" });
-        tx.set(events.doc(), signedEvent(kind, pts, extra));
+        const eventRef = events.doc();
+        tx.set(eventRef, signedEvent(kind, pts, extra));
         // Streak advances on visits (earns) only, computed from the PRE-earn
         // lastEarnAt inside this transaction; longest is a high-water mark.
         const streak = kind === "earn" ? nextStreak(c, new Date(), rules) : null;
@@ -219,7 +276,7 @@ export async function POST(req) {
             currentStreak: streak, longestStreak: Math.max(Number(c.longestStreak) || 0, streak),
           } : {}),
         });
-        return { balance: balance + pts, pts, extra, streak };
+        return { balance: balance + pts, pts, extra, streak, eventId: eventRef.id };
       });
 
     if (action === "earn") {
@@ -244,7 +301,7 @@ export async function POST(req) {
       return NextResponse.json({
         ok: true, rules, earned: r.pts, balance: r.balance,
         vipTier: r.extra.vipTier || null, multiplier: r.extra.multiplier || 1,
-        streak: r.streak,
+        streak: r.streak, eventId: r.eventId,
       });
     }
 
@@ -265,14 +322,14 @@ export async function POST(req) {
         ...(tier.type === "percent" ? { percent: tier.percent, cap: tier.cap } : {}),
         ...(tier.type === "item" && tier.withPurchase ? { withPurchase: true } : {}),
       };
-      const { balance } = await commit("redeem", -tier.points, grant, tier.points);
+      const { balance, eventId: redeemEventId } = await commit("redeem", -tier.points, grant, tier.points);
       return NextResponse.json({
         ok: true, rules, redeemed: tier.points, value: tierDollarValue(tier),
         reward: tier.name || null, rewardType: tier.type,
         percent: tier.type === "percent" ? tier.percent : null,
         cap: tier.type === "percent" ? tier.cap : null,
         withPurchase: tier.type === "item" && tier.withPurchase === true,
-        balance,
+        balance, eventId: redeemEventId,
       });
     }
 
@@ -283,8 +340,8 @@ export async function POST(req) {
       return err(400, "bad_adjust", "Enter a non-zero whole number of points.");
     const trimmedNote = String(note ?? "").trim();
     if (!trimmedNote) return err(400, "note_required", "An adjustment needs a note — it's part of the permanent record.");
-    const { balance } = await commit("adjust", pts, { note: trimmedNote.slice(0, 300) });
-    return NextResponse.json({ ok: true, rules, adjusted: pts, balance });
+    const { balance, eventId: adjustEventId } = await commit("adjust", pts, { note: trimmedNote.slice(0, 300) });
+    return NextResponse.json({ ok: true, rules, adjusted: pts, balance, eventId: adjustEventId });
   } catch (e) {
     if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
     console.error("rewards route error", e);
