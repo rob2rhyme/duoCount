@@ -4,9 +4,16 @@
 > `vendor.stockAlerts` owner settings, the Dashboard **Stock attention** card,
 > and the digest section are built (`stock-alerts.js`, the "Stock levels"
 > import type, Admin → Stock alerts). Phases 2–3 (Square/Clover live APIs,
-> petro file drops) remain research. The Firestore rules change (the
-> `stockAlerts` vendor key) is **emulator-verified** (`npm run test:rules`,
-> 73 tests incl. an owner-may/manager-may-not case).
+> petro file drops) remain research — building them needs to know WHICH POS
+> the store runs plus its merchant credentials. The Firestore rules change
+> (the `stockAlerts` vendor key) is **emulator-verified** (`npm run
+> test:rules`).
+>
+> **Nightly-flow polish (July 2026):** the importer now remembers the
+> confirmed column mapping per store + import type (this device), so
+> re-uploading the same POS export is pick-file → Commit; the Stock levels
+> importer shows sync freshness ("Last stock sync: …", red past 7 days,
+> from the items' `quantitySyncedAt`).
 
 ## Owner decision — July 2026
 

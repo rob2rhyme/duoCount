@@ -17,16 +17,46 @@ const STATUS_STYLE = { create: "text-pos", update: "text-gold", skip: "text-mute
 const PREVIEW_CAP = 60;
 const TYPE_IDS = ["items", "staff", "baselines", "stock", "customers", "games"];
 
+// Saved column mappings, per store + import type (this device). A nightly POS
+// export has the same headers every time — remembering the confirmed mapping
+// makes the re-upload a two-tap ritual: pick the file, Commit. A saved mapping
+// only applies when every header it references exists in the new file;
+// otherwise the alias guesser runs as before.
+const mapKey = (vendorId, type) => `duocount-impmap-${vendorId}-${type}`;
+function loadSavedMapping(vendorId, type, headers) {
+  try {
+    const raw = localStorage.getItem(mapKey(vendorId, type));
+    if (!raw) return null;
+    const m = JSON.parse(raw);
+    const used = Object.values(m).filter(Boolean);
+    if (!used.length || !used.every((h) => headers.includes(h))) return null;
+    return m;
+  } catch { return null; }
+}
+
 export default function ImportCard({ locations = [], items = [], staff = [], entries = [], customers = [], scratchCatalog = null, onToast }) {
-  const { profile } = useSession();
+  const { profile, vendor } = useSession();
   const { t } = useLang();
   const [type, setType] = useState("items");
   const [parsed, setParsed] = useState(null); // { headers, rows, fileName }
   const [mapping, setMapping] = useState({});
+  const [mapRemembered, setMapRemembered] = useState(false);
   const [parseError, setParseError] = useState("");
   const [allowPartial, setAllowPartial] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
+
+  // Freshness of the POS stock sync — the newest quantitySyncedAt on any item.
+  const lastStockSync = useMemo(() => {
+    let max = null;
+    for (const it of items) {
+      const v = it.quantitySyncedAt;
+      const d = v?.toDate ? v.toDate() : (v ? new Date(v) : null);
+      if (d && !Number.isNaN(d.getTime()) && (!max || d > max)) max = d;
+    }
+    return max;
+  }, [items]);
+  const stockSyncStale = lastStockSync && (Date.now() - lastStockSync.getTime()) > 7 * 24 * 3600 * 1000;
 
   const activeLocations = locations.filter((l) => l.active !== false);
   const defaultLocationId = activeLocations.length === 1 ? activeLocations[0].id : null;
@@ -63,7 +93,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
   const partialBlocked = type === "baselines" && report && report.summary.error > 0 && !allowPartial;
 
   function reset() {
-    setParsed(null); setMapping({}); setParseError(""); setAllowPartial(false);
+    setParsed(null); setMapping({}); setMapRemembered(false); setParseError(""); setAllowPartial(false);
     if (fileRef.current) fileRef.current.value = "";
   }
   function pickType(id) {
@@ -74,14 +104,16 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
   function onFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setParseError(""); setParsed(null); setMapping({});
+    setParseError(""); setParsed(null); setMapping({}); setMapRemembered(false);
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const { headers, rows } = parseCsv(String(reader.result || ""));
         if (!rows.length) throw Object.assign(new Error("No data rows found under the header row."), { code: "imp.err_no_rows" });
         setParsed({ headers, rows, fileName: file.name });
-        setMapping(guessMapping(headers, type));
+        const saved = loadSavedMapping(vendor.id, type, headers);
+        setMapping(saved || guessMapping(headers, type));
+        setMapRemembered(!!saved);
       } catch (err) { setParseError(err.code ? t(err.code) : (err.message || t("imp.err_read"))); }
     };
     reader.onerror = () => setParseError(t("imp.err_read"));
@@ -100,6 +132,9 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
         updated: c.update ? t("imp.toast_updated_bit", { n: c.update }) : "",
         skipped: c.error ? t("imp.toast_skipped_bit", { n: c.error }) : "",
       }));
+      // Remember the confirmed mapping so the next upload of the same export
+      // (nightly POS files especially) needs no re-mapping.
+      try { localStorage.setItem(mapKey(vendor.id, type), JSON.stringify(mapping)); } catch { /* private mode */ }
       reset();
     } catch (e) { onToast?.(e.message || t("imp.toast_failed")); }
     setBusy(false);
@@ -160,7 +195,14 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
           <p className="text-[13px] text-muted">{t("imp.baselines_note")}</p>
         )}
         {type === "stock" && (
-          <p className="text-[13px] text-muted">{t("imp.stock_note")}</p>
+          <>
+            <p className="text-[13px] text-muted">{t("imp.stock_note")}</p>
+            <p className={`text-[12px] ${stockSyncStale ? "text-neg font-semibold" : "text-muted"}`}>
+              {lastStockSync
+                ? t(stockSyncStale ? "imp.stock_sync_stale" : "imp.stock_sync_last", { date: lastStockSync.toLocaleString() })
+                : t("imp.stock_sync_never")}
+            </p>
+          </>
         )}
         {type === "customers" && (
           <p className="text-[13px] text-muted">{t("imp.customers_note")}</p>
@@ -187,6 +229,7 @@ export default function ImportCard({ locations = [], items = [], staff = [], ent
             {/* Column mapping */}
             <div className="space-y-2.5">
               <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("imp.match_columns")}</div>
+              {mapRemembered && <p className="text-[12px] text-pos">{t("imp.map_remembered")}</p>}
               {targets.map((tg) => (
                 <div key={tg.field} className="grid grid-cols-2 gap-3 items-center">
                   <label className="text-sm font-medium">
