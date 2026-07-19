@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useId } from "react";
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import {
   watchStaff, apiCreateStaff, apiUpdateStaff,
   addLocation, updateLocation, addDrawer, updateDrawer,
@@ -12,6 +12,8 @@ import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
+import { searchTerms, matchesTerms } from "@/lib/text-match";
+import { buildStockAlerts } from "@/lib/stock-alerts";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
@@ -218,9 +220,16 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     try {
       await updateVendorSettings(vendor.id, patch);
       setVendor({ ...vendor, ...patch });
+      savedSettingsRef.current = JSON.stringify(settings);
       onToast?.(t("admin.toast_settings_saved"));
     } catch (e) { onToast?.(t("admin.err_owner_settings")); }
   }
+  // Unsaved-changes detection: the settings card is long, and its Save button
+  // lives at the bottom — a sticky pill appears the moment anything differs
+  // from the last saved snapshot, so an edited knob can't silently evaporate.
+  const savedSettingsRef = useRef(null);
+  if (savedSettingsRef.current === null) savedSettingsRef.current = JSON.stringify(settings);
+  const settingsDirty = JSON.stringify(settings) !== savedSettingsRef.current;
   // A print-ready counter sign for the rewards program — deliberately
   // BILINGUAL (both catalog languages on one sheet, like a real c-store sign).
   // Values are esc()'d; the print window is the report-print pattern.
@@ -389,8 +398,42 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   ];
   const jumpTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  // At-a-glance strip: live counts, each tile a jump link into its section.
+  const [itemQ, setItemQ] = useState("");
+  const itemTerms = useMemo(() => searchTerms(itemQ), [itemQ]);
+  const shownItems = useMemo(() => {
+    const list = itemTerms.length
+      ? items.filter((it) => matchesTerms(`${it.name} ${it.category || ""} ${it.barcode || ""}`, itemTerms))
+      : items;
+    return list;
+  }, [items, itemTerms]);
+  const ITEMS_CAP = 50;
+  const stockAlertCount = useMemo(() => {
+    const a = buildStockAlerts(items, { rules: vendor?.stockAlerts });
+    return a.lowStock.length + a.expiring.length;
+  }, [items, vendor?.stockAlerts]);
+  const overview = [
+    ["adm-staff", "admin.ov_staff", staff.filter((u) => u.active !== false).length, false],
+    ["adm-locations", "admin.ov_locations", locations.filter((l) => l.active !== false).length, false],
+    ["adm-drawers", "admin.ov_drawers", drawers.filter((d) => d.active !== false).length, false],
+    ["adm-items", "admin.ov_items", items.filter((it) => it.active !== false).length, false],
+    ["adm-engage", "admin.ov_customers", customers.length, false],
+    ["adm-items", "admin.ov_alerts", stockAlertCount, stockAlertCount > 0],
+  ];
+
   return (
     <div className="space-y-4">
+      {/* ---------------- at a glance ---------------- */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        {overview.map(([target, key, value, hot], i) => (
+          <button key={`${key}-${i}`} type="button" onClick={() => jumpTo(target)}
+            className={`card rounded-xl px-2.5 py-2.5 text-center transition hover:border-brass active:scale-[.97] ${hot ? "border-neg/50" : ""}`}>
+            <span className={`block text-xl font-bold font-mono leading-tight ${hot ? "text-neg" : ""}`}>{value}</span>
+            <span className="block text-[10px] uppercase tracking-wide text-muted font-semibold mt-0.5 truncate">{t(key)}</span>
+          </button>
+        ))}
+      </div>
+
       <nav aria-label={t("admin.nav_aria")}
         className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+45px)] z-10 -mx-4 px-4 py-2 bg-[var(--bg)]/95 backdrop-blur-sm flex gap-1.5 overflow-x-auto">
         {NAV_SECTIONS.map(([id, key]) => (
@@ -578,7 +621,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           </div>
           <button className="btn-ghost w-full" onClick={createItem}>{t("admin.add_item")}</button>
         </div>
-        {items.map((it) => (
+        {items.length > 8 && (
+          <div className="px-4 py-3 border-b border-line">
+            <input className="input" value={itemQ} onChange={(e) => setItemQ(e.target.value)}
+              placeholder={t("admin.items_search_ph")} aria-label={t("admin.items_search_ph")} />
+          </div>
+        )}
+        {shownItems.slice(0, ITEMS_CAP).map((it) => (
           <div key={it.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-medium flex items-center gap-2">
@@ -600,6 +649,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </div>
           </div>
         ))}
+        {shownItems.length > ITEMS_CAP && (
+          <p className="px-4 py-3 text-[12px] text-muted">{t("admin.items_more", { shown: ITEMS_CAP, total: shownItems.length })}</p>
+        )}
       </div>
 
       {/* ---------------- settings (owner) ---------------- */}
@@ -1056,6 +1108,21 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </button>
             </div>
             <p className="text-xs text-muted leading-relaxed">{t("admin.demo_foot")}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Sticky unsaved-changes pill: the settings card is long and its Save
+          button lives at the bottom — this follows the owner until they save. */}
+      {isOwner && settingsDirty && (
+        <div className="fixed inset-x-0 bottom-20 sm:bottom-4 z-30 px-4 pointer-events-none">
+          <div className="max-w-3xl mx-auto flex justify-end">
+            <div className="pointer-events-auto flex items-center gap-3 bg-surface border border-brass rounded-full shadow-lg pl-4 pr-1.5 py-1.5">
+              <span className="text-[13px] font-semibold">{t("admin.unsaved")}</span>
+              <button type="button" className="btn-primary w-auto px-4 py-2 text-[13px] rounded-full" onClick={saveSettings}>
+                {t("admin.save_settings")}
+              </button>
+            </div>
           </div>
         </div>
       )}

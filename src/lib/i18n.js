@@ -1309,6 +1309,15 @@ export const CATALOG = {
     "rewarderr.stamps_short": "The card isn't full yet.",
 
     // admin — customer engagement audit
+    "admin.ov_staff": "Staff",
+    "admin.ov_locations": "Locations",
+    "admin.ov_drawers": "Drawers",
+    "admin.ov_items": "Items",
+    "admin.ov_customers": "Customers",
+    "admin.ov_alerts": "Stock alerts",
+    "admin.unsaved": "Unsaved changes",
+    "admin.items_search_ph": "Search items by name, category, or barcode…",
+    "admin.items_more": "Showing {shown} of {total} — refine the search to see the rest.",
     "admin.engage_nav": "Engagement",
     "admin.engage_title": "Customer engagement audit",
     "admin.engage_sub": "Every earn, redemption, and owner adjustment — signed, append-only, newest first. The live feed covers 90 days; load a range for any period.",
@@ -2648,6 +2657,15 @@ export const CATALOG = {
     "rewarderr.stamps_short": "La tarjeta aún no está llena.",
 
     // admin — auditoría de interacciones con clientes
+    "admin.ov_staff": "Personal",
+    "admin.ov_locations": "Ubicaciones",
+    "admin.ov_drawers": "Cajas",
+    "admin.ov_items": "Artículos",
+    "admin.ov_customers": "Clientes",
+    "admin.ov_alerts": "Alertas de stock",
+    "admin.unsaved": "Cambios sin guardar",
+    "admin.items_search_ph": "Busca artículos por nombre, categoría o código…",
+    "admin.items_more": "Mostrando {shown} de {total} — afina la búsqueda para ver el resto.",
     "admin.engage_nav": "Interacciones",
     "admin.engage_title": "Auditoría de interacciones con clientes",
     "admin.engage_sub": "Cada suma, canje y ajuste del dueño — firmado, solo-agregar, lo más reciente primero. El feed en vivo cubre 90 días; carga un rango para cualquier período.",
