@@ -34,3 +34,34 @@ test("buildTheftReport: clean range → zeroed totals, empty sections", () => {
   assert.deepEqual([r.flaggedCash.length, r.flaggedInventory.length, r.packGaps.length, r.rewardAlerts.length], [0, 0, 0, 0]);
   assert.equal(r.totals.flags, 0);
 });
+
+// Regression: `flagged` is a client field firestore.rules never constrains,
+// but an over-threshold |diff| IS forced to varianceStatus:'open'. A short
+// written with flagged:false must still surface (and count toward the shortage)
+// off the rules-enforced varianceStatus — otherwise the theft artifact is
+// forgeable-invisible.
+test("buildTheftReport: an over-threshold short with flagged:false still counts (keys off varianceStatus)", () => {
+  const hidden = cash({ flagged: false, varianceStatus: "open", diff: -40, counted: 460 });
+  const r = buildTheftReport([hidden], [], { from: "2026-07-01", to: "2026-07-31" });
+  assert.equal(r.flaggedCash.length, 1);
+  assert.equal(r.cashShort, 40);
+  assert.equal(r.totals.flags, 1);
+
+  const invHidden = {
+    kind: "inventory", date: "2026-07-10", locationName: "Main", itemName: "Geekbar",
+    unit: "unit", by: "Sam", expected: 20, counted: 12, diff: -8,
+    flagged: false, varianceStatus: "open", ts: new Date("2026-07-10T21:00:00Z"),
+  };
+  const ri = buildTheftReport([invHidden], [], { from: "2026-07-01", to: "2026-07-31" });
+  assert.equal(ri.flaggedInventory.length, 1);
+  assert.equal(ri.invShortUnits, 8);
+});
+
+// A resolved short still walked out — it's explained, not erased — so it stays
+// in the report even though flagged may have been cleared/untouched.
+test("buildTheftReport: a resolved variance still appears", () => {
+  const resolved = cash({ flagged: false, varianceStatus: "resolved", causeCode: "register-error", diff: -25, counted: 475 });
+  const r = buildTheftReport([resolved], [], { from: "2026-07-01", to: "2026-07-31" });
+  assert.equal(r.flaggedCash.length, 1);
+  assert.equal(r.cashShort, 25);
+});
