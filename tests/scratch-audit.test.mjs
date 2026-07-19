@@ -111,3 +111,20 @@ test("gaps sort worst-dollars first; missing sorts most-missed-days first", () =
   assert.equal(a.gaps[0].pack, "dear");   // 2 × $20 = $40 beats 5 × $1
   assert.equal(a.gaps[1].pack, "cheap");
 });
+
+test("pack audit: a FINALED (sold-out) book is retired — never 'missing'", async () => {
+  const { buildPackAudit } = await import("../src/lib/scratch-audit.js");
+  const mk = (over) => ({
+    kind: "scratch", locationId: "L1", locationName: "Main", pack: "1234-567890",
+    game: "Monopoly", price: 50, startno: 22, endno: 25, by: "Alex",
+    date: "2026-07-10", ts: new Date("2026-07-10T13:00:00Z"), ...over,
+  });
+  const entries = [
+    mk({ soldOut: true }),                                     // old book FINALED
+    mk({ pack: "1234-999999", startno: 0, endno: 5, date: "2026-07-11", ts: new Date("2026-07-11T21:00:00Z") }), // fresh book counted next day
+  ];
+  const { missing } = buildPackAudit(entries, { now: new Date("2026-07-12T00:00:00Z") });
+  // Without soldOut the old book would be "missing" (a counting day passed
+  // without it). FINALED → retired, nothing to vouch for.
+  assert.equal(missing.some((m) => m.pack === "1234-567890"), false);
+});

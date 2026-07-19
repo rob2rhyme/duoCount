@@ -90,6 +90,11 @@ export function buildPackAudit(entries = [], { days = 14, now = new Date() } = {
       });
     }
 
+    // A FINALED book (its last count marked soldOut) is retired: nobody can
+    // vouch for a pack that no longer exists, so it is never "missing" — the
+    // mid-shift sell-out that used to read as a lost pack now closes clean.
+    if (last.soldOut === true) continue;
+
     // Missing log: counting days at this location AFTER the pack's last count.
     const lastDay = dayOf(last);
     const locDays = daysByLoc.get(last.locationId || "") || new Set();

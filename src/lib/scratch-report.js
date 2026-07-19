@@ -63,15 +63,28 @@ export function buildPackFlow(entries = [], { from = "", to = "", locationId = "
         prevDate: dayOf(prev), nextDate: dayOf(next),
       });
     }
-    const gapTickets = gaps.reduce((s, g) => s + (g.missing > 0 ? g.missing : 0), 0);
     const sold = list.reduce((s, e) => s + (Number(e.sold) || 0), 0);
-
     const openStart = Number.isFinite(Number(first.startno)) ? Number(first.startno) : null;
     const closeEnd = Number.isFinite(Number(last.endno)) ? Number(last.endno) : null;
+
+    // A FINALED book that closed BELOW its last ticket sold out short —
+    // those tickets left the pack without being sold or counted. That's the
+    // break-in/skim number, so it rides the gaps list (typed selloutShort).
+    const soldOut = last.soldOut === true;
+    const size = Number(last.perPack) > 0 ? Number(last.perPack) : null;
+    if (soldOut && size && closeEnd !== null && closeEnd < size) {
+      gaps.push({
+        missing: size - closeEnd, prevEnd: closeEnd, nextStart: size,
+        prevBy: last.by || "—", nextBy: "—",
+        prevDate: dayOf(last), nextDate: dayOf(last), selloutShort: true,
+      });
+    }
+    const gapTickets = gaps.reduce((s, g) => s + (g.missing > 0 ? g.missing : 0), 0);
+
     rows.push({
       locationId: last.locationId || "", locationName: last.locationName || "",
       pack: String(last.pack).trim(), game: last.game || "(game)", price,
-      counts: list.length,
+      counts: list.length, soldOut,
       openStart, openDate: dayOf(first), openBy: first.by || "—",
       closeEnd, closeDate: dayOf(last), closeBy: last.by || "—",
       sold, dollars: sold * price,

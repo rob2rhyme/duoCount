@@ -70,3 +70,20 @@ test("buildPackFlow: non-scratch, packless, and empty inputs are ignored safely"
   assert.equal(rows.length, 0);
   assert.equal(totals.packs, 0);
 });
+
+test("buildPackFlow: the mid-shift sell-out story — FINAL closes clean, short flags", () => {
+  // Alex opens Monopoly at #22 (25/pack), sells out mid-shift, FINALs it.
+  const clean = buildPackFlow([
+    e({ time: "09:00", startno: 22, endno: 22, sold: 0, by: "Alex", perPack: 25 }),
+    e({ time: "13:00", startno: 22, endno: 25, sold: 3, by: "Alex", perPack: 25, soldOut: true }),
+  ], { from: "2026-07-10", to: "2026-07-10" });
+  assert.equal(clean.rows[0].soldOut, true);
+  assert.equal(clean.rows[0].gapTickets, 0); // closed at the book's last ticket — clean
+  // Same story but FINALed at #23: two tickets left the pack unaccounted.
+  const short = buildPackFlow([
+    e({ time: "13:00", startno: 22, endno: 23, sold: 1, by: "Alex", perPack: 25, soldOut: true }),
+  ], { from: "2026-07-10", to: "2026-07-10" });
+  assert.equal(short.rows[0].gapTickets, 2);
+  assert.equal(short.rows[0].gaps[0].selloutShort, true);
+  assert.equal(short.rows[0].gapDollars, 10); // 2 × $5
+});
