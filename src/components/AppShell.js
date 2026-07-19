@@ -274,7 +274,7 @@ export default function AppShell() {
             <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
           )
         )}
-        {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} customers={customers} />}
+        {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} customers={customers} rewardEvents={rewardEvents} />}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "incidents" && <IncidentsPanel incidents={incidents} locations={activeLocations} locName={locName} onToast={ping} />}
@@ -293,7 +293,7 @@ export default function AppShell() {
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
-        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} scratchCatalog={scratchCatalog} />}
+        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} />}
       </main>
 
       <footer className="mt-6 border-t border-line-soft pb-28 sm:pb-0">

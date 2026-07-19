@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
-import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak, pointsForSale, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak, pointsForSale, sanitizeProfile, normalizePhone, maskPhone } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -32,12 +32,16 @@ const publicCustomer = (id, c, rules) => ({
   id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
   lifetimePoints: lifetimeOf(c), vipTier: vipTierFor(lifetimeOf(c), rules)?.name || null,
   currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
+  // CRM fields the register card shows (staff serve the customer with them).
+  note: c.note || null, email: c.email || null, address: c.address || null,
+  birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
 });
 
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, newName, newPhone } = await req.json();
+    const { action, phone: rawPhone, name, saleDollars, points, note, tierId,
+      newName, newPhone, newNote, newEmail, newBirthdayMonth, newBirthdayDay, newAddress } = await req.json();
     if (!["lookup", "enroll", "earn", "redeem", "adjust", "update"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
 
@@ -79,11 +83,16 @@ export async function POST(req) {
     const customerRef = existing.ref;
 
     if (action === "update") {
-      // Owner-only profile edit (name / phone). Touches identity fields ONLY —
-      // never points, never the ledger. A phone change checks uniqueness so two
-      // customers can't collide on one number.
-      if (claims.role !== "owner") return err(403, "owner_only", "Only the owner can adjust points.");
-      const patch = {};
+      // Owner-only profile edit (name / phone / CRM fields). Touches identity
+      // and profile fields ONLY — never points, never the ledger. A phone
+      // change checks uniqueness so two customers can't collide on one number.
+      if (claims.role !== "owner") return err(403, "owner_only", "Only the owner can edit customer profiles.");
+      const prof = sanitizeProfile({
+        note: newNote, email: newEmail, address: newAddress,
+        birthdayMonth: newBirthdayMonth, birthdayDay: newBirthdayDay,
+      });
+      if (prof.error) return err(400, prof.error, "Check the profile fields.");
+      const patch = { ...prof.patch };
       if (newName !== undefined) patch.name = String(newName ?? "").trim().slice(0, 80) || null;
       if (newPhone !== undefined) {
         const p = normalizePhone(newPhone);

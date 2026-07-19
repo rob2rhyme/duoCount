@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak,
   effectivePercent, pointsForSale, canRedeem, canRedeemTier, pointDollarValue,
-  normalizePhone, maskPhone,
+  sanitizeProfile, daysSince, isNewCustomer, normalizePhone, maskPhone,
 } from "../src/lib/rewards.js";
 
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
@@ -236,4 +236,50 @@ test("resolveRewards.streakHours: whole hours, clamped, defaulting to 48", () =>
   assert.equal(resolveRewards({ streakHours: 500 }).streakHours, 168); // clamped down
   assert.equal(resolveRewards({ streakHours: "72" }).streakHours, 72);
   assert.equal(resolveRewards({ streakHours: "junk" }).streakHours, 48);
+});
+
+/* ------------------------- CRM profile helpers ------------------------- */
+
+test("sanitizeProfile: partial-patch semantics — only provided keys appear", () => {
+  assert.deepEqual(sanitizeProfile({}).patch, {});
+  assert.deepEqual(sanitizeProfile({ note: "  likes menthols  " }).patch, { note: "likes menthols" });
+  // blanks clear to null
+  assert.deepEqual(sanitizeProfile({ note: "", email: "", address: "" }).patch,
+    { note: null, email: null, address: null });
+  // untouched keys stay absent
+  assert.equal("email" in sanitizeProfile({ note: "x" }).patch, false);
+});
+
+test("sanitizeProfile: note/address clamp, email validated", () => {
+  assert.equal(sanitizeProfile({ note: "x".repeat(400) }).patch.note.length, 300);
+  assert.equal(sanitizeProfile({ address: "y".repeat(400) }).patch.address.length, 200);
+  assert.equal(sanitizeProfile({ email: "sam@example.com" }).patch.email, "sam@example.com");
+  assert.equal(sanitizeProfile({ email: "not-an-email" }).error, "bad_email");
+  assert.equal(sanitizeProfile({ email: "a b@c.com" }).error, "bad_email");
+});
+
+test("sanitizeProfile: birthday bounds — month 1-12, day fits the month, day needs a month", () => {
+  assert.deepEqual(sanitizeProfile({ birthdayMonth: "4", birthdayDay: "15" }).patch,
+    { birthdayMonth: 4, birthdayDay: 15 });
+  assert.deepEqual(sanitizeProfile({ birthdayMonth: "2", birthdayDay: "29" }).patch,
+    { birthdayMonth: 2, birthdayDay: 29 }); // a birthday, not a calendar date
+  assert.equal(sanitizeProfile({ birthdayMonth: "13" }).error, "bad_birthday");
+  assert.equal(sanitizeProfile({ birthdayMonth: "4", birthdayDay: "31" }).error, "bad_birthday");
+  assert.equal(sanitizeProfile({ birthdayMonth: "", birthdayDay: "12" }).error, "bad_birthday");
+  // month alone is fine; blanks clear both
+  assert.deepEqual(sanitizeProfile({ birthdayMonth: "7", birthdayDay: "" }).patch,
+    { birthdayMonth: 7, birthdayDay: null });
+});
+
+test("daysSince + isNewCustomer: visited-ago line and the NEW badge", () => {
+  const now = new Date("2026-07-19T12:00:00Z");
+  assert.equal(daysSince("2026-07-19T08:00:00Z", now), 0);
+  assert.equal(daysSince("2026-07-07T08:00:00Z", now), 12);
+  assert.equal(daysSince(null, now), null);
+  assert.equal(daysSince("junk", now), null);
+  // Firestore Timestamp shape
+  assert.equal(daysSince({ toDate: () => new Date("2026-07-18T00:00:00Z") }, now), 1);
+  assert.equal(isNewCustomer({ createdAt: "2026-07-10T00:00:00Z" }, now), true);   // 9 days
+  assert.equal(isNewCustomer({ createdAt: "2026-06-01T00:00:00Z" }, now), false);  // 48 days
+  assert.equal(isNewCustomer({}, now), false);
 });
