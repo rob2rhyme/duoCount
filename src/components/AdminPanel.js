@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useId } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 import {
   watchStaff, apiCreateStaff, apiUpdateStaff,
   addLocation, updateLocation, addDrawer, updateDrawer,
@@ -9,7 +9,8 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
-import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, TIER_TYPES, resolveRewards, effectivePercent } from "@/lib/rewards";
+import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
+import { money } from "@/lib/utils";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
@@ -17,7 +18,7 @@ import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
 import Field from "./Field";
 
-export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], scratchCatalog = null }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const { t, lang } = useLang();
   const [staff, setStaff] = useState([]);
@@ -266,6 +267,32 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   // card. Sits just below the sticky app header (whose height is its safe-area
   // top padding + ~45px of content); scroll-mt on the cards keeps headings
   // clear of both bars after the jump.
+  /* ---- customer engagement audit: the raw signed rewards ledger,
+         filterable by kind and customer (last 90 days — the feed window) ---- */
+  const [engageQ, setEngageQ] = useState("");
+  const [engageKind, setEngageKind] = useState("all");
+  const custById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
+  const engageRows = useMemo(() => {
+    const q = engageQ.trim().toLowerCase();
+    const qDigits = engageQ.replace(/\D/g, "");
+    return rewardEvents
+      .filter((e) => engageKind === "all" || e.kind === engageKind)
+      .filter((e) => {
+        if (!q) return true;
+        const c = custById.get(e.customerId);
+        const nameHit = c?.name && c.name.toLowerCase().includes(q);
+        const phoneHit = qDigits && String(c?.phone || "").includes(qDigits);
+        return nameHit || phoneHit;
+      })
+      .map((e) => ({ ...e, _d: e.ts?.toDate ? e.ts.toDate() : (e.ts ? new Date(e.ts) : null) }))
+      .filter((e) => e._d && !Number.isNaN(e._d.getTime()))
+      .sort((a, b) => b._d - a._d);
+  }, [rewardEvents, custById, engageQ, engageKind]);
+  const engageTotals = useMemo(() => ({
+    earned: engageRows.reduce((s, e) => s + (e.kind === "earn" ? Number(e.points) || 0 : 0), 0),
+    redeemed: engageRows.reduce((s, e) => s + (e.kind === "redeem" ? Math.abs(Number(e.points) || 0) : 0), 0),
+  }), [engageRows]);
+
   const NAV_SECTIONS = [
     ["adm-staff", "admin.staff_title"],
     ["adm-locations", "admin.locations_title"],
@@ -273,6 +300,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     ["adm-items", "admin.items_title"],
     ["adm-settings", "admin.settings_title"],
     ["adm-rewards", "admin.rw_title"],
+    ["adm-engage", "admin.engage_nav"],
     ...(isOwner ? [["adm-import", "imp.title"], ["adm-demo", "admin.demo_title"]] : []),
   ];
   const jumpTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -777,6 +805,66 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           {isOwner
             ? <button className="btn-primary" onClick={saveSettings}>{t("admin.save_settings")}</button>
             : <p className="text-[13px] text-muted italic">{t("admin.owner_only_note")}</p>}
+        </div>
+      </div>
+
+      {/* ---------------- customer engagement audit ---------------- */}
+      <div id="adm-engage" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
+        <div className="px-4 py-3.5 border-b border-line">
+          <h2 className="font-semibold text-[15px]">{t("admin.engage_title")}</h2>
+          <p className="text-[13px] text-muted mt-0.5">{t("admin.engage_sub")}</p>
+        </div>
+        <div className="p-4 space-y-3">
+          <input className="input" value={engageQ} onChange={(e) => setEngageQ(e.target.value)}
+            placeholder={t("admin.engage_search_ph")} aria-label={t("admin.engage_search_ph")} />
+          <div className="flex gap-1.5 overflow-x-auto">
+            {[["all", "admin.engage_f_all"], ["earn", "admin.engage_f_earn"], ["redeem", "admin.engage_f_redeem"], ["adjust", "admin.engage_f_adjust"]].map(([k, key]) => (
+              <button key={k} type="button" onClick={() => setEngageKind(k)}
+                className={`flex-shrink-0 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border transition ${engageKind === k ? "border-brass text-fg bg-brass/10" : "border-line bg-subtle text-muted hover:text-fg"}`}>
+                {t(key)}
+              </button>
+            ))}
+          </div>
+          {engageRows.length === 0 ? (
+            <p className="text-[13px] text-muted leading-relaxed">{t("admin.engage_empty")}</p>
+          ) : (
+            <>
+              <p className="text-[12px] text-muted font-semibold">
+                {t("admin.engage_totals", { earned: engageTotals.earned, redeemed: engageTotals.redeemed, events: engageRows.length })}
+              </p>
+              <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[30rem] overflow-y-auto">
+                {engageRows.slice(0, 150).map((e) => {
+                  const c = custById.get(e.customerId);
+                  const pts = Number(e.points) || 0;
+                  const isRedeem = e.kind === "redeem";
+                  const label = e.kind === "earn"
+                    ? `${t("rw.h_earn")}${e.saleDollars ? ` · ${money(e.saleDollars)}` : ""}${Number(e.multiplier) > 1 ? ` · ×${e.multiplier}` : ""}`
+                    : isRedeem
+                      ? t("rw.h_redeem", { reward: e.rewardName || money(Number(e.value) || 0) })
+                      : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                  return (
+                    <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
+                      <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">
+                        <div>{e._d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                        <div>{e._d.toLocaleDateString()}</div>
+                      </div>
+                      <div className="min-w-0 flex-1 leading-snug">
+                        <span className="block text-[13px] font-medium truncate">{c?.name || (c ? maskPhone(c.phone) : t("admin.engage_unknown"))}</span>
+                        <span className={`block text-[12px] ${isRedeem ? "text-pos font-semibold" : "text-muted"}`}>{label}</span>
+                        {e.by && <span className="block text-[11px] text-muted">{t("rw.h_by", { name: e.by })}</span>}
+                      </div>
+                      <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${isRedeem ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>
+                        {pts > 0 ? `+${pts}` : pts} {t("rw.pts")}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {engageRows.length > 150 && (
+                <p className="text-[12px] text-muted">{t("admin.engage_more", { shown: 150, total: engageRows.length })}</p>
+              )}
+            </>
+          )}
         </div>
       </div>
 

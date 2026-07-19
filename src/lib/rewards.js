@@ -193,6 +193,51 @@ export function canRedeemTier(balance, tier) {
   return !!tier && Number(balance) >= Number(tier.points);
 }
 
+// CRM profile fields on the customer card (the Loyalzoo-style profile: note,
+// email, birthday, address). Owner-editable through the trusted route only.
+// Partial-patch semantics like the name/phone edit: only keys PRESENT in
+// `raw` appear in the patch; a blank value clears the field to null. Returns
+// { patch, error } — error is a stable code the register UI localizes.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]; // Feb 29 allowed — a birthday, not a date
+export function sanitizeProfile(raw = {}) {
+  const patch = {};
+  if (raw.note !== undefined) patch.note = String(raw.note ?? "").trim().slice(0, 300) || null;
+  if (raw.address !== undefined) patch.address = String(raw.address ?? "").trim().slice(0, 200) || null;
+  if (raw.email !== undefined) {
+    const e = String(raw.email ?? "").trim();
+    if (e && (!EMAIL_RE.test(e) || e.length > 200)) return { patch: {}, error: "bad_email" };
+    patch.email = e || null;
+  }
+  if (raw.birthdayMonth !== undefined || raw.birthdayDay !== undefined) {
+    const m = String(raw.birthdayMonth ?? "").trim();
+    const d = String(raw.birthdayDay ?? "").trim();
+    const mm = m === "" ? null : Number(m);
+    const dd = d === "" ? null : Number(d);
+    if (mm !== null && (!Number.isInteger(mm) || mm < 1 || mm > 12)) return { patch: {}, error: "bad_birthday" };
+    if (dd !== null && (!Number.isInteger(dd) || dd < 1)) return { patch: {}, error: "bad_birthday" };
+    if (dd !== null && mm === null) return { patch: {}, error: "bad_birthday" }; // a day needs a month
+    if (mm !== null && dd !== null && dd > MONTH_DAYS[mm - 1]) return { patch: {}, error: "bad_birthday" };
+    patch.birthdayMonth = mm;
+    patch.birthdayDay = dd;
+  }
+  return { patch };
+}
+
+// Whole days since a Firestore Timestamp / Date / ISO string — for the
+// "Visited N days ago" line. null when there's no usable date.
+export function daysSince(v, now = new Date()) {
+  const d = v?.toDate ? v.toDate() : (v ? new Date(v) : null);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((now.getTime() - d.getTime()) / 86400000));
+}
+
+// The list's NEW badge: enrolled within the last 14 days.
+export function isNewCustomer(c = {}, now = new Date()) {
+  const since = daysSince(c.createdAt, now);
+  return since !== null && since <= 14;
+}
+
 // Phone number = the customer's identity (the Fivestars-style zero-hardware
 // enrollment). Normalize to digits; an 11-digit US number with a leading 1
 // drops it so "+1 (555) 123-4567" and "555-123-4567" are the same customer.

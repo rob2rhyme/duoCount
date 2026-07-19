@@ -2,7 +2,7 @@
 import { useMemo, useState, useId } from "react";
 import { apiRewards } from "@/lib/data";
 import { money } from "@/lib/utils";
-import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, canRedeem, canRedeemTier, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, canRedeem, canRedeemTier, daysSince, isNewCustomer, normalizePhone, maskPhone } from "@/lib/rewards";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
@@ -16,8 +16,14 @@ import BarcodeScanner from "./BarcodeScanner";
 // the qualifying sale total, and redeems when the balance clears the bar. Every
 // write happens server-side (/api/rewards) as a signed, append-only ledger
 // line; this screen only reads (the live customer list) and asks.
+//
+// The customer card is tabbed (the Loyalzoo layout): Register — the earn /
+// redeem / adjust actions; Profile — CRM fields (note, email, birthday,
+// address), owner-editable; History — that customer's slice of the signed
+// ledger (manager-gated, same feed as the Dashboard reward audit).
 
-const LIST_CAP = 60; // render a bounded list; search finds the rest
+const LIST_CAP = 60;    // render a bounded list; search finds the rest
+const HISTORY_CAP = 100; // newest ledger lines shown on the History tab
 
 // Two initials for the avatar chip — from the name, else a phone glyph.
 const initials = (name) => {
@@ -30,10 +36,15 @@ const lastEarnDate = (c) => {
   const d = v?.toDate ? v.toDate() : (v ? new Date(v) : null);
   return d && !Number.isNaN(d.getTime()) ? d : null;
 };
+// The owner sees the real number (they own the data); everyone else the mask.
+const fmtPhone = (digits) => {
+  const d = String(digits || "");
+  return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : d;
+};
 
-export default function RewardsPanel({ onToast, customers = [] }) {
+export default function RewardsPanel({ onToast, customers = [], rewardEvents = [] }) {
   const { vendor, isManager, isOwner } = useSession();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const rules = resolveRewards(vendor?.rewards);
   const searchId = useId();
 
@@ -46,15 +57,16 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   const [busy, setBusy] = useState("");           // "" | enroll | earn | redeem | update | adjust
   const [error, setError] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
-  // Owner-only controls on the customer card: inline profile edit + a signed
-  // points adjustment (the server requires the note — it's a ledger line).
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState("");
-  const [editPhone, setEditPhone] = useState("");
+  const [cardTab, setCardTab] = useState("register"); // register | profile | history
+  // Owner-only edit state for the Profile tab (null = not editing) + the
+  // signed points adjustment on the Register tab.
+  const [prof, setProf] = useState(null);
   const [adjPts, setAdjPts] = useState("");
   const [adjNote, setAdjNote] = useState("");
 
   const localize = (e) => (e?.code ? t(`rewarderr.${e.code}`) : e?.message || t("rewarderr.generic"));
+  const monthName = (m) =>
+    new Date(2000, m - 1, 1).toLocaleDateString(lang === "es" ? "es" : "en", { month: "long" });
 
   async function run(kind, payload, after) {
     setBusy(kind); setError("");
@@ -64,7 +76,7 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   }
 
   // Live list, newest activity first, filtered by the search box (name or the
-  // typed digits against the real phone). Phones are only ever shown masked.
+  // typed digits against the real phone).
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const qDigits = query.replace(/\D/g, "");
@@ -89,6 +101,15 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   const queryPhone = normalizePhone(query);
   const canAddNew = queryPhone && !enrolledPhones.has(queryPhone);
 
+  // "Visited N days ago" — visits are earns (the only signed proof of one).
+  const visitLabel = (c) => {
+    const n = daysSince(c.lastEarnAt);
+    if (n === null) return t("rw.no_visit");
+    if (n === 0) return t("rw.visited_today");
+    if (n === 1) return t("rw.visited_yesterday");
+    return t("rw.visited_days", { n });
+  };
+
   function selectCustomer(c) {
     // Same lifetime floor as the server: legacy docs predate lifetimePoints.
     const lifetime = Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0);
@@ -97,15 +118,18 @@ export default function RewardsPanel({ onToast, customers = [] }) {
       id: c.id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
       lifetimePoints: lifetime, vipTier: vipTierFor(lifetime, vendor?.rewards)?.name || null,
       currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
+      note: c.note || null, email: c.email || null, address: c.address || null,
+      birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
     });
     setEnrollPhone(null); setName(""); setSale(""); setError("");
+    setCardTab("register"); setProf(null); setAdjPts(""); setAdjNote("");
   }
   function startEnroll(p) {
     setEnrollPhone(p); setPhone(p); setName(""); setError("");
   }
   function back() {
     setCustomer(null); setEnrollPhone(null); setSale(""); setError("");
-    setEditing(false); setAdjPts(""); setAdjNote("");
+    setCardTab("register"); setProf(null); setAdjPts(""); setAdjNote("");
   }
 
   // Scan a customer code (a QR or barcode that encodes their phone number —
@@ -120,14 +144,30 @@ export default function RewardsPanel({ onToast, customers = [] }) {
     else startEnroll(digits);
   }
 
-  function startEdit() {
-    setEditName(customer?.name || ""); setEditPhone(phone); setEditing(true); setError("");
+  function openTab(id) {
+    setError("");
+    if (id === "profile" && isOwner && !prof) initProf();
+    setCardTab(id);
   }
-  const saveEdit = () =>
-    run("update", { action: "update", phone, newName: editName, newPhone: editPhone }, (r) => {
+  function initProf() {
+    setProf({
+      name: customer?.name || "", phone,
+      note: customer?.note || "", email: customer?.email || "",
+      birthdayMonth: customer?.birthdayMonth ?? "", birthdayDay: customer?.birthdayDay ?? "",
+      address: customer?.address || "",
+    });
+  }
+  const setP = (k) => (e) => setProf((p) => ({ ...p, [k]: e.target.value }));
+  const saveProfile = () =>
+    run("update", {
+      action: "update", phone,
+      newName: prof.name, newPhone: prof.phone, newNote: prof.note,
+      newEmail: prof.email, newBirthdayMonth: prof.birthdayMonth,
+      newBirthdayDay: prof.birthdayDay, newAddress: prof.address,
+    }, (r) => {
       setCustomer((c) => ({ ...c, ...r.customer }));
       if (r.phoneDigits) setPhone(r.phoneDigits);
-      setEditing(false);
+      setProf(null); setCardTab("register");
       onToast?.(t("rw.toast_updated"));
     });
   const adjust = () =>
@@ -168,6 +208,17 @@ export default function RewardsPanel({ onToast, customers = [] }) {
       onToast?.(msg);
     });
 
+  // This customer's slice of the signed ledger, newest first (History tab).
+  const history = useMemo(() => {
+    if (!customer) return [];
+    return rewardEvents
+      .filter((e) => e.customerId === customer.id)
+      .map((e) => ({ ...e, _d: e.ts?.toDate ? e.ts.toDate() : (e.ts ? new Date(e.ts) : null) }))
+      .filter((e) => e._d && !Number.isNaN(e._d.getTime()))
+      .sort((a, b) => b._d - a._d)
+      .slice(0, HISTORY_CAP);
+  }, [rewardEvents, customer]);
+
   if (!rules.enabled) {
     return (
       <div className="card">
@@ -182,6 +233,23 @@ export default function RewardsPanel({ onToast, customers = [] }) {
   const balance = customer?.pointsBalance || 0;
   const pct = Math.min(100, Math.round((balance / goal) * 100));
   const countKey = customers.length === 1 ? "rw.count_one" : "rw.count_other";
+  const showHistory = isManager; // the ledger feed itself is manager-gated upstream
+
+  const tabBtn = (id, label) => (
+    <button key={id} type="button" role="tab" aria-selected={cardTab === id} onClick={() => openTab(id)}
+      className={`px-3 py-2 text-[13px] font-semibold border-b-2 -mb-px transition ${cardTab === id ? "border-brass text-fg" : "border-transparent text-muted hover:text-fg"}`}>
+      {label}
+    </button>
+  );
+
+  // Staff-facing read view of the CRM fields (owners get the edit form).
+  const profileRows = customer ? [
+    [t("rw.note_label"), customer.note],
+    [t("rw.email_label"), customer.email],
+    [t("rw.bday"), customer.birthdayMonth
+      ? `${monthName(customer.birthdayMonth)}${customer.birthdayDay ? ` ${customer.birthdayDay}` : ""}` : null],
+    [t("rw.address_label"), customer.address],
+  ].filter(([, v]) => v) : [];
 
   return (
     <div className="card overflow-hidden">
@@ -216,9 +284,10 @@ export default function RewardsPanel({ onToast, customers = [] }) {
             )}
 
             {customer && (
-              <div className="border border-line rounded-xl p-3.5 space-y-3.5 bg-panel">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-full bg-brass text-ink font-bold text-sm">{initials(customer.name)}</div>
+              <div className="border border-line rounded-xl bg-panel overflow-hidden">
+                {/* ---- card header: identity + the points pill ---- */}
+                <div className="p-3.5 pb-3 flex items-center gap-3">
+                  <div className="flex-shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-full bg-brass text-ink font-bold text-sm">{initials(customer.name)}</div>
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate flex items-center gap-2">
                       <span className="truncate">{customer.name || t("rw.customer_fallback")}</span>
@@ -231,111 +300,206 @@ export default function RewardsPanel({ onToast, customers = [] }) {
                         </span>
                       )}
                     </div>
-                    <div className="text-[12px] text-muted font-mono">{customer.phone}</div>
+                    <div className="text-[12px] text-muted font-mono">{isOwner ? fmtPhone(phone) : customer.phone}</div>
+                    {customer.note ? (
+                      <p className="text-[12px] text-muted italic truncate">“{customer.note}”</p>
+                    ) : isOwner && (
+                      <button type="button" className="text-[12px] text-muted hover:text-fg underline underline-offset-2"
+                        onClick={() => openTab("profile")}>✎ {t("rw.add_note")}</button>
+                    )}
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <div className="text-2xl font-bold font-mono">{balance}</div>
-                    <div className="text-[11px] text-muted uppercase tracking-wide font-semibold">{t("rw.points")}</div>
+                    <div className="inline-flex items-center rounded-full bg-brass/15 border border-brass/40 px-3.5 py-1 text-xl font-bold font-mono">{balance}</div>
+                    <div className="text-[11px] text-muted uppercase tracking-wide font-semibold mt-0.5">{t("rw.points")}</div>
                   </div>
                 </div>
 
-                <div>
-                  <div className="h-2 rounded-full bg-line overflow-hidden">
-                    <div className="h-full bg-brass transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                  <p className="text-[12px] text-muted mt-1.5">
-                    {canRedeem(balance, rules)
-                      ? (tiers[0].name
-                        ? t("rw.ready_named", { name: tiers[0].name })
-                        : t("rw.ready", { value: money(tierDollarValue(tiers[0])) }))
-                      : (tiers[0].name
-                        ? t("rw.progress_named", { n: balance, goal, name: tiers[0].name, left: goal - balance })
-                        : t("rw.progress", { n: balance, goal, value: money(tierDollarValue(tiers[0])), left: goal - balance }))}
-                  </p>
+                {/* ---- tabs ---- */}
+                <div className="flex gap-1 px-3.5 border-b border-line" role="tablist">
+                  {tabBtn("register", t("rw.tab_register"))}
+                  {tabBtn("profile", t("rw.tab_profile"))}
+                  {showHistory && tabBtn("history", t("rw.tab_history"))}
                 </div>
 
-                <div>
-                  <Field label={t("rw.sale_label")}>
-                    <div className="flex gap-2">
-                      <input className="input font-mono min-w-0" type="number" inputMode="decimal" min="0" step="0.01"
-                        value={sale} placeholder="0.00" onChange={(e) => setSale(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter" && Number(sale) > 0) earn(); }} />
-                      <button className="btn-ghost whitespace-nowrap px-4" disabled={!!busy || !(Number(sale) > 0)} onClick={earn}>
-                        {busy === "earn" ? t("rw.earning") : t("rw.earn")}
-                      </button>
-                    </div>
-                  </Field>
-                  <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("rw.sale_hint")}</p>
-                </div>
+                <div className="p-3.5 space-y-3.5">
+                  {/* ---- Register: earn / redeem / adjust ---- */}
+                  {cardTab === "register" && (
+                    <>
+                      <div>
+                        <div className="h-2 rounded-full bg-line overflow-hidden">
+                          <div className="h-full bg-brass transition-all" style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[12px] text-muted mt-1.5">
+                          {canRedeem(balance, rules)
+                            ? (tiers[0].name
+                              ? t("rw.ready_named", { name: tiers[0].name })
+                              : t("rw.ready", { value: money(tierDollarValue(tiers[0])) }))
+                            : (tiers[0].name
+                              ? t("rw.progress_named", { n: balance, goal, name: tiers[0].name, left: goal - balance })
+                              : t("rw.progress", { n: balance, goal, value: money(tierDollarValue(tiers[0])), left: goal - balance }))}
+                        </p>
+                      </div>
 
-                {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
-                <div>
-                  <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">{t("rw.rewards_label")}</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {tiers.map((tier) => {
-                      const ok = canRedeemTier(balance, tier);
-                      // Per-type grant line: cash/item show the $, percent its
-                      // % and cap — what the clerk actually hands over.
-                      const grant = tier.type === "percent"
-                        ? t("rw.tier_pct", { p: tier.percent, cap: money(tier.cap) })
-                        : tierDollarValue(tier) > 0 ? money(tierDollarValue(tier)) : "";
-                      return (
-                        <button key={tier.id} type="button" disabled={!!busy || !ok} onClick={() => redeem(tier)}
-                          className={`rounded-xl border p-3 text-left transition ${ok ? "border-brass bg-brass/10 hover:bg-brass/20" : "border-line bg-panel opacity-60"}`}>
-                          <div className="font-semibold text-[13px] truncate">{tier.name || t("rw.reward_default", { value: money(tierDollarValue(tier)) })}</div>
-                          <div className="text-[12px] text-muted mt-0.5">
-                            {t("rw.tier_cost", { n: tier.points })}{grant ? ` · ${grant}` : ""}
+                      <div>
+                        <Field label={t("rw.sale_label")}>
+                          <div className="flex gap-2">
+                            <input className="input font-mono min-w-0" type="number" inputMode="decimal" min="0" step="0.01"
+                              value={sale} placeholder="0.00" onChange={(e) => setSale(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter" && Number(sale) > 0) earn(); }} />
+                            <button className="btn-ghost whitespace-nowrap px-4" disabled={!!busy || !(Number(sale) > 0)} onClick={earn}>
+                              {busy === "earn" ? t("rw.earning") : t("rw.earn")}
+                            </button>
                           </div>
-                          {tier.type === "item" && tier.withPurchase && (
-                            <div className="text-[11px] text-muted mt-0.5">{t("rw.tier_wp")}</div>
-                          )}
-                          {!ok && <div className="text-[11px] text-muted mt-1">{t("rw.tier_need", { n: tier.points - balance })}</div>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                        </Field>
+                        <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("rw.sale_hint")}</p>
+                      </div>
 
-                {/* Owner tools: profile edit + a signed points adjustment.
-                    Both write through the trusted route only. */}
-                {isOwner && (
-                  <div className="border-t border-line pt-3 space-y-3">
-                    {!editing ? (
-                      <button type="button" className="text-[13px] text-muted hover:text-fg font-semibold underline underline-offset-2"
-                        onClick={startEdit}>{t("rw.edit_profile")}</button>
-                    ) : (
-                      <div className="space-y-2.5">
-                        <Field label={t("rw.name_label")}>
-                          <input className="input" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t("rw.name_ph")} />
-                        </Field>
-                        <Field label={t("rw.phone_label")}>
-                          <input className="input font-mono" inputMode="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
-                        </Field>
-                        <div className="flex gap-2">
-                          <button className="btn-primary flex-1" disabled={!!busy} onClick={saveEdit}>
-                            {busy === "update" ? t("common.saving") : t("rw.edit_save")}
-                          </button>
-                          <button className="btn-ghost w-auto px-4" disabled={!!busy} onClick={() => setEditing(false)}>{t("rw.edit_cancel")}</button>
+                      {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
+                      <div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">{t("rw.rewards_label")}</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {tiers.map((tier) => {
+                            const ok = canRedeemTier(balance, tier);
+                            // Per-type grant line: cash/item show the $, percent its
+                            // % and cap — what the clerk actually hands over.
+                            const grant = tier.type === "percent"
+                              ? t("rw.tier_pct", { p: tier.percent, cap: money(tier.cap) })
+                              : tierDollarValue(tier) > 0 ? money(tierDollarValue(tier)) : "";
+                            return (
+                              <button key={tier.id} type="button" disabled={!!busy || !ok} onClick={() => redeem(tier)}
+                                className={`rounded-xl border p-3 text-left transition ${ok ? "border-brass bg-brass/10 hover:bg-brass/20" : "border-line bg-panel opacity-60"}`}>
+                                <div className="font-semibold text-[13px] truncate">{tier.name || t("rw.reward_default", { value: money(tierDollarValue(tier)) })}</div>
+                                <div className="text-[12px] text-muted mt-0.5">
+                                  {t("rw.tier_cost", { n: tier.points })}{grant ? ` · ${grant}` : ""}
+                                </div>
+                                {tier.type === "item" && tier.withPurchase && (
+                                  <div className="text-[11px] text-muted mt-0.5">{t("rw.tier_wp")}</div>
+                                )}
+                                {!ok && <div className="text-[11px] text-muted mt-1">{t("rw.tier_need", { n: tier.points - balance })}</div>}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                    )}
-                    <div>
-                      <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">{t("rw.adjust_title")}</div>
-                      {/* flex ratios, not a fixed width — .input carries w-full,
-                          and stacking w-24 on it loses to CSS order. */}
-                      <div className="flex gap-2">
-                        <input className="input min-w-0 flex-1 font-mono" type="number" step="1" value={adjPts}
-                          placeholder="+50" onChange={(e) => setAdjPts(e.target.value)} aria-label={t("rw.adjust_title")} />
-                        <input className="input min-w-0 flex-[2.5]" value={adjNote} placeholder={t("rw.adjust_note_ph")}
-                          onChange={(e) => setAdjNote(e.target.value)} />
-                        <button className="btn-ghost px-3 flex-shrink-0" disabled={!!busy || !Math.trunc(Number(adjPts)) || !adjNote.trim()} onClick={adjust}>
-                          {busy === "adjust" ? t("common.saving") : t("rw.adjust_btn")}
-                        </button>
+
+                      {/* Owner: a signed points adjustment (the server requires
+                          the note — it's a permanent ledger line). */}
+                      {isOwner && (
+                        <div className="border-t border-line pt-3">
+                          <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">{t("rw.adjust_title")}</div>
+                          {/* flex ratios, not a fixed width — .input carries w-full,
+                              and stacking w-24 on it loses to CSS order. */}
+                          <div className="flex gap-2">
+                            <input className="input min-w-0 flex-1 font-mono" type="number" step="1" value={adjPts}
+                              placeholder="+50" onChange={(e) => setAdjPts(e.target.value)} aria-label={t("rw.adjust_title")} />
+                            <input className="input min-w-0 flex-[2.5]" value={adjNote} placeholder={t("rw.adjust_note_ph")}
+                              onChange={(e) => setAdjNote(e.target.value)} />
+                            <button className="btn-ghost px-3 flex-shrink-0" disabled={!!busy || !Math.trunc(Number(adjPts)) || !adjNote.trim()} onClick={adjust}>
+                              {busy === "adjust" ? t("common.saving") : t("rw.adjust_btn")}
+                            </button>
+                          </div>
+                          <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("rw.adjust_hint")}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* ---- Profile: CRM fields — owner edits, staff read ---- */}
+                  {cardTab === "profile" && (
+                    isOwner && prof ? (
+                      <div className="space-y-2.5">
+                        <Field label={t("rw.name_label")}>
+                          <input className="input" value={prof.name} onChange={setP("name")} placeholder={t("rw.name_ph")} />
+                        </Field>
+                        <Field label={t("rw.phone_label")}>
+                          <input className="input font-mono" inputMode="tel" value={prof.phone} onChange={setP("phone")} />
+                        </Field>
+                        <Field label={t("rw.note_label")}>
+                          <input className="input" value={prof.note} onChange={setP("note")} placeholder={t("rw.note_ph")} />
+                        </Field>
+                        <Field label={t("rw.email_label")}>
+                          <input className="input" type="email" inputMode="email" value={prof.email} onChange={setP("email")} />
+                        </Field>
+                        <div className="grid grid-cols-2 gap-3.5">
+                          <Field label={t("rw.bday_month")}>
+                            <select className="input" value={prof.birthdayMonth} onChange={setP("birthdayMonth")}>
+                              <option value="">—</option>
+                              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                                <option key={m} value={m}>{monthName(m)}</option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label={t("rw.bday_day")}>
+                            <select className="input" value={prof.birthdayDay} onChange={setP("birthdayDay")}>
+                              <option value="">—</option>
+                              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                                <option key={d} value={d}>{d}</option>
+                              ))}
+                            </select>
+                          </Field>
+                        </div>
+                        <Field label={t("rw.address_label")}>
+                          <input className="input" value={prof.address} onChange={setP("address")} />
+                        </Field>
+                        {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
+                        <div className="flex gap-2">
+                          <button className="btn-primary flex-1" disabled={!!busy} onClick={saveProfile}>
+                            {busy === "update" ? t("common.saving") : t("rw.edit_save")}
+                          </button>
+                          <button className="btn-ghost w-auto px-4" disabled={!!busy} onClick={initProf}>{t("rw.edit_cancel")}</button>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("rw.adjust_hint")}</p>
-                    </div>
-                  </div>
-                )}
+                    ) : (
+                      <div className="space-y-2">
+                        {profileRows.length === 0 ? (
+                          <p className="text-[13px] text-muted leading-relaxed">{t("rw.profile_empty")}</p>
+                        ) : profileRows.map(([label, value]) => (
+                          <div key={label} className="flex items-baseline gap-3">
+                            <span className="text-[11px] uppercase tracking-wide text-muted font-semibold w-24 flex-shrink-0">{label}</span>
+                            <span className="text-[13px] min-w-0 break-words">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  )}
+
+                  {/* ---- History: this customer's signed ledger lines ---- */}
+                  {cardTab === "history" && showHistory && (
+                    history.length === 0 ? (
+                      <p className="text-[13px] text-muted leading-relaxed">{t("rw.h_empty")}</p>
+                    ) : (
+                      <div>
+                        <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[24rem] overflow-y-auto">
+                          {history.map((e) => {
+                            const pts = Number(e.points) || 0;
+                            const isRedeem = e.kind === "redeem";
+                            const label = e.kind === "earn"
+                              ? `${t("rw.h_earn")}${e.saleDollars ? ` · ${money(e.saleDollars)}` : ""}${Number(e.multiplier) > 1 ? ` · ×${e.multiplier}` : ""}`
+                              : isRedeem
+                                ? t("rw.h_redeem", { reward: e.rewardName || money(Number(e.value) || 0) })
+                                : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                            return (
+                              <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
+                                <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">
+                                  <div>{e._d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                                  <div>{e._d.toLocaleDateString()}</div>
+                                </div>
+                                <div className={`min-w-0 flex-1 text-[13px] leading-snug ${isRedeem ? "text-pos font-semibold" : ""}`}>
+                                  {label}
+                                  {e.by && <span className="block text-[11px] text-muted font-normal">{t("rw.h_by", { name: e.by })}</span>}
+                                </div>
+                                <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${isRedeem ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>
+                                  {pts > 0 ? `+${pts}` : pts} {t("rw.pts")}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-[11px] text-muted mt-1.5">{t("rw.h_window")}</p>
+                      </div>
+                    )
+                  )}
+                </div>
               </div>
             )}
           </>
@@ -384,18 +548,24 @@ export default function RewardsPanel({ onToast, customers = [] }) {
             ) : (
               <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[26rem] overflow-y-auto">
                 {filtered.slice(0, LIST_CAP).map((c) => {
-                  const d = lastEarnDate(c);
+                  const lifetime = Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0);
+                  const vip = vipTierFor(lifetime, vendor?.rewards)?.name;
                   return (
                     <button key={c.id} type="button" onClick={() => selectCustomer(c)}
                       className="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-subtle transition">
                       <span className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-brass/15 text-brass font-bold text-[13px]">{initials(c.name)}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block font-medium text-[14px] truncate">{c.name || t("rw.customer_fallback")}</span>
-                        <span className="block text-[12px] text-muted font-mono">{maskPhone(c.phone)}</span>
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-medium text-[14px] truncate">{c.name || t("rw.customer_fallback")}</span>
+                          {vip && <span className="flex-shrink-0 text-[9px] uppercase tracking-wide font-bold text-brass border border-brass/50 rounded px-1 py-px">{vip}</span>}
+                          {isNewCustomer(c) && <span className="flex-shrink-0 text-[9px] uppercase tracking-wide font-bold text-pos border border-pos/50 rounded px-1 py-px">{t("rw.badge_new")}</span>}
+                        </span>
+                        <span className="block text-[12px] text-muted font-mono">{isOwner ? fmtPhone(c.phone) : maskPhone(c.phone)}</span>
+                        <span className="block text-[11px] text-muted">{visitLabel(c)}</span>
                       </span>
                       <span className="text-right flex-shrink-0">
                         <span className="block font-mono font-bold text-[15px]">{c.pointsBalance || 0}</span>
-                        <span className="block text-[11px] text-muted">{d ? t("rw.last_earned", { date: d.toLocaleDateString() }) : t("rw.no_earn_yet")}</span>
+                        <span className="block text-[11px] text-muted">{t("rw.points")}</span>
                       </span>
                     </button>
                   );
