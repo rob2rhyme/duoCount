@@ -4,6 +4,7 @@ import {
   watchStaff, apiCreateStaff, apiUpdateStaff,
   addLocation, updateLocation, addDrawer, updateDrawer,
   addItem, updateItem, updateVendorSettings, apiTestDigest, apiSeedDemo,
+  fetchRewardEventsInRange,
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
@@ -292,11 +293,28 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
          filterable by kind and customer (last 90 days — the feed window) ---- */
   const [engageQ, setEngageQ] = useState("");
   const [engageKind, setEngageKind] = useState("all");
+  // On-demand range: the live feed covers 90 days; loading a range swaps in a
+  // point-in-time snapshot of ANY period (month, quarter, year) until reset.
+  const [engageFrom, setEngageFrom] = useState("");
+  const [engageTo, setEngageTo] = useState("");
+  const [engageLoaded, setEngageLoaded] = useState(null); // { from, to, rows } | null
+  const [engageBusy, setEngageBusy] = useState(false);
+  async function loadEngageRange() {
+    if (engageBusy || !engageFrom || !engageTo || engageFrom > engageTo) return;
+    setEngageBusy(true);
+    try {
+      const rows = await fetchRewardEventsInRange(vendor.id, engageFrom, engageTo);
+      setEngageLoaded({ from: engageFrom, to: engageTo, rows });
+    } catch {
+      onToast?.(t("admin.engage_range_err"));
+    }
+    setEngageBusy(false);
+  }
   const custById = useMemo(() => new Map(customers.map((c) => [c.id, c])), [customers]);
   const engageRows = useMemo(() => {
     const q = engageQ.trim().toLowerCase();
     const qDigits = engageQ.replace(/\D/g, "");
-    return rewardEvents
+    return (engageLoaded ? engageLoaded.rows : rewardEvents)
       .filter((e) => engageKind === "all" || e.kind === engageKind
         || (engageKind === "stamps" && (e.kind === "stamp" || e.kind === "stampRedeem")))
       .filter((e) => {
@@ -309,7 +327,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       .map((e) => ({ ...e, _d: e.ts?.toDate ? e.ts.toDate() : (e.ts ? new Date(e.ts) : null) }))
       .filter((e) => e._d && !Number.isNaN(e._d.getTime()))
       .sort((a, b) => b._d - a._d);
-  }, [rewardEvents, custById, engageQ, engageKind]);
+  }, [rewardEvents, engageLoaded, custById, engageQ, engageKind]);
   const engageTotals = useMemo(() => ({
     earned: engageRows.reduce((s, e) => s + (e.kind === "earn" ? Number(e.points) || 0 : 0), 0),
     redeemed: engageRows.reduce((s, e) => s + (e.kind === "redeem" ? Math.abs(Number(e.points) || 0) : 0), 0),
@@ -920,6 +938,32 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         <div className="p-4 space-y-3">
           <input className="input" value={engageQ} onChange={(e) => setEngageQ(e.target.value)}
             placeholder={t("admin.engage_search_ph")} aria-label={t("admin.engage_search_ph")} />
+          {/* Any-period snapshot: pick a range and Load; Reset returns to live. */}
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[7.5rem]">
+              <label className="label">{t("scratch.report_from")}</label>
+              <input type="date" className="input" value={engageFrom} max={engageTo || undefined}
+                onChange={(e) => setEngageFrom(e.target.value)} />
+            </div>
+            <div className="flex-1 min-w-[7.5rem]">
+              <label className="label">{t("scratch.report_to")}</label>
+              <input type="date" className="input" value={engageTo} min={engageFrom || undefined}
+                onChange={(e) => setEngageTo(e.target.value)} />
+            </div>
+            <button type="button" className="btn-ghost w-auto px-3 py-2.5 text-[13px] whitespace-nowrap"
+              disabled={engageBusy || !engageFrom || !engageTo || engageFrom > engageTo} onClick={loadEngageRange}>
+              {engageBusy ? t("admin.engage_range_busy") : t("admin.engage_range_load")}
+            </button>
+            {engageLoaded && (
+              <button type="button" className="btn-ghost w-auto px-3 py-2.5 text-[13px] whitespace-nowrap"
+                onClick={() => { setEngageLoaded(null); setEngageFrom(""); setEngageTo(""); }}>
+                {t("admin.engage_range_reset")}
+              </button>
+            )}
+          </div>
+          {engageLoaded && (
+            <p className="text-[12px] text-muted">{t("admin.engage_range_note", { from: engageLoaded.from, to: engageLoaded.to })}</p>
+          )}
           <div className="flex gap-1.5 overflow-x-auto">
             {[["all", "admin.engage_f_all"], ["earn", "admin.engage_f_earn"], ["redeem", "admin.engage_f_redeem"], ["adjust", "admin.engage_f_adjust"], ["referral", "admin.engage_f_referral"], ["stamps", "admin.engage_f_stamps"]].map(([k, key]) => (
               <button key={k} type="button" onClick={() => setEngageKind(k)}
