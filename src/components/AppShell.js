@@ -41,11 +41,13 @@ const TABS = [
   { id: "incidents", labelKey: "nav.incidents" },
   { id: "time", labelKey: "nav.time" },
   { id: "portfolio", labelKey: "nav.portfolio", ownerOnly: true },
-  { id: "admin", labelKey: "nav.admin", managerOnly: true },
+  { id: "admin", labelKey: "nav.admin", ownerOnly: true },
 ];
 
-// Which tabs this person sees. ownerOnly is a product affordance, not a new
-// security boundary — a manager can already read every location via Reports.
+// Which tabs this person sees. Portfolio's ownerOnly is a product affordance
+// (a manager can already read every location via Reports); Admin's is the
+// owner's call — store configuration is the owner's room, managers and
+// employees never see the tab.
 const visibleTabs = (isManager, isOwner) =>
   TABS.filter((t) => (!t.managerOnly || isManager) && (!t.ownerOnly || isOwner));
 
@@ -148,7 +150,8 @@ export default function AppShell() {
   const setup = setupProgress(locations, drawers, items);
   const setupReady = loaded.locations && loaded.drawers && loaded.items;
   const goAdmin = () => setTab("admin");
-  const adminAction = isManager ? { onClick: goAdmin, label: t("setup.go_admin") } : undefined;
+  // Admin is owner-only, so only the owner gets "go to Admin" call-to-actions.
+  const adminAction = isOwner ? { onClick: goAdmin, label: t("setup.go_admin") } : undefined;
 
   // Ambient "needs attention" badges for managers: unresolved variances/disputes
   // (Log), open write-ups (Incidents), and swaps awaiting approval (Time). Pure
@@ -248,7 +251,7 @@ export default function AppShell() {
 
         {setupReady && tab !== "admin" && (
           <SetupChecklist locations={locations} drawers={drawers} items={items}
-            isManager={isManager} vendorId={vendor.id} onGoAdmin={goAdmin} />
+            isManager={isOwner} vendorId={vendor.id} onGoAdmin={goAdmin} />
         )}
 
         {/* On the Dashboard the picker is passed INTO the component so it can
@@ -266,10 +269,10 @@ export default function AppShell() {
         {tab === "cash" && (
           setupReady && !setup.hasLocation ? (
             <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
-              subtitle={isManager ? t("empty.cash_loc_mgr") : t("empty.cash_loc_emp")} />
+              subtitle={isOwner ? t("empty.cash_loc_mgr") : t("empty.cash_loc_emp")} />
           ) : setupReady && !setup.hasDrawer ? (
             <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title")} action={adminAction}
-              subtitle={isManager ? t("empty.cash_drawer_mgr") : t("empty.cash_drawer_emp")} />
+              subtitle={isOwner ? t("empty.cash_drawer_mgr") : t("empty.cash_drawer_emp")} />
           ) : (
             <CashForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
           )
@@ -277,10 +280,10 @@ export default function AppShell() {
         {tab === "scratch" && (
           setupReady && !setup.hasLocation ? (
             <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
-              subtitle={isManager ? t("empty.scratch_loc_mgr") : t("empty.scratch_loc_emp")} />
+              subtitle={isOwner ? t("empty.scratch_loc_mgr") : t("empty.scratch_loc_emp")} />
           ) : setupReady && !setup.hasDrawer ? (
             <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title_scratch")} action={adminAction}
-              subtitle={isManager ? t("empty.scratch_drawer_mgr") : t("empty.scratch_drawer_emp")} />
+              subtitle={isOwner ? t("empty.scratch_drawer_mgr") : t("empty.scratch_drawer_emp")} />
           ) : (
             <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} catalog={scratchCatalog} />
           )
@@ -288,10 +291,10 @@ export default function AppShell() {
         {tab === "inventory" && (
           setupReady && !setup.hasLocation ? (
             <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
-              subtitle={isManager ? t("empty.inv_loc_mgr") : t("empty.inv_loc_emp")} />
+              subtitle={isOwner ? t("empty.inv_loc_mgr") : t("empty.inv_loc_emp")} />
           ) : setupReady && !setup.hasItem ? (
             <EmptyState icon={<IconBox />} title={t("empty.no_items_title")} action={adminAction}
-              subtitle={isManager ? t("empty.inv_items_mgr") : t("empty.inv_items_emp")} />
+              subtitle={isOwner ? t("empty.inv_items_mgr") : t("empty.inv_items_emp")} />
           ) : (
             <div className="space-y-4">
               <BackroomStock onToast={ping} items={items} locations={activeLocations} moves={stockMoves} locName={locName} />
@@ -318,7 +321,7 @@ export default function AppShell() {
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
-        {tab === "admin" && isManager && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} />}
+        {tab === "admin" && isOwner && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} />}
       </main>
 
       <footer className="mt-6 border-t border-line-soft pb-28 sm:pb-0">
