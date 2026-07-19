@@ -1309,6 +1309,13 @@ export const CATALOG = {
     "rewarderr.stamps_short": "The card isn't full yet.",
 
     // admin — customer engagement audit
+    "admin.edit_item_title": "Edit {name}",
+    "admin.edit_item_hint": "Price and expiry feed the stock alerts (Need order / Expiring soon). Quantity isn't edited here — stock moves through the Backroom − / + so every change is signed.",
+    "admin.f_price_opt": "Price (optional)",
+    "admin.f_expiry_opt": "Expiry date (optional)",
+    "admin.err_item_name": "Enter an item name (2+ characters).",
+    "admin.err_item_price": "Price must be a number ≥ 0.",
+    "admin.item_exp": "exp {date}",
     "admin.modal_email_title": "Email for {name}",
     "admin.modal_email_hint": "Used for schedule notifications. Leave blank to remove the email.",
     "admin.modal_save": "Save",
@@ -2661,6 +2668,13 @@ export const CATALOG = {
     "rewarderr.stamps_short": "La tarjeta aún no está llena.",
 
     // admin — auditoría de interacciones con clientes
+    "admin.edit_item_title": "Editar {name}",
+    "admin.edit_item_hint": "El precio y la caducidad alimentan las alertas de stock (Pedir / Por caducar). La cantidad no se edita aquí — las existencias se mueven con − / + del almacén para que cada cambio quede firmado.",
+    "admin.f_price_opt": "Precio (opcional)",
+    "admin.f_expiry_opt": "Fecha de caducidad (opcional)",
+    "admin.err_item_name": "Ingresa un nombre de artículo (2+ caracteres).",
+    "admin.err_item_price": "El precio debe ser un número ≥ 0.",
+    "admin.item_exp": "cad {date}",
     "admin.modal_email_title": "Correo de {name}",
     "admin.modal_email_hint": "Se usa para avisos de horario. Déjalo en blanco para quitar el correo.",
     "admin.modal_save": "Guardar",
