@@ -121,6 +121,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
       note: c.note || null, email: c.email || null, address: c.address || null,
       birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
+      stamps: c.stamps || {},
     });
     setEnrollPhone(null); setName(""); setSale(""); setError("");
     setCardTab("register"); setProf(null); setAdjPts(""); setAdjNote("");
@@ -199,6 +200,21 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
         ? t("rw.toast_earned_vip", { n: r.earned, b: r.balance, m: r.multiplier, tier: r.vipTier })
         : t("rw.toast_earned", { n: r.earned, b: r.balance }));
     });
+  // Punch cards: +1 stamp / give the reward — both signed ledger lines, a
+  // separate currency from points (the server writes points: 0 on each).
+  const stamp = (card) =>
+    run(`stamp:${card.id}`, { action: "stamp", phone, cardId: card.id }, (r) => {
+      setCustomer((c) => ({ ...c, stamps: { ...(c.stamps || {}), [r.cardId]: r.count } }));
+      onToast?.(r.count >= r.goal
+        ? t("rw.toast_stamp_full", { name: card.name })
+        : t("rw.toast_stamp", { name: card.name, n: r.count, goal: r.goal }));
+    });
+  const stampRedeem = (card) =>
+    run(`stampredeem:${card.id}`, { action: "stampRedeem", phone, cardId: card.id }, (r) => {
+      setCustomer((c) => ({ ...c, stamps: { ...(c.stamps || {}), [r.cardId]: r.count } }));
+      onToast?.(t("rw.toast_stamp_redeemed", { reward: r.reward }));
+    });
+
   const redeem = (tier) =>
     run("redeem", { action: "redeem", phone, tierId: tier.id }, (r) => {
       setCustomer((c) => ({ ...c, pointsBalance: r.balance }));
@@ -399,6 +415,44 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                         </div>
                       </div>
 
+                      {/* Punch cards — buy-N-get-one stamps beside the points. */}
+                      {rules.stamps.length > 0 && (
+                        <div>
+                          <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">{t("rw.stamps_label")}</div>
+                          <div className="space-y-2">
+                            {rules.stamps.map((card) => {
+                              const count = Math.max(0, Math.trunc(Number(customer.stamps?.[card.id]) || 0));
+                              const full = count >= card.goal;
+                              return (
+                                <div key={card.id} className={`rounded-xl border p-3 ${full ? "border-brass bg-brass/10" : "border-line bg-panel"}`}>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <div className="font-semibold text-[13px] truncate">{card.name}</div>
+                                      <div className="text-[12px] text-muted truncate">{t("rw.stamp_reward_at", { n: card.goal, reward: card.reward })}</div>
+                                    </div>
+                                    <div className="font-mono font-bold text-[13px] flex-shrink-0">{count}/{card.goal}</div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1 mt-2" aria-hidden="true">
+                                    {Array.from({ length: card.goal }, (_, di) => (
+                                      <span key={di} className={`w-3 h-3 rounded-full ${di < Math.min(count, card.goal) ? "bg-brass" : "border border-line bg-surface"}`} />
+                                    ))}
+                                  </div>
+                                  <div className="flex gap-2 mt-2.5">
+                                    <button type="button" className="btn-ghost flex-1 text-[13px] py-2" disabled={!!busy} onClick={() => stamp(card)}>
+                                      {busy === `stamp:${card.id}` ? t("common.saving") : t("rw.stamp_btn")}
+                                    </button>
+                                    <button type="button" className={full ? "btn-primary flex-1 text-[13px] py-2" : "btn-ghost flex-1 text-[13px] py-2 opacity-60"}
+                                      disabled={!!busy || !full} onClick={() => stampRedeem(card)}>
+                                      {busy === `stampredeem:${card.id}` ? t("common.saving") : t("rw.stamp_redeem_btn")}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Owner: a signed points adjustment (the server requires
                           the note — it's a permanent ledger line). */}
                       {isOwner && (
@@ -489,26 +543,32 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                         <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft max-h-[24rem] overflow-y-auto">
                           {history.map((e) => {
                             const pts = Number(e.points) || 0;
-                            const isRedeem = e.kind === "redeem";
+                            const green = e.kind === "redeem" || e.kind === "stampRedeem";
                             const label = e.kind === "earn"
                               ? `${t("rw.h_earn")}${e.saleDollars ? ` · ${money(e.saleDollars)}` : ""}${Number(e.multiplier) > 1 ? ` · ×${e.multiplier}` : ""}`
-                              : isRedeem
+                              : e.kind === "redeem"
                                 ? t("rw.h_redeem", { reward: e.rewardName || money(Number(e.value) || 0) })
                                 : e.kind === "referral"
                                   ? t("rw.h_referral")
-                                  : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                                  : e.kind === "stamp"
+                                    ? t("rw.h_stamp", { card: e.cardName || "", n: e.count, goal: e.goal })
+                                    : e.kind === "stampRedeem"
+                                      ? t("rw.h_stamp_redeem", { reward: e.reward || e.cardName || "" })
+                                      : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                            const ptsCell = e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
+                              : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;
                             return (
                               <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
                                 <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">
                                   <div>{e._d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
                                   <div>{e._d.toLocaleDateString()}</div>
                                 </div>
-                                <div className={`min-w-0 flex-1 text-[13px] leading-snug ${isRedeem ? "text-pos font-semibold" : ""}`}>
+                                <div className={`min-w-0 flex-1 text-[13px] leading-snug ${green ? "text-pos font-semibold" : ""}`}>
                                   {label}
                                   {e.by && <span className="block text-[11px] text-muted font-normal">{t("rw.h_by", { name: e.by })}</span>}
                                 </div>
-                                <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${isRedeem ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>
-                                  {pts > 0 ? `+${pts}` : pts} {t("rw.pts")}
+                                <div className={`flex-shrink-0 font-mono font-bold text-[13px] ${green ? "text-pos" : pts < 0 ? "text-neg" : ""}`}>
+                                  {ptsCell}
                                 </div>
                               </div>
                             );

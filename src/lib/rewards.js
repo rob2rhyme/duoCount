@@ -22,7 +22,28 @@ export const REWARDS = {
   // points as signed "referral" ledger lines. Owner-tunable; either value at
   // 0 zeroes that side, both at 0 turns the mechanic off entirely.
   referral: { referrer: 50, friend: 25 },
+  // Punch cards (port slice 5): buy-N-get-one stamps, separate from points.
+  // Each card is a named counter with a goal and a reward; empty = off.
+  stamps: [],
 };
+
+// At most this many punch cards — a card per product family, not a catalog.
+export const MAX_STAMP_CARDS = 6;
+const STAMP_GOAL = [2, 50];
+
+// One punch card → { id, name, goal, reward }, or null if unusable — the same
+// clamp-and-drop discipline as reward tiers. A nameless or goalless card is
+// dropped; a blank reward text falls back to the card's name.
+function resolveStampCard(raw, i) {
+  if (!raw || typeof raw !== "object") return null;
+  const name = String(raw.name ?? "").trim().slice(0, 40);
+  const goal = clampNum(raw.goal, STAMP_GOAL[0], STAMP_GOAL[1], true);
+  if (!name || !Number.isFinite(goal)) return null;
+  return {
+    id: String(raw.id ?? "").trim() || `s${i}`, name, goal,
+    reward: String(raw.reward ?? "").trim().slice(0, 60) || name,
+  };
+}
 
 // At most this many named tiers — a c-store reward menu, not a catalog.
 export const MAX_TIERS = 12;
@@ -123,6 +144,8 @@ export function resolveRewards(raw = {}) {
     referrer: Number.isFinite(refR) ? refR : REWARDS.referral.referrer,
     friend: Number.isFinite(refF) ? refF : REWARDS.referral.friend,
   };
+  const rawStamps = Array.isArray(raw?.stamps) ? raw.stamps.slice(0, MAX_STAMP_CARDS) : [];
+  out.stamps = rawStamps.map(resolveStampCard).filter(Boolean);
   return out;
 }
 
