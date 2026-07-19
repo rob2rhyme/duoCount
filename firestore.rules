@@ -50,20 +50,20 @@ service cloud.firestore {
 
       match /locations/{locationId} {
         allow read: if member();
-        allow create, update: if mgr() && liveActive();
+        allow create, update: if owner() && liveActive();
         allow delete: if false; // disable instead, so history keeps its labels
       }
 
       match /drawers/{drawerId} {
         allow read: if member();
-        allow create, update: if mgr() && liveActive();
+        allow create, update: if owner() && liveActive();
         allow delete: if false;
       }
 
       // Tracked inventory items — same lifecycle as drawers (soft-disable only).
       match /items/{itemId} {
         allow read: if member();
-        allow create, update: if mgr() && liveActive();
+        allow create, update: if owner() && liveActive();
         allow delete: if false;
       }
 

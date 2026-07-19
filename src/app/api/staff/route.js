@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
-import { requireManager } from "@/lib/require-manager";
+import { requireOwner } from "@/lib/require-manager";
 
 export const runtime = "nodejs";
 
@@ -30,7 +30,7 @@ async function locationError(adminDb, vendorId, locationId) {
 
 export async function POST(req) {
   try {
-    const claims = await requireManager(req);
+    const claims = await requireOwner(req);
     const { name, pin, role, locationId, email } = await req.json();
     if (!name || name.trim().length < 2)
       return NextResponse.json({ error: "Enter a name." }, { status: 400 });
@@ -78,7 +78,7 @@ export async function POST(req) {
 
 export async function PATCH(req) {
   try {
-    const claims = await requireManager(req);
+    const claims = await requireOwner(req);
     const { userId, role, active, locationId, pin, email } = await req.json();
     if (!userId) return NextResponse.json({ error: "Missing userId." }, { status: 400 });
     if (userId === claims.userId)
