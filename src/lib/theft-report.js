@@ -3,9 +3,9 @@
 // walked out of my store, and who signed for it?":
 //
 //   1. FLAGGED CASH COUNTS  — signed cash counts whose over/short crossed the
-//      owner's threshold (entry.flagged, stamped at save time).
+//      owner's threshold (keyed off the rules-enforced varianceStatus).
 //   2. FLAGGED BACKROOM COUNTS — inventory counts past the owner's unit
-//      threshold, same flag.
+//      threshold, same signal.
 //   3. SCRATCH TICKET GAPS  — chain breaks and sold-out-shorts from the pack
 //      flow (buildPackFlow), each named to its signers.
 //   4. REWARDS ALERTS       — the rewards-abuse detectors (outpaced sales,
@@ -19,6 +19,18 @@ import { buildRewardAudit } from "./reward-audit.js";
 
 const dayOf = (e) => e.date || (toDate(e.ts)?.toISOString().slice(0, 10)) || null;
 
+// A cash/inventory count "crossed the owner's threshold" iff the rules forced
+// it into a flagged variance. firestore.rules pins `varianceStatus` — an
+// at/over-threshold |diff| MUST be signed varianceStatus:'open' (flagOk) — but
+// it does NOT constrain the client `flagged` boolean. Trusting `flagged` let a
+// hand-crafted write set flagged:false on a genuine over-threshold short and
+// vanish from this report and its shortage totals. Key off the enforced
+// varianceStatus instead; OR the legacy `flagged` so pre-varianceStatus entries
+// (and imports) still count. 'resolved' stays in — a short with a signed cause
+// still walked out; it's explained, not erased.
+const FLAGGED_VARIANCE = new Set(["open", "under-review", "resolved"]);
+const wasFlagged = (e) => e.flagged === true || FLAGGED_VARIANCE.has(e.varianceStatus);
+
 /**
  * @param {Array} entries       count entries (any kinds)
  * @param {Array} rewardEvents  rewards ledger lines for the same period
@@ -31,7 +43,7 @@ export function buildTheftReport(entries = [], rewardEvents = [], { from = "", t
   const ranged = entries.filter((e) => e && inWin(e));
 
   const flaggedCash = ranged
-    .filter((e) => e.kind === "cash" && e.flagged === true)
+    .filter((e) => e.kind === "cash" && wasFlagged(e))
     .map((e) => ({
       date: e.date || dayOf(e), locationName: e.locationName || "", drawerName: e.drawerName || "",
       by: e.by || "—", expected: Number(e.expected) || 0, counted: Number(e.counted) || 0,
@@ -41,7 +53,7 @@ export function buildTheftReport(entries = [], rewardEvents = [], { from = "", t
   const cashShort = Math.round(flaggedCash.reduce((s, e) => s + (e.diff < 0 ? -e.diff : 0), 0) * 100) / 100;
 
   const flaggedInventory = ranged
-    .filter((e) => e.kind === "inventory" && e.flagged === true)
+    .filter((e) => e.kind === "inventory" && wasFlagged(e))
     .map((e) => ({
       date: e.date || dayOf(e), locationName: e.locationName || "", itemName: e.itemName || "",
       unit: e.unit || "unit", by: e.by || "—",
