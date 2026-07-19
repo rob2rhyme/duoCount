@@ -112,6 +112,12 @@ button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -w
    the OS "reduce motion" setting. */
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
+  /* Bottom-nav group sheet: a quick slide-up as it opens. */
+  .sheet-pop { animation: sheet-pop .18s ease-out; }
+  @keyframes sheet-pop {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
 }
 
 /* Rendered Markdown for the in-app docs (/docs, /guide). Themed via the same CSS

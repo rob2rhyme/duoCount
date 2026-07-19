@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useLang } from "./LangProvider";
+import TabIcon from "./TabIcon";
 
 // Mobile bottom navigation. The top tab strip works fine on a wide screen but
 // on a phone it's nine text-only tabs on a single sideways scroll — off-screen
@@ -67,26 +68,33 @@ export default function BottomNav({ tabs, current, onSelect, attention = {} }) {
       <nav className="fixed inset-x-0 bottom-0 z-40 bg-surface border-t border-line px-safe pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.06)]"
         aria-label={t("nav.sections")}>
         {openGroup && (
-          <div className="absolute bottom-full inset-x-0 bg-surface border-t border-line shadow-lg">
-            <div className="px-3 py-2.5 border-b border-line text-[11px] uppercase tracking-wide text-muted font-semibold">
+          <div className="sheet-pop absolute bottom-full inset-x-0 bg-surface border-t border-x border-line rounded-t-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.18)] overflow-hidden">
+            <div aria-hidden="true" className="pt-2 grid place-items-center">
+              <span className="w-9 h-1 rounded-full bg-line" />
+            </div>
+            <div className="px-4 pt-1.5 pb-2 text-[11px] uppercase tracking-wide text-muted font-semibold">
               {openGroup.label}
             </div>
-            <ul>
-              {openGroup.members.map((id) => (
-                <li key={id}>
-                  <button type="button" onClick={() => pick(id)}
-                    className={`w-full text-left px-4 py-3 flex items-center justify-between gap-3 border-b border-line-soft last:border-b-0 ${current === id ? "text-fg font-semibold bg-subtle" : "text-muted"}`}>
-                    <span>{byId[id].label}</span>
-                    <span className="flex items-center gap-2">
+            {/* Icon tiles — 2-up on narrow phones, 3-up once the width allows. */}
+            <ul className="grid grid-cols-2 min-[420px]:grid-cols-3 gap-2.5 px-3.5 pb-4">
+              {openGroup.members.map((id) => {
+                const active = current === id;
+                return (
+                  <li key={id} className="min-w-0">
+                    <button type="button" onClick={() => pick(id)} aria-current={active || undefined}
+                      className={`relative w-full flex flex-col items-start gap-2.5 rounded-2xl border p-3.5 text-left transition active:scale-[.97] ${active ? "border-brass bg-brass/10" : "border-line bg-panel hover:bg-subtle"}`}>
+                      <span className={`inline-flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0 ${active ? "bg-brass text-white" : "bg-brass/10 text-brass"}`}>
+                        <TabIcon id={id} size={20} />
+                      </span>
+                      <span className={`text-[13px] font-semibold leading-tight truncate w-full ${active ? "text-fg" : "text-fg/90"}`}>{byId[id].label}</span>
                       {attention[id] > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-alert text-white text-[10px] font-bold leading-none"
+                        <span className="absolute top-2.5 right-2.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-alert text-white text-[10px] font-bold leading-none"
                           aria-label={t("nav.need_attention", { n: attention[id] })}>{attention[id]}</span>
                       )}
-                      {current === id && <span aria-hidden="true" className="text-brass">●</span>}
-                    </span>
-                  </button>
-                </li>
-              ))}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
