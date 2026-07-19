@@ -8,11 +8,18 @@ import { useLang } from "./LangProvider";
 // Ported from the legacy inventory app, where the camera lifecycle survived
 // an adversarial review: the stream stops on close, on unmount, and on
 // detect; onDetected lives in a ref so parent re-renders never restart it.
-export default function BarcodeScanner({ open, onClose, onDetected, title, hint }) {
+//
+// `continuous` keeps the camera running after a detect (the scratch shelf
+// walk: scan pack after pack without reopening) — repeated frames of the SAME
+// code are debounced so one pack doesn't fire twice, but a different code
+// fires immediately. `status` renders the parent's per-scan feedback line
+// under the video ("✓ Lucky 7s · #042 — 12 scanned").
+export default function BarcodeScanner({ open, onClose, onDetected, title, hint, continuous = false, status = "" }) {
   const { t } = useLang();
   const videoRef = useRef(null);
   const onDetectedRef = useRef(onDetected);
   onDetectedRef.current = onDetected;
+  const lastRef = useRef({ text: "", ts: 0 }); // continuous-mode dedupe
   // Errors are stored as i18n codes and translated at render, so a language
   // switch mid-error re-renders in the new language.
   const [error, setError] = useState("");
@@ -38,8 +45,18 @@ export default function BarcodeScanner({ open, onClose, onDetected, title, hint 
           (result, err, ctrl) => {
             if (cancelled) return;
             if (result) {
+              const text = result.getText();
+              if (continuous) {
+                // Same code within the window = the same pack still in frame.
+                const now = Date.now();
+                if (text === lastRef.current.text && now - lastRef.current.ts < 2500) return;
+                lastRef.current = { text, ts: now };
+                try { navigator.vibrate?.(60); } catch { /* not supported */ }
+                onDetectedRef.current(text);
+                return; // keep scanning
+              }
               ctrl.stop();
-              onDetectedRef.current(result.getText());
+              onDetectedRef.current(text);
             }
             // per-frame decode misses are expected; ignore err
           }
@@ -80,9 +97,17 @@ export default function BarcodeScanner({ open, onClose, onDetected, title, hint 
             </div>
           )}
         </div>
+        {continuous && status && (
+          <p className="px-4 pt-3 text-[13px] font-semibold text-pos" role="status">{status}</p>
+        )}
         <p className="px-4 py-3 text-xs text-muted leading-relaxed">
           {t("scan.point")} {hint || t("scan.default_hint")}
         </p>
+        {continuous && (
+          <div className="px-4 pb-4">
+            <button type="button" className="btn-primary" onClick={onClose}>{t("scan.done")}</button>
+          </div>
+        )}
       </div>
     </div>
   );
