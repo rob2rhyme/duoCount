@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { useSession } from "./SessionProvider";
@@ -132,7 +132,23 @@ export default function AppShell() {
     return entries.filter((e) => e.locationId === viewLoc);
   }, [entries, viewLoc, lockedLoc]);
 
-  function ping(msg) { setToast(msg); setTimeout(() => setToast(""), 2200); }
+  // Toast, now with an optional one-tap Undo. Callers pass a second argument
+  // { fn } — an async reversal — and the toast holds for 8s with an UNDO
+  // button. The spine stays append-only: ledgered actions undo via a NEW
+  // compensating signed line; admin edits undo by restoring the prior state.
+  const toastTimer = useRef(null);
+  function ping(msg, undo) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(msg ? { msg, undo: undo || null } : "");
+    toastTimer.current = setTimeout(() => setToast(""), undo ? 8000 : 2200);
+  }
+  async function runToastUndo() {
+    const u = toast?.undo;
+    if (!u) return;
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast("");
+    try { await u.fn(); } catch (e) { ping(e?.message || t("common.undo_failed")); }
+  }
 
   // Rewards is a register action, so employees only see the tab once the owner
   // enables the program; managers always see it (its empty state routes them
@@ -364,8 +380,14 @@ export default function AppShell() {
       <BottomNav tabs={tabs} current={tab} onSelect={setTab} attention={tabAttention} />
 
       {toast && (
-        <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-5 py-3 rounded-full text-sm font-medium shadow-lg z-50">
-          {toast}
+        <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-3 max-w-[92vw]">
+          <span className="min-w-0 truncate py-1 pl-1">{toast.msg}</span>
+          {toast.undo && (
+            <button type="button" onClick={runToastUndo}
+              className="flex-shrink-0 font-bold uppercase tracking-wide text-[12px] px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 transition">
+              {t("common.undo")}
+            </button>
+          )}
         </div>
       )}
 
