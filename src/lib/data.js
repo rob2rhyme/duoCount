@@ -166,6 +166,17 @@ export async function apiSupport(payload) {
   });
 }
 
+// Developer / platform-admin console (cross-tenant; all via Admin SDK). Every
+// call needs a signed-in user; the route gates on the PLATFORM_ADMIN_UIDS
+// allowlist (whoami reports whether THIS user is on it).
+export async function apiDev(payload) {
+  return fetchJson("/api/dev", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function apiStockMove(payload) {
   return fetchJson("/api/stock-move", {
     method: "POST",

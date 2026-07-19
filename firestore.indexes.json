@@ -9,6 +9,14 @@
       ]
     },
     {
+      "collectionGroup": "supportTickets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "lastActivityAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "entries",
       "queryScope": "COLLECTION",
       "fields": [
@@ -16,8 +24,6 @@
         { "fieldPath": "ts", "order": "DESCENDING" }
       ]
     },
-    {
-      "collectionGroup": "entries",
     {
       "collectionGroup": "entries",
       "queryScope": "COLLECTION",

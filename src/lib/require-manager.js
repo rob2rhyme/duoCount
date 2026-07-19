@@ -42,3 +42,26 @@ export async function requireOwner(req) {
     throw Object.assign(new Error("Owners only."), { status: 403 });
   return claims;
 }
+
+// The platform-admin (developer) allowlist — the store data is tenant-isolated,
+// so there is no cross-tenant ROLE; the developer is instead identified by their
+// Firebase Auth UID, which is `${vendorId}_${userId}` (the login route mints
+// tokens under that uid). PLATFORM_ADMIN_UIDS is a comma-separated allowlist,
+// the same shared-secret-in-env posture as CRON_SECRET. The developer signs in
+// through their normal store account; the dev console + /api/dev unlock only
+// when their uid is on the list. Env-based so it's revocable by redeploy with no
+// bootstrap problem.
+export function platformAdminUids() {
+  return String(process.env.PLATFORM_ADMIN_UIDS || "")
+    .split(",").map((s) => s.trim()).filter(Boolean);
+}
+export function isPlatformAdminClaims(claims) {
+  const uid = `${claims.vendorId}_${claims.userId}`;
+  return platformAdminUids().includes(uid);
+}
+export async function requirePlatformAdmin(req) {
+  const claims = await verifyBearer(req);
+  if (!claims.vendorId || !claims.userId || !isPlatformAdminClaims(claims))
+    throw Object.assign(new Error("Developer access only."), { status: 403, code: "not_platform_admin" });
+  return claims;
+}

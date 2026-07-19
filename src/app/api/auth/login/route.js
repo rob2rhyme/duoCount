@@ -47,6 +47,13 @@ export async function POST(req) {
     const vendorDoc = vSnap.docs[0];
     const vendor = { id: vendorDoc.id, ...vendorDoc.data() };
 
+    // A store the developer suspended (non-payment / abuse, via /api/dev) can't
+    // sign anyone in until reactivated. Counted as a fail so it also throttles.
+    if (vendor.status === "suspended") {
+      await recordFail();
+      return NextResponse.json({ error: "This store is suspended. Contact DuoCount support.", code: "store_suspended" }, { status: 403 });
+    }
+
     // Small staff lists per store, so verifying against each active user's
     // salted hash is fine (salted hashes can't be queried directly).
     const uSnap = await vendorDoc.ref.collection("users").where("active", "==", true).get();
