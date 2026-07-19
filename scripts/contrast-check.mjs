@@ -50,7 +50,8 @@ export function parseTokens(css) {
 // Fixed brand + Tailwind status-palette colors (constant across themes). Kept in
 // sync with tailwind.config.js and the status chips in LogList/IncidentsPanel.
 const FIXED = {
-  ink: "#1a1c2e", paper: "#f6f4ee", brass: "#b8863b",
+  ink: "#14532d", paper: "#f6f4ee", brass: "#298050",
+  white: "#ffffff", alert: "#ff0000",
   "red-100": "#fee2e2", "red-700": "#b91c1c",
   "green-100": "#dcfce7", "green-700": "#15803d",
   "amber-100": "#fef3c7", "amber-700": "#b45309",
@@ -77,7 +78,9 @@ const PAIRS = [
   { label: "brass focus ring on field", fg: "brass", bg: "field", th: NONTEXT, themes: BOTH },
   // Fixed brand + status chips (theme-independent — evaluated once, tagged "fixed").
   { label: "paper on ink (header)", fg: "paper", bg: "ink", th: NORMAL, themes: ["fixed"] },
-  { label: "ink on brass (badge)", fg: "ink", bg: "brass", th: NORMAL, themes: ["fixed"] },
+  { label: "white on brass (avatar/chip)", fg: "white", bg: "brass", th: NORMAL, themes: ["fixed"] },
+  // Count badges are bold numeric indicators, held to the non-text ≥3:1 bar.
+  { label: "white on alert (count badge)", fg: "white", bg: "alert", th: NONTEXT, themes: ["fixed"] },
   { label: "red-700 chip", fg: "red-700", bg: "red-100", th: NORMAL, themes: ["fixed"] },
   { label: "green-700 chip", fg: "green-700", bg: "green-100", th: NORMAL, themes: ["fixed"] },
   { label: "amber-700 chip", fg: "amber-700", bg: "amber-100", th: NORMAL, themes: ["fixed"] },

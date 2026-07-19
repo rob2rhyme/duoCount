@@ -187,7 +187,7 @@ export default function AppShell() {
           <Logo src={vendor.logoUrl || "/logo.png"} alt={`${vendor.name} logo`} size={32} />
           <div className="min-w-0">
             <h1 className="text-base font-semibold truncate leading-tight">{vendor.name}</h1>
-            <p className="text-[11px] text-[#c9c6bd] font-mono leading-tight truncate">{t("shell.code", { slug: vendor.slug })}</p>
+            <p className="text-[11px] text-[#c6dbc8] font-mono leading-tight truncate">{t("shell.code", { slug: vendor.slug })}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 text-sm">
@@ -196,7 +196,7 @@ export default function AppShell() {
               <span className="sm:hidden">{firstName}</span>
               <span className="hidden sm:inline">{profile.name}</span>
             </b>
-            <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${isManager ? "bg-[#c9a25a]" : "bg-brass"} text-ink font-bold`}>
+            <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${isManager ? "bg-[#8fd6a8] text-ink" : "bg-brass text-white"} font-bold`}>
               {t(`shell.role_${profile.role === "owner" ? "owner" : profile.role === "manager" ? "manager" : "employee"}`)}
             </span>
           </span>
@@ -215,7 +215,7 @@ export default function AppShell() {
               <TabIcon id={tb.id} />
               {tb.label}
               {tabAttention[tb.id] > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-brass text-ink text-[10px] font-bold leading-none"
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-alert text-white text-[10px] font-bold leading-none"
                   aria-label={t("nav.need_attention", { n: tabAttention[tb.id] })}>
                   {tabAttention[tb.id]}
                 </span>

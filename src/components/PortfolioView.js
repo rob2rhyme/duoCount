@@ -123,8 +123,8 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
       const s = StyleSheet.create({
         page: { padding: 28, fontSize: 9, fontFamily: "Helvetica", color: "#1a1c2e" },
         brandRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
-        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#b8863b", alignItems: "center", justifyContent: "center", marginRight: 7 },
-        markText: { color: "#1a1c2e", fontFamily: "Helvetica-Bold", fontSize: 11 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#298050", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        markText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
         h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
         meta: { color: "#666", marginBottom: 2, fontSize: 8 },
         section: { fontSize: 11, fontFamily: "Helvetica-Bold", marginTop: 14, marginBottom: 5 },

@@ -287,7 +287,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
               <div className="border border-line rounded-xl bg-panel overflow-hidden">
                 {/* ---- card header: identity + the points pill ---- */}
                 <div className="p-3.5 pb-3 flex items-center gap-3">
-                  <div className="flex-shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-full bg-brass text-ink font-bold text-sm">{initials(customer.name)}</div>
+                  <div className="flex-shrink-0 inline-flex items-center justify-center w-12 h-12 rounded-full bg-brass text-white font-bold text-sm">{initials(customer.name)}</div>
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate flex items-center gap-2">
                       <span className="truncate">{customer.name || t("rw.customer_fallback")}</span>

@@ -6,10 +6,12 @@ module.exports = {
     extend: {
       colors: {
         // Fixed brand constants (used where the color must not shift by theme:
-        // the dark app header, gold badges, the logo mark, PDF/print output).
-        ink: "#1a1c2e",
+        // the deep-green app header, the logo mark, PDF/print output).
+        ink: "#14532d",
         paper: "#f6f4ee",
-        brass: { DEFAULT: "#b8863b", dk: "#8a6428" },
+        brass: { DEFAULT: "#298050", dk: "#1f6b3e" },
+        // Notification count badges — pure red, theme-independent.
+        alert: "#ff0000",
         // Semantic, theme-aware tokens. Each maps to a CSS variable defined in
         // globals.css for both light (:root) and dark (.dark) themes, so a
         // single class works in both modes.
