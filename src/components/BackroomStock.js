@@ -11,6 +11,7 @@ import { useLang } from "./LangProvider";
 import { useTheme } from "./ThemeProvider";
 import TabIcon from "./TabIcon";
 import BarcodeScanner from "./BarcodeScanner";
+import ShowMore, { usePaged } from "./ShowMore";
 
 // Live backroom stock — the "pulled a Geekbar to the front" screen. Every
 // member sees the location's live list (search, filters, expiry/low badges)
@@ -88,6 +89,8 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
       return String(a.name).localeCompare(String(b.name));
     });
   }, [locItems, filter, terms, lowIds, expById]);
+  // Reveal the stock list 20 at a time; a filter/search change resets the view.
+  const stockPage = usePaged(rows, { resetKey: `${filter}|${query}` });
 
   const qtyOf = (i) => (Number.isFinite(Number(i.quantity)) ? Number(i.quantity) : null);
 
@@ -131,6 +134,9 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
     () => moves.filter((m) => m.locationId === locationId).slice(0, HISTORY_CAP),
     [moves, locationId]
   );
+  const histPage = usePaged(history, { resetKey: locationId }); // reveal 20, +10
+
+
 
   // 30-day flow (managers): top movers + share of outflow.
   const flow = useMemo(
@@ -190,7 +196,7 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
           <p className="text-[13px] text-muted">{t("br.no_match")}</p>
         ) : (
           <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
-            {rows.map((i) => {
+            {stockPage.visible.map((i) => {
               const qty = qtyOf(i);
               const low = lowIds.has(i.id);
               const expDays = expById.get(i.id);
@@ -223,6 +229,7 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
                 </div>
               );
             })}
+            <ShowMore hasMore={stockPage.hasMore} nextStep={stockPage.nextStep} onMore={stockPage.showMore} />
           </div>
         )}
         <p className="text-xs text-muted leading-relaxed">{t("br.helper")}</p>
@@ -239,7 +246,7 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
               <p className="px-3.5 py-3 text-[12px] text-muted border-t border-line">{t("br.hist_empty")}</p>
             ) : (
               <div className="divide-y divide-line-soft border-t border-line">
-                {history.map((m) => {
+                {histPage.visible.map((m) => {
                   const d = tsOf(m);
                   const out = Number(m.delta) < 0;
                   return (
@@ -258,6 +265,7 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
                     </div>
                   );
                 })}
+                <ShowMore hasMore={histPage.hasMore} nextStep={histPage.nextStep} onMore={histPage.showMore} />
               </div>
             )
           )}

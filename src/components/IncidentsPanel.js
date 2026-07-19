@@ -9,6 +9,7 @@ import EmptyState, { IconShield } from "./EmptyState";
 import SearchInput from "./SearchInput";
 import Highlight from "./Highlight";
 import Field from "./Field";
+import ShowMore, { usePaged } from "./ShowMore";
 
 // Values are stable ids; display labels resolve through the i18n catalog
 // (cat.* / sev.* / status.*), so the pills and selects follow the language.
@@ -67,6 +68,8 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
   const visible = useMemo(() => (terms.length
     ? base.filter((i) => matchesTerms(`${i.title} ${i.text} ${i.by} ${i.subjectName || ""} ${i.category} ${i.severity} ${i.locationName || ""}`, terms))
     : base), [base, terms]);
+  // Reveal incidents 20 at a time; a filter/search change resets to the top.
+  const incPage = usePaged(visible, { resetKey: `${viewStatus}|${terms.join(" ")}` });
 
   async function post() {
     const title = f.title.trim(), text = f.text.trim();
@@ -186,7 +189,8 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
             <EmptyState icon={<IconShield />} title={t("incidents.empty_emp_title")}
               subtitle={t("incidents.empty_emp_sub")} />
           )
-        ) : visible.map((inc) => (
+        ) : (<>
+        {incPage.visible.map((inc) => (
           <div key={inc.id} className="px-4 py-3.5 border-b border-line last:border-0">
             <div className="flex justify-between items-start gap-3">
               <div className="min-w-0">
@@ -244,6 +248,8 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
             )}
           </div>
         ))}
+        <ShowMore hasMore={incPage.hasMore} nextStep={incPage.nextStep} onMore={incPage.showMore} />
+        </>)}
       </div>
     </div>
   );

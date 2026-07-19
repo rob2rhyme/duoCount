@@ -8,6 +8,7 @@ import { useSession } from "./SessionProvider";
 import EmptyState, { IconChart } from "./EmptyState";
 import ReportModal from "./ReportModal";
 import Field from "./Field";
+import ShowMore, { usePaged } from "./ShowMore";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const MONTHS = ["January", "February", "March", "April", "May", "June",
@@ -87,6 +88,8 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
     [rows, range, locations, sort],
   );
   const employees = useMemo(() => (range ? buildEmployeeRollup(rows, range, locations) : null), [rows, range, locations]);
+  // Reveal the people table 20 at a time; a new period snaps back to the top.
+  const empPage = usePaged(employees?.rows || [], { resetKey: `${startISO}|${endISO}` });
 
   // Header click: first desc, again asc, third back to the attention order.
   function toggleSort(key) {
@@ -386,7 +389,7 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                     </tr>
                   </thead>
                   <tbody>
-                    {employees.rows.map((p) => (
+                    {empPage.visible.map((p) => (
                       <Fragment key={p.key}>
                         <tr className="border-t border-line-soft hover:bg-subtle cursor-pointer" onClick={() => togglePerson(p.key)}>
                           <td className="px-3 py-2.5 font-semibold">
@@ -424,6 +427,13 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                         ))}
                       </Fragment>
                     ))}
+                    {empPage.hasMore && (
+                      <tr>
+                        <td colSpan={7} className="p-0 border-t border-line-soft">
+                          <ShowMore hasMore nextStep={empPage.nextStep} onMore={empPage.showMore} />
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

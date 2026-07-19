@@ -21,6 +21,7 @@ import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
 import SupportCard from "./SupportCard";
 import Field from "./Field";
+import ShowMore, { usePaged } from "./ShowMore";
 
 export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
@@ -416,6 +417,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       .filter((e) => e._d && !Number.isNaN(e._d.getTime()))
       .sort((a, b) => b._d - a._d);
   }, [rewardEvents, engageLoaded, custById, engageQ, engageKind]);
+  // Reveal the engagement ledger 20 at a time; filter/search resets the view.
+  const engagePage = usePaged(engageRows, { resetKey: `${engageKind}|${engageQ}` });
   const engageTotals = useMemo(() => ({
     earned: engageRows.reduce((s, e) => s + (e.kind === "earn" ? Number(e.points) || 0 : 0), 0),
     redeemed: engageRows.reduce((s, e) => s + (e.kind === "redeem" ? Math.abs(Number(e.points) || 0) : 0), 0),
@@ -504,7 +507,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       : items;
     return list;
   }, [items, itemTerms]);
-  const ITEMS_CAP = 50;
+  // Reveal the item catalog 20 at a time; a new search snaps back to the top.
+  const itemsPage = usePaged(shownItems, { resetKey: itemQ });
+  // Roster/locations/drawers grow with multi-location operators — same net,
+  // only visible once any of them passes 25 rows.
+  const staffPage = usePaged(staff);
+  const locPage = usePaged(locations);
+  const drawerPage = usePaged(drawers);
   const stockAlertCount = useMemo(() => {
     const a = buildStockAlerts(items, { rules: vendor?.stockAlerts });
     return a.lowStock.length + a.expiring.length;
@@ -572,7 +581,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <button className="btn-ghost w-full" disabled={busy} onClick={createStaff}>{busy ? t("admin.adding") : t("admin.add_staff")}</button>
         </div>
         <div>
-          {staff.map((u) => {
+          {staffPage.visible.map((u) => {
             const isMe = u.id === profile.id;
             const active = u.active !== false;
             return (
@@ -616,6 +625,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </div>
             );
           })}
+          <ShowMore hasMore={staffPage.hasMore} nextStep={staffPage.nextStep} onMore={staffPage.showMore} />
         </div>
       </div>
 
@@ -626,7 +636,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <input className="input" value={newLoc} onChange={(e) => setNewLoc(e.target.value)} placeholder={t("admin.ph_location")} aria-label={t("admin.aria_loc_name")} />
           <button className="btn-ghost whitespace-nowrap" onClick={createLoc}>{t("admin.add_location")}</button>
         </div>
-        {locations.map((l) => (
+        {locPage.visible.map((l) => (
           <div key={l.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="font-medium flex items-center gap-2">
               {l.name}
@@ -643,6 +653,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </button>
           </div>
         ))}
+        <ShowMore hasMore={locPage.hasMore} nextStep={locPage.nextStep} onMore={locPage.showMore} />
       </div>
 
       {/* ---------------- drawers ---------------- */}
@@ -661,7 +672,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           </div>
           <button className="btn-ghost w-full" onClick={createDrawer}>{t("admin.add_drawer")}</button>
         </div>
-        {drawers.map((d) => (
+        {drawerPage.visible.map((d) => (
           <div key={d.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-medium flex items-center gap-2">
@@ -681,6 +692,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </button>
           </div>
         ))}
+        <ShowMore hasMore={drawerPage.hasMore} nextStep={drawerPage.nextStep} onMore={drawerPage.showMore} />
       </div>
 
       {/* ---------------- inventory items ---------------- */}
@@ -724,7 +736,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               placeholder={t("admin.items_search_ph")} aria-label={t("admin.items_search_ph")} />
           </div>
         )}
-        {shownItems.slice(0, ITEMS_CAP).map((it) => (
+        {itemsPage.visible.map((it) => (
           <div key={it.id} className="px-4 py-3 border-b border-line last:border-0 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-medium flex items-center gap-2">
@@ -753,9 +765,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </div>
           </div>
         ))}
-        {shownItems.length > ITEMS_CAP && (
-          <p className="px-4 py-3 text-[12px] text-muted">{t("admin.items_more", { shown: ITEMS_CAP, total: shownItems.length })}</p>
-        )}
+        <ShowMore hasMore={itemsPage.hasMore} nextStep={itemsPage.nextStep} onMore={itemsPage.showMore} />
       </div>
 
       {/* ---------------- settings (owner) ---------------- */}
@@ -1147,7 +1157,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                 {t("admin.engage_totals", { earned: engageTotals.earned, redeemed: engageTotals.redeemed, events: engageRows.length })}
               </p>
               <div className="border border-line rounded-xl overflow-hidden divide-y divide-line-soft">
-                {engageRows.slice(0, 300).map((e) => {
+                {engagePage.visible.map((e) => {
                   const c = custById.get(e.customerId);
                   const pts = Number(e.points) || 0;
                   const green = e.kind === "redeem" || e.kind === "stampRedeem";
@@ -1187,10 +1197,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                     </div>
                   );
                 })}
+                <ShowMore hasMore={engagePage.hasMore} nextStep={engagePage.nextStep} onMore={engagePage.showMore} />
               </div>
-              {engageRows.length > 300 && (
-                <p className="text-[12px] text-muted">{t("admin.engage_more", { shown: 300, total: engageRows.length })}</p>
-              )}
             </>
           )}
         </div>

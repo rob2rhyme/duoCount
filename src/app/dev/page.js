@@ -7,6 +7,7 @@ import { downscaleImage } from "@/lib/image-downscale";
 import { compareTickets, toMs, ATTACH_MAX_PER_MSG } from "@/lib/support";
 import Link from "next/link";
 import { useLang } from "@/components/LangProvider";
+import ShowMore, { usePaged } from "@/components/ShowMore";
 
 // Developer / platform-admin console. A standalone page (the app shell is
 // tenant-scoped; this spans every store), gated by /api/dev whoami against the
@@ -99,6 +100,7 @@ function Inbox({ t, lang }) {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
 
   const tickets = useMemo(() => [...(data.tickets || [])].sort(compareTickets), [data]);
+  const ticketPage = usePaged(tickets, { resetKey: filter }); // reveal 20 at a time
   const open = tickets.find((x) => x.id === openId) || null;
   const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleString(lang === "es" ? "es" : "en") : ""; };
 
@@ -185,7 +187,7 @@ function Inbox({ t, lang }) {
         <p className="text-[13px] text-muted">{t("dev.no_tickets")}</p>
       ) : (
         <div className="card overflow-hidden divide-y divide-line-soft">
-          {tickets.map((tk) => (
+          {ticketPage.visible.map((tk) => (
             <button key={tk.id} onClick={() => setOpenId(tk.id)} className="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-subtle transition">
               <span className="min-w-0 flex-1">
                 <span className="block font-medium text-[14px] truncate">{tk.subject}</span>
@@ -197,6 +199,7 @@ function Inbox({ t, lang }) {
               </span>
             </button>
           ))}
+          <ShowMore hasMore={ticketPage.hasMore} nextStep={ticketPage.nextStep} onMore={ticketPage.showMore} />
         </div>
       )}
     </div>
@@ -222,15 +225,21 @@ function Stores({ t, lang }) {
   }
   const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleDateString(lang === "es" ? "es" : "en") : ""; };
 
+  const shown = useMemo(() => {
+    if (!stores) return [];
+    const needle = q.trim().toLowerCase();
+    return needle ? stores.filter((s) => `${s.name} ${s.slug} ${s.ownerName}`.toLowerCase().includes(needle)) : stores;
+  }, [stores, q]);
+  const storePage = usePaged(shown, { resetKey: q }); // reveal 20 at a time
+
   if (stores === null) return <p className="text-muted text-sm">{t("common.loading")}</p>;
-  const shown = q.trim() ? stores.filter((s) => `${s.name} ${s.slug} ${s.ownerName}`.toLowerCase().includes(q.trim().toLowerCase())) : stores;
 
   return (
     <div className="space-y-3">
       <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("dev.store_search")} />
       {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
       <p className="text-[12px] text-muted">{t("dev.store_count", { n: stores.length })}</p>
-      {shown.map((s) => (
+      {storePage.visible.map((s) => (
         <div key={s.id} className={`card p-3.5 space-y-2 ${s.status === "suspended" ? "border-neg/40" : ""}`}>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -259,6 +268,7 @@ function Stores({ t, lang }) {
           </div>
         </div>
       ))}
+      <ShowMore hasMore={storePage.hasMore} nextStep={storePage.nextStep} onMore={storePage.showMore} />
     </div>
   );
 }

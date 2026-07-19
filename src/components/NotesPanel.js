@@ -9,6 +9,7 @@ import EmptyState, { IconNote } from "./EmptyState";
 import SearchInput from "./SearchInput";
 import Highlight from "./Highlight";
 import Field from "./Field";
+import ShowMore, { usePaged } from "./ShowMore";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -42,6 +43,8 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
   const visible = useMemo(() => (terms.length
     ? base.filter((n) => matchesTerms(`${n.text} ${n.by} ${n.locationName || ""}`, terms))
     : base), [base, terms]);
+  // Reveal notes 20 at a time; changing location/archive/search resets the view.
+  const notesPage = usePaged(visible, { resetKey: `${viewLoc}|${showArchived}|${terms.join(" ")}` });
 
   async function post() {
     const body = text.trim();
@@ -127,7 +130,8 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
               subtitle={t("notes.empty_sub")}
               action={{ label: t("notes.write_first"), onClick: focusComposer }} />
           )
-        ) : visible.map((n) => {
+        ) : (<>
+        {notesPage.visible.map((n) => {
           // `ts`, not `t` — a `t` here shadowed the translation function for
           // the whole row block, crashing the screen on the t("…") calls below.
           const ts = toDate(n.ts);
@@ -161,6 +165,8 @@ export default function NotesPanel({ notes, locations, locName, onToast }) {
             </div>
           );
         })}
+        <ShowMore hasMore={notesPage.hasMore} nextStep={notesPage.nextStep} onMore={notesPage.showMore} />
+        </>)}
       </div>
     </div>
   );
