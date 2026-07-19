@@ -238,6 +238,13 @@ export function isNewCustomer(c = {}, now = new Date()) {
   return since !== null && since <= 14;
 }
 
+// The 🎂 chip: the customer's birthday month (from the CRM profile) is the
+// current month — a nudge to wish them well or grant a bonus at the register.
+export function isBirthdayMonth(c = {}, now = new Date()) {
+  const m = Number(c.birthdayMonth);
+  return Number.isInteger(m) && m >= 1 && m <= 12 && m === now.getMonth() + 1;
+}
+
 // Phone number = the customer's identity (the Fivestars-style zero-hardware
 // enrollment). Normalize to digits; an 11-digit US number with a leading 1
 // drops it so "+1 (555) 123-4567" and "555-123-4567" are the same customer.

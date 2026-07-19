@@ -90,27 +90,10 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
-      // Scratch-off packs: received -> active -> settled | returned,
-      // forward-only and never deleted — enforced here, not just in the UI.
-      match /packs/{packId} {
-        allow read: if member();
-        allow create: if mgr() && liveActive() && request.resource.data.status in ['received', 'active'];
-        allow update: if mgr() && liveActive()
-          && request.resource.data.status in ['received', 'active', 'settled', 'returned']
-          && (
-            // forward-only transitions
-            (resource.data.status == 'received' && request.resource.data.status == 'active')
-            || (resource.data.status == 'active'
-                && request.resource.data.status in ['settled', 'returned'])
-            // metadata edit (status unchanged) — but a settled/returned pack is
-            // terminal: its settle snapshot (soldAtSettle/shortAtSettle/price…)
-            // is frozen HERE, in rules, not just by the absence of a UI control.
-            || (resource.data.status == request.resource.data.status
-                && (!(resource.data.status in ['settled', 'returned'])
-                    || request.resource.data.diff(resource.data).affectedKeys().size() == 0))
-          );
-        allow delete: if false;
-      }
+      // /packs — RETIRED (PR #125): the pack-lifecycle state machine is gone;
+      // scratch theft-protection lives in the signed shift counts (entries) and
+      // scratch-audit.js. No match block = default deny, so the old collection
+      // is fully closed to clients.
 
       match /users/{userId} {
         allow read: if member();       // names/roles power the admin panel

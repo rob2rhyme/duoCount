@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak,
   effectivePercent, pointsForSale, canRedeem, canRedeemTier, pointDollarValue,
-  sanitizeProfile, daysSince, isNewCustomer, normalizePhone, maskPhone,
+  sanitizeProfile, daysSince, isNewCustomer, isBirthdayMonth, normalizePhone, maskPhone,
 } from "../src/lib/rewards.js";
 
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
@@ -282,4 +282,13 @@ test("daysSince + isNewCustomer: visited-ago line and the NEW badge", () => {
   assert.equal(isNewCustomer({ createdAt: "2026-07-10T00:00:00Z" }, now), true);   // 9 days
   assert.equal(isNewCustomer({ createdAt: "2026-06-01T00:00:00Z" }, now), false);  // 48 days
   assert.equal(isNewCustomer({}, now), false);
+});
+
+test("isBirthdayMonth: matches the CRM birthday month against now", () => {
+  const july = new Date("2026-07-19T12:00:00");
+  assert.equal(isBirthdayMonth({ birthdayMonth: 7 }, july), true);
+  assert.equal(isBirthdayMonth({ birthdayMonth: 4 }, july), false);
+  assert.equal(isBirthdayMonth({ birthdayMonth: null }, july), false);
+  assert.equal(isBirthdayMonth({}, july), false);
+  assert.equal(isBirthdayMonth({ birthdayMonth: "7" }, july), true); // stored strings tolerated
 });

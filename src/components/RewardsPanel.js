@@ -2,7 +2,7 @@
 import { useMemo, useState, useId } from "react";
 import { apiRewards } from "@/lib/data";
 import { money } from "@/lib/utils";
-import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, canRedeem, canRedeemTier, daysSince, isNewCustomer, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, canRedeem, canRedeemTier, daysSince, isNewCustomer, isBirthdayMonth, normalizePhone, maskPhone } from "@/lib/rewards";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
@@ -299,6 +299,9 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                           🔥{customer.currentStreak}
                         </span>
                       )}
+                      {isBirthdayMonth(customer) && (
+                        <span className="flex-shrink-0 text-[12px]" title={t("rw.bday_chip")} aria-label={t("rw.bday_chip")}>🎂</span>
+                      )}
                     </div>
                     <div className="text-[12px] text-muted font-mono">{isOwner ? fmtPhone(phone) : customer.phone}</div>
                     {customer.note ? (
@@ -559,6 +562,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                           <span className="font-medium text-[14px] truncate">{c.name || t("rw.customer_fallback")}</span>
                           {vip && <span className="flex-shrink-0 text-[9px] uppercase tracking-wide font-bold text-brass border border-brass/50 rounded px-1 py-px">{vip}</span>}
                           {isNewCustomer(c) && <span className="flex-shrink-0 text-[9px] uppercase tracking-wide font-bold text-pos border border-pos/50 rounded px-1 py-px">{t("rw.badge_new")}</span>}
+                          {isBirthdayMonth(c) && <span className="flex-shrink-0 text-[11px]" title={t("rw.bday_chip")} aria-label={t("rw.bday_chip")}>🎂</span>}
                         </span>
                         <span className="block text-[12px] text-muted font-mono">{isOwner ? fmtPhone(c.phone) : maskPhone(c.phone)}</span>
                         <span className="block text-[11px] text-muted">{visitLabel(c)}</span>
