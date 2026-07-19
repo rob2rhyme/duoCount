@@ -16,6 +16,7 @@ import { availableActions, applySwap, swapStatusOf, SWAP_ACTIONS } from "@/lib/s
 import { useLang } from "./LangProvider";
 import EmptyState, { IconCalendar } from "./EmptyState";
 import Field from "./Field";
+import ShowMore, { usePaged } from "./ShowMore";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const dayLabel = (d) => {
@@ -57,6 +58,21 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
   useEffect(() => { if (!isManager) return watchOpenShifts(vendor.id, setOpenShifts); }, [vendor.id, isManager]);
 
   const actor = { userId: profile.id, name: profile.name, isManager };
+
+  // Employee-view lists are derived here (not inside the !isManager branch)
+  // so their pagination hooks below always run — Rules of Hooks. They're empty
+  // for managers, who never populate the swap board / open-shift watchers.
+  const today = todayStr();
+  const myUpcoming = useMemo(() => (isManager ? [] : shifts.filter((s) => s.date >= today)),
+    [isManager, shifts, today]);
+  const openToClaim = useMemo(() => (isManager ? [] : openShifts.filter((s) => s.date >= today)),
+    [isManager, openShifts, today]);
+  const pickups = useMemo(() => (isManager ? [] : board.filter((s) => s.userId !== profile.id && swapStatusOf(s) === "offered")),
+    [isManager, board, profile.id]);
+  const upcomingPage = usePaged(myUpcoming);
+  const openPage = usePaged(openToClaim);
+  const pickupsPage = usePaged(pickups);
+
   async function doSwap(shift, action) {
     const patch = applySwap(shift, action, actor);
     if (!patch) return onToast?.(t("sched.err_swap_unavailable"));
@@ -205,19 +221,17 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
 
   /* ---- employee view: my upcoming shifts + availability ---- */
   if (!isManager) {
-    const upcoming = shifts.filter((s) => s.date >= todayStr()).slice(0, 30);
     const myOff = avail.filter((u) => u.date >= todayStr());
-    const pickups = board.filter((s) => s.userId !== profile.id && swapStatusOf(s) === "offered");
     const myClaims = board.filter((s) => s.claimedById === profile.id);
-    const openToClaim = openShifts.filter((s) => s.date >= todayStr());
     return (
       <div className="space-y-4">
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">{t("sched.upcoming_title")}</h3></div>
-          {upcoming.length === 0 ? (
+          {myUpcoming.length === 0 ? (
             <EmptyState icon={<IconCalendar />} title={t("sched.empty_upcoming_title")}
               subtitle={t("sched.empty_upcoming_sub")} />
-          ) : upcoming.map((s) => (
+          ) : (<>
+            {upcomingPage.visible.map((s) => (
             <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -228,7 +242,9 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
               </div>
               {swapButtons(s)}
             </div>
-          ))}
+            ))}
+            <ShowMore hasMore={upcomingPage.hasMore} nextStep={upcomingPage.nextStep} onMore={upcomingPage.showMore} />
+          </>)}
         </div>
 
         <div className="card overflow-hidden">
@@ -238,7 +254,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
               subtitle={t("sched.empty_grabs_sub")} />
           ) : (
             <>
-              {openToClaim.map((s) => (
+              {openPage.visible.map((s) => (
                 <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -256,6 +272,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                   </div>
                 </div>
               ))}
+              <ShowMore hasMore={openPage.hasMore} nextStep={openPage.nextStep} onMore={openPage.showMore} />
               {myClaims.map((s) => (
                 <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
                   <div className="flex items-center justify-between gap-3">
@@ -268,7 +285,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                   {swapButtons(s)}
                 </div>
               ))}
-              {pickups.map((s) => (
+              {pickupsPage.visible.map((s) => (
                 <div key={s.id} className="px-4 py-3 border-b border-line last:border-0">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -280,6 +297,7 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
                   {swapButtons(s)}
                 </div>
               ))}
+              <ShowMore hasMore={pickupsPage.hasMore} nextStep={pickupsPage.nextStep} onMore={pickupsPage.showMore} />
             </>
           )}
         </div>
