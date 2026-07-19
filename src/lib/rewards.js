@@ -17,6 +17,11 @@ export const REWARDS = {
   redeemValue: 5,    // dollars off per redemption (the base/legacy reward)
   streakHours: 48,   // a next-day visit within this window extends the streak
   tiers: [],         // optional named reward tiers; empty → the single reward above
+  // Referral bonus (loyalty-plan-review.md, port slice 4): when a new
+  // enrollment names an enrolled customer as their referrer, both sides get
+  // points as signed "referral" ledger lines. Owner-tunable; either value at
+  // 0 zeroes that side, both at 0 turns the mechanic off entirely.
+  referral: { referrer: 50, friend: 25 },
 };
 
 // At most this many named tiers — a c-store reward menu, not a catalog.
@@ -112,6 +117,12 @@ export function resolveRewards(raw = {}) {
   out.tiers = rawTiers.map(resolveTier).filter(Boolean).sort((a, b) => a.points - b.points);
   const rawVip = Array.isArray(raw?.vip) ? raw.vip.slice(0, MAX_VIP_TIERS) : [];
   out.vip = rawVip.map(resolveVipTier).filter(Boolean).sort((a, b) => a.threshold - b.threshold);
+  const refR = clampNum(raw?.referral?.referrer, 0, 10000, true);
+  const refF = clampNum(raw?.referral?.friend, 0, 10000, true);
+  out.referral = {
+    referrer: Number.isFinite(refR) ? refR : REWARDS.referral.referrer,
+    friend: Number.isFinite(refF) ? refF : REWARDS.referral.friend,
+  };
   return out;
 }
 

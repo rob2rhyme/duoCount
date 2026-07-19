@@ -40,7 +40,7 @@ const publicCustomer = (id, c, rules) => ({
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { action, phone: rawPhone, name, saleDollars, points, note, tierId,
+    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy,
       newName, newPhone, newNote, newEmail, newBirthdayMonth, newBirthdayDay, newAddress } = await req.json();
     if (!["lookup", "enroll", "earn", "redeem", "adjust", "update"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
@@ -69,13 +69,62 @@ export async function POST(req) {
     if (action === "enroll") {
       if (existing) // idempotent — typing an enrolled number just pulls them up
         return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, existing.data(), rules) });
+
+      // Referral (optional): the new customer names who sent them. Both sides
+      // get points as signed "referral" ledger lines — a kind the outpaced-
+      // sales audit ignores (it reconciles EARNS against sales), so a referral
+      // drive never reads as invented points. Bad referrer phone → the
+      // enrollment still succeeds; the response says why no bonus landed.
+      const refPhone = normalizePhone(referredBy);
+      const refWanted = refPhone && (rules.referral.referrer > 0 || rules.referral.friend > 0);
+      let referrerDoc = null;
+      let referral = null;
+      if (refWanted) {
+        if (refPhone === phone) referral = { error: "self_referral" };
+        else {
+          const refSnap = await customers.where("phone", "==", refPhone).limit(1).get();
+          if (refSnap.empty) referral = { error: "referrer_not_found" };
+          else referrerDoc = refSnap.docs[0];
+        }
+      }
+
+      const friendPts = referrerDoc ? rules.referral.friend : 0;
       const doc = {
         phone, name: String(name ?? "").trim().slice(0, 80) || null,
-        pointsBalance: 0, lifetimePoints: 0, createdAt: new Date(), lastEarnAt: null,
+        pointsBalance: friendPts, lifetimePoints: friendPts, createdAt: new Date(), lastEarnAt: null,
         by: claims.name || "", byId: claims.userId,
+        ...(referrerDoc ? { referredBy: referrerDoc.id } : {}),
       };
       const ref = await customers.add(doc);
-      return NextResponse.json({ ok: true, rules, customer: publicCustomer(ref.id, doc, rules), enrolled: true });
+
+      if (referrerDoc) {
+        const signed = (pts, extra) => ({
+          kind: "referral", points: pts,
+          by: claims.name || "", byId: claims.userId, byRole: claims.role || "employee",
+          ts: new Date(), ...extra,
+        });
+        if (friendPts > 0)
+          await events.add(signed(friendPts, { customerId: ref.id, referredBy: referrerDoc.id }));
+        if (rules.referral.referrer > 0) {
+          // Credit the referrer atomically against their LIVE balance.
+          await adminDb.runTransaction(async (tx) => {
+            const s = await tx.get(referrerDoc.ref);
+            const c = s.data() || {};
+            tx.set(events.doc(), signed(rules.referral.referrer, { customerId: referrerDoc.id, referredCustomerId: ref.id }));
+            tx.update(referrerDoc.ref, {
+              pointsBalance: (c.pointsBalance || 0) + rules.referral.referrer,
+              // Referral points are earned points for status purposes — but a
+              // referral is not a VISIT, so lastEarnAt/streak stay untouched.
+              lifetimePoints: lifetimeOf(c) + rules.referral.referrer,
+            });
+          });
+        }
+        referral = {
+          ok: true, referrerName: referrerDoc.data().name || maskPhone(referrerDoc.data().phone),
+          referrerPts: rules.referral.referrer, friendPts,
+        };
+      }
+      return NextResponse.json({ ok: true, rules, customer: publicCustomer(ref.id, doc, rules), enrolled: true, referral });
     }
 
     // earn / redeem / adjust / update need an enrolled customer.
