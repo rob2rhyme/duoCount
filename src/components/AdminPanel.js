@@ -120,6 +120,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     setSettings((s) => ({ ...s, stockAlerts: { ...s.stockAlerts, [k]: e.target.value } }));
   const setReward = (k) => (e) =>
     setSettings((s) => ({ ...s, rewards: { ...s.rewards, [k]: k === "enabled" ? e.target.checked : e.target.value } }));
+  const setReferral = (k) => (e) =>
+    setSettings((s) => ({
+      ...s,
+      rewards: { ...s.rewards, referral: { ...REWARDS.referral, ...(s.rewards.referral || {}), [k]: e.target.value } },
+    }));
   // Named reward tiers (optional). Each has a stable id so the ledger can record
   // which reward was redeemed; blank leaves the single base reward in effect.
   const rewardTierRows = settings.rewards.tiers || [];
@@ -698,6 +703,25 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </p>
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
 
+            {/* Referral bonus: both sides of a "who sent you?" enrollment get
+                points as signed referral ledger lines. 0 + 0 turns it off. */}
+            <div className="border-t border-line pt-3 space-y-2.5">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("admin.rw_ref_title")}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label={t("admin.rw_ref_referrer")}>
+                  <input type="number" inputMode="numeric" min="0" max="10000" step="1" className="input"
+                    value={settings.rewards.referral?.referrer ?? REWARDS.referral.referrer}
+                    disabled={!isOwner} onChange={setReferral("referrer")} />
+                </Field>
+                <Field label={t("admin.rw_ref_friend")}>
+                  <input type="number" inputMode="numeric" min="0" max="10000" step="1" className="input"
+                    value={settings.rewards.referral?.friend ?? REWARDS.referral.friend}
+                    disabled={!isOwner} onChange={setReferral("friend")} />
+                </Field>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">{t("admin.rw_ref_hint")}</p>
+            </div>
+
             {/* Optional named reward tiers — a menu of rewards at different point
                 levels. Empty leaves the single base reward above in effect. */}
             <div className="border-t border-line pt-3 space-y-2.5">
@@ -862,7 +886,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <input className="input" value={engageQ} onChange={(e) => setEngageQ(e.target.value)}
             placeholder={t("admin.engage_search_ph")} aria-label={t("admin.engage_search_ph")} />
           <div className="flex gap-1.5 overflow-x-auto">
-            {[["all", "admin.engage_f_all"], ["earn", "admin.engage_f_earn"], ["redeem", "admin.engage_f_redeem"], ["adjust", "admin.engage_f_adjust"]].map(([k, key]) => (
+            {[["all", "admin.engage_f_all"], ["earn", "admin.engage_f_earn"], ["redeem", "admin.engage_f_redeem"], ["adjust", "admin.engage_f_adjust"], ["referral", "admin.engage_f_referral"]].map(([k, key]) => (
               <button key={k} type="button" onClick={() => setEngageKind(k)}
                 className={`flex-shrink-0 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border transition ${engageKind === k ? "border-brass text-fg bg-brass/10" : "border-line bg-subtle text-muted hover:text-fg"}`}>
                 {t(key)}
@@ -896,7 +920,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                     ? `${t("rw.h_earn")}${e.saleDollars ? ` · ${money(e.saleDollars)}` : ""}${Number(e.multiplier) > 1 ? ` · ×${e.multiplier}` : ""}`
                     : isRedeem
                       ? t("rw.h_redeem", { reward: e.rewardName || money(Number(e.value) || 0) })
-                      : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                      : e.kind === "referral"
+                        ? t("rw.h_referral")
+                        : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
                   return (
                     <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
                       <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">

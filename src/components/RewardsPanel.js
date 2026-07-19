@@ -53,6 +53,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
   const [customer, setCustomer] = useState(null); // selected/enrolled customer (display shape)
   const [enrollPhone, setEnrollPhone] = useState(null); // set while adding a new number
   const [name, setName] = useState("");
+  const [refBy, setRefBy] = useState(""); // optional referrer phone at enrollment
   const [sale, setSale] = useState("");
   const [busy, setBusy] = useState("");           // "" | enroll | earn | redeem | update | adjust
   const [error, setError] = useState("");
@@ -125,7 +126,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
     setCardTab("register"); setProf(null); setAdjPts(""); setAdjNote("");
   }
   function startEnroll(p) {
-    setEnrollPhone(p); setPhone(p); setName(""); setError("");
+    setEnrollPhone(p); setPhone(p); setName(""); setRefBy(""); setError("");
   }
   function back() {
     setCustomer(null); setEnrollPhone(null); setSale(""); setError("");
@@ -178,9 +179,13 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
     });
 
   const enroll = () =>
-    run("enroll", { action: "enroll", phone, name }, (r) => {
-      setCustomer(r.customer); setEnrollPhone(null); setQuery("");
-      if (r.enrolled) onToast?.(t("rw.toast_enrolled"));
+    run("enroll", { action: "enroll", phone, name, referredBy: refBy }, (r) => {
+      setCustomer(r.customer); setEnrollPhone(null); setQuery(""); setRefBy("");
+      if (r.enrolled) {
+        if (r.referral?.ok) onToast?.(t("rw.toast_referral", { who: r.referral.referrerName, rp: r.referral.referrerPts, fp: r.referral.friendPts }));
+        else if (r.referral?.error) onToast?.(t(`rw.toast_ref_${r.referral.error}`));
+        else onToast?.(t("rw.toast_enrolled"));
+      }
     });
   const earn = () =>
     run("earn", { action: "earn", phone, saleDollars: Number(sale) }, (r) => {
@@ -276,6 +281,15 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                 <Field label={t("rw.name_label")}>
                   <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("rw.name_ph")} />
                 </Field>
+                {(rules.referral.referrer > 0 || rules.referral.friend > 0) && (
+                  <div>
+                    <Field label={t("rw.ref_label")}>
+                      <input className="input font-mono" inputMode="tel" value={refBy}
+                        onChange={(e) => setRefBy(e.target.value)} placeholder={t("rw.ref_ph")} />
+                    </Field>
+                    <p className="text-xs text-muted mt-1 leading-relaxed">{t("rw.ref_hint", { rp: rules.referral.referrer, fp: rules.referral.friend })}</p>
+                  </div>
+                )}
                 {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
                 <button className="btn-primary w-full" disabled={!!busy} onClick={enroll}>
                   {busy === "enroll" ? t("rw.enrolling") : t("rw.enroll")}
@@ -480,7 +494,9 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                               ? `${t("rw.h_earn")}${e.saleDollars ? ` · ${money(e.saleDollars)}` : ""}${Number(e.multiplier) > 1 ? ` · ×${e.multiplier}` : ""}`
                               : isRedeem
                                 ? t("rw.h_redeem", { reward: e.rewardName || money(Number(e.value) || 0) })
-                                : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                                : e.kind === "referral"
+                                  ? t("rw.h_referral")
+                                  : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
                             return (
                               <div key={e.id} className="px-3 py-2.5 flex items-start gap-3">
                                 <div className="flex-shrink-0 w-[4.4rem] text-right text-[11px] text-muted font-mono leading-snug">

@@ -12,6 +12,7 @@ test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback",
     enabled: false, earnPerDollar: REWARDS.earnPerDollar,
     redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue,
     streakHours: REWARDS.streakHours, tiers: [], vip: [],
+    referral: { ...REWARDS.referral },
   });
   assert.equal(resolveRewards({}).enabled, false);
   assert.equal(resolveRewards({ enabled: true }).enabled, true);
@@ -291,4 +292,15 @@ test("isBirthdayMonth: matches the CRM birthday month against now", () => {
   assert.equal(isBirthdayMonth({ birthdayMonth: null }, july), false);
   assert.equal(isBirthdayMonth({}, july), false);
   assert.equal(isBirthdayMonth({ birthdayMonth: "7" }, july), true); // stored strings tolerated
+});
+
+test("resolveRewards referral: whole-point clamps, zero allowed, junk falls back", () => {
+  assert.deepEqual(resolveRewards({ referral: { referrer: 100, friend: 0 } }).referral,
+    { referrer: 100, friend: 0 });                       // 0 = that side off
+  assert.equal(resolveRewards({ referral: { referrer: 99999 } }).referral.referrer, 10000); // clamped
+  assert.equal(resolveRewards({ referral: { referrer: -5 } }).referral.referrer, 0);
+  assert.equal(resolveRewards({ referral: { referrer: 50.7 } }).referral.referrer, 51);     // whole
+  assert.deepEqual(resolveRewards({ referral: { referrer: "junk" } }).referral,
+    { referrer: REWARDS.referral.referrer, friend: REWARDS.referral.friend });
+  assert.deepEqual(resolveRewards({}).referral, { ...REWARDS.referral });
 });
