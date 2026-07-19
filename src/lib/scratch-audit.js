@@ -29,9 +29,11 @@ const timeOf = (e) => toDate(e.ts)?.getTime() ?? 0;
  *   gaps:    one row per pack with ≥1 discontinuity, worst dollars first:
  *            { key, locationId, locationName, pack, game, price, totalMissing,
  *              missingDollars, events: [{ missing, prevEnd, nextStart,
- *              prevBy, prevTs, nextBy, nextTs }] }
+ *              prevBy, prevTs, nextBy, nextTs, selloutShort? }] }
  *            `missing` > 0 = tickets unaccounted; < 0 = the next count started
  *            BELOW the previous end (a re-count/rollback worth a look too).
+ *            `selloutShort` marks a FINALED book that closed below its pack
+ *            size (perPack) — the sell-out skim, prevEnd=closeEnd, nextStart=size.
  *   missing: packs with history but no count on the location's latest counting
  *            day(s): { key, locationId, locationName, pack, game, lastDate,
  *            lastBy, lastEnd, missedDays } — missedDays = how many counting
@@ -80,6 +82,25 @@ export function buildPackAudit(entries = [], { days = 14, now = new Date() } = {
         nextBy: next.by || "—", nextTs: toDate(next.ts) || null,
       });
     }
+
+    // A FINALED book that closed BELOW its pack size sold out short: those
+    // tickets left the drawer without being counted — the classic "mark it
+    // sold out and pocket the rest" skim. buildPackFlow (the on-demand printed
+    // report) already flags this; fold the SAME signal into the live audit so
+    // the pack-gap alert and the Dashboard card catch it too, instead of it
+    // only surfacing when a manager happens to run the report over that range.
+    if (last.soldOut === true) {
+      const size = Number(last.perPack) > 0 ? Number(last.perPack) : null;
+      const closeEnd = Number(last.endno);
+      if (size && Number.isFinite(closeEnd) && closeEnd < size) {
+        events.push({
+          missing: size - closeEnd, prevEnd: closeEnd, nextStart: size,
+          prevBy: last.by || "—", prevTs: toDate(last.ts) || null,
+          nextBy: "—", nextTs: toDate(last.ts) || null, selloutShort: true,
+        });
+      }
+    }
+
     if (events.length) {
       const totalMissing = events.reduce((s, ev) => s + (ev.missing > 0 ? ev.missing : 0), 0);
       const price = Number(last.price) || 0;

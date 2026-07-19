@@ -128,3 +128,41 @@ test("pack audit: a FINALED (sold-out) book is retired — never 'missing'", asy
   // without it). FINALED → retired, nothing to vouch for.
   assert.equal(missing.some((m) => m.pack === "1234-567890"), false);
 });
+
+test("sold-out-short: a FINALED book closed below its pack size raises a gap the live audit can see", () => {
+  // Book of 100 tickets marked sold out at ticket 60 — 40 tickets left the
+  // drawer unaccounted (the classic sell-out skim). Previously invisible to the
+  // pack audit; only the on-demand printed report caught it.
+  const entries = [
+    count({ pack: "SKM-1", price: 10, perPack: 100, startno: 0, endno: 60, soldOut: true, by: "Alex",
+      ts: daysAgo(1), date: dstr(daysAgo(1)) }),
+  ];
+  const a = buildPackAudit(entries, { now: NOW });
+  assert.equal(a.gaps.length, 1);
+  const g = a.gaps[0];
+  assert.equal(g.totalMissing, 40);
+  assert.equal(g.missingDollars, 400);      // 40 × $10
+  assert.equal(g.events.length, 1);
+  assert.equal(g.events[0].selloutShort, true);
+  assert.equal(g.events[0].prevEnd, 60);
+  assert.equal(g.events[0].nextStart, 100);
+  assert.equal(g.events[0].prevBy, "Alex");
+  // Still retired from the missing-log (the book no longer exists).
+  assert.equal(a.missing.some((m) => m.pack === "SKM-1"), false);
+});
+
+test("sold-out-short: a clean sell-out (closed AT pack size) raises nothing", () => {
+  const entries = [
+    count({ pack: "OK-1", perPack: 50, startno: 0, endno: 50, soldOut: true, ts: daysAgo(1), date: dstr(daysAgo(1)) }),
+  ];
+  const a = buildPackAudit(entries, { now: NOW });
+  assert.equal(a.gaps.length, 0);
+});
+
+test("sold-out-short: no perPack recorded → no sellout gap (can't compute the size)", () => {
+  const entries = [
+    count({ pack: "NP-1", startno: 0, endno: 30, soldOut: true, ts: daysAgo(1), date: dstr(daysAgo(1)) }),
+  ];
+  const a = buildPackAudit(entries, { now: NOW });
+  assert.equal(a.gaps.length, 0);
+});
