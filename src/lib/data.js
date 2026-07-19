@@ -487,6 +487,33 @@ export async function deleteUnavailable(vendorId, id) {
   await deleteDoc(doc(db, "vendors", vendorId, "availability", id));
 }
 
+/* ---------- staff time-off (self-authored; manager approves/denies) ---------- */
+// Employees file requests + log future events; managers see everyone's and
+// decide. Self view filters by userId (needs the userId+startDate index).
+export function watchTimeOff(vendorId, selfId, cb) {
+  const base = vcol(vendorId, "timeOff");
+  const q = selfId
+    ? query(base, where("userId", "==", selfId), orderBy("startDate", "asc"))
+    : query(base, orderBy("startDate", "asc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addTimeOff(vendorId, entry) {
+  await addDoc(vcol(vendorId, "timeOff"), { ...entry, createdAt: new Date(), ts: new Date() });
+}
+// Manager decision — the rules allow only the decision fields, signed by them.
+export async function decideTimeOff(vendorId, id, { status, decidedBy, decidedById, decisionNote }) {
+  await updateDoc(doc(db, "vendors", vendorId, "timeOff", id), {
+    status, decidedBy, decidedById, decidedAt: new Date(), decisionNote: decisionNote || null,
+  });
+}
+// Requester cancels their own still-open request (status → canceled).
+export async function cancelTimeOff(vendorId, id) {
+  await updateDoc(doc(db, "vendors", vendorId, "timeOff", id), { status: "canceled" });
+}
+export async function deleteTimeOff(vendorId, id) {
+  await deleteDoc(doc(db, "vendors", vendorId, "timeOff", id));
+}
+
 /* ---------- week templates (manager-managed roster patterns) ---------- */
 export function watchTemplates(vendorId, cb) {
   return onSnapshot(query(vcol(vendorId, "templates"), orderBy("ts", "desc")),

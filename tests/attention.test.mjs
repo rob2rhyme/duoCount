@@ -33,17 +33,24 @@ test("incidents counts only open write-ups", () => {
   assert.equal(attentionCounts({ incidents }).incidents, 2);
 });
 
-test("time counts only claimed swaps (awaiting manager approval)", () => {
+test("time counts claimed swaps AND pending time-off (both await the manager)", () => {
   const swaps = [
     { swapStatus: "claimed" },
     { swapStatus: "offered" }, // waiting on a coworker, not the manager
     { swapStatus: "none" },
     { swapStatus: "claimed" },
   ];
+  const timeOff = [
+    { status: "pending" }, { status: "pending" },
+    { status: "planned" },   // a future heads-up — no decision awaited
+    { status: "approved" },
+  ];
   assert.equal(attentionCounts({ swaps }).time, 2);
+  assert.equal(attentionCounts({ swaps, timeOff }).time, 4); // 2 claimed + 2 pending
+  assert.equal(attentionCounts({ timeOff }).time, 2);
 });
 
 test("tolerates null/malformed rows without throwing", () => {
-  const r = attentionCounts({ entries: [null, {}], incidents: [null], swaps: [null] });
+  const r = attentionCounts({ entries: [null, {}], incidents: [null], swaps: [null], timeOff: [null] });
   assert.deepEqual(r, { log: 0, incidents: 0, time: 0 });
 });
