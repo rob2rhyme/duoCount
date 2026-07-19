@@ -151,6 +151,21 @@ export function watchScratchCatalog(vendorId, cb) {
 // the event and moves the balance transactionally); the client only asks.
 // Backroom quick move (+ restock / − pull): the trusted route updates the
 // item's live quantity and appends the signed movement line atomically.
+// Support desk — the owner's own tickets (rules allow an owner to read only
+// their store's tickets). Top-level collection, not tenant-nested, so the
+// query filters by vendorId; writes go through /api/support (Admin SDK).
+export function watchSupportTickets(vendorId, cb) {
+  const q = query(collection(db, "supportTickets"), where("vendorId", "==", vendorId), orderBy("lastActivityAt", "desc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function apiSupport(payload) {
+  return fetchJson("/api/support", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function apiStockMove(payload) {
   return fetchJson("/api/stock-move", {
     method: "POST",
