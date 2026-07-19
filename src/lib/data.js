@@ -149,6 +149,21 @@ export function watchScratchCatalog(vendorId, cb) {
 }
 // Rewards register flow — every ledger write happens server-side (route signs
 // the event and moves the balance transactionally); the client only asks.
+// Backroom quick move (+ restock / − pull): the trusted route updates the
+// item's live quantity and appends the signed movement line atomically.
+export async function apiStockMove(payload) {
+  return fetchJson("/api/stock-move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
+  });
+}
+// Live movement log for the Backroom history + flow charts (member-readable).
+export function watchStockMoves(vendorId, since, cb) {
+  const q = query(vcol(vendorId, "stockMoves"), where("ts", ">=", since), orderBy("ts", "desc"));
+  return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
 export async function apiRewards(payload) {
   return fetchJson("/api/rewards", {
     method: "POST",

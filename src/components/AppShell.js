@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves } from "@/lib/data";
+import { buildStockAlerts } from "@/lib/stock-alerts";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
 import InventoryForm from "./InventoryForm";
+import BackroomStock from "./BackroomStock";
 import LogList from "./LogList";
 import RewardsPanel from "./RewardsPanel";
 import NotesPanel from "./NotesPanel";
@@ -110,6 +112,13 @@ export default function AppShell() {
     const since = new Date(Date.now() - 90 * 24 * 3600 * 1000);
     return watchRewardEvents(vendor.id, since, setRewardEvents);
   }, [vendor.id, isManager, rewardsOn]);
+  // Backroom movement log — every member (the Backroom history + flow charts
+  // read it; pulls themselves go through the trusted route). 30-day window.
+  const [stockMoves, setStockMoves] = useState([]);
+  useEffect(() => {
+    const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+    return watchStockMoves(vendor.id, since, setStockMoves);
+  }, [vendor.id]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
   const canPickLocation = isManager || !perLocation;
@@ -148,7 +157,18 @@ export default function AppShell() {
     () => (isManager ? attentionCounts({ entries, incidents, swaps }) : null),
     [isManager, entries, incidents, swaps]
   );
-  const tabAttention = att ? { log: att.log, incidents: att.incidents, time: att.time } : {};
+  // Stock notifications for the owner/managers: items past the low-stock or
+  // expiry bars badge the Backroom tab, so a live pull that crosses the line
+  // is impossible to miss.
+  const stockAttention = useMemo(() => {
+    if (!isManager) return 0;
+    const a = buildStockAlerts(items, { rules: vendor?.stockAlerts });
+    return a.lowStock.length + a.expiring.length;
+  }, [isManager, items, vendor?.stockAlerts]);
+  const tabAttention = {
+    ...(att ? { log: att.log, incidents: att.incidents, time: att.time } : {}),
+    ...(stockAttention > 0 ? { inventory: stockAttention } : {}),
+  };
 
   // The mobile bottom nav lives at the foot of the viewport; flag the body so
   // the app-wide scroll-to-top FAB lifts clear of it on small screens.
@@ -181,7 +201,9 @@ export default function AppShell() {
   }, [isManager, isOwner, tab, rewardsVisible]);
 
   return (
-    <div className="min-h-screen">
+    // flex column + flex-1 main = the footer sits at the viewport bottom on
+    // short pages and below the content on long ones — never mid-screen.
+    <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-20 bg-ink text-paper px-4 py-3 pt-safe px-safe flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <Logo src={vendor.logoUrl || "/logo.png"} alt={`${vendor.name} logo`} size={32} />
@@ -207,7 +229,7 @@ export default function AppShell() {
       {/* No mobile pb-28 here: the footer below already carries the bottom-nav
           clearance, so padding main too doubled up into a dead band of empty
           space between the last card and the footer. */}
-      <main className="max-w-3xl mx-auto px-4 py-4">
+      <main className="max-w-3xl mx-auto px-4 py-4 w-full flex-1">
         <div className="hidden sm:flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4 shadow-sm overflow-x-auto">
           {tabs.map((tb) => (
             <button key={tb.id} onClick={() => setTab(tb.id)}
@@ -271,7 +293,10 @@ export default function AppShell() {
             <EmptyState icon={<IconBox />} title={t("empty.no_items_title")} action={adminAction}
               subtitle={isManager ? t("empty.inv_items_mgr") : t("empty.inv_items_emp")} />
           ) : (
-            <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
+            <div className="space-y-4">
+              <BackroomStock onToast={ping} items={items} locations={activeLocations} moves={stockMoves} locName={locName} />
+              <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
+            </div>
           )
         )}
         {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} customers={customers} rewardEvents={rewardEvents} />}
