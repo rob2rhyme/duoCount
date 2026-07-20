@@ -138,3 +138,15 @@ export function resolveCatalogGame(raw, catalog = SCRATCH_CATALOG) {
   }
   return null;
 }
+
+// Look a game up by its bare game NUMBER (what a clerk reads off the ticket and
+// types into the Game # field), as opposed to resolveCatalogGame's barcode
+// parsing. Leading zeros are tolerated ("01792" -> "1792"). Returns null for an
+// unknown number rather than guessing. Same convenience-only contract: it fills
+// the name + price, never the audited ticket numbers.
+export function lookupGameNumber(gameNo, catalog = SCRATCH_CATALOG) {
+  const s = String(gameNo ?? "").replace(/\D/g, "");
+  if (!s) return null;
+  const key = String(Number(s));
+  return catalog[key] ? { game: key, ...catalog[key] } : null;
+}

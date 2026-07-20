@@ -89,3 +89,30 @@ export function packGameKey(pack) {
   if (/^\d+$/.test(p) && p.length > GAME_DIGITS) return p.slice(0, GAME_DIGITS);
   return "";
 }
+
+/**
+ * Build the canonical pack id from a PA ticket's two printed identifiers — the
+ * game number (e.g. 1792) and the pack/book number (e.g. 0011361). A scan
+ * concatenates them (game + book + ticket), so hand-typed entry must produce the
+ * SAME id — otherwise the same physical pack scanned one shift and typed the
+ * next splits into two, and the shift-boundary theft audit silently misses the
+ * gap across that boundary. This is the one helper both paths agree through.
+ *
+ * Blank game # → the book # exactly as typed (the original behavior, so a store
+ * that never fills a game # is unchanged). If the book field already leads with
+ * the game # (the clerk typed the whole thing, or pasted a scan) it is NOT
+ * double-prefixed. Non-numeric ids are left untouched.
+ *
+ * @param {string} gameNo  the 4-digit game number (leading zeros tolerated)
+ * @param {string} bookNo  the pack / book number
+ * @returns {string} the canonical pack id used for saving + audit chaining
+ */
+export function packIdFromParts(gameNo, bookNo) {
+  const book = String(bookNo ?? "").trim();
+  const g = String(gameNo ?? "").replace(/\D/g, "");
+  if (!g) return book;               // no game # → book as typed
+  if (!book) return "";
+  const b = book.replace(/\D/g, "");
+  if (!b) return book;               // non-numeric book → leave as-is
+  return b.startsWith(g) ? b : g + b; // don't double-prefix an already-full id
+}

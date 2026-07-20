@@ -2,7 +2,7 @@
 // Run: npm run test:scratch-catalog
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SCRATCH_CATALOG, CATALOG_META, resolveCatalogGame } from "../src/lib/scratch-catalog.js";
+import { SCRATCH_CATALOG, CATALOG_META, resolveCatalogGame, lookupGameNumber } from "../src/lib/scratch-catalog.js";
 
 test("catalog is a non-trivial keyed table of well-formed entries", () => {
   const keys = Object.keys(SCRATCH_CATALOG);
@@ -58,4 +58,20 @@ test("accepts an injected catalog (for a different state / uploaded listing)", (
   assert.equal(hit.name, "Test Game");
   // the real PA catalog is not consulted when a custom one is passed
   assert.equal(resolveCatalogGame("1801123456789", custom), null);
+});
+
+test("lookupGameNumber: fills name + price from a bare game number typed off the ticket", () => {
+  // The user's example: Game # 1792 → Wild Side, $5, 60-ticket pack.
+  const hit = lookupGameNumber("1792");
+  assert.equal(hit.game, "1792");
+  assert.equal(hit.name, "Wild Side");
+  assert.equal(hit.price, 5);
+  assert.equal(hit.perPack, 60);
+});
+
+test("lookupGameNumber: tolerates leading zeros; declines an unknown number", () => {
+  assert.equal(lookupGameNumber("01792").game, "1792"); // normalized
+  assert.equal(lookupGameNumber("9999"), null);
+  assert.equal(lookupGameNumber(""), null);
+  assert.equal(lookupGameNumber(null), null);
 });

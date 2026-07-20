@@ -2,8 +2,8 @@
 import { useEffect, useMemo, useState, useId } from "react";
 import { addEntry, fetchEntriesInRange } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
-import { parseScratchBarcode, packGameKey } from "@/lib/scratch-barcode";
-import { resolveCatalogGame } from "@/lib/scratch-catalog";
+import { parseScratchBarcode, packGameKey, packIdFromParts } from "@/lib/scratch-barcode";
+import { resolveCatalogGame, lookupGameNumber } from "@/lib/scratch-catalog";
 import { buildPackFlow } from "@/lib/scratch-report";
 import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
@@ -23,8 +23,12 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
     date: today(), shift: defaultShift(new Date().getHours()), locationId: "", drawerId: "",
-    game: "", pack: "", price: "", startno: "", endno: "", soldOut: false,
+    game: "", gameNo: "", pack: "", price: "", startno: "", endno: "", soldOut: false,
   });
+  // Canonical pack identity = game # + book #, matching what a scan produces, so
+  // a hand-typed count and a scanned count of the SAME physical pack chain in the
+  // theft audit. Blank game # → the book # exactly as typed (unchanged behavior).
+  const canonicalPack = packIdFromParts(f.gameNo, f.pack);
   const { busy, error, run } = useSaveState();
   const [scanOpen, setScanOpen] = useState(false);
   const packId = useId();
@@ -90,14 +94,18 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   // sibling match is the only way a brand-new pack of a known game auto-fills.
   //
   // Failing both, look the game number up in the bundled lottery catalog: a game
-  // never sold here before still fills its name + price from the pack's game #.
-  // Precedence is store history first (the real prices this store charges), then
-  // the catalog as the broad fallback. None of these touch the audited start/end.
+  // never sold here before still fills its name + price from the pack's game #
+  // (or from the Game # field the clerk typed off the ticket). Precedence is
+  // store history first (the real prices this store charges), then the catalog as
+  // the broad fallback. None of these touch the audited start/end.
   useEffect(() => {
-    const pack = f.pack.trim();
-    if (!pack) return;
+    const book = f.pack.trim();
+    if (!book) return;
+    const pack = canonicalPack.trim();                 // game # + book #
     const here = (e) => e.kind === "scratch" && e.locationId === f.locationId;
-    const prev = entries.find((e) => here(e) && (e.pack || "") === pack);
+    // Match by canonical id, but also tolerate a legacy row saved as the bare
+    // book # (before this store captured a game #) so the chain still finds it.
+    const prev = entries.find((e) => here(e) && ((e.pack || "") === pack || (e.pack || "") === book));
     if (prev) {
       setF((p) => ({
         ...p,
@@ -108,7 +116,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       onSaved?.(t("toast.pack_recognized"));
       return;
     }
-    const key = packGameKey(pack);
+    const key = packGameKey(pack) || String(f.gameNo).replace(/\D/g, "");
     const sib = key && entries.find((e) => here(e) && e.game && packGameKey(e.pack || "") === key);
     if (sib) {
       setF((p) => ({
@@ -119,12 +127,12 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       onSaved?.(t("toast.game_recognized"));
       return;
     }
-    const cat = resolveCatalogGame(pack, catalog || undefined);
+    const cat = resolveCatalogGame(pack, catalog || undefined) || lookupGameNumber(f.gameNo, catalog || undefined);
     if (cat) {
       setF((p) => ({ ...p, game: cat.name, price: String(cat.price) }));
       onSaved?.(t("toast.game_catalog"));
     }
-  }, [f.pack, f.locationId]); // eslint-disable-line
+  }, [canonicalPack, f.locationId]); // eslint-disable-line
 
   const locDrawers = drawers.filter((d) => d.active !== false && d.locationId === f.locationId);
   // default drawer: the one last used for scratch here if valid, else one named like "Lottery"
@@ -146,13 +154,15 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   // How many tickets this book holds — from its own history, else the catalog.
   // Powers the sold-out final count (end # = the book's last ticket).
   const packSize = useMemo(() => {
-    const pack = f.pack.trim();
-    if (!pack) return null;
-    const prev = entries.find((e) => e.kind === "scratch" && (e.pack || "") === pack && Number(e.perPack) > 0);
+    const book = f.pack.trim();
+    if (!book) return null;
+    const pack = canonicalPack.trim();
+    const prev = entries.find((e) => e.kind === "scratch"
+      && ((e.pack || "") === pack || (e.pack || "") === book) && Number(e.perPack) > 0);
     if (prev) return Number(prev.perPack);
-    const cat = resolveCatalogGame(pack, catalog || undefined);
+    const cat = resolveCatalogGame(pack, catalog || undefined) || lookupGameNumber(f.gameNo, catalog || undefined);
     return cat?.perPack ? Number(cat.perPack) : null;
-  }, [f.pack, entries, catalog]);
+  }, [canonicalPack, f.pack, f.gameNo, entries, catalog]);
 
   // Was a book of this game FINALED (sold out) here recently? Then a scanned
   // pack with no history is a FRESH book — it starts at ticket #0, not at a
@@ -381,7 +391,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       kind: "scratch", date: f.date, shift: f.shift,
       locationId: f.locationId, locationName: locName(f.locationId),
       drawerId: drawer.id, drawerName: drawer.name,
-      game: f.game.trim() || "Game", pack: f.pack.trim(),
+      game: f.game.trim() || "Game", pack: canonicalPack.trim(),
       price: Number(f.price) || 0, startno: Number(f.startno) || 0, endno: Number(f.endno) || 0,
       sold, dollars, soldOut: f.soldOut === true,
       ...(packSize ? { perPack: packSize } : {}),
@@ -508,27 +518,36 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           <div className="h-px bg-line flex-1" />
         </div>
 
+        {/* datalist is a SIBLING, not a second child of Field — Field clones a
+            single element child, so a second child would crash the tab. */}
+        <div>
+          <Field label={t("scratch.game")}>
+            <input className="input" value={f.game} onChange={onGame} placeholder="Lucky 7s"
+              list={knownGames.length ? gameListId : undefined} autoComplete="off" />
+          </Field>
+          {knownGames.length > 0 && (
+            <datalist id={gameListId}>
+              {knownGames.map((g) => <option key={g.game} value={g.game} />)}
+            </datalist>
+          )}
+        </div>
+        {/* The two identifiers printed on a PA ticket: the game # and the pack /
+            book #. Together they name the exact book the theft audit tracks, and
+            they match what a scan captures, so typed and scanned counts of the
+            same book chain across shifts instead of splitting apart. */}
         <div className="grid grid-cols-2 gap-3.5">
-          {/* datalist is a SIBLING, not a second child of Field — Field clones a
-              single element child, so a second child would crash the tab. */}
-          <div>
-            <Field label={t("scratch.game")}>
-              <input className="input" value={f.game} onChange={onGame} placeholder="Lucky 7s"
-                list={knownGames.length ? gameListId : undefined} autoComplete="off" />
-            </Field>
-            {knownGames.length > 0 && (
-              <datalist id={gameListId}>
-                {knownGames.map((g) => <option key={g.game} value={g.game} />)}
-              </datalist>
-            )}
-          </div>
+          <Field label={t("scratch.game_no")}>
+            <input className="input font-mono" value={f.gameNo} onChange={set("gameNo")}
+              inputMode="numeric" placeholder="1792" autoComplete="off" />
+          </Field>
           <div><label htmlFor={packId} className="label">{t("scratch.pack_no")}</label>
             <div className="flex gap-2">
-              <input id={packId} className="input min-w-0" value={f.pack} onChange={set("pack")} placeholder="0000000" />
+              <input id={packId} className="input min-w-0 font-mono" value={f.pack} onChange={set("pack")} placeholder="0011361" />
               <button type="button" className="btn-ghost min-h-[44px] w-11 px-0 flex-shrink-0 text-lg" title={t("scratch.scan_pack")}
                 aria-label={t("scratch.scan_pack")} onClick={() => setScanOpen(true)}>📷</button>
             </div></div>
         </div>
+        <p className="text-[11px] text-muted -mt-1.5 leading-snug">{t("scratch.parts_hint")}</p>
         <Field label={t("scratch.price")}><input type="number" inputMode="decimal" className="input" value={f.price} onChange={set("price")} placeholder="0.00" /></Field>
         <div className="grid grid-cols-2 gap-3.5">
           <Field label={t("scratch.startno")}><input type="number" inputMode="numeric" className="input" value={f.startno} onChange={set("startno")} placeholder="0" /></Field>
@@ -582,8 +601,11 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           // entry's timestamp + shift are recorded on save (addEntry).
           const { pack, ticket } = parseScratchBarcode(code);
           const packNo = pack || code;
+          // Surface the game # from the scan so all three ticket numbers show;
+          // packNo already leads with it, so the canonical id is unchanged.
+          const gameNo = packGameKey(packNo);
           setF((p) => {
-            const next = { ...p, pack: packNo };
+            const next = { ...p, pack: packNo, ...(gameNo ? { gameNo } : {}) };
             if (ticket != null) {
               next.endno = String(ticket);
               const hasPrev = entries.some((e) =>
