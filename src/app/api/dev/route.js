@@ -4,6 +4,7 @@ import { requireSignedIn, requirePlatformAdmin, isPlatformAdminClaims } from "@/
 import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
+import { normalizeBilling } from "@/lib/billing";
 
 export const runtime = "nodejs";
 
@@ -102,11 +103,19 @@ export async function POST(req) {
       ]);
       const openByVendor = {};
       for (const d of tSnap.docs) { const v = d.data().vendorId; openByVendor[v] = (openByVendor[v] || 0) + 1; }
+      // billing/{vendorId} is dev-only (top-level collection, default-deny for
+      // clients). One batched getAll keeps it to a single extra read.
+      const billingSnaps = vSnap.docs.length
+        ? await adminDb.getAll(...vSnap.docs.map((d) => adminDb.collection("billing").doc(d.id)))
+        : [];
+      const billingById = {};
+      for (const b of billingSnaps) if (b.exists) billingById[b.id] = b.data();
       // Staff counts per vendor (bounded fan-out; store scale).
       const stores = await Promise.all(vSnap.docs.map(async (d) => {
         const v = d.data();
         const users = await d.ref.collection("users").where("active", "==", true).get().catch(() => ({ size: 0 }));
         const owner = users.docs?.find?.((u) => u.data().role === "owner");
+        const bill = billingById[d.id];
         return {
           id: d.id, name: v.name || "", slug: v.slug || "",
           status: v.status || "active", createdAt: v.createdAt || null,
@@ -115,6 +124,7 @@ export async function POST(req) {
           ownerEmail: owner ? (owner.data().email || null) : null,
           staffCount: users.size || 0, openTickets: openByVendor[d.id] || 0,
           note: v.devNote || null,
+          billing: bill ? { plan: bill.plan, status: bill.status, cycle: bill.cycle, price: bill.price, note: bill.note || null } : null,
         };
       }));
       return NextResponse.json({ ok: true, stores });
@@ -140,6 +150,15 @@ export async function POST(req) {
         const note = String(body.note ?? "").trim().slice(0, 500) || null;
         await vref.update({ devNote: note });
         return NextResponse.json({ ok: true, note });
+      }
+      if (op === "billing") {
+        // Manual subscription record — NO card data. Stored dev-only at
+        // billing/{vendorId}; the split from service on/off (suspend/activate)
+        // is deliberate, so "past due" doesn't itself cut a store's access.
+        const b = normalizeBilling(body.billing || {});
+        await adminDb.collection("billing").doc(vref.id).set(
+          { ...b, updatedAt: now, updatedBy: claims.name || "developer" }, { merge: true });
+        return NextResponse.json({ ok: true, billing: b });
       }
       if (op === "resetOwnerPin") {
         const pin = String(body.pin ?? "").trim();

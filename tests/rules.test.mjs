@@ -505,6 +505,21 @@ test("supportTickets: an owner reads only their store's tickets; nobody writes f
   await assertFails(updateDoc(doc(db("owner"), "supportTickets/tA"), { status: "resolved" }));
 });
 
+/* ---------- subscriber billing (dev-only, closed to every client) ---------- */
+
+test("billing: no client — not even an owner — can read or write a billing record", async () => {
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), `billing/${V}`), { plan: "pro", status: "active", cycle: "monthly", price: 49 });
+  });
+  // Top-level, no rules match → default deny for every store account. Only the
+  // Admin SDK (the /dev console) ever touches it, so the price stays dev-only.
+  await assertFails(getDoc(doc(db("owner"), `billing/${V}`)));
+  await assertFails(getDoc(doc(db("mgr"), `billing/${V}`)));
+  await assertFails(getDoc(doc(db("empA"), `billing/${V}`)));
+  await assertFails(setDoc(doc(db("owner"), `billing/${V}`), { plan: "enterprise", status: "active", cycle: "annual", price: 0 }));
+  await assertFails(updateDoc(doc(db("owner"), `billing/${V}`), { price: 0 }));
+});
+
 /* ---------- backroom stock movements (trusted-route only) ---------- */
 
 test("stockMoves: members read the movement log; nobody writes it from a client", async () => {
