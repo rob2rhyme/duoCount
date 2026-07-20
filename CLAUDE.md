@@ -23,21 +23,26 @@ pure per-pack continuity-gap + missing-log detection, surfaced as the Dashboard
 in `src/lib/patterns.js`). Keep new work inside that "opening→closing ticket
 count" framing.
 
-## Product direction — inventory & rewards (July 2026, research-only so far)
+## Product direction — inventory & rewards
 
-- **Inventory:** whole-store per-shift counting is rejected as impractical. The
-  direction is **sync the live inventory from the store's existing POS**
-  (count, price, expiry), with two alerts — "Expiring soon" (default ≤ 30
-  days) and "Need order" (default < 5 units) — both **owner-only adjustable**
-  in settings. The signed per-shift count remains **only** for the high-shrink
-  watch list (the theft spine). Spec: `docs/pos-inventory-sync-spec.md`.
-- **Rewards:** customer rewards with defaults **$1 = 1 point, 100 points =
-  $5 off**, owner-only adjustable in Reward settings, off by default.
-  Compliance defaults matter: tobacco/vape/alcohol/lottery/gift-cards/fuel are
-  excluded (discount bans, minimum-price laws, lottery face-value rules); no
-  SMS in v1 (TCPA). Points ledger must be append-only + signed, with clerk
-  points-fraud detectors. Spec: `docs/rewards-program-spec.md`.
-- Both are **specs only — do not build until asked.**
+- **Inventory / stock sync:** whole-store per-shift counting is rejected as
+  impractical. The shipped mechanism is the owner-only **CSV "Stock levels"
+  sync** — refresh existing items' quantity/price/expiry from a POS export —
+  plus two owner-tunable alerts, "Expiring soon" (default ≤ 30 days) and "Need
+  order" (default < 5 units), surfaced on the Dashboard **Stock attention** card
+  and the digest. The signed per-shift count stays **only** for the high-shrink
+  watch list (the theft spine). **Live/OAuth POS integration (Phase 2) is
+  shelved — not on the roadmap.** Spec (Phase 1 shipped):
+  `docs/pos-inventory-sync-spec.md`.
+- **Rewards — shipped.** Phone-number points at the register (defaults **$1 = 1
+  point, 100 points = $5 off**, owner-adjustable, off by default), an
+  append-only signed ledger via the trusted `/api/rewards` route (client rules
+  allow no writes), clerk points-fraud detectors, the public `/rewards` balance
+  page + printable bilingual counter sign, and — added later — **inactivity
+  points expiry** (owner `expiryMonths`, signed `expire` ledger lines,
+  liability-aware) and **store-specific excluded categories** on top of the
+  always-excluded legal base (tobacco/vape/alcohol/lottery/gift-cards/fuel; no
+  SMS in v1 per TCPA). Spec: `docs/rewards-program-spec.md`.
 
 ## Repo / naming
 

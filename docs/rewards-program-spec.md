@@ -14,6 +14,17 @@
 > on both collections). Phase 3: the public rate-limited **`/rewards` balance
 > page** (en/es) and the **printable bilingual counter sign**; category
 > tagging moved to the POS-integration phase. No SMS, no tiers.
+>
+> **Follow-ups shipped (later):** **inactivity points expiry** — the spec's
+> `expiryMonths` breakage/liability control (owner-tunable, 0 = never; a lapsed
+> balance is materialized as a signed `expire` ledger line on the next touch,
+> keeping lifetime/VIP status; the balance page + counter sign disclose it and
+> the outstanding-liability figure discounts it) — and **store-specific excluded
+> categories** (`excludedCategories`, added on top of the always-excluded legal
+> base and shown in the register earn hint), answering the open question about
+> store-specific exclusions. **Note:** the deferred POS auto-earn phase is now
+> **shelved** alongside `pos-inventory-sync-spec.md` Phase 2 — clerk-entered
+> qualifying totals remain the mechanism.
 
 ## Owner decision — July 2026
 

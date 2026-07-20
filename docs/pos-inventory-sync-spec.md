@@ -1,5 +1,12 @@
 # POS-synced live inventory — expiry & low-stock alerts
 
+> **Roadmap decision (owner, July 2026): Phase 2+ shelved — not being built.**
+> Phase 1 (the CSV "Stock levels" sync + expiring-soon/low-stock alerts) shipped
+> and stays supported; the live/OAuth POS-integration phases below are **not on
+> the roadmap** and this doc is kept only as the record of shipped Phase 1 and as
+> research if the direction is ever revisited. Do not build Phase 2+ without a
+> fresh owner decision.
+>
 > **Status: Phase 1 shipped (July 2026).** The CSV stock sync, the
 > `vendor.stockAlerts` owner settings, the Dashboard **Stock attention** card,
 > and the digest section are built (`stock-alerts.js`, the "Stock levels"
