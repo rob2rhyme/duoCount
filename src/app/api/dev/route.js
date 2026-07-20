@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
-import { requireMember, requirePlatformAdmin, isPlatformAdminClaims } from "@/lib/require-manager";
+import { requireSignedIn, requirePlatformAdmin, isPlatformAdminClaims } from "@/lib/require-manager";
 import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
@@ -26,17 +26,17 @@ export async function POST(req) {
     const body = await req.json();
     const { action } = body;
 
-    // whoami — member-level; the console gate. Returns the caller's platform-
-    // admin uid (`${vendorId}_${userId}`) so a signed-in-but-not-yet-allowlisted
-    // developer can read it off the denied screen and add it to
-    // PLATFORM_ADMIN_UIDS — the only practical way to bootstrap on mobile, where
-    // there are no browser dev tools to dig the uid out of.
+    // whoami — the console gate. Accepts ANY valid session (a store account OR a
+    // dedicated developer token, which has no vendorId). Reports whether the
+    // caller is a developer, and — for the legacy store-account path — their uid
+    // (`${vendorId}_${userId}`), so a signed-in-but-not-allowlisted owner can
+    // read it off the denied screen and add it to PLATFORM_ADMIN_UIDS.
     if (action === "whoami") {
-      const claims = await requireMember(req);
+      const claims = await requireSignedIn(req);
       return NextResponse.json({
         ok: true,
         platformAdmin: isPlatformAdminClaims(claims),
-        uid: `${claims.vendorId}_${claims.userId}`,
+        uid: claims.vendorId && claims.userId ? `${claims.vendorId}_${claims.userId}` : "",
       });
     }
 
