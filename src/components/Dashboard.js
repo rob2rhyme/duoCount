@@ -11,6 +11,7 @@ import { renderPattern } from "@/lib/pattern-format";
 import { buildPackAudit } from "@/lib/scratch-audit";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockMoveAudit } from "@/lib/stockmove-audit";
+import { featureEnabled } from "@/lib/features";
 import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange } from "@/lib/data";
 import { buildTheftReport } from "@/lib/theft-report";
 import { useSession } from "./SessionProvider";
@@ -406,7 +407,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
       {/* Pack audit â€” the who/when detail behind the pack-gap signal: every
           discontinuity between consecutive counts of a pack, and packs that
           stopped being counted. Settlement math is the lottery's job. */}
-      {isManager && (packAudit.gaps.length > 0 || packAudit.missing.length > 0) && (
+      {isManager && featureEnabled(vendor, "scratch") && (packAudit.gaps.length > 0 || packAudit.missing.length > 0) && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line">
             <h3 className="font-semibold text-[15px]">{t("dash.pack_audit_title")}</h3>
@@ -469,7 +470,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
       {/* Stock attention â€” the synced catalog's two actionable lists: items
           expiring inside the owner's window, and items below the reorder
           threshold. Only data the store maintains ever alerts. */}
-      {isManager && (stock.expiring.length > 0 || stock.lowStock.length > 0) && (
+      {isManager && featureEnabled(vendor, "inventory") && (stock.expiring.length > 0 || stock.lowStock.length > 0) && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line">
             <h3 className="font-semibold text-[15px]">{t("dash.stock_title")}</h3>

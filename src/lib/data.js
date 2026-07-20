@@ -124,6 +124,15 @@ export async function apiImport({ type, mode, mapping, rows, allowPartial }) {
     body: JSON.stringify({ type, mode, mapping, rows, allowPartial: !!allowPartial }),
   });
 }
+// Manually add/edit (upsert) or remove ONE scratch-game catalog entry — the typed
+// alternative to the CSV "games" import. Owner-only; the route re-validates.
+export async function apiCatalog({ action, game, name, price, perPack }) {
+  return fetchJson("/api/catalog", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify({ action, game, name, price, perPack }),
+  });
+}
 // Rewards audit feeds (manager-only subscribers): the ledger window for the
 // fraud detectors, and the customer list for the outstanding-liability figure.
 // Reads only — the rules allow no client writes to either collection.
@@ -199,6 +208,36 @@ export async function apiStockMove(payload) {
 export function watchStockMoves(vendorId, since, cb) {
   const q = query(vcol(vendorId, "stockMoves"), where("ts", ">=", since), orderBy("ts", "desc"));
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+
+// Gaming/amusement-machine registry (config, member-readable — staff need the
+// machine names to enter a collection). Owner CRUD via client SDK, like drawers.
+export function watchMachines(vendorId, cb) {
+  return onSnapshot(query(vcol(vendorId, "machines"), orderBy("createdAt", "asc")),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addMachine(vendorId, machine) {
+  await addDoc(vcol(vendorId, "machines"), { ...machine, active: true, createdAt: new Date() });
+}
+export async function updateMachine(vendorId, id, patch) {
+  await updateDoc(doc(db, "vendors", vendorId, "machines", id), patch);
+}
+// The signed collection ledger — OWNER-ONLY reads (firestore.rules); the client
+// SDK denies a staff read, so only the owner oversight view subscribes. Low
+// volume (a few machines, collected weekly–monthly), so the whole ledger is
+// watched — any report timeframe filters within it.
+export function watchGamingCollections(vendorId, cb) {
+  return onSnapshot(query(vcol(vendorId, "gamingCollections"), orderBy("collectionDate", "desc")),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+// Staff record a machine's collection + payout; the route computes the split and
+// appends a signed line. No money comes back — staff enter blind (owner-only totals).
+export async function apiGaming(payload) {
+  return fetchJson("/api/gaming", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function apiRewards(payload) {

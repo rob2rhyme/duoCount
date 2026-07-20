@@ -10,6 +10,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
+import { FEATURES, FEATURE_KEYS, resolveFeatures, featureEnabled } from "@/lib/features";
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
@@ -19,11 +20,43 @@ import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
+import ScratchGamesCard from "./ScratchGamesCard";
+import MachineRegistryCard from "./MachineRegistryCard";
 import SupportCard from "./SupportCard";
 import Field from "./Field";
 import ShowMore, { usePaged } from "./ShowMore";
 
-export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null }) {
+// Per-section accent — a spread of green/teal shades so each Admin section reads
+// as its own place (owners said the panel "looked all the same" and got lost).
+// The nav chip and its section share the color: the chip carries a colored dot
+// (and fully tints when active), the section a colored top edge + a faint header
+// wash. Kept in ONE map so the chip and its section can never drift apart.
+const SECTION_ACCENT = {
+  "adm-staff": "#2f9e44",
+  "adm-locations": "#0ca678",
+  "adm-drawers": "#66a80f",
+  "adm-items": "#099268",
+  "adm-features": "#37b24d",
+  "adm-games": "#82c91e",
+  "adm-machines": "#12b886",
+  "adm-settings": "#4c9a2a",
+  "adm-rewards": "#20c997",
+  "adm-engage": "#5c940d",
+  "adm-support": "#087f5b",
+  "adm-import": "#94d82d",
+  "adm-demo": "#38d9a9",
+};
+// Sections that are a plain .card (their header is the first child) get a colored
+// top edge + a faint header wash. Rewards is a nested box (a left accent reads
+// better there); the Import wrapper isn't a card, so it stays chip-only. The wash
+// mixes into var(--surface), so it re-tints correctly in light and dark.
+const CARD_SECTIONS = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features",
+  "adm-games", "adm-machines", "adm-settings", "adm-engage", "adm-support", "adm-demo"];
+const SECTION_STYLE = CARD_SECTIONS
+  .map((id) => `#${id}{border-top:4px solid ${SECTION_ACCENT[id]}}#${id}>div:first-child{background:color-mix(in srgb,${SECTION_ACCENT[id]} 10%,var(--surface))}`)
+  .join("") + `#adm-rewards{border-left:4px solid ${SECTION_ACCENT["adm-rewards"]}}`;
+
+export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null, machines = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const { t, lang } = useLang();
   const [staff, setStaff] = useState([]);
@@ -170,7 +203,10 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     patternRules: { ...PATTERN_RULES, ...(vendor.patternRules || {}) },
     stockAlerts: { ...STOCK_ALERTS, ...(vendor.stockAlerts || {}) },
     rewards: { ...REWARDS, ...(vendor.rewards || {}) },
+    features: { ...FEATURES, ...(vendor.features || {}) },
   });
+  const setFeature = (k) => (e) =>
+    setSettings((s) => ({ ...s, features: { ...s.features, [k]: e.target.checked } }));
   const setRule = (k) => (e) =>
     setSettings((s) => ({ ...s, patternRules: { ...s.patternRules, [k]: e.target.value } }));
   const setStockRule = (k) => (e) =>
@@ -265,6 +301,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       patternRules: resolvePatternRules(settings.patternRules),
       stockAlerts: resolveStockAlerts(settings.stockAlerts),
       rewards: resolveRewards(settings.rewards),
+      features: resolveFeatures(settings),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
         narrative: settings.digestNarrative, // opt-in AI summary; off by default
@@ -283,6 +320,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       patternRules: resolvePatternRules(vendor.patternRules || {}),
       stockAlerts: resolveStockAlerts(vendor.stockAlerts || {}),
       rewards: resolveRewards(vendor.rewards || {}),
+      features: resolveFeatures(vendor),
       digest: {
         enabled: vendor.digest?.enabled === true, recipients: vendor.digest?.recipients || [],
         tz: vendor.digest?.tz || "America/New_York", narrative: vendor.digest?.narrative === true,
@@ -473,6 +511,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     ["adm-locations", "admin.locations_title"],
     ["adm-drawers", "admin.drawers_title"],
     ["adm-items", "admin.items_title"],
+    ["adm-features", "admin.features_title"],
+    ...(featureEnabled(vendor, "scratch") ? [["adm-games", "games.nav"]] : []),
+    ...(featureEnabled(vendor, "gaming") ? [["adm-machines", "mach.nav"]] : []),
     ["adm-settings", "admin.settings_title"],
     ["adm-rewards", "admin.rw_title"],
     ["adm-engage", "admin.engage_nav"],
@@ -486,7 +527,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const [activeSection, setActiveSection] = useState("adm-staff");
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return undefined;
-    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
+    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features", "adm-games", "adm-machines", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
     const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
     if (!els.length) return undefined;
     const obs = new IntersectionObserver((es) => {
@@ -529,6 +570,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
 
   return (
     <div className="space-y-4">
+      {/* Section color-coding: one green shade per section, shared by its nav
+          chip and the section itself (top edge + faint header wash). */}
+      <style>{SECTION_STYLE}</style>
       {/* ---------------- at a glance ---------------- */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {overview.map(([target, key, value, hot], i) => (
@@ -542,12 +586,18 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
 
       <nav aria-label={t("admin.nav_aria")}
         className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+45px)] z-10 -mx-4 px-4 py-2 bg-[var(--bg)]/95 backdrop-blur-sm flex gap-1.5 overflow-x-auto">
-        {NAV_SECTIONS.map(([id, key]) => (
-          <button key={id} type="button" onClick={() => jumpTo(id)}
-            className={`flex-shrink-0 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border transition ${activeSection === id ? "border-brass text-fg bg-brass/10" : "border-line bg-subtle text-muted hover:text-fg hover:border-brass"}`}>
-            {t(key)}
-          </button>
-        ))}
+        {NAV_SECTIONS.map(([id, key]) => {
+          const c = SECTION_ACCENT[id] || "var(--gold)";
+          const active = activeSection === id;
+          return (
+            <button key={id} type="button" onClick={() => jumpTo(id)}
+              style={active ? { borderColor: c, backgroundColor: `color-mix(in srgb, ${c} 16%, transparent)`, color: "var(--fg)" } : undefined}
+              className={`flex-shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border transition ${active ? "" : "border-line bg-subtle text-muted hover:text-fg hover:border-brass"}`}>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c }} />
+              {t(key)}
+            </button>
+          );
+        })}
       </nav>
 
       {/* ---------------- staff ---------------- */}
@@ -595,15 +645,15 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                   </div>
                   <div className="text-[13px] text-muted">{locName(u.locationId)}{u.email ? ` · ${u.email}` : ""}</div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                  <select className="input w-auto py-1.5 text-sm" value={u.role} disabled={isMe || (u.role === "owner" && !isOwner)}
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <select className="input w-auto max-w-full min-w-0 py-1.5 text-sm" value={u.role} disabled={isMe || (u.role === "owner" && !isOwner)}
                     aria-label={t("admin.aria_role_for", { name: u.name })}
                     onChange={(e) => patchStaff(u.id, { role: e.target.value }, t("admin.toast_now_role", { name: u.name, role: t(`admin.role_${e.target.value}`) }), { role: u.role })}>
                     <option value="employee">{t("admin.role_employee")}</option>
                     <option value="manager">{t("admin.role_manager")}</option>
                     <option value="owner" disabled={!isOwner}>{t("admin.role_owner")}</option>
                   </select>
-                  <select className="input w-auto py-1.5 text-sm" value={u.locationId || ""} disabled={isMe}
+                  <select className="input w-auto max-w-full min-w-0 py-1.5 text-sm" value={u.locationId || ""} disabled={isMe}
                     aria-label={t("admin.aria_loc_for", { name: u.name })}
                     onChange={(e) => patchStaff(u.id, { locationId: e.target.value || null }, undefined, { locationId: u.locationId || null })}>
                     <option value="">{t("common.all_locations")}</option>
@@ -767,6 +817,44 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         ))}
         <ShowMore hasMore={itemsPage.hasMore} nextStep={itemsPage.nextStep} onMore={itemsPage.showMore} />
       </div>
+
+      {/* ---------------- features (owner) ---------------- */}
+      <div id="adm-features" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
+        <div className="px-4 py-3.5 border-b border-line">
+          <h2 className="font-semibold text-[15px]">{t("admin.features_title")}</h2>
+          <p className="text-[13px] text-muted mt-0.5">{t("admin.features_sub")}</p>
+        </div>
+        <div className="p-4 space-y-3">
+          {/* One switch per optional module. Turning one off hides its tab,
+              its Dashboard card and its attention badge for the whole store;
+              the core screens (Cash, Log, Dashboard, Team, Admin) are never
+              listed here. Gaming defaults OFF — a store enables it to get the
+              machine registry and the collection ledger. */}
+          {FEATURE_KEYS.map((k) => (
+            <div key={k} className="flex items-start gap-3 border border-line rounded-xl p-3.5 bg-panel">
+              <input id={`feat-${k}`} type="checkbox" className="mt-1" checked={settings.features[k] === true}
+                disabled={!isOwner} onChange={setFeature(k)} />
+              <label htmlFor={`feat-${k}`} className="min-w-0">
+                <span className="font-medium text-[14px]">{t(`admin.feat_${k}`)}</span>
+                <p className="text-xs text-muted leading-relaxed">{t(`admin.feat_${k}_hint`)}</p>
+              </label>
+            </div>
+          ))}
+          {isOwner
+            ? <button className="btn-primary" onClick={saveSettings}>{t("admin.save_settings")}</button>
+            : <p className="text-[13px] text-muted italic">{t("admin.owner_only_note")}</p>}
+        </div>
+      </div>
+
+      {/* -------- scratch games catalog (owner; only with the scratch module) -------- */}
+      {featureEnabled(vendor, "scratch") && (
+        <ScratchGamesCard scratchCatalog={scratchCatalog} onToast={onToast} />
+      )}
+
+      {/* -------- gaming machine registry (owner; only with the gaming module) -------- */}
+      {featureEnabled(vendor, "gaming") && (
+        <MachineRegistryCard machines={machines} onToast={onToast} />
+      )}
 
       {/* ---------------- settings (owner) ---------------- */}
       <div id="adm-settings" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">

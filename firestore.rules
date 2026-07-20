@@ -45,7 +45,7 @@ service cloud.firestore {
              .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold',
                        'blindCounts', 'varianceThreshold', 'digest', 'patternRules',
                        'fiscalStartMonth', 'aiSearch', 'aiInsights', 'stockAlerts',
-                       'rewards']);
+                       'rewards', 'features']);
       allow create, delete: if false; // vendors are created by the signup API
 
       match /locations/{locationId} {
@@ -96,6 +96,26 @@ service cloud.firestore {
       // ticket number, and the scratch audit never consults it.
       match /catalog/{docId} {
         allow read: if member();
+        allow create, update, delete: if false;
+      }
+
+      // Gaming/amusement-machine registry — config like drawers/items: members
+      // read (staff need the machine names to file a collection), the owner
+      // creates/edits, soft-disable only (never deleted, so past collection
+      // lines keep their labels).
+      match /machines/{machineId} {
+        allow read: if member();
+        allow create, update: if owner() && liveActive();
+        allow delete: if false;
+      }
+
+      // Gaming collection ledger — written ONLY via the trusted /api/gaming
+      // route (Admin SDK), so it's append-only by construction, and read
+      // OWNER-ONLY: the attending staff enter a machine's collection + payout
+      // through the route but never see the computed split or the store's take
+      // ("owner only has access to the total amount").
+      match /gamingCollections/{collectionId} {
+        allow read: if owner();
         allow create, update, delete: if false;
       }
 

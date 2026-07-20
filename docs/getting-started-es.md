@@ -84,6 +84,18 @@ Abre **Admin** y agrega las piezas que tu equipo elegirá al contar:
 > entonces sus números de boleto se encadenan de conteo en conteo. El papeleo
 > de liquidación se queda con la lotería.
 
+> **Ingresa tus juegos de raspadito (opcional).** En **Admin → Juegos de
+> raspadito**, el dueño puede escribir cada juego que vende la tienda — **número
+> de juego**, **nombre del juego**, **precio del boleto** y, opcionalmente,
+> **boletos por paquete**. Después de eso, un escaneo o un paquete escrito
+> completa el nombre y el precio del juego por sí solo, así que registrar es más
+> rápido y los datos coinciden siempre. DuoCount ya incluye la lista estatal
+> actual de juegos, así que solo necesitas esto para un juego que aún no conoce
+> (o los juegos de otro estado). Es pura información de referencia — ingresar un
+> juego nunca fija un conteo ni un número de boleto, y editar uno nunca toca un
+> conteo firmado anterior. Un juego que ya no vendes se puede quitar; los
+> escaneos simplemente vuelven a la lista incorporada.
+
 > **¿Vienes de una hoja de cálculo?** Los dueños tienen una tarjeta
 > **Importar / migrar** en **Admin** que trae tus **artículos rastreados**, tu
 > **lista de personal**, tus **conteos de apertura de estantes**, tus
@@ -369,6 +381,28 @@ artículos con poca existencia o cerca de caducar suben al principio. Este es el
 conteo rápido de todo el día que mantiene vivo el número del estante; el
 **conteo firmado** de arriba es el reconteo completo y periódico que queda en el
 registro.
+
+### Registrar una recaudación de máquina de juego (si tu tienda aloja máquinas)
+
+Si empresas externas operan máquinas tragamonedas, cajeros o de entretenimiento
+en tu tienda, el dueño las registra en **Admin → Máquinas**. El día que se
+recauda una máquina:
+
+1. Toca **Juegos**, elige la **máquina** y fija la **fecha de recaudación**.
+2. Ingresa la **recaudación total** y los **pagos totales** de la máquina del período.
+3. **Enviar** — tu entrada queda registrada para el dueño.
+
+No verás el reparto ni la parte de la tienda: la tienda y la empresa de la
+máquina reparten el resto (recaudación − pagos) por contrato, y esos totales son
+**solo para el dueño**. Si una máquina pagó más de lo que recaudó, la parte de la
+tienda es simplemente **$0** — nunca negativa.
+
+> **Vista del dueño.** En la misma pestaña **Juegos** — y solo para el dueño —
+> ves los totales de cualquier período (recaudación, pagos, neto, tu parte y la
+> de la empresa), desglosados por máquina y por empresa, con una gráfica de la
+> parte de la tienda y una **exportación CSV** para las fechas que elijas. Cada
+> recaudación es una línea firmada y solo-agregar, así que el registro de quién
+> ingresó qué se mantiene honesto.
 
 ### Recompensas en el mostrador (si tu tienda las activó)
 

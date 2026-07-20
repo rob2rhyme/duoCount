@@ -868,6 +868,49 @@ test("stockAlerts and rewards settings: owner may set them; a manager may not", 
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { rewards: { enabled: false } }));
 });
 
+/* ---------- feature toggles (owner-only vendor key) ---------- */
+
+test("features settings: owner may toggle modules; a manager may not", async () => {
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}`),
+    { features: { scratch: false, inventory: true, gaming: false } }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`),
+    { features: { scratch: false } }));
+});
+
+/* ---------- gaming: machine registry (owner config) + owner-only ledger ---------- */
+
+test("machines registry: members read, only the owner writes, never deleted", async () => {
+  await assertSucceeds(setDoc(doc(db("owner"), `vendors/${V}/machines/m1`),
+    { name: "Slot 1", company: "Acme", type: "slot", storePct: 60, cadence: "weekly", active: true }));
+  // a member (staff) can read the registry — they need the machine names to file
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/machines/m1`)));
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/machines/m1`)));
+  // but only the owner may create/edit a machine
+  await assertFails(setDoc(doc(db("mgr"), `vendors/${V}/machines/m2`),
+    { name: "ATM", company: "CashCo", storePct: 50, active: true }));
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/machines/m1`), { storePct: 100 }));
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}/machines/m1`), { active: false }));
+  await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/machines/m1`)));
+  await assertFails(getDoc(doc(db("outsider"), `vendors/${V}/machines/m1`)));
+});
+
+test("gamingCollections ledger: OWNER-only read, no client writes at all", async () => {
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), `vendors/${V}/gamingCollections/g1`),
+      { machineId: "m1", collectionDate: "2026-07-01", collection: 1000, payout: 400, storeShare: 360 });
+  });
+  // owner sees the money; staff and managers do NOT (staff enter, they don't see totals)
+  await assertSucceeds(getDoc(doc(db("owner"), `vendors/${V}/gamingCollections/g1`)));
+  await assertFails(getDoc(doc(db("mgr"), `vendors/${V}/gamingCollections/g1`)));
+  await assertFails(getDoc(doc(db("empA"), `vendors/${V}/gamingCollections/g1`)));
+  // append-only via the trusted route — even the owner can't write from the client
+  await assertFails(setDoc(doc(db("owner"), `vendors/${V}/gamingCollections/g2`),
+    { machineId: "m1", collectionDate: "2026-07-08", collection: 500, payout: 0, storeShare: 250 }));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/gamingCollections/g3`),
+    { machineId: "m1", collectionDate: "2026-07-08", collection: 500, payout: 0, storeShare: 250 }));
+  await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/gamingCollections/g1`)));
+});
+
 /* ---------- rewards ledger: readable by members, writable by NOBODY ---------- */
 
 test("customers + rewardEvents: members read, outsiders don't, and no client may write", async () => {

@@ -1,13 +1,15 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
+import { featureEnabled, resolveFeatures } from "@/lib/features";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
 import InventoryForm from "./InventoryForm";
 import BackroomStock from "./BackroomStock";
+import GamingTab from "./GamingTab";
 import LogList from "./LogList";
 import RewardsPanel from "./RewardsPanel";
 import NotesPanel from "./NotesPanel";
@@ -34,8 +36,9 @@ import { PRODUCT } from "@/lib/store";
 const TABS = [
   { id: "dashboard", labelKey: "nav.dashboard" },
   { id: "cash", labelKey: "nav.cash" },
-  { id: "scratch", labelKey: "nav.scratch" },
-  { id: "inventory", labelKey: "nav.inventory" },
+  { id: "scratch", labelKey: "nav.scratch", featureKey: "scratch" },
+  { id: "inventory", labelKey: "nav.inventory", featureKey: "inventory" },
+  { id: "gaming", labelKey: "nav.gaming", featureKey: "gaming" },
   { id: "rewards", labelKey: "nav.rewards" },
   { id: "log", labelKey: "nav.log" },
   { id: "notes", labelKey: "nav.notes" },
@@ -48,9 +51,11 @@ const TABS = [
 // Which tabs this person sees. Portfolio's ownerOnly is a product affordance
 // (a manager can already read every location via Reports); Admin's is the
 // owner's call — store configuration is the owner's room, managers and
-// employees never see the tab.
-const visibleTabs = (isManager, isOwner) =>
-  TABS.filter((t) => (!t.managerOnly || isManager) && (!t.ownerOnly || isOwner));
+// employees never see the tab. A tab with a `featureKey` also drops out when the
+// owner has turned that module off (Admin → Features) — hidden for everyone.
+const visibleTabs = (isManager, isOwner, vendor) =>
+  TABS.filter((t) => (!t.managerOnly || isManager) && (!t.ownerOnly || isOwner)
+    && (!t.featureKey || featureEnabled(vendor, t.featureKey)));
 
 export default function AppShell() {
   const { profile, vendor, logout, isManager, isOwner } = useSession();
@@ -129,6 +134,20 @@ export default function AppShell() {
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
     return watchStockMoves(vendor.id, since, setStockMoves);
   }, [vendor.id]);
+  // Gaming/amusement-machine module. The registry is member-readable (the entry
+  // form needs the machine names); the collection ledger is OWNER-ONLY, so only
+  // the owner's oversight view subscribes. Both only while the module is on.
+  const gamingOn = featureEnabled(vendor, "gaming");
+  const [machines, setMachines] = useState([]);
+  const [gamingCollections, setGamingCollections] = useState([]);
+  useEffect(() => {
+    if (!gamingOn) { setMachines([]); return undefined; }
+    return watchMachines(vendor.id, setMachines);
+  }, [vendor.id, gamingOn]);
+  useEffect(() => {
+    if (!gamingOn || !isOwner) { setGamingCollections([]); return undefined; }
+    return watchGamingCollections(vendor.id, setGamingCollections);
+  }, [vendor.id, gamingOn, isOwner]);
   // Pending time-off requests — managers only, to badge the Time tab (the
   // Time-off panel below subscribes on its own for the full list).
   const [timeOff, setTimeOff] = useState([]);
@@ -169,23 +188,26 @@ export default function AppShell() {
   // enables the program; managers always see it (its empty state routes them
   // to the Reward settings). Both the strip and the shortcut ids share this.
   const rewardsVisible = vendor?.rewards?.enabled === true || isManager;
-  const tabs = visibleTabs(isManager, isOwner)
+  const tabs = visibleTabs(isManager, isOwner, vendor)
     .filter((tb) => tb.id !== "rewards" || rewardsVisible)
     .map((tb) => ({ ...tb, label: t(tb.labelKey) }));
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
+  // A stable signature of the toggleable modules, so effects re-validate when the
+  // owner flips a feature (not on every render's fresh `vendor.features` object).
+  const featuresSig = JSON.stringify(resolveFeatures(vendor));
 
   // Persist the active tab so the next load resumes here. If a restored tab
-  // isn't available to this user (permissions changed since last session, or a
+  // isn't available to this user (permissions changed, a disabled module, or a
   // stale value), fall back to the Dashboard so we never land on a blank tab.
   useEffect(() => {
     try { localStorage.setItem("duocount-tab", tab); } catch { /* storage blocked */ }
   }, [tab]);
   useEffect(() => {
-    if (!visibleTabs(isManager, isOwner).some((tb) => (tb.id !== "rewards" || rewardsVisible) && tb.id === tab)) {
+    if (!visibleTabs(isManager, isOwner, vendor).some((tb) => (tb.id !== "rewards" || rewardsVisible) && tb.id === tab)) {
       setTab("dashboard");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isManager, isOwner, rewardsVisible]);
+  }, [isManager, isOwner, rewardsVisible, featuresSig]);
 
   // First-run onboarding: derive what's set up, and only trust "empty" once the
   // relevant snapshots have arrived (so existing stores never flash an empty
@@ -229,7 +251,7 @@ export default function AppShell() {
   // The decision logic lives in resolveShortcut (unit-tested); this effect only
   // wires it to the DOM.
   useEffect(() => {
-    const ids = visibleTabs(isManager, isOwner)
+    const ids = visibleTabs(isManager, isOwner, vendor)
       .filter((tb) => tb.id !== "rewards" || rewardsVisible)
       .map((tb) => tb.id);
     function onKey(e) {
@@ -245,7 +267,9 @@ export default function AppShell() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isManager, isOwner, tab, rewardsVisible]);
+    // featuresSig is the stable proxy for vendor's feature map (see above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManager, isOwner, tab, rewardsVisible, featuresSig]);
 
   // Hold the branded splash until the core data has loaded once, so a returning
   // user never sees a "No activity yet" flash before their real counts arrive
@@ -359,6 +383,10 @@ export default function AppShell() {
             </div>
           )
         )}
+        {tab === "gaming" && (
+          <GamingTab machines={machines} collections={gamingCollections} isOwner={isOwner}
+            onToast={ping} onGoAdmin={goAdmin} adminAction={adminAction} />
+        )}
         {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} customers={customers} rewardEvents={rewardEvents} />}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
@@ -378,7 +406,7 @@ export default function AppShell() {
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
-        {tab === "admin" && isOwner && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} />}
+        {tab === "admin" && isOwner && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} machines={machines} />}
       </main>
 
       <footer className="mt-6 border-t border-line-soft pb-28 sm:pb-0">

@@ -22,4 +22,5 @@ export const VENDOR_SETTING_KEYS = [
   "aiInsights",
   "stockAlerts",
   "rewards",
+  "features",
 ];

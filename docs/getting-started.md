@@ -77,6 +77,16 @@ Open **Admin** and add the pieces your team will pick from when they count:
 > first time someone counts it, and from then on its ticket numbers chain from
 > count to count. Settlement paperwork stays with the lottery.
 
+> **Enter your scratch games (optional).** In **Admin → Scratch games**, an owner
+> can type each game the store sells — **game number**, **game name**, **ticket
+> price**, and optionally **tickets per pack**. After that, a scan or a typed pack
+> fills the game name and price on its own, so logging is quicker and the data
+> matches every time. DuoCount already ships with the current state game list, so
+> you only need this for a game it doesn't know yet (or a different state's games).
+> It's pure reference data — entering a game never sets a count or a ticket number,
+> and editing one never touches a past signed count. A game you no longer sell can
+> be removed; scans just fall back to the built-in list.
+
 > **Switching from a spreadsheet?** Owners get an **Import / migrate** card in
 > **Admin** that brings in your **tracked items**, your **staff roster**, your
 > **opening shelf counts**, your **stock levels** (on-hand quantity, price,
@@ -333,6 +343,27 @@ and the who/when history stay honest — a manager can see every pull. Items
 running low or near their expiry date float to the top. This is the quick,
 all-day tally that keeps the shelf number live; the **signed count** above is
 the periodic, full recount that goes on the record.
+
+### Record a gaming machine collection (if your store hosts machines)
+
+If outside companies run slot, ATM, or amusement machines in your store, the
+owner registers them under **Admin → Machines**. On the day a machine is
+collected:
+
+1. Tap **Gaming**, pick the **machine**, and set the **collection date**.
+2. Enter the machine's **total collection** and **total payout** for the period.
+3. **Submit** — your entry is recorded for the owner.
+
+You won't see the split or the store's take: the store and the machine's company
+split the remainder (collection − payout) by contract, and those totals are
+**owner-only**. If a machine paid out more than it collected, the store's share
+is simply **$0** — never a negative.
+
+> **Owner view.** On the same **Gaming** tab — and only for the owner — you see
+> the totals for any timeframe (collection, payout, net, your take and the
+> company's), broken down per machine and per company, with a store-take chart
+> and a **CSV export** for the dates you pick. Each collection is a signed,
+> append-only line, so the record of who entered what stays honest.
 
 ### Rewards at the register (if your store turned it on)
 
