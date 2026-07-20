@@ -5,6 +5,8 @@ import { auth } from "@/lib/firebase";
 import { apiDev, apiDevLogin } from "@/lib/data";
 import { downscaleImage } from "@/lib/image-downscale";
 import { compareTickets, toMs, ATTACH_MAX_PER_MSG } from "@/lib/support";
+import { BILLING_PLANS, BILLING_STATUSES, BILLING_CYCLES, buildBillingSummary, DEFAULT_BILLING } from "@/lib/billing";
+import { money } from "@/lib/utils";
 import Link from "next/link";
 import { useLang } from "@/components/LangProvider";
 import ShowMore, { usePaged } from "@/components/ShowMore";
@@ -287,9 +289,16 @@ function Stores({ t, lang }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [q, setQ] = useState("");
+  const [editBill, setEditBill] = useState(null); // vendorId whose billing editor is open
+  const [bill, setBill] = useState(DEFAULT_BILLING);
 
   const load = () => apiDev({ action: "listStores" }).then((r) => setStores(r.stores)).catch((e) => setError(e?.message || "load failed"));
   useEffect(() => { load(); }, []);
+
+  const summary = useMemo(() => buildBillingSummary(stores || []), [stores]);
+  const openBilling = (s) => { setBill({ ...DEFAULT_BILLING, ...(s.billing || {}), price: String(s.billing?.price ?? "") }); setEditBill(s.id); };
+  // Show a store's plan in one line: "Pro · Active · $49/mo".
+  const billLine = (b) => `${t(`dev.plan_${b.plan}`)} · ${t(`dev.bs_${b.status}`)} · ${money(b.price)}${b.cycle === "annual" ? t("dev.per_yr") : t("dev.per_mo")}`;
 
   async function op(vendorId, payload, confirmMsg) {
     if (confirmMsg && !window.confirm(confirmMsg)) return;
@@ -313,6 +322,18 @@ function Stores({ t, lang }) {
     <div className="space-y-3">
       <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("dev.store_search")} />
       {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
+
+      {/* Subscriber roll-up — status counts + monthly recurring revenue. */}
+      <div className="card p-3.5">
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center">
+          <div><div className="text-lg font-bold font-mono">{summary.total}</div><div className="text-[10px] uppercase tracking-wide text-muted font-semibold">{t("dev.subs_total")}</div></div>
+          <div><div className="text-lg font-bold font-mono text-pos">{summary.byStatus.active}</div><div className="text-[10px] uppercase tracking-wide text-muted font-semibold">{t("dev.bs_active")}</div></div>
+          <div><div className="text-lg font-bold font-mono">{summary.byStatus.trial}</div><div className="text-[10px] uppercase tracking-wide text-muted font-semibold">{t("dev.bs_trial")}</div></div>
+          <div><div className={`text-lg font-bold font-mono ${summary.byStatus.past_due ? "text-neg" : ""}`}>{summary.byStatus.past_due}</div><div className="text-[10px] uppercase tracking-wide text-muted font-semibold">{t("dev.bs_past_due")}</div></div>
+          <div><div className="text-lg font-bold font-mono text-gold">{money(summary.mrr)}</div><div className="text-[10px] uppercase tracking-wide text-muted font-semibold">{t("dev.mrr")}</div></div>
+        </div>
+      </div>
+
       <p className="text-[12px] text-muted">{t("dev.store_count", { n: stores.length })}</p>
       {storePage.visible.map((s) => (
         <div key={s.id} className={`card p-3.5 space-y-2 ${s.status === "suspended" ? "border-neg/40" : ""}`}>
@@ -325,6 +346,10 @@ function Stores({ t, lang }) {
               </div>
               <div className="text-[12px] text-muted font-mono">/{s.slug}</div>
               <div className="text-[12px] text-muted">{t("dev.owner")}: {s.ownerName || "—"}{s.ownerEmail ? ` · ${s.ownerEmail}` : ""} · {t("dev.staff_n", { n: s.staffCount })} · {fmt(s.createdAt)}</div>
+              <div className="text-[12px] mt-1">
+                <span className="text-muted">{t("dev.billing")}: </span>
+                {s.billing ? <span className="text-fg font-medium">{billLine(s.billing)}</span> : <span className="text-muted italic">{t("dev.no_billing")}</span>}
+              </div>
               {s.note && <div className="text-[12px] text-fg mt-1 italic">“{s.note}”</div>}
             </div>
           </div>
@@ -335,12 +360,43 @@ function Stores({ t, lang }) {
               <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "suspend" }, t("dev.confirm_suspend", { name: s.name }))}>{t("dev.suspend")}</button>
             )}
             <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+              onClick={() => (editBill === s.id ? setEditBill(null) : openBilling(s))}>{t("dev.edit_billing")}</button>
+            <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
               onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}>{t("dev.rename")}</button>
             <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
               onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}>{t("dev.note")}</button>
             <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
               onClick={() => { const pin = window.prompt(t("dev.pin_prompt")); if (pin != null && pin.trim()) op(s.id, { op: "resetOwnerPin", pin: pin.trim() }, t("dev.confirm_pin", { name: s.name })); }}>{t("dev.reset_pin")}</button>
           </div>
+
+          {editBill === s.id && (
+            <div className="border-t border-line pt-3 mt-1 space-y-2.5">
+              <div className="grid grid-cols-2 gap-2.5">
+                <label className="block"><span className="label">{t("dev.plan")}</span>
+                  <select className="input" value={bill.plan} onChange={(e) => setBill((b) => ({ ...b, plan: e.target.value }))}>
+                    {BILLING_PLANS.map((p) => <option key={p} value={p}>{t(`dev.plan_${p}`)}</option>)}
+                  </select></label>
+                <label className="block"><span className="label">{t("dev.bstatus")}</span>
+                  <select className="input" value={bill.status} onChange={(e) => setBill((b) => ({ ...b, status: e.target.value }))}>
+                    {BILLING_STATUSES.map((st) => <option key={st} value={st}>{t(`dev.bs_${st}`)}</option>)}
+                  </select></label>
+                <label className="block"><span className="label">{t("dev.cycle")}</span>
+                  <select className="input" value={bill.cycle} onChange={(e) => setBill((b) => ({ ...b, cycle: e.target.value }))}>
+                    {BILLING_CYCLES.map((cy) => <option key={cy} value={cy}>{t(`dev.cyc_${cy}`)}</option>)}
+                  </select></label>
+                <label className="block"><span className="label">{t("dev.price")}</span>
+                  <input className="input" inputMode="decimal" value={bill.price}
+                    onChange={(e) => setBill((b) => ({ ...b, price: e.target.value }))} placeholder="0.00" /></label>
+              </div>
+              <input className="input" value={bill.note || ""} onChange={(e) => setBill((b) => ({ ...b, note: e.target.value }))} placeholder={t("dev.billing_note_ph")} />
+              <p className="text-[11px] text-muted leading-relaxed">{t("dev.billing_hint")}</p>
+              <div className="flex gap-2">
+                <button className="btn-primary flex-1" disabled={busy === s.id}
+                  onClick={async () => { await op(s.id, { op: "billing", billing: bill }); setEditBill(null); }}>{t("dev.save_billing")}</button>
+                <button className="btn-ghost w-auto px-4" disabled={busy === s.id} onClick={() => setEditBill(null)}>{t("dev.cancel")}</button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
       <ShowMore hasMore={storePage.hasMore} nextStep={storePage.nextStep} onMore={storePage.showMore} />
