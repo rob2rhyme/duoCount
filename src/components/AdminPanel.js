@@ -861,11 +861,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <p className="text-[13px] text-muted mt-0.5">{t("admin.features_sub")}</p>
         </div>
         <div className="p-4 space-y-3">
-          {/* One switch per optional module. Turning one off hides its tab,
-              its Dashboard card and its attention badge for the whole store;
-              the core screens (Cash, Log, Dashboard, Team, Admin) are never
-              listed here. Gaming defaults OFF — a store enables it to get the
-              machine registry and the collection ledger. */}
+          {/* One switch per main tab. Turning one off hides its tab, its
+              Dashboard card and its attention badge for the whole store. Every
+              tab is here EXCEPT the two always-on ways back in — Dashboard and
+              Admin — so an owner can never hide the screen that turns modules
+              back on. (Rewards has its own on/off in Reward settings.) Gaming
+              defaults OFF — a store enables it to get the machine registry and
+              the collection ledger. */}
           {FEATURE_KEYS.map((k) => (
             <div key={k} className="flex items-start gap-3 border border-line rounded-xl p-3.5 bg-panel">
               <input id={`feat-${k}`} type="checkbox" className="mt-1" checked={settings.features[k] === true}

@@ -1152,13 +1152,25 @@ export const CATALOG = {
 
     // admin — feature toggles (which optional modules this store uses)
     "admin.features_title": "Features",
-    "admin.features_sub": "Turn whole modules on or off for this store. A module you turn off is hidden everywhere — its tab, its dashboard cards and its alerts — for every user until an owner turns it back on here.",
+    "admin.features_sub": "Turn whole tabs on or off for this store. A tab you turn off is hidden everywhere — its tab, its dashboard cards and its alerts — for every user until an owner turns it back on here. Dashboard and Admin always stay on.",
+    "admin.feat_cash": "Cash drawer",
+    "admin.feat_cash_hint": "Signed cash-drawer counts at shift open and close. Turn off only if this store doesn't count a drawer here.",
     "admin.feat_scratch": "Scratch-off tracking",
     "admin.feat_scratch_hint": "Shift-boundary lottery pack counts and the pack-audit gap alerts. Turn off if this store doesn't sell scratch-offs.",
     "admin.feat_inventory": "Backroom inventory",
     "admin.feat_inventory_hint": "Live stock counts plus the expiring-soon and low-stock alerts. Turn off if this store doesn't track inventory here.",
     "admin.feat_gaming": "Gaming machines",
     "admin.feat_gaming_hint": "Revenue ledger for slot/amusement/ATM machines: staff record each collection and payout, the owner sees the totals and split. Turn on if outside companies run machines in this store.",
+    "admin.feat_log": "Activity log",
+    "admin.feat_log_hint": "The store-wide feed of every signed count and event. Turn off to hide the Log tab from staff.",
+    "admin.feat_notes": "Shift notes",
+    "admin.feat_notes_hint": "Shift-to-shift handoff notes. Turn off if this store doesn't use written handoffs.",
+    "admin.feat_incidents": "Incidents",
+    "admin.feat_incidents_hint": "Logged incident reports (theft, safety, disputes). Turn off if this store logs incidents elsewhere.",
+    "admin.feat_time": "Time clock",
+    "admin.feat_time_hint": "Staff clock in/out and the hours summary. Turn off if this store tracks hours in another system.",
+    "admin.feat_portfolio": "Portfolio",
+    "admin.feat_portfolio_hint": "The owner's multi-store roll-up across every location. Turn off to hide the Portfolio tab for this store.",
 
     // admin — scratch-game catalog (owner types the games this store sells)
     "games.nav": "Scratch games",
@@ -2901,13 +2913,25 @@ export const CATALOG = {
 
     // admin — módulos opcionales de esta tienda
     "admin.features_title": "Funciones",
-    "admin.features_sub": "Activa o desactiva módulos completos para esta tienda. Un módulo que desactivas se oculta en todas partes — su pestaña, sus tarjetas del panel y sus alertas — para todos los usuarios hasta que un propietario lo vuelva a activar aquí.",
+    "admin.features_sub": "Activa o desactiva pestañas completas para esta tienda. Una pestaña que desactivas se oculta en todas partes — su pestaña, sus tarjetas del panel y sus alertas — para todos los usuarios hasta que un propietario la vuelva a activar aquí. El Panel y Admin siempre permanecen activos.",
+    "admin.feat_cash": "Caja",
+    "admin.feat_cash_hint": "Conteos de caja firmados al abrir y cerrar turno. Desactívalo solo si esta tienda no cuenta una caja aquí.",
     "admin.feat_scratch": "Seguimiento de raspaditos",
     "admin.feat_scratch_hint": "Conteos de paquetes de lotería al abrir y cerrar turno y las alertas de brechas de auditoría de paquetes. Desactívalo si esta tienda no vende raspaditos.",
     "admin.feat_inventory": "Inventario de trastienda",
     "admin.feat_inventory_hint": "Conteos de existencias en vivo más las alertas de por vencer y de bajo stock. Desactívalo si esta tienda no controla el inventario aquí.",
     "admin.feat_gaming": "Máquinas de juego",
     "admin.feat_gaming_hint": "Registro de ingresos para máquinas tragamonedas/de entretenimiento/cajeros: el personal registra cada recaudación y pago, y el propietario ve los totales y el reparto. Actívalo si empresas externas operan máquinas en esta tienda.",
+    "admin.feat_log": "Registro de actividad",
+    "admin.feat_log_hint": "El registro de toda la tienda con cada conteo y evento firmado. Desactívalo para ocultar la pestaña Registro al personal.",
+    "admin.feat_notes": "Notas de turno",
+    "admin.feat_notes_hint": "Notas de traspaso entre turnos. Desactívalo si esta tienda no usa traspasos escritos.",
+    "admin.feat_incidents": "Incidentes",
+    "admin.feat_incidents_hint": "Informes de incidentes registrados (robo, seguridad, disputas). Desactívalo si esta tienda registra incidentes en otro lugar.",
+    "admin.feat_time": "Reloj de horario",
+    "admin.feat_time_hint": "Entradas y salidas del personal y el resumen de horas. Desactívalo si esta tienda controla las horas en otro sistema.",
+    "admin.feat_portfolio": "Portafolio",
+    "admin.feat_portfolio_hint": "El resumen multi-tienda del propietario en todas las ubicaciones. Desactívalo para ocultar la pestaña Portafolio en esta tienda.",
 
     // admin — catálogo de juegos de raspadito (el propietario ingresa los juegos)
     "games.nav": "Juegos de raspadito",
