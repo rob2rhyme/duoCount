@@ -26,7 +26,10 @@ export default function Field({ label, hint, children, className, ...rest }) {
     : children;
   const controlId = isValidElement(control) ? control.props.id : undefined;
   return (
-    <div className={className} {...rest}>
+    // min-w-0 so a Field used as a flex/grid child can shrink below its
+    // content's intrinsic width — otherwise a date/number/select control forces
+    // the cell wide and the row overflows the card on a narrow phone.
+    <div className={`min-w-0 ${className || ""}`} {...rest}>
       <label htmlFor={controlId} className="label">{label}</label>
       {control}
       {hint && <p id={hintId} className="text-[12px] text-muted mt-1">{hint}</p>}

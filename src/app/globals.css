@@ -55,7 +55,12 @@ body {
 
 .card { @apply rounded-2xl shadow-sm; background: var(--surface); border: 1px solid var(--line); }
 .label { @apply block text-xs font-semibold uppercase tracking-wide mb-1.5; color: var(--muted); }
-.input { @apply w-full px-3 py-2.5 rounded-lg outline-none transition border; background: var(--field); color: var(--fg); border-color: var(--line); }
+.input { @apply w-full px-3 py-2.5 rounded-lg outline-none transition border; background: var(--field); color: var(--fg); border-color: var(--line); max-width: 100%; }
+/* A <select class="input w-auto"> sizes to its longest option; on a narrow
+   phone a long option (a location name) can then push past the card's right
+   edge. Cap every field at its container and let the native control truncate
+   instead of overflowing. */
+select.input { text-overflow: ellipsis; }
 .input::placeholder { color: var(--faint); }
 .input:focus { @apply ring-2 ring-brass/20; border-color: #298050; }
 /* The search boxes render their own magnifier + clear (×) button; WebKit's
