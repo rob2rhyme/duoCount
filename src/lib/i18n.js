@@ -802,6 +802,10 @@ export const CATALOG = {
     "pattern.pack-gap.title_other": "{game} #{pack}: {tickets} tickets unaccounted between counts",
     "pattern.pack-gap.detail_one": "~{dollars} across {boundaries} count boundary in {windowDays} days — compare who closed and who opened at each break before anything else.",
     "pattern.pack-gap.detail_other": "~{dollars} across {boundaries} count boundaries in {windowDays} days — compare who closed and who opened at each break before anything else.",
+    "pattern.stock-big-pull.title": "Big backroom pull — {item}",
+    "pattern.stock-big-pull.detail": "Outsized pulls up to {biggest} units, logged {count}× in the last {days} days — well above a grab-one-for-the-front tap. Worth matching to what actually sold.",
+    "pattern.stock-clerk-outflow.title": "One name on the backroom pulls — {item}",
+    "pattern.stock-clerk-outflow.detail": "{name} pulled {units} of {total} units ({pct}%) of it in the last {days} days — most of its backroom outflow under one person. A match-up worth having, not a verdict.",
 
     // dashboard — stat tiles
     "dash.stat_total": "Total entries",
@@ -2364,6 +2368,10 @@ export const CATALOG = {
     "pattern.pack-gap.title_other": "{game} #{pack}: {tickets} boletos sin contabilizar entre conteos",
     "pattern.pack-gap.detail_one": "~{dollars} en {boundaries} límite de conteo en {windowDays} días — compara quién cerró y quién abrió en cada corte antes que nada.",
     "pattern.pack-gap.detail_other": "~{dollars} en {boundaries} límites de conteo en {windowDays} días — compara quién cerró y quién abrió en cada corte antes que nada.",
+    "pattern.stock-big-pull.title": "Retiro grande de trastienda — {item}",
+    "pattern.stock-big-pull.detail": "Retiros de hasta {biggest} unidades, registrados {count}× en los últimos {days} días — muy por encima de un simple surtido al frente. Vale cruzarlo con lo que realmente se vendió.",
+    "pattern.stock-clerk-outflow.title": "Un solo nombre en los retiros — {item}",
+    "pattern.stock-clerk-outflow.detail": "{name} retiró {units} de {total} unidades ({pct}%) en los últimos {days} días — casi toda su salida de trastienda bajo una sola persona. Un cruce que vale la pena, no un veredicto.",
 
     "dash.stat_total": "Entradas totales",
     "dash.stat_net": "Sobra / falta neto",

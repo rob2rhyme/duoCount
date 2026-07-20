@@ -10,6 +10,7 @@ import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
 import { renderPattern } from "@/lib/pattern-format";
 import { buildPackAudit } from "@/lib/scratch-audit";
 import { buildStockAlerts } from "@/lib/stock-alerts";
+import { buildStockMoveAudit } from "@/lib/stockmove-audit";
 import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange } from "@/lib/data";
 import { buildTheftReport } from "@/lib/theft-report";
 import { useSession } from "./SessionProvider";
@@ -36,7 +37,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], onOpenLog, onRecord, onToast, locPicker = null }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], onOpenLog, onRecord, onToast, locPicker = null }) {
   const { isManager, vendor, profile } = useSession();
   const profileName = profile?.name || "";
   const { theme } = useTheme();
@@ -64,9 +65,14 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
         })
       : { alerts: [], totals: { earned: 0, redeemed: 0, earns: 0, redemptions: 0 } }),
     [rewardEvents, entries, customers, isManager, rewardsOn, vendor?.rewards, vendor?.patternRules]);
+  // Backroom pull ledger detectors (outsized pulls, clerk-dominated outflow) —
+  // manager-only, over the 30-day window of moves the shell already watches.
+  const stockMoveAudit = useMemo(
+    () => (isManager ? buildStockMoveAudit(stockMoves, { days: 30 }) : { alerts: [] }),
+    [stockMoves, isManager]);
   const patterns = useMemo(
-    () => [...basePatterns, ...rewardAudit.alerts],
-    [basePatterns, rewardAudit.alerts]);
+    () => [...basePatterns, ...rewardAudit.alerts, ...stockMoveAudit.alerts],
+    [basePatterns, rewardAudit.alerts, stockMoveAudit.alerts]);
   const liability = useMemo(
     () => outstandingLiability(customers, vendor?.rewards),
     [customers, vendor?.rewards]);
