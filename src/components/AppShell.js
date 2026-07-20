@@ -21,6 +21,7 @@ import PreferencesMenu from "./PreferencesMenu";
 import SetupChecklist from "./SetupChecklist";
 import BottomNav from "./BottomNav";
 import TabIcon from "./TabIcon";
+import Splash from "./Splash";
 import EmptyState, { IconStore, IconReceipt, IconBox } from "./EmptyState";
 import { setupProgress } from "@/lib/setup-progress";
 import { attentionCounts } from "@/lib/attention";
@@ -54,7 +55,13 @@ const visibleTabs = (isManager, isOwner) =>
 export default function AppShell() {
   const { profile, vendor, logout, isManager, isOwner } = useSession();
   const { t } = useLang();
-  const [tab, setTab] = useState("dashboard");
+  // Restore the last-viewed tab so a refresh (or relaunch) returns you to where
+  // you were working, not always the Dashboard. Validated against this user's
+  // visible tabs below (permissions can change between sessions).
+  const [tab, setTab] = useState(() => {
+    if (typeof window === "undefined") return "dashboard";
+    try { return localStorage.getItem("duocount-tab") || "dashboard"; } catch { return "dashboard"; }
+  });
   const [entries, setEntries] = useState([]);
   const [locations, setLocations] = useState([]);
   const [drawers, setDrawers] = useState([]);
@@ -68,10 +75,11 @@ export default function AppShell() {
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
-  // Tracks whether the location/drawer/item snapshots have each landed once, so
-  // the onboarding empty-states only appear after we truly know the store is
-  // empty — never as a flash while an existing vendor's data is still loading.
-  const [loaded, setLoaded] = useState({ locations: false, drawers: false, items: false });
+  // Tracks whether the entries/location/drawer/item snapshots have each landed
+  // once, so the onboarding + dashboard empty-states only appear after we truly
+  // know the store is empty — never as a flash while an existing vendor's data
+  // is still loading. `entries` also gates the boot splash below.
+  const [loaded, setLoaded] = useState({ entries: false, locations: false, drawers: false, items: false });
 
   // First name only for the tiny-screen header pill (full name returns at ≥sm).
   const firstName = (profile.name || "").trim().split(/\s+/)[0] || profile.name;
@@ -83,7 +91,7 @@ export default function AppShell() {
   const lockedLoc = !isManager && perLocation ? profile.locationId : null;
 
   useEffect(() => {
-    const u1 = watchEntries(vendor.id, lockedLoc, setEntries);
+    const u1 = watchEntries(vendor.id, lockedLoc, (v) => { setEntries(v); setLoaded((p) => (p.entries ? p : { ...p, entries: true })); });
     const u2 = watchLocations(vendor.id, (v) => { setLocations(v); setLoaded((p) => (p.locations ? p : { ...p, locations: true })); });
     const u3 = watchDrawers(vendor.id, (v) => { setDrawers(v); setLoaded((p) => (p.drawers ? p : { ...p, drawers: true })); });
     const u4 = watchItems(vendor.id, (v) => { setItems(v); setLoaded((p) => (p.items ? p : { ...p, items: true })); });
@@ -166,6 +174,19 @@ export default function AppShell() {
     .map((tb) => ({ ...tb, label: t(tb.labelKey) }));
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
 
+  // Persist the active tab so the next load resumes here. If a restored tab
+  // isn't available to this user (permissions changed since last session, or a
+  // stale value), fall back to the Dashboard so we never land on a blank tab.
+  useEffect(() => {
+    try { localStorage.setItem("duocount-tab", tab); } catch { /* storage blocked */ }
+  }, [tab]);
+  useEffect(() => {
+    if (!visibleTabs(isManager, isOwner).some((tb) => (tb.id !== "rewards" || rewardsVisible) && tb.id === tab)) {
+      setTab("dashboard");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManager, isOwner, rewardsVisible]);
+
   // First-run onboarding: derive what's set up, and only trust "empty" once the
   // relevant snapshots have arrived (so existing stores never flash an empty
   // state). The count tabs fall back to a guiding EmptyState until their
@@ -225,6 +246,19 @@ export default function AppShell() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isManager, isOwner, tab, rewardsVisible]);
+
+  // Hold the branded splash until the core data has loaded once, so a returning
+  // user never sees a "No activity yet" flash before their real counts arrive
+  // (with IndexedDB persistence this is near-instant; on a cold cache it covers
+  // the network round-trip). A safety timeout reveals the app anyway if a
+  // listener stalls, so an offline/blocked cache can never trap the user here.
+  const [bootTimedOut, setBootTimedOut] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setBootTimedOut(true), 6000);
+    return () => clearTimeout(id);
+  }, []);
+  const booted = (loaded.entries && loaded.locations && loaded.drawers && loaded.items) || bootTimedOut;
+  if (!booted) return <Splash />;
 
   return (
     // flex column + flex-1 main = the footer sits at the viewport bottom on
