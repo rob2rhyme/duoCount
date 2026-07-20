@@ -110,9 +110,10 @@ rewards** (off by default — see step 6), and turn on the optional
 
 - **Watch the badges.** As a manager, small amber counts appear on the
   navigation next to **Log** (counts with an unresolved variance or dispute),
-  **Incidents** (open write-ups), and **Time** (shift swaps waiting on your
-  approval) — an ambient nudge toward whatever needs a second look, so nothing
-  waits unseen. They clear themselves as you resolve each item.
+  **Incidents** (open write-ups), and **Time** (shift swaps and time-off
+  requests waiting on your approval) — an ambient nudge toward whatever needs a
+  second look, so nothing waits unseen. They clear themselves as you resolve
+  each item.
 - **Run more than one store? Open Portfolio.** Owners with two or more locations
   get a **Portfolio** tab: pick any period and see every store side by side —
   total over/short, sales, scratch dollars, and shrink up top, then a
@@ -154,6 +155,15 @@ rewards** (off by default — see step 6), and turn on the optional
 - **Incidents.** File a signed write-up when something happens that isn't a
   number (a till left open, a no-show). The employee it concerns can acknowledge
   and add their side.
+- **Time-off requests.** Staff ask for time off — or flag a predictable future
+  event they'll need off for (a wedding, a class) — right from the **Time** tab.
+  You **approve or deny each with a short reason**, and the employee sees your
+  decision and that reason the moment you make it. Overlapping requests show a
+  heads-up so you don't accidentally leave a shift uncovered.
+- **Help & support.** Hit a snag or think something's broken? In **Admin**, the
+  **Help & support** card lets you report an app issue — attach a screenshot if
+  it helps — and follow it from *open* to *resolved*; any reply lands right in
+  the thread, so you're never left wondering.
 
 ### 5. Pull a report for your records
 
@@ -313,6 +323,17 @@ Type the **store code** your manager gave you and **your own PIN**, then
    flagged for a manager to review — just like a cash short. (Blind mode applies
    here too, if it's on.)
 
+### Move backroom stock (pull to the front, restock)
+
+Above the count form on the **Inventory** tab is your **live backroom stock** —
+each tracked item with how many are on hand and a **−** and **+** button. Tap
+**−** when you pull one to the front (or it sells) and **+** when a delivery
+restocks it. Each tap is its own **signed movement line**, so the on-hand number
+and the who/when history stay honest — a manager can see every pull. Items
+running low or near their expiry date float to the top. This is the quick,
+all-day tally that keeps the shelf number live; the **signed count** above is
+the periodic, full recount that goes on the record.
+
 ### Rewards at the register (if your store turned it on)
 
 On the **Rewards** tab, type the customer's phone number and **Look up**. Not
@@ -325,9 +346,12 @@ like a count. Customers can check their own balance at **/rewards**.
 
 ### Clock in/out and see your schedule
 
-The **Time** tab has **Clock** (punch in and out — a mistake is fixed by
-punching again, never edited) and **Schedule** (your upcoming shifts; mark days
-you can't work, grab open shifts, or offer a swap to a coworker).
+The **Time** tab has three parts: **Clock** (punch in and out — a mistake is
+fixed by punching again, never edited), **Schedule** (your upcoming shifts; mark
+days you can't work, grab open shifts, or offer a swap to a coworker), and
+**Time off** (ask for days off with a reason and watch for your manager's
+approve or deny — with their reason — right on the request; you can also log a
+predictable future event you'll need off for, so it's on their radar early).
 
 ### Leave a shift note
 
@@ -366,7 +390,9 @@ bin 4 running low." Managers can pin the important ones.
   stays on screen with a **Retry** button instead of a message that flashes and
   disappears. Your entry isn't recorded until you see the success note.
 - **Install it like an app.** DuoCount is a PWA — your phone/browser can "Add to
-  Home Screen," and it opens full-screen and works offline for the basics.
+  Home Screen," and it opens full-screen and works offline for the basics. It
+  reopens on the **tab you were last using** and shows your recent data right
+  away, so a reload drops you back where you were.
 - **¿Prefieres español?** The whole app speaks Spanish: pick **Español** from
   the language menu on the sign-in screen (next to the sun/moon) or in the
   header **gear (Settings) → Idioma**. Every screen switches — sign-in
