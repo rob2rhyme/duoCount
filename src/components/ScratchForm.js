@@ -453,7 +453,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
                       {r.game || t("scratch.walk_unknown_game")}
                       {r.isNew && <span className="ml-1.5 text-[9px] uppercase tracking-wide font-bold text-gold border border-brass/50 rounded px-1 py-px align-middle">{t("scratch.walk_new")}</span>}
                     </div>
-                    <div className="text-[11px] text-muted font-mono">…{r.pack.slice(-6)}{Number(r.price) > 0 ? ` · ${money(Number(r.price))}` : ""}</div>
+                    <div className="text-[11px] text-muted font-mono">#{packDisplayParts(r.pack).bookNo}{Number(r.price) > 0 ? ` · ${money(Number(r.price))}` : ""}</div>
                     <button type="button" onClick={() => toggleSoldOut(i)} title={t("scratch.soldout_label")}
                       className={`mt-1 text-[9px] uppercase tracking-wide font-bold rounded px-1.5 py-0.5 border transition ${r.soldOut ? "border-neg text-neg bg-neg/10" : "border-line text-muted hover:text-fg"}`}>
                       {r.soldOut ? "✓ " : ""}{t("scratch.walk_final")}
@@ -494,7 +494,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
                   <button key={e.pack} type="button" className="w-full text-left px-3 py-2 hover:bg-subtle transition"
                     onClick={() => addMissingPack(e)}>
                     <span className="block text-[13px] font-medium truncate">{e.game || t("scratch.walk_unknown_game")}</span>
-                    <span className="block text-[11px] text-muted font-mono">…{String(e.pack).slice(-6)} · {t("scratch.walk_missing_last", { n: e.endno ?? "—", by: e.by || "—" })}</span>
+                    <span className="block text-[11px] text-muted font-mono">#{packDisplayParts(e.pack).bookNo} · {t("scratch.walk_missing_last", { n: e.endno ?? "—", by: e.by || "—" })}</span>
                   </button>
                 ))}
                 <p className="px-3 py-2 text-[11px] text-muted bg-panel">{t("scratch.walk_add_missing_hint")}</p>
