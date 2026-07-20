@@ -97,3 +97,77 @@ test("VIP-multiplied earns don't false-alarm outpaced-sales; raw excess still do
   const forged = buildRewardAudit([earn({ points: 150, saleDollars: 100, multiplier: 0.1 })], [cash(100)], { now: NOW });
   assert.ok(forged.alerts.some((x) => x.kind === "reward-outpaced-sales"));
 });
+
+// A referrer-credit ledger line (the one that pays the referrer — it alone
+// carries referredCustomerId). points default to the 50-pt referrer bonus.
+const referral = (over = {}) => ({
+  kind: "referral", points: 50, customerId: "ref1", referredCustomerId: "new1",
+  by: "Eve", byId: "u1", ts: daysAgo(1), ...over,
+});
+
+test("a clerk booking a burst of referral enrollments in one day is flagged (the actor)", () => {
+  // 3 referrals by one clerk, same day, each naming a DIFFERENT referrer account
+  // (so only the clerk-burst fires, not the account-farm).
+  const events = [
+    referral({ customerId: "ref1", referredCustomerId: "n1" }),
+    referral({ customerId: "ref2", referredCustomerId: "n2" }),
+    referral({ customerId: "ref3", referredCustomerId: "n3" }),
+  ];
+  const { alerts } = buildRewardAudit(events, [], { now: NOW });
+  const a = alerts.find((x) => x.kind === "reward-referral-burst");
+  assert.ok(a);
+  assert.equal(a.params.name, "Eve");
+  assert.equal(a.params.count, 3);
+  assert.equal(a.severity, "medium"); // 3..4 medium, >=5 high
+  assert.ok(!alerts.some((x) => x.kind === "reward-referral-farm"));
+});
+
+test("one account farmed as referrer across days/clerks is flagged, phone masked", () => {
+  // 4 referrals crediting ref1, spread across 4 clerks and 4 days (so the
+  // per-day clerk-burst never trips — only the window-wide account farm).
+  const events = [
+    referral({ byId: "u1", by: "A", ts: daysAgo(1), referredCustomerId: "n1" }),
+    referral({ byId: "u2", by: "B", ts: daysAgo(2), referredCustomerId: "n2" }),
+    referral({ byId: "u3", by: "C", ts: daysAgo(3), referredCustomerId: "n3" }),
+    referral({ byId: "u4", by: "D", ts: daysAgo(4), referredCustomerId: "n4" }),
+  ];
+  const { alerts } = buildRewardAudit(events, [], { now: NOW, customers: [{ id: "ref1", phone: "5551234567" }] });
+  const a = alerts.find((x) => x.kind === "reward-referral-farm");
+  assert.ok(a);
+  assert.equal(a.params.count, 4);
+  assert.equal(a.params.points, 200); // 4 × 50
+  assert.notEqual(a.params.who, "?"); // resolved to a masked phone
+  assert.ok(!alerts.some((x) => x.kind === "reward-referral-burst"));
+});
+
+test("severity escalates: 5 same-day referrals => high burst; 8 farmed => high farm", () => {
+  const burst = buildRewardAudit(
+    Array.from({ length: 5 }, (_, i) => referral({ customerId: `r${i}`, referredCustomerId: `n${i}` })),
+    [], { now: NOW });
+  assert.equal(burst.alerts.find((x) => x.kind === "reward-referral-burst").severity, "high");
+
+  const farm = buildRewardAudit(
+    Array.from({ length: 8 }, (_, i) => referral({ byId: `u${i}`, by: `C${i}`, ts: daysAgo(i + 1), referredCustomerId: `n${i}` })),
+    [], { now: NOW });
+  assert.equal(farm.alerts.find((x) => x.kind === "reward-referral-farm").severity, "high");
+});
+
+test("friend-credit lines (no referredCustomerId) and reversed referrals don't count", () => {
+  const events = [
+    // friend-side credits — real referral lines but NOT the referrer payout
+    { kind: "referral", points: 25, customerId: "new1", referredBy: "ref1", by: "Eve", byId: "u1", ts: daysAgo(1) },
+    { kind: "referral", points: 25, customerId: "new2", referredBy: "ref1", by: "Eve", byId: "u1", ts: daysAgo(1) },
+    { kind: "referral", points: 25, customerId: "new3", referredBy: "ref1", by: "Eve", byId: "u1", ts: daysAgo(1) },
+    // reversed referrer payouts — undone, so not fraud signal
+    referral({ referredCustomerId: "n1", reversedBy: "x1" }),
+    referral({ referredCustomerId: "n2", reversedBy: "x2" }),
+    referral({ referredCustomerId: "n3", reversedBy: "x3" }),
+  ];
+  const { alerts } = buildRewardAudit(events, [], { now: NOW });
+  assert.equal(alerts.some((x) => x.kind?.startsWith("reward-referral")), false);
+});
+
+test("a lone occasional referral raises nothing", () => {
+  const { alerts } = buildRewardAudit([referral()], [], { now: NOW });
+  assert.equal(alerts.some((x) => x.kind?.startsWith("reward-referral")), false);
+});

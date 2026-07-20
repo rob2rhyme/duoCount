@@ -30,6 +30,10 @@ const MULTI_EARN_MIN = 3;      // earns by one customer in one day
 const MULTI_EARN_HIGH = 5;
 const REDEEM_BURST_MIN = 3;    // redemptions by one clerk in one day
 const REDEEM_BURST_HIGH = 5;
+const REFERRAL_BURST_MIN = 3;  // referral enrollments by one clerk in one day
+const REFERRAL_BURST_HIGH = 5;
+const REFERRAL_FARM_MIN = 4;   // referral bonuses credited to ONE account across the window
+const REFERRAL_FARM_HIGH = 8;
 const OUTPACE_SLACK = 1.1;     // 10% grace over the supported points
 const OUTPACE_FLOOR = 20;      // and at least this many unexplained points
 
@@ -119,6 +123,54 @@ export function buildRewardAudit(events = [], entries = [], { rules, customers =
       id: `reward-clerk-redemptions:${key.split("|")[0]}|${day}`, code: "reward-clerk-redemptions",
       severity: count >= REDEEM_BURST_HIGH ? "high" : "medium",
       params: { name, count, day },
+    }));
+  }
+
+  // 4. referral farming — the enrollment-referral bonus injects points with no
+  // sale behind it, and none of the detectors above watch kind:'referral', so a
+  // clerk enrolling throwaway numbers that name one account as referrer harvests
+  // the referrer bonus invisibly. Count the REFERRER-credit line (the one that
+  // actually pays the referrer — it alone carries referredCustomerId, one per
+  // referral enrollment); skip lines already reversed/undone.
+  const referralCredits = inWindow.filter(
+    (e) => e.kind === "referral" && e.referredCustomerId && !e.reversedBy);
+
+  // 4a. one clerk booking a burst of referral enrollments in a day (the actor)
+  const refByClerkDay = new Map(); // byId|day -> { name, count }
+  for (const e of referralCredits) {
+    const d = dayOf(e);
+    if (!e.byId || !d) continue;
+    const key = `${e.byId}|${d}`;
+    const cur = refByClerkDay.get(key) || { name: e.by || "—", count: 0 };
+    cur.count += 1;
+    refByClerkDay.set(key, cur);
+  }
+  for (const [key, { name, count }] of refByClerkDay.entries()) {
+    if (count < REFERRAL_BURST_MIN) continue;
+    const day = key.split("|")[1];
+    alerts.push(alert({
+      id: `reward-referral-burst:${key.split("|")[0]}|${day}`, code: "reward-referral-burst",
+      severity: count >= REFERRAL_BURST_HIGH ? "high" : "medium",
+      params: { name, count, day },
+    }));
+  }
+
+  // 4b. one account credited as referrer over and over across the window — the
+  // farmed account (the self-referral loop), even if spread across clerks/days.
+  const refByAccount = new Map(); // customerId -> { count, points }
+  for (const e of referralCredits) {
+    if (!e.customerId) continue;
+    const cur = refByAccount.get(e.customerId) || { count: 0, points: 0 };
+    cur.count += 1;
+    cur.points += Number(e.points) || 0;
+    refByAccount.set(e.customerId, cur);
+  }
+  for (const [customerId, { count, points }] of refByAccount.entries()) {
+    if (count < REFERRAL_FARM_MIN) continue;
+    alerts.push(alert({
+      id: `reward-referral-farm:${customerId}`, code: "reward-referral-farm",
+      severity: count >= REFERRAL_FARM_HIGH ? "high" : "medium",
+      params: { who: phoneById.get(customerId) || "?", count, points, windowDays },
     }));
   }
 
