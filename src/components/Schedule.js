@@ -13,12 +13,15 @@ import {
   weekShiftsToTemplate, templateToShifts,
 } from "@/lib/schedule";
 import { availableActions, applySwap, swapStatusOf, SWAP_ACTIONS } from "@/lib/swaps";
+import { dayISO } from "@/lib/timeclock";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconCalendar } from "./EmptyState";
 import Field from "./Field";
 import ShowMore, { usePaged } from "./ShowMore";
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// The store's LOCAL today (not the UTC date), so scheduled shift dates and the
+// week anchor line up with the local day punches are filed under (dayISO).
+const todayStr = () => dayISO();
 const dayLabel = (d) => {
   const [y, m, dd] = d.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, dd)).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });

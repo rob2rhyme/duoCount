@@ -6,7 +6,7 @@ import {
 } from "@/lib/data";
 import { useSession } from "./SessionProvider";
 import {
-  computeShifts, summarizeHours, openShiftFor, formatDuration,
+  computeShifts, summarizeHours, openShiftFor, formatDuration, dayISO,
 } from "@/lib/timeclock";
 import { weekStartMonday, weekDates, addDays } from "@/lib/schedule";
 import { activeLockDays, weekLockInfo } from "@/lib/payroll-lock";
@@ -23,7 +23,10 @@ const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", m
 const fmtDay = (ms) => new Date(ms).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 // A punch's business day is stamped as the UTC date of the moment (see addPunch);
 // derive the same label from a shift's ms so lock checks line up with the docs.
-const dayOfMs = (ms) => new Date(ms).toISOString().slice(0, 10);
+// Local business day of an instant — matches the day punches are filed under
+// (dayISO) so timesheet grouping and payroll-lock checks line up with the
+// store's calendar, not UTC.
+const dayOfMs = (ms) => dayISO(ms);
 const fmtDateStr = (d) =>
   new Date(`${d}T00:00:00Z`).toLocaleDateString([], { month: "short", day: "numeric", timeZone: "UTC" });
 

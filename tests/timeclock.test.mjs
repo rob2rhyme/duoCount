@@ -1,7 +1,7 @@
 // Pure time-clock aggregation. No emulator needed. Run: npm run test:timeclock
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { computeShifts, summarizeHours, openShiftFor, hoursDecimal, formatDuration, applyCorrections } from "../src/lib/timeclock.js";
+import { computeShifts, summarizeHours, openShiftFor, hoursDecimal, formatDuration, applyCorrections, dayISO } from "../src/lib/timeclock.js";
 
 const H = 3_600_000;
 // fixed epoch base (Date.now not used — literals keep tests deterministic)
@@ -219,4 +219,26 @@ test("corrections flow through summarizeHours (payroll reflects the fix)", () =>
     corr({ action: "edit", targetId: "p2", at: at(17), userId: "u1" }),
   ]);
   assert.equal(rows.find((r) => r.userId === "u1").hours, 8); // corrected 8h, not 9h
+});
+
+// dayISO — the LOCAL business day of an instant, the fix for evening US punches
+// filing onto the next (UTC) day and no longer matching their shift date.
+// offsetMin pins the timezone so the assertion doesn't depend on the runner TZ.
+test("dayISO returns the local business day, not the UTC date", () => {
+  // 00:30 UTC on Jul 21 == 8:30pm ET on Jul 20 (UTC-5, offset +300).
+  const evening = Date.parse("2026-07-21T00:30:00Z");
+  assert.equal(dayISO(evening, 300), "2026-07-20"); // store's local day (correct)
+  assert.equal(dayISO(evening, 0), "2026-07-21");   // UTC (the old, buggy result)
+
+  // A daytime punch is unaffected — same day either way.
+  const morning = Date.parse("2026-07-20T14:00:00Z"); // 10am ET
+  assert.equal(dayISO(morning, 300), "2026-07-20");
+  assert.equal(dayISO(morning, 0), "2026-07-20");
+
+  // West-coast late night crosses even further: 2am UTC Jul 21 == 7pm PT Jul 20.
+  assert.equal(dayISO(Date.parse("2026-07-21T02:00:00Z"), 420), "2026-07-20");
+
+  // A positive-offset zone that pushes INTO the next local day still resolves.
+  // 23:30 UTC Jul 20 == 8:30am Jul 21 in UTC+9.
+  assert.equal(dayISO(Date.parse("2026-07-20T23:30:00Z"), -540), "2026-07-21");
 });

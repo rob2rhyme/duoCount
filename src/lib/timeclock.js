@@ -18,6 +18,19 @@ function toMs(ts) {
   return Number.isNaN(d.getTime()) ? null : d.getTime();
 }
 
+/**
+ * The LOCAL business day (YYYY-MM-DD) of an instant — the calendar date in the
+ * device/store timezone, NOT UTC. `new Date(ms).toISOString().slice(0,10)`
+ * gives the UTC date, which rolls a US evening shift onto the wrong business day
+ * (8pm ET = next-day UTC), so a punch stops matching its manager-picked shift
+ * date and the attendance/late/payroll grouping breaks. Reads the offset per
+ * instant, so it's DST-correct; `offsetMin` lets tests pin a timezone instead
+ * of depending on the runner's TZ (defaults to the device's own offset).
+ */
+export function dayISO(ms = Date.now(), offsetMin = new Date(ms).getTimezoneOffset()) {
+  return new Date(ms - offsetMin * 60_000).toISOString().slice(0, 10);
+}
+
 const keyOf = (p) => p.userId || p.userName || "";
 
 function shift(inP, outP) {
