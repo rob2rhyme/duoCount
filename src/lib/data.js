@@ -5,7 +5,7 @@ import { dayISO } from "./timeclock";
 import { VENDOR_SETTING_KEYS } from "./vendor-settings";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
-  query, where, orderBy, onSnapshot, getDocs, serverTimestamp, increment,
+  query, where, orderBy, onSnapshot, getDoc, getDocs, serverTimestamp, increment,
 } from "firebase/firestore";
 
 /* All data lives under vendors/{vendorId}/... — every helper is tenant-scoped. */
@@ -131,6 +131,24 @@ export async function apiCatalog({ action, game, name, price, perPack }) {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
     body: JSON.stringify({ action, game, name, price, perPack }),
+  });
+}
+// The owner's uploaded custom font (bytes as a data: URL), stored in a dedicated
+// subdoc so it never bloats the vendor doc every member reads. Read once by the
+// BrandingApplier only when the store's font is "custom". null = none uploaded.
+export async function getBrandingFont(vendorId) {
+  try {
+    const snap = await getDoc(doc(db, "vendors", vendorId, "branding", "font"));
+    return snap.exists() ? snap.data() : null;
+  } catch { return null; } // read denied / offline → fall back to the default stack
+}
+// Upload (or clear) the custom font. Owner-only trusted route; it validates the
+// font server-side (magic bytes + size) before storing. Pass dataUrl:null to clear.
+export async function apiBranding({ dataUrl, format }) {
+  return fetchJson("/api/branding", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify({ dataUrl, format }),
   });
 }
 // Rewards audit feeds (manager-only subscribers): the ledger window for the

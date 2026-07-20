@@ -35,7 +35,7 @@ export default function SetupChecklist({ locations, drawers, items, isManager, v
   }
 
   return (
-    <div className="card overflow-hidden mb-4" style={{ borderColor: "var(--brass)" }}>
+    <div className="card overflow-hidden mb-4" style={{ borderColor: "rgb(var(--brass))" }}>
       <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-3 bg-panel">
         <div className="flex items-center gap-2 min-w-0">
           <span aria-hidden="true">🧭</span>

@@ -960,3 +960,22 @@ test("catalog: members read, outsiders don't, and no client may write", async ()
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/catalog/scratch`), { count: 99 }));
   await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/catalog/scratch`)));
 });
+
+test("branding font: members read the uploaded font; no client may write it", async () => {
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), `vendors/${V}/branding/font`),
+      { dataUrl: "data:font/woff2;base64,AAAA", format: "woff2", bytes: 3 });
+  });
+  // Members read it so the app can inject the @font-face; outsiders can't.
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/branding/font`)));
+  await assertFails(getDoc(doc(db("outsider"), `vendors/${V}/branding/font`)));
+  // Written only through the trusted owner-only /api/branding route — no client write.
+  await assertFails(setDoc(doc(db("owner"), `vendors/${V}/branding/font`), { dataUrl: "data:font/woff2;base64,BBBB", format: "woff2", bytes: 3 }));
+  await assertFails(deleteDoc(doc(db("owner"), `vendors/${V}/branding/font`)));
+});
+
+test("appearance settings: an owner may set themePalette/fontFamily/fontScale; a manager may not", async () => {
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}`),
+    { themePalette: "ocean", fontFamily: "Inter", fontScale: 1.12 }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { themePalette: "rose" }));
+});
