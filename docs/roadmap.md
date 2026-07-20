@@ -393,7 +393,9 @@ adoption. Center of gravity is everyday usability + onboarding + import + export
   file drops — with owner-only adjustable alerts: "Expiring soon" (default
   ≤ 30 days) and "Need order" (default < 5 units). The signed per-shift count
   stays for the high-shrink watch list only; the synced quantity doubles as a
-  tamper-resistant expected baseline for it. Phases 2–3 remain research.
+  tamper-resistant expected baseline for it. **Phases 2–3 (Square/Clover live
+  APIs, petro file drops) are shelved — not on the roadmap** (owner decision,
+  July 2026); Phase 1 stays supported.
 - **Customer rewards** — `rewards-program-spec.md` — **Phase 1 ✅ shipped
   July 2026** (see Shipped). Owner defaults: $1 = 1 point, 100 points = $5
   off, owner-only adjustable in Reward settings (off by default, with the

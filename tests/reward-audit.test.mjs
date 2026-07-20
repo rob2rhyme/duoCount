@@ -80,6 +80,20 @@ test("outstandingLiability: linear at the store's settings; negatives clamped; e
   assert.deepEqual(outstandingLiability([]), { points: 0, dollars: 0 });
 });
 
+test("outstandingLiability excludes points already lapsed under the inactivity policy", () => {
+  const now = new Date("2026-07-20T00:00:00Z");
+  const customers = [
+    { pointsBalance: 150, lastEarnAt: new Date("2026-07-01") },  // active → counts
+    { pointsBalance: 200, lastEarnAt: new Date("2025-01-01") },  // 18mo idle → lapsed, excluded
+  ];
+  const l = outstandingLiability(customers, { expiryMonths: 12 }, now);
+  assert.equal(l.points, 150);
+  assert.equal(l.dollars, 7.5);
+  // with expiry off, the lapsed balance is a liability again
+  const off = outstandingLiability(customers, { expiryMonths: 0 }, now);
+  assert.equal(off.points, 350);
+});
+
 test("VIP-multiplied earns don't false-alarm outpaced-sales; raw excess still does", () => {
   // $100 of sales supports 100 base points. 150 points issued at a recorded
   // ×1.5 VIP multiplier normalize back to 100 — fully supported, no alert.

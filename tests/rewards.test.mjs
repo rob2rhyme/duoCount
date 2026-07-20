@@ -5,14 +5,15 @@ import {
   REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak,
   effectivePercent, pointsForSale, canRedeem, canRedeemTier, pointDollarValue,
   sanitizeProfile, daysSince, isNewCustomer, isBirthdayMonth, normalizePhone, maskPhone,
+  pointsExpiry, effectiveBalance, resolveExclusions, MAX_EXCLUSIONS,
 } from "../src/lib/rewards.js";
 
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
   assert.deepEqual(resolveRewards(), {
     enabled: false, earnPerDollar: REWARDS.earnPerDollar,
     redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue,
-    streakHours: REWARDS.streakHours, tiers: [], vip: [],
-    referral: { ...REWARDS.referral }, stamps: [],
+    expiryMonths: REWARDS.expiryMonths, streakHours: REWARDS.streakHours, tiers: [], vip: [],
+    referral: { ...REWARDS.referral }, stamps: [], excludedCategories: [],
   });
   assert.equal(resolveRewards({}).enabled, false);
   assert.equal(resolveRewards({ enabled: true }).enabled, true);
@@ -259,6 +260,13 @@ test("sanitizeProfile: note/address clamp, email validated", () => {
   assert.equal(sanitizeProfile({ email: "a b@c.com" }).error, "bad_email");
 });
 
+test("sanitizeProfile: customerId trims, clamps to 40, and blanks to null", () => {
+  assert.equal(sanitizeProfile({ customerId: "  M-0042  " }).patch.customerId, "M-0042");
+  assert.equal(sanitizeProfile({ customerId: "z".repeat(60) }).patch.customerId.length, 40);
+  assert.equal(sanitizeProfile({ customerId: "" }).patch.customerId, null);
+  assert.equal("customerId" in sanitizeProfile({ note: "x" }).patch, false); // untouched → absent
+});
+
 test("sanitizeProfile: birthday bounds — month 1-12, day fits the month, day needs a month", () => {
   assert.deepEqual(sanitizeProfile({ birthdayMonth: "4", birthdayDay: "15" }).patch,
     { birthdayMonth: 4, birthdayDay: 15 });
@@ -321,4 +329,61 @@ test("resolveRewards stamps: clamp-and-drop punch cards, capped at MAX_STAMP_CAR
   const many = Array.from({ length: 10 }, (_, i) => ({ id: `x${i}`, name: `Card ${i}`, goal: 5 }));
   assert.equal(resolveRewards({ stamps: many }).stamps.length, 6);
   assert.deepEqual(resolveRewards({}).stamps, []);
+});
+
+// ---- points expiry (inactivity breakage/liability control) ----
+
+test("resolveRewards clamps expiryMonths (whole; 0 = never; default 12)", () => {
+  assert.equal(resolveRewards({}).expiryMonths, 12);          // default
+  assert.equal(resolveRewards({ expiryMonths: 0 }).expiryMonths, 0);   // 0 = never, preserved
+  assert.equal(resolveRewards({ expiryMonths: 18 }).expiryMonths, 18);
+  assert.equal(resolveRewards({ expiryMonths: 999 }).expiryMonths, 60); // clamp hi
+  assert.equal(resolveRewards({ expiryMonths: -5 }).expiryMonths, 0);   // clamp lo
+  assert.equal(resolveRewards({ expiryMonths: 12.7 }).expiryMonths, 13); // whole
+  assert.equal(resolveRewards({ expiryMonths: "junk" }).expiryMonths, 12); // fallback
+});
+
+test("pointsExpiry anchors on the last earn, then enrollment; a redeem doesn't reset it", () => {
+  const now = new Date("2026-07-20T00:00:00Z");
+  const rules = { expiryMonths: 12 };
+  // last earned 13 months ago → expired
+  const stale = pointsExpiry({ lastEarnAt: new Date("2025-06-01T00:00:00Z"), createdAt: new Date("2024-01-01") }, rules, now);
+  assert.equal(stale.expired, true);
+  assert.equal(stale.expiresAt.toISOString().slice(0, 10), "2026-06-01");
+  // last earned 2 months ago → alive
+  assert.equal(pointsExpiry({ lastEarnAt: new Date("2026-05-20T00:00:00Z") }, rules, now).expired, false);
+  // never earned → anchor on enrollment
+  const byEnroll = pointsExpiry({ lastEarnAt: null, createdAt: new Date("2025-01-01T00:00:00Z") }, rules, now);
+  assert.equal(byEnroll.expired, true);
+  assert.equal(byEnroll.anchor.toISOString().slice(0, 10), "2025-01-01");
+});
+
+test("pointsExpiry: 0 months, or no usable anchor date, never expires", () => {
+  const now = new Date("2026-07-20T00:00:00Z");
+  assert.equal(pointsExpiry({ lastEarnAt: new Date("2000-01-01") }, { expiryMonths: 0 }, now).expired, false);
+  assert.equal(pointsExpiry({}, { expiryMonths: 12 }, now).expired, false);          // no dates
+  assert.equal(pointsExpiry({ lastEarnAt: "not-a-date" }, { expiryMonths: 12 }, now).expired, false);
+});
+
+test("effectiveBalance zeroes an expired balance, else returns the stored balance", () => {
+  const now = new Date("2026-07-20T00:00:00Z");
+  const rules = { expiryMonths: 12 };
+  assert.equal(effectiveBalance({ pointsBalance: 250, lastEarnAt: new Date("2025-01-01") }, rules, now), 0);
+  assert.equal(effectiveBalance({ pointsBalance: 250, lastEarnAt: new Date("2026-07-01") }, rules, now), 250);
+  assert.equal(effectiveBalance({ pointsBalance: 250, lastEarnAt: new Date("2025-01-01") }, { expiryMonths: 0 }, now), 250);
+  assert.equal(effectiveBalance({ pointsBalance: -5, lastEarnAt: new Date("2026-07-01") }, rules, now), 0); // never negative
+});
+
+// ---- owner's extra excluded categories (on top of the legal base) ----
+
+test("resolveExclusions parses a string or array; trims, dedupes, drops blanks, caps", () => {
+  assert.deepEqual(resolveExclusions("Money orders, Boss Revolution top-ups"), ["Money orders", "Boss Revolution top-ups"]);
+  assert.deepEqual(resolveExclusions(["Money orders", "  ", "money ORDERS", "Stamps"]), ["Money orders", "Stamps"]); // case-insensitive dedupe
+  assert.deepEqual(resolveExclusions("a\nb\n\nc"), ["a", "b", "c"]); // newline-separated
+  assert.deepEqual(resolveExclusions(""), []);
+  assert.deepEqual(resolveExclusions(null), []);
+  const many = Array.from({ length: 20 }, (_, i) => `cat${i}`);
+  assert.equal(resolveExclusions(many).length, MAX_EXCLUSIONS);
+  assert.equal(resolveExclusions([" x".repeat(50)])[0].length, 40); // per-label cap
+  assert.deepEqual(resolveRewards({ excludedCategories: "Money orders" }).excludedCategories, ["Money orders"]);
 });

@@ -35,16 +35,16 @@ import { PRODUCT } from "@/lib/store";
 // per the localization spec's icon-forward treatment — the word reinforces it.
 const TABS = [
   { id: "dashboard", labelKey: "nav.dashboard" },
-  { id: "cash", labelKey: "nav.cash" },
+  { id: "cash", labelKey: "nav.cash", featureKey: "cash" },
   { id: "scratch", labelKey: "nav.scratch", featureKey: "scratch" },
   { id: "inventory", labelKey: "nav.inventory", featureKey: "inventory" },
   { id: "gaming", labelKey: "nav.gaming", featureKey: "gaming" },
   { id: "rewards", labelKey: "nav.rewards" },
-  { id: "log", labelKey: "nav.log" },
-  { id: "notes", labelKey: "nav.notes" },
-  { id: "incidents", labelKey: "nav.incidents" },
-  { id: "time", labelKey: "nav.time" },
-  { id: "portfolio", labelKey: "nav.portfolio", ownerOnly: true },
+  { id: "log", labelKey: "nav.log", featureKey: "log" },
+  { id: "notes", labelKey: "nav.notes", featureKey: "notes" },
+  { id: "incidents", labelKey: "nav.incidents", featureKey: "incidents" },
+  { id: "time", labelKey: "nav.time", featureKey: "time" },
+  { id: "portfolio", labelKey: "nav.portfolio", ownerOnly: true, featureKey: "portfolio" },
   { id: "admin", labelKey: "nav.admin", ownerOnly: true },
 ];
 
@@ -395,7 +395,8 @@ export default function AppShell() {
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
             items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves}
-            onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping}
+            onOpenLog={featureEnabled(vendor, "log") ? () => setTab("log") : undefined}
+            onRecord={featureEnabled(vendor, "cash") ? () => setTab("cash") : undefined} onToast={ping}
             locPicker={showLocFilter ? (
               <select className="input" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
                 <option value="all">{t("common.all_locations")}</option>

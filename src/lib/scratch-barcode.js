@@ -89,3 +89,65 @@ export function packGameKey(pack) {
   if (/^\d+$/.test(p) && p.length > GAME_DIGITS) return p.slice(0, GAME_DIGITS);
   return "";
 }
+
+/**
+ * Build the canonical pack id from a PA ticket's two printed identifiers — the
+ * game number (e.g. 1792) and the pack/book number (e.g. 0011361). A scan
+ * concatenates them (game + book + ticket), so hand-typed entry must produce the
+ * SAME id — otherwise the same physical pack scanned one shift and typed the
+ * next splits into two, and the shift-boundary theft audit silently misses the
+ * gap across that boundary. This is the one helper both paths agree through.
+ *
+ * Blank game # → the book # exactly as typed (the original behavior, so a store
+ * that never fills a game # is unchanged). If the book field already leads with
+ * the game # (the clerk typed the whole thing, or pasted a scan) it is NOT
+ * double-prefixed. Non-numeric ids are left untouched.
+ *
+ * @param {string} gameNo  the 4-digit game number (leading zeros tolerated)
+ * @param {string} bookNo  the pack / book number
+ * @returns {string} the canonical pack id used for saving + audit chaining
+ */
+export function packIdFromParts(gameNo, bookNo) {
+  const book = String(bookNo ?? "").trim();
+  const g = String(gameNo ?? "").replace(/\D/g, "");
+  if (!g) return book;               // no game # → book as typed
+  if (!book) return "";
+  const b = book.replace(/\D/g, "");
+  if (!b) return book;               // non-numeric book → leave as-is
+  return b.startsWith(g) ? b : g + b; // don't double-prefix an already-full id
+}
+
+// A PA pack/book number is this many digits; a scan (and the canonical id the
+// form saves) prefixes the 4-digit game #, so a FULL id is GAME_DIGITS +
+// BOOK_DIGITS long. Like the constants above it is PA-tuned — the one place to
+// adapt for another state's layout.
+export const BOOK_DIGITS = 7;
+
+/**
+ * Split a pack id back into the two numbers printed on the ticket — game # and
+ * book # — for DISPLAY only (it never affects the audit's grouping, which keys
+ * off the raw pack string). Mirrors the shelf/ticket labels so a manager
+ * chasing a flagged gap can find the exact book.
+ *
+ * It never invents a split that isn't clearly there: a delimited id splits on
+ * its delimiter; a plain digit run splits only when it is long enough to hold a
+ * game # in front of a full book #, so a bare book # (typed before this store
+ * captured game #s) is shown whole rather than mis-cut. Blank / short / already
+ * partial ids come back with a blank gameNo and the whole id as bookNo.
+ *
+ * @param {string} pack  a stored entry.pack / audit pack id
+ * @returns {{ gameNo: string, bookNo: string }}
+ */
+export function packDisplayParts(pack) {
+  const p = String(pack ?? "").trim();
+  if (!p) return { gameNo: "", bookNo: "" };
+  if (p.includes("-")) {
+    const i = p.indexOf("-");
+    const g = p.slice(0, i), book = p.slice(i + 1);
+    return g && book ? { gameNo: g, bookNo: book } : { gameNo: "", bookNo: p };
+  }
+  if (/^\d+$/.test(p) && p.length >= GAME_DIGITS + BOOK_DIGITS) {
+    return { gameNo: p.slice(0, GAME_DIGITS), bookNo: p.slice(GAME_DIGITS) };
+  }
+  return { gameNo: "", bookNo: p };
+}

@@ -24,6 +24,11 @@
   --neg: #cf2020;
   --btn-bg: #14532d;
   --btn-fg: #f1f5ef;
+  /* Brand accent as RGB channels so Tailwind opacity modifiers resolve (#298050);
+     --ink is the deep header/logo stop, held across light/dark. Owner palettes
+     override these in the [data-palette] blocks below. */
+  --brass: 41 128 80;
+  --ink: #14532d;
   /* Chart ink — read by Recharts through the ThemeProvider, not CSS. */
 }
 
@@ -45,13 +50,37 @@
   --neg: #f87171;
   --btn-bg: #b7e2c6;
   --btn-fg: #10241a;
+  --brass: 41 128 80;
+  /* --ink inherits the light value so the header stays deep in dark mode too. */
 }
+
+/* ---- Owner-selectable color palettes (Admin → Appearance). Each overrides only
+   the accent tokens, per theme, so they compose with the .dark overrides above;
+   text/background/red-error stay put. `green` is the default (base :root/.dark).
+   --ink is set only in the light block of each palette so it's theme-invariant
+   (a deep header in both modes), matching green's behavior. WCAG-AA verified. */
+:root[data-palette="ocean"]  { --gold:#186592; --btn-bg:#0f4c75; --btn-fg:#f1f5ef; --highlight:#e6f0f7; --brass:42 127 184; --ink:#0f4c75; }
+.dark[data-palette="ocean"]  { --gold:#7cc4e8; --btn-bg:#b3ddf2; --btn-fg:#0a2233; --highlight:#182a35; --brass:42 127 184; }
+:root[data-palette="indigo"] { --gold:#5a4fcf; --btn-bg:#3f36a0; --btn-fg:#f2f1fb; --highlight:#ecebfa; --brass:106 95 214; --ink:#3f36a0; }
+.dark[data-palette="indigo"] { --gold:#b3a9f5; --btn-bg:#cbc3fa; --btn-fg:#1c1740; --highlight:#21203a; --brass:106 95 214; }
+:root[data-palette="sunset"] { --gold:#945200; --btn-bg:#7a3f00; --btn-fg:#fdf6ee; --highlight:#fbeede; --brass:194 106 0; --ink:#7a3f00; }
+.dark[data-palette="sunset"] { --gold:#f0b24a; --btn-bg:#f2c879; --btn-fg:#3a2400; --highlight:#2e2314; --brass:194 106 0; }
+:root[data-palette="rose"]   { --gold:#b02556; --btn-bg:#8f1f43; --btn-fg:#fdf0f4; --highlight:#fbe7ee; --brass:204 63 114; --ink:#8f1f43; }
+.dark[data-palette="rose"]   { --gold:#f090ac; --btn-bg:#f5b3c6; --btn-fg:#40101f; --highlight:#331923; --brass:204 63 114; }
+:root[data-palette="slate"]  { --gold:#3f4e5c; --btn-bg:#2b3843; --btn-fg:#f1f4f7; --highlight:#eceff2; --brass:90 107 122; --ink:#2b3843; }
+.dark[data-palette="slate"]  { --gold:#a9b8c4; --btn-bg:#c4d0da; --btn-fg:#182029; --highlight:#1e262d; --brass:90 107 122; }
 
 body {
   background: var(--bg);
   color: var(--fg);
+  /* Owner-selected display font (BrandingApplier sets --app-font); unset = system. */
+  font-family: var(--app-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
   transition: background-color .2s ease, color .2s ease;
 }
+
+/* Owner text-size: a root-rem multiplier (BrandingApplier sets --font-scale), so
+   the whole rem-based type/spacing scale grows/shrinks proportionally. */
+html { font-size: calc(16px * var(--font-scale, 1)); }
 
 .card { @apply rounded-2xl shadow-sm; background: var(--surface); border: 1px solid var(--line); }
 .label { @apply block text-xs font-semibold uppercase tracking-wide mb-1.5; color: var(--muted); }
@@ -62,7 +91,7 @@ body {
    instead of overflowing. */
 select.input { text-overflow: ellipsis; }
 .input::placeholder { color: var(--faint); }
-.input:focus { @apply ring-2 ring-brass/20; border-color: #298050; }
+.input:focus { @apply ring-2 ring-brass/20; border-color: rgb(var(--brass)); }
 /* The search boxes render their own magnifier + clear (×) button; WebKit's
    native search-cancel/decoration pseudo-elements would double them up. */
 input[type="search"]::-webkit-search-decoration,
@@ -108,9 +137,11 @@ button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -w
    only the compact fields on touch devices (the large PIN inputs keep their
    size), so text entry never triggers a zoom — without disabling pinch-zoom. */
 @media (pointer: coarse) {
-  .input.text-xs,
-  .input.text-sm,
-  .input.text-\[13px\] { font-size: 16px; }
+  /* Floor at 16px so focusing never triggers iOS zoom, but let the owner's
+     text-size scale raise them above that floor (rem tracks --font-scale). */
+  .input.text-xs   { font-size: max(16px, 0.75rem); }
+  .input.text-sm   { font-size: max(16px, 0.875rem); }
+  .input.text-\[13px\] { font-size: max(16px, 0.8125rem); }
 }
 
 /* Smooth in-page jumps for the docs/guide table-of-contents anchors — but honor
@@ -148,7 +179,7 @@ button, .btn, [role="button"] { -webkit-user-select: none; user-select: none; -w
 .doc-content pre { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 1rem 0; }
 .doc-content pre code { background: none; padding: 0; font-size: 0.82rem; overflow-wrap: normal; }
 /* Blockquotes read as info callouts (the guide uses them for tips/asides). */
-.doc-content blockquote { border-left: 3px solid #298050; background: var(--highlight); padding: 0.65rem 0.95rem; margin: 1rem 0; border-radius: 0 8px 8px 0; color: var(--fg); }
+.doc-content blockquote { border-left: 3px solid rgb(var(--brass)); background: var(--highlight); padding: 0.65rem 0.95rem; margin: 1rem 0; border-radius: 0 8px 8px 0; color: var(--fg); }
 .doc-content blockquote > :first-child { margin-top: 0; }
 .doc-content blockquote > :last-child { margin-bottom: 0; }
 .doc-content hr { border: 0; border-top: 1px solid var(--line); margin: 1.9rem 0; }

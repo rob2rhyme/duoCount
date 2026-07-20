@@ -45,7 +45,7 @@ service cloud.firestore {
              .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold',
                        'blindCounts', 'varianceThreshold', 'digest', 'patternRules',
                        'fiscalStartMonth', 'aiSearch', 'aiInsights', 'stockAlerts',
-                       'rewards', 'features']);
+                       'rewards', 'features', 'themePalette', 'fontFamily', 'fontScale']);
       allow create, delete: if false; // vendors are created by the signup API
 
       match /locations/{locationId} {
@@ -95,6 +95,15 @@ service cloud.firestore {
       // client writes. Pure reference data: it holds no count and no audited
       // ticket number, and the scratch audit never consults it.
       match /catalog/{docId} {
+        allow read: if member();
+        allow create, update, delete: if false;
+      }
+
+      // Owner-uploaded custom font bytes (a data: URL), kept off the vendor doc so
+      // it doesn't bloat every member's read. Written only through the trusted
+      // owner-only /api/branding route (Admin SDK); members read it so the app can
+      // inject the @font-face. Same posture as catalog.
+      match /branding/{docId} {
         allow read: if member();
         allow create, update, delete: if false;
       }

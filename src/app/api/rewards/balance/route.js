@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp } from "@/lib/login-throttle";
-import { resolveRewards, rewardTiers, tierDollarValue, canRedeem, normalizePhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, canRedeem, normalizePhone, pointsExpiry, effectiveBalance } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -46,7 +46,13 @@ export async function POST(req) {
       .where("phone", "==", phone).limit(1).get();
     if (cSnap.empty) return err(404, "not_enrolled", "That number isn't enrolled at this store yet — join at the register.");
 
-    const points = cSnap.docs[0].data().pointsBalance || 0;
+    // Show the EFFECTIVE balance: points already lapsed under the inactivity
+    // policy read as 0 here (this public read never writes — the ledger line is
+    // materialized when a clerk next touches the account). The disclosure fields
+    // let the page explain the policy and when this balance would lapse.
+    const cData = cSnap.docs[0].data();
+    const exp = pointsExpiry(cData, rules, new Date());
+    const points = effectiveBalance(cData, rules, new Date());
     // The public progress shape tracks the CHEAPEST reward — for a store with
     // no tiers that is exactly the legacy redeemPoints/redeemValue.
     const cheapest = rewardTiers(vendorDoc.data()?.rewards)[0];
@@ -55,6 +61,8 @@ export async function POST(req) {
       goal: cheapest.points, value: tierDollarValue(cheapest),
       reward: cheapest.name || null,
       ready: canRedeem(points, rules),
+      expiryMonths: rules.expiryMonths || 0,
+      expiresAt: exp.expiresAt ? exp.expiresAt.toISOString().slice(0, 10) : null,
     });
   } catch (e) {
     return NextResponse.json({ error: "Balance check failed." }, { status: 500 });

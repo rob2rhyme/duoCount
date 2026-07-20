@@ -1,7 +1,7 @@
 // parseScratchBarcode is pure — no emulator. Run: npm run test:scratch-barcode
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseScratchBarcode, packGameKey, MIN_TICKET_BARCODE_LEN, GAME_DIGITS } from "../src/lib/scratch-barcode.js";
+import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts, MIN_TICKET_BARCODE_LEN, GAME_DIGITS } from "../src/lib/scratch-barcode.js";
 
 test("empty / whitespace → empty pack, no ticket", () => {
   assert.deepEqual(parseScratchBarcode(""), { pack: "", ticket: null, game: "" });
@@ -71,4 +71,57 @@ test("a short book/pack barcode is treated as a pack id with no invented ticket"
 
 test("non-numeric content is kept as the pack id, never a ticket", () => {
   assert.deepEqual(parseScratchBarcode("PACK-ABC"), { pack: "PACK-ABC", ticket: null, game: "PACK" });
+});
+
+test("packIdFromParts: game # + book # concatenate to the SAME id a scan produces", () => {
+  // The user's PA ticket: Game 1792, Pack 0011361 → scan pack id "17920011361".
+  assert.equal(packIdFromParts("1792", "0011361"), "17920011361");
+  assert.equal(packIdFromParts("1792", "0011361"), parseScratchBarcode("17920011361016").pack,
+    "hand-typed parts must equal the scanned pack id, or the audit splits the pack");
+});
+
+test("packIdFromParts: blank game # → the book # exactly as typed (unchanged behavior)", () => {
+  assert.equal(packIdFromParts("", "0011361"), "0011361");
+  assert.equal(packIdFromParts(null, "0011361"), "0011361");
+  assert.equal(packIdFromParts(undefined, "0011361"), "0011361");
+});
+
+test("packIdFromParts: a book field that already leads with the game # is not double-prefixed", () => {
+  // e.g. the clerk pasted a scan into the book field, or scanned then typed the game.
+  assert.equal(packIdFromParts("1792", "17920011361"), "17920011361");
+});
+
+test("packIdFromParts: tolerates leading zeros / stray non-digits in the game #", () => {
+  assert.equal(packIdFromParts("01792", "0011361"), "017920011361"); // game kept verbatim after \\D strip
+  assert.equal(packIdFromParts("1792 ", " 0011361 "), "17920011361");
+});
+
+test("packIdFromParts: empty book with a game # → empty (nothing to identify yet)", () => {
+  assert.equal(packIdFromParts("1792", ""), "");
+  assert.equal(packIdFromParts("1792", "   "), "");
+});
+
+test("packIdFromParts: a non-numeric book id is left untouched even with a game #", () => {
+  assert.equal(packIdFromParts("1792", "PACK-ABC"), "PACK-ABC");
+});
+
+test("packDisplayParts: a canonical id splits back into the ticket's game # and book #", () => {
+  // Round-trips packIdFromParts: what the form saves splits back for display.
+  assert.deepEqual(packDisplayParts("17920011361"), { gameNo: "1792", bookNo: "0011361" });
+  assert.deepEqual(packDisplayParts(packIdFromParts("1792", "0011361")), { gameNo: "1792", bookNo: "0011361" });
+});
+
+test("packDisplayParts: a delimited id splits on its delimiter", () => {
+  assert.deepEqual(packDisplayParts("1792-0011361"), { gameNo: "1792", bookNo: "0011361" });
+});
+
+test("packDisplayParts: a bare book # (no game prefix) is shown whole, never mis-cut", () => {
+  assert.deepEqual(packDisplayParts("0011361"), { gameNo: "", bookNo: "0011361" });   // 7 digits < 4+7
+  assert.deepEqual(packDisplayParts("361"), { gameNo: "", bookNo: "361" });
+});
+
+test("packDisplayParts: blank / non-numeric ids come back with a blank game #", () => {
+  assert.deepEqual(packDisplayParts(""), { gameNo: "", bookNo: "" });
+  assert.deepEqual(packDisplayParts(null), { gameNo: "", bookNo: "" });
+  assert.deepEqual(packDisplayParts("PACKABC"), { gameNo: "", bookNo: "PACKABC" });
 });

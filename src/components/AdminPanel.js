@@ -11,6 +11,8 @@ import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
 import { FEATURES, FEATURE_KEYS, resolveFeatures, featureEnabled } from "@/lib/features";
+import { PALETTES, FONTS, FONT_SCALES, resolveBranding } from "@/lib/branding";
+import { apiBranding } from "@/lib/data";
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
@@ -204,9 +206,41 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     stockAlerts: { ...STOCK_ALERTS, ...(vendor.stockAlerts || {}) },
     rewards: { ...REWARDS, ...(vendor.rewards || {}) },
     features: { ...FEATURES, ...(vendor.features || {}) },
+    themePalette: resolveBranding(vendor).themePalette,
+    fontFamily: resolveBranding(vendor).fontFamily,
+    fontScale: resolveBranding(vendor).fontScale,
   });
   const setFeature = (k) => (e) =>
     setSettings((s) => ({ ...s, features: { ...s.features, [k]: e.target.checked } }));
+  // Custom font upload → the trusted /api/branding route (validates + stores the
+  // bytes off the vendor doc); picking it live-applies once settings are saved.
+  const [uploadingFont, setUploadingFont] = useState(false);
+  const [hasCustomFont, setHasCustomFont] = useState(vendor.fontFamily === "custom");
+  const onFontUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingFont(true);
+    try {
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = () => rej(new Error(t("appr.upload_read_err")));
+        r.readAsDataURL(file);
+      });
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const format = ext === "woff2" ? "woff2" : ext === "woff" ? "woff"
+        : ext === "ttf" ? "truetype" : ext === "otf" ? "opentype" : "woff2";
+      await apiBranding({ dataUrl, format });
+      setHasCustomFont(true);
+      setSettings((s) => ({ ...s, fontFamily: "custom" }));
+      onToast?.(t("appr.upload_ok"));
+    } catch (err) {
+      onToast?.(err?.code ? t(`appr.err_${err.code}`) : (err?.message || t("appr.upload_read_err")));
+    } finally {
+      setUploadingFont(false);
+    }
+  };
   const setRule = (k) => (e) =>
     setSettings((s) => ({ ...s, patternRules: { ...s.patternRules, [k]: e.target.value } }));
   const setStockRule = (k) => (e) =>
@@ -302,6 +336,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       stockAlerts: resolveStockAlerts(settings.stockAlerts),
       rewards: resolveRewards(settings.rewards),
       features: resolveFeatures(settings),
+      ...resolveBranding(settings), // themePalette, fontFamily, fontScale (validated)
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
         narrative: settings.digestNarrative, // opt-in AI summary; off by default
@@ -321,6 +356,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       stockAlerts: resolveStockAlerts(vendor.stockAlerts || {}),
       rewards: resolveRewards(vendor.rewards || {}),
       features: resolveFeatures(vendor),
+      ...resolveBranding(vendor), // themePalette, fontFamily, fontScale
       digest: {
         enabled: vendor.digest?.enabled === true, recipients: vendor.digest?.recipients || [],
         tz: vendor.digest?.tz || "America/New_York", narrative: vendor.digest?.narrative === true,
@@ -365,6 +401,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         <div style="font-size:22px;margin-top:10px">${esc(translate(loc, "sign.line", vars))}</div>
         <div style="font-size:16px;color:#444;margin-top:10px">${esc(translate(loc, "sign.how"))}</div>
         <div style="font-size:14px;color:#444;margin-top:8px">${esc(translate(loc, "sign.check", vars))}</div>
+        ${R.expiryMonths > 0 ? `<div style="font-size:12px;color:#777;margin-top:8px">${esc(translate(loc, "sign.expiry", { months: R.expiryMonths }))}</div>` : ""}
       </div>`;
     const w = window.open("", "_blank", "width=800,height=900");
     if (!w) return;
@@ -609,7 +646,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <Field label={t("admin.f_name")}><input className="input" value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder={t("admin.ph_name")} /></Field>
-            <Field label={t("admin.f_pin", { n: PIN_LENGTH })}><input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="123456" /></Field>
+            <Field label={t("admin.f_pin", { n: PIN_LENGTH })}><input className="input font-mono" type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="123456" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <Field label={t("admin.f_role")}>
@@ -825,11 +862,13 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <p className="text-[13px] text-muted mt-0.5">{t("admin.features_sub")}</p>
         </div>
         <div className="p-4 space-y-3">
-          {/* One switch per optional module. Turning one off hides its tab,
-              its Dashboard card and its attention badge for the whole store;
-              the core screens (Cash, Log, Dashboard, Team, Admin) are never
-              listed here. Gaming defaults OFF — a store enables it to get the
-              machine registry and the collection ledger. */}
+          {/* One switch per main tab. Turning one off hides its tab, its
+              Dashboard card and its attention badge for the whole store. Every
+              tab is here EXCEPT the two always-on ways back in — Dashboard and
+              Admin — so an owner can never hide the screen that turns modules
+              back on. (Rewards has its own on/off in Reward settings.) Gaming
+              defaults OFF — a store enables it to get the machine registry and
+              the collection ledger. */}
           {FEATURE_KEYS.map((k) => (
             <div key={k} className="flex items-start gap-3 border border-line rounded-xl p-3.5 bg-panel">
               <input id={`feat-${k}`} type="checkbox" className="mt-1" checked={settings.features[k] === true}
@@ -867,6 +906,61 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             <input className="input" value={settings.name} onChange={(e) => setSettings({ ...settings, name: e.target.value })} disabled={!isOwner} /></Field>
           <Field label={t("admin.f_logo_url")}>
             <input className="input" value={settings.logoUrl} onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })} disabled={!isOwner} /></Field>
+
+          {/* ---- Appearance: color theme + display font + text size (owner) ---- */}
+          <div className="border border-line rounded-xl p-3.5 space-y-3.5 bg-panel">
+            <div>
+              <span className="font-medium text-[14px]">{t("appr.title")}</span>
+              <p className="text-xs text-muted leading-relaxed">{t("appr.sub")}</p>
+            </div>
+
+            <div>
+              <span className="label">{t("appr.theme")}</span>
+              <div className="flex flex-wrap gap-2">
+                {PALETTES.map((p) => {
+                  const on = settings.themePalette === p.id;
+                  return (
+                    <button key={p.id} type="button" disabled={!isOwner}
+                      onClick={() => setSettings((s) => ({ ...s, themePalette: p.id }))}
+                      aria-pressed={on}
+                      className={`inline-flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full border text-[13px] font-semibold transition ${on ? "border-fg text-fg" : "border-line text-muted hover:text-fg"}`}>
+                      <span className="w-4 h-4 rounded-full flex-shrink-0 border border-line" style={{ background: p.swatch }} />
+                      {t(`appr.pal_${p.id}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Field label={t("appr.font")}>
+              <select className="input" value={settings.fontFamily} disabled={!isOwner}
+                onChange={(e) => setSettings((s) => ({ ...s, fontFamily: e.target.value }))}>
+                {FONTS.filter((f) => f.id !== "custom" || hasCustomFont).map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.id === "" ? t("appr.font_system") : f.id === "custom" ? t("appr.font_custom") : f.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <div>
+              <span className="label">{t("appr.upload")}</span>
+              <input type="file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+                disabled={!isOwner || uploadingFont} onChange={onFontUpload}
+                className="block w-full text-[13px] text-muted file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-line file:bg-subtle file:text-fg file:font-semibold file:text-[13px]" />
+              <p className="text-xs text-muted mt-1.5 leading-relaxed">
+                {uploadingFont ? t("appr.uploading") : t("appr.upload_hint")}
+              </p>
+            </div>
+
+            <Field label={t("appr.size")}>
+              <select className="input" value={String(settings.fontScale)} disabled={!isOwner}
+                onChange={(e) => setSettings((s) => ({ ...s, fontScale: Number(e.target.value) }))}>
+                {FONT_SCALES.map((sc) => <option key={sc.id} value={sc.scale}>{t(`appr.size_${sc.id}`)}</option>)}
+              </select>
+            </Field>
+          </div>
+
           <div>
             <label htmlFor={sharingId} className="label">{t("admin.data_sharing")}</label>
             <select id={sharingId} className="input" value={settings.sharingMode} onChange={(e) => setSettings({ ...settings, sharingMode: e.target.value })} disabled={!isOwner}>
@@ -991,6 +1085,30 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               )}
             </p>
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
+
+            {/* Store-specific exclusions ON TOP of the legal base above — the
+                owner's own list (money orders, phone top-ups, …). Plain text,
+                comma-separated; staff see them in the register earn hint. */}
+            <div>
+              <Field label={t("admin.rw_excl_custom_label")}>
+                <input className="input" placeholder={t("admin.rw_excl_custom_ph")}
+                  value={Array.isArray(settings.rewards.excludedCategories)
+                    ? settings.rewards.excludedCategories.join(", ")
+                    : (settings.rewards.excludedCategories ?? "")}
+                  disabled={!isOwner} onChange={setReward("excludedCategories")} />
+              </Field>
+              <p className="text-xs text-muted leading-relaxed mt-1">{t("admin.rw_excl_custom_hint")}</p>
+            </div>
+
+            {/* Points expiry — inactivity breakage/liability control. 0 = never.
+                Expiry is a signed ledger line, disclosed to the customer. */}
+            <div className="flex items-end gap-3">
+              <Field label={t("admin.rw_expiry_label")}>
+                <input type="number" inputMode="numeric" min="0" max="60" step="1" className="input w-24"
+                  value={settings.rewards.expiryMonths ?? REWARDS.expiryMonths} disabled={!isOwner} onChange={setReward("expiryMonths")} />
+              </Field>
+              <p className="text-xs text-muted leading-relaxed flex-1">{t("admin.rw_expiry_hint")}</p>
+            </div>
 
             {/* Referral bonus: both sides of a "who sent you?" enrollment get
                 points as signed referral ledger lines. 0 + 0 turns it off. */}
@@ -1261,7 +1379,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                             ? t("rw.h_stamp_redeem", { reward: e.reward || e.cardName || "" })
                             : e.kind === "undo"
                               ? t("rw.h_undo")
-                              : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                              : e.kind === "expire"
+                                ? t("rw.h_expire")
+                                : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
                   const ptsCell = e.kind === "undo" && pts === 0 ? "↩"
                     : e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
                       : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;
@@ -1392,7 +1512,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </div>
             <div className="p-4 space-y-3">
               {staffModal.kind === "pin" ? (
-                <input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} autoFocus
+                <input className="input font-mono" type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} autoFocus
                   value={staffModalVal} placeholder="123456"
                   onChange={(e) => setStaffModalVal(e.target.value.replace(/\D/g, ""))} />
               ) : (

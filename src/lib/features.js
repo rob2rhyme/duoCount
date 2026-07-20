@@ -1,24 +1,32 @@
 // Per-store feature toggles. An owner turns whole modules on or off in
 // Admin → Features; a disabled module hides from the app — its tab, its
 // Dashboard card(s), its attention badge, its keyboard shortcut — so a store
-// that doesn't sell scratch-offs (or doesn't track backroom inventory) isn't
-// shown screens it never uses.
+// that doesn't sell scratch-offs (or doesn't run a time clock) isn't shown
+// screens it never uses.
 //
 // Shape mirrors resolveRewards: the defaults below are spread UNDER the vendor's
 // stored `features` map, so an existing store with no `features` object keeps
 // every default — nothing changes for anyone on upgrade. Only per-module
-// booleans the owner actually flipped override a default. `scratch`/`inventory`
-// default ON (existing stores rely on them); new optional modules default OFF,
-// the same posture as rewards.
+// booleans the owner actually flipped override a default. Everything defaults
+// ON except `gaming` (a store opts into it), so an existing store sees the exact
+// same set of tabs it did before this map grew.
 //
-// Not every screen is toggleable — Cash, the Log, the Dashboard, Team (Time /
-// Incidents / Notes) and Admin are core and always present, so they aren't
-// listed here. Rewards keeps its own richer settings object (vendor.rewards),
-// so it isn't duplicated in this map.
+// Every main tab is listed here and therefore hide/unhide-able EXCEPT two that
+// are deliberately always-on: the Dashboard and Admin. Those are the owner's way
+// back in — if they could be hidden, an owner could lock themselves out of the
+// very screen that turns modules back on. Rewards isn't listed either: it keeps
+// its own richer settings object (vendor.rewards) whose `enabled` flag already
+// shows/hides its tab, so duplicating it here would double-gate it.
 export const FEATURES = {
+  cash: true,         // cash-drawer counts
   scratch: true,      // scratch-off / lottery tracking
   inventory: true,    // backroom live stock + per-shift inventory counts
-  gaming: false,      // amusement/gaming-machine collection ledger (new)
+  gaming: false,      // amusement/gaming-machine collection ledger
+  log: true,          // shift activity log
+  notes: true,        // shift notes / handoff
+  incidents: true,    // incident reports
+  time: true,         // time clock
+  portfolio: true,    // multi-store portfolio (owner)
 };
 
 // The order/keys shown in the Admin → Features card.
