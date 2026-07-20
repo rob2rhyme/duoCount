@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, useId } from "react";
 import { addEntry, fetchEntriesInRange } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
-import { parseScratchBarcode, packGameKey, packIdFromParts } from "@/lib/scratch-barcode";
+import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts } from "@/lib/scratch-barcode";
 import { resolveCatalogGame, lookupGameNumber } from "@/lib/scratch-catalog";
 import { buildPackFlow } from "@/lib/scratch-report";
 import { validateScratch } from "@/lib/count-validation";
@@ -350,14 +350,14 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       <th class="num">${esc(t("srpt.opening"))}</th><th class="num">${esc(t("srpt.closing"))}</th>
       <th class="num">${esc(t("srpt.sold"))}</th><th class="num">${esc(t("srpt.sales"))}</th><th class="num">${esc(t("srpt.gap"))}</th>
       </tr></thead><tbody>
-      ${rows.map((r) => `<tr>
+      ${rows.map((r) => { const rp = packDisplayParts(r.pack); return `<tr>
         ${allLocs ? `<td>${esc(r.locationName)}</td>` : ""}
-        <td>${esc(r.game)}</td><td>…${esc(r.pack.slice(-6))}</td><td class="num">${esc(money(r.price))}</td>
+        <td>${esc(r.game)}${rp.gameNo ? `<div class="muted">${esc(t("srpt.game_no", { n: rp.gameNo }))}</div>` : ""}</td><td>${esc(rp.bookNo)}</td><td class="num">${esc(money(r.price))}</td>
         <td class="num">#${esc(r.openStart ?? "—")}<div class="muted">${esc(r.openDate || "")} · ${esc(r.openBy)}</div></td>
         <td class="num">#${esc(r.closeEnd ?? "—")}${r.soldOut ? `<div class="muted"><b>${esc(t("srpt.soldout"))}</b></div>` : ""}<div class="muted">${esc(r.closeDate || "")} · ${esc(r.closeBy)}</div></td>
         <td class="num">${esc(r.sold)}</td><td class="num">${esc(money(r.dollars))}</td>
         <td class="num">${r.gapTickets > 0 ? `<span class="gap">⚠ ${esc(r.gapTickets)}</span>` : "—"}</td>
-      </tr>`).join("")}
+      </tr>`; }).join("")}
       <tr class="tot">${allLocs ? "<td></td>" : ""}<td colspan="3">${esc(t("srpt.totals"))}</td><td></td><td></td>
       <td class="num">${esc(totals.sold)}</td><td class="num">${esc(money(totals.dollars))}</td>
       <td class="num">${totals.gapTickets > 0 ? `<span class="gap">⚠ ${esc(totals.gapTickets)} (${esc(money(totals.gapDollars))})</span>` : "—"}</td></tr>
@@ -366,11 +366,11 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       ${gapRows.length === 0 ? `<p>${esc(t("srpt.no_gaps"))}</p>`
         : gapRows.map((r) => r.gaps.map((g) => `<p class="gap">${esc(g.selloutShort
           ? t("srpt.short_line", {
-            game: r.game, pack: r.pack.slice(-6), end: g.prevEnd, n: g.nextStart,
+            game: r.game, pack: packDisplayParts(r.pack).bookNo, end: g.prevEnd, n: g.nextStart,
             missing: g.missing, by: g.prevBy, date: g.prevDate || "",
           })
           : t("srpt.gap_line", {
-            game: r.game, pack: r.pack.slice(-6), missing: g.missing,
+            game: r.game, pack: packDisplayParts(r.pack).bookNo, missing: g.missing,
             prevBy: g.prevBy, prevEnd: g.prevEnd, prevDate: g.prevDate || "",
             nextBy: g.nextBy, nextStart: g.nextStart, nextDate: g.nextDate || "",
           }))}</p>`).join("")).join("")}
