@@ -58,6 +58,7 @@ export const CATALOG = {
     "login.created_post": "— share it with staff so they can sign in.",
     "login.user_guide": "User guide",
     "login.documentation": "Documentation",
+    "login.developer": "Developer",
 
     // language picker
     "lang.language": "Language",
@@ -1665,6 +1666,7 @@ export const CATALOG = {
     "login.created_post": "— compártelo con tu personal para que puedan iniciar sesión.",
     "login.user_guide": "Guía de uso",
     "login.documentation": "Documentación",
+    "login.developer": "Desarrollador",
 
     "lang.language": "Idioma",
 
