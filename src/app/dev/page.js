@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { apiDev } from "@/lib/data";
 import { downscaleImage } from "@/lib/image-downscale";
@@ -45,12 +45,17 @@ export default function DevConsole() {
     return unsub;
   }, []);
 
+  // Sign out from the console — needed to switch accounts (e.g. signed in as the
+  // wrong store, or done working). Hand off to the login page afterward.
+  const signOutLabel = t("prefs.sign_out");
+  const doSignOut = async () => { try { await signOut(auth); } finally { window.location.href = "/"; } };
+
   if (gate === "loading") return <Shell><p className="text-muted text-sm">{t("common.loading")}</p></Shell>;
   if (gate === "signin") return <Shell><Notice title={t("dev.signin_title")} body={t("dev.signin_body")} /></Shell>;
-  if (gate === "denied") return <Shell><Notice title={t("dev.denied_title")} body={t("dev.denied_body")} uid={uid} t={t} /></Shell>;
+  if (gate === "denied") return <Shell onSignOut={doSignOut} signOutLabel={signOutLabel}><Notice title={t("dev.denied_title")} body={t("dev.denied_body")} uid={uid} t={t} /></Shell>;
 
   return (
-    <Shell>
+    <Shell onSignOut={doSignOut} signOutLabel={signOutLabel}>
       <div className="flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4">
         {[["inbox", "dev.tab_inbox"], ["stores", "dev.tab_stores"]].map(([id, key]) => (
           <button key={id} onClick={() => setTab(id)}
@@ -64,12 +69,18 @@ export default function DevConsole() {
   );
 }
 
-function Shell({ children }) {
+function Shell({ children, onSignOut = null, signOutLabel = "" }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 bg-ink text-paper px-4 py-3 pt-safe px-safe flex items-center gap-2.5">
         <span className="w-7 h-7 rounded-lg bg-brass grid place-items-center text-white font-bold text-sm">D</span>
         <h1 className="text-base font-semibold">DuoCount · Developer</h1>
+        {onSignOut && (
+          <button type="button" onClick={onSignOut}
+            className="ml-auto flex-shrink-0 text-[13px] font-semibold text-paper/80 hover:text-paper underline underline-offset-2">
+            {signOutLabel}
+          </button>
+        )}
       </header>
       <main className="max-w-3xl mx-auto px-4 py-4">{children}</main>
     </div>

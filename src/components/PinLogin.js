@@ -134,6 +134,8 @@ export default function PinLogin() {
           <Link href="/guide" className="underline underline-offset-2 hover:text-fg">{t("login.user_guide")}</Link>
           {" · "}
           <Link href="/docs" className="underline underline-offset-2 hover:text-fg">{t("login.documentation")}</Link>
+          {" · "}
+          <Link href="/dev" className="underline underline-offset-2 hover:text-fg">{t("login.developer")}</Link>
         </p>
       </div>
     </div>
