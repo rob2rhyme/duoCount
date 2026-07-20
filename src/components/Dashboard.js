@@ -9,6 +9,7 @@ import { detectPatterns, resolvePatternRules } from "@/lib/patterns";
 import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
 import { renderPattern } from "@/lib/pattern-format";
 import { buildPackAudit } from "@/lib/scratch-audit";
+import { packDisplayParts } from "@/lib/scratch-barcode";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockMoveAudit } from "@/lib/stockmove-audit";
 import { featureEnabled } from "@/lib/features";
@@ -45,6 +46,13 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   const { t, lang } = useLang();
   // en + es both pluralize the pack-audit prose on the 1-vs-not-1 boundary.
   const plur = (n) => (Number(n) === 1 ? "_one" : "_other");
+  // Show a pack the way the shelf/ticket labels it — "Game 1792 · Pack 0011361"
+  // — so a manager chasing a flagged gap can find the exact book. A bare/legacy
+  // id with no game prefix stays "#<id>".
+  const packIdent = (pack) => {
+    const { gameNo, bookNo } = packDisplayParts(pack);
+    return gameNo ? t("dash.pack_ident", { game: gameNo, pack: bookNo }) : `#${bookNo}`;
+  };
   const ch = CHART[theme] || CHART.light;
   const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 13 };
   const [reportOpen, setReportOpen] = useState(false);
@@ -420,7 +428,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
               </span>
               <div className="min-w-0">
                 <div className="font-medium text-sm">
-                  {g.game} · #{g.pack}
+                  {g.game} · {packIdent(g.pack)}
                   {g.totalMissing > 0 && <span className="text-neg font-semibold"> · ≈{money(g.missingDollars)}</span>}
                   {g.locationName && <span className="text-muted font-normal"> · {g.locationName}</span>}
                 </div>
@@ -452,7 +460,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
               {packAudit.missing.slice(0, 8).map((m) => (
                 <div key={m.key} className="text-[12px] text-muted">
                   {t(`dash.pack_missing_line${plur(m.missedDays)}`, {
-                    game: m.game, pack: m.pack, lastDate: m.lastDate, lastBy: m.lastBy,
+                    game: m.game, ident: packIdent(m.pack), lastDate: m.lastDate, lastBy: m.lastBy,
                     lastAt: m.lastEnd != null ? t("dash.pack_missing_at_ticket", { n: m.lastEnd }) : "",
                     n: m.missedDays,
                     loc: m.locationName ? t("dash.pack_at_location", { loc: m.locationName }) : "",

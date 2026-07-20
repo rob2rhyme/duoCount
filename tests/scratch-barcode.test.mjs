@@ -1,7 +1,7 @@
 // parseScratchBarcode is pure — no emulator. Run: npm run test:scratch-barcode
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseScratchBarcode, packGameKey, packIdFromParts, MIN_TICKET_BARCODE_LEN, GAME_DIGITS } from "../src/lib/scratch-barcode.js";
+import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts, MIN_TICKET_BARCODE_LEN, GAME_DIGITS } from "../src/lib/scratch-barcode.js";
 
 test("empty / whitespace → empty pack, no ticket", () => {
   assert.deepEqual(parseScratchBarcode(""), { pack: "", ticket: null, game: "" });
@@ -103,4 +103,25 @@ test("packIdFromParts: empty book with a game # → empty (nothing to identify y
 
 test("packIdFromParts: a non-numeric book id is left untouched even with a game #", () => {
   assert.equal(packIdFromParts("1792", "PACK-ABC"), "PACK-ABC");
+});
+
+test("packDisplayParts: a canonical id splits back into the ticket's game # and book #", () => {
+  // Round-trips packIdFromParts: what the form saves splits back for display.
+  assert.deepEqual(packDisplayParts("17920011361"), { gameNo: "1792", bookNo: "0011361" });
+  assert.deepEqual(packDisplayParts(packIdFromParts("1792", "0011361")), { gameNo: "1792", bookNo: "0011361" });
+});
+
+test("packDisplayParts: a delimited id splits on its delimiter", () => {
+  assert.deepEqual(packDisplayParts("1792-0011361"), { gameNo: "1792", bookNo: "0011361" });
+});
+
+test("packDisplayParts: a bare book # (no game prefix) is shown whole, never mis-cut", () => {
+  assert.deepEqual(packDisplayParts("0011361"), { gameNo: "", bookNo: "0011361" });   // 7 digits < 4+7
+  assert.deepEqual(packDisplayParts("361"), { gameNo: "", bookNo: "361" });
+});
+
+test("packDisplayParts: blank / non-numeric ids come back with a blank game #", () => {
+  assert.deepEqual(packDisplayParts(""), { gameNo: "", bookNo: "" });
+  assert.deepEqual(packDisplayParts(null), { gameNo: "", bookNo: "" });
+  assert.deepEqual(packDisplayParts("PACKABC"), { gameNo: "", bookNo: "PACKABC" });
 });
