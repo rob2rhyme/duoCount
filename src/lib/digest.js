@@ -5,6 +5,7 @@
 import { detectPatterns, resolvePatternRules } from "./patterns";
 import { buildStockAlerts } from "./stock-alerts";
 import { buildRewardAudit, outstandingLiability } from "./reward-audit";
+import { buildStockMoveAudit } from "./stockmove-audit";
 import { resolveRewards } from "./rewards";
 import { openItemCounts } from "./utils";
 import { aiNarrativeEnabled, generateNarrative } from "./digest-narrative";
@@ -238,6 +239,15 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   summary.patterns = detectPatterns(windowEntries, { now, rules });
   summary.windowDays = rules.windowDays;
   summary.openIncidents = incidentsSnap.size;
+
+  // Backroom pull-ledger detectors (outsized pulls, clerk-dominated outflow) —
+  // the high-shrink watch list's signed movement log gets the same treatment as
+  // every other ledger. One bounded read over the 30-day movement window.
+  const movesSince = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+  const movesSnap = await vendorRef
+    .collection("stockMoves").where("ts", ">=", movesSince).get();
+  const stockMoveAudit = buildStockMoveAudit(movesSnap.docs.map((d) => d.data()), { days: 30, now });
+  summary.patterns = [...summary.patterns, ...stockMoveAudit.alerts];
 
   // Stock attention (pos-inventory-sync-spec.md Phase 1): expiring-soon +
   // need-order lists over the item catalog's synced fields. One extra read per

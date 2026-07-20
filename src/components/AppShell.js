@@ -366,7 +366,7 @@ export default function AppShell() {
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
-            items={items} rewardEvents={rewardEvents} customers={customers}
+            items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves}
             onOpenLog={() => setTab("log")} onRecord={() => setTab("cash")} onToast={ping}
             locPicker={showLocFilter ? (
               <select className="input" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
