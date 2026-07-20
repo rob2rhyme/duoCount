@@ -460,6 +460,9 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                           </div>
                         </Field>
                         <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("rw.sale_hint")}</p>
+                        {rules.excludedCategories?.length > 0 && (
+                          <p className="text-xs text-muted mt-1 leading-relaxed">{t("rw.sale_hint_extra", { list: rules.excludedCategories.join(", ") })}</p>
+                        )}
                       </div>
 
                       {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}

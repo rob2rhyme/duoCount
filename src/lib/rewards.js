@@ -32,7 +32,37 @@ export const REWARDS = {
   // Punch cards (port slice 5): buy-N-get-one stamps, separate from points.
   // Each card is a named counter with a goal and a reward; empty = off.
   stamps: [],
+  // Owner's ADDITIONAL excluded categories, on top of the always-excluded legal
+  // base (tobacco, vape, alcohol, lottery, gift cards, fuel — a translated,
+  // non-removable disclosure). Answers the spec's open question about
+  // store-specific exclusions (money orders, phone top-ups, …). Free-form
+  // labels the staff read at the register; empty by default.
+  excludedCategories: [],
 };
+
+// The most custom exclusions an owner can add — a short store list, not a
+// taxonomy. Kept small so the register hint stays readable.
+export const MAX_EXCLUSIONS = 12;
+
+// Normalize the owner's extra-exclusions setting from either an array or a
+// comma/newline-separated string (the Admin field is plain text) into a clean,
+// deduped, capped list of trimmed labels — the clamp-and-drop discipline the
+// other list settings use.
+export function resolveExclusions(raw) {
+  const list = Array.isArray(raw) ? raw : String(raw ?? "").split(/[,\n]/);
+  const seen = new Set();
+  const out = [];
+  for (const item of list) {
+    const s = String(item ?? "").trim().slice(0, 40);
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+    if (out.length >= MAX_EXCLUSIONS) break;
+  }
+  return out;
+}
 
 // At most this many punch cards — a card per product family, not a catalog.
 export const MAX_STAMP_CARDS = 6;
@@ -155,6 +185,7 @@ export function resolveRewards(raw = {}) {
   };
   const rawStamps = Array.isArray(raw?.stamps) ? raw.stamps.slice(0, MAX_STAMP_CARDS) : [];
   out.stamps = rawStamps.map(resolveStampCard).filter(Boolean);
+  out.excludedCategories = resolveExclusions(raw?.excludedCategories);
   return out;
 }
 

@@ -1086,6 +1086,20 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </p>
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
 
+            {/* Store-specific exclusions ON TOP of the legal base above — the
+                owner's own list (money orders, phone top-ups, …). Plain text,
+                comma-separated; staff see them in the register earn hint. */}
+            <div>
+              <Field label={t("admin.rw_excl_custom_label")}>
+                <input className="input" placeholder={t("admin.rw_excl_custom_ph")}
+                  value={Array.isArray(settings.rewards.excludedCategories)
+                    ? settings.rewards.excludedCategories.join(", ")
+                    : (settings.rewards.excludedCategories ?? "")}
+                  disabled={!isOwner} onChange={setReward("excludedCategories")} />
+              </Field>
+              <p className="text-xs text-muted leading-relaxed mt-1">{t("admin.rw_excl_custom_hint")}</p>
+            </div>
+
             {/* Points expiry — inactivity breakage/liability control. 0 = never.
                 Expiry is a signed ledger line, disclosed to the customer. */}
             <div className="flex items-end gap-3">

@@ -5,7 +5,7 @@ import {
   REWARDS, TIER_TYPES, resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak,
   effectivePercent, pointsForSale, canRedeem, canRedeemTier, pointDollarValue,
   sanitizeProfile, daysSince, isNewCustomer, isBirthdayMonth, normalizePhone, maskPhone,
-  pointsExpiry, effectiveBalance,
+  pointsExpiry, effectiveBalance, resolveExclusions, MAX_EXCLUSIONS,
 } from "../src/lib/rewards.js";
 
 test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback", () => {
@@ -13,7 +13,7 @@ test("resolveRewards: defaults, off-by-default, clamps, and bad-value fallback",
     enabled: false, earnPerDollar: REWARDS.earnPerDollar,
     redeemPoints: REWARDS.redeemPoints, redeemValue: REWARDS.redeemValue,
     expiryMonths: REWARDS.expiryMonths, streakHours: REWARDS.streakHours, tiers: [], vip: [],
-    referral: { ...REWARDS.referral }, stamps: [],
+    referral: { ...REWARDS.referral }, stamps: [], excludedCategories: [],
   });
   assert.equal(resolveRewards({}).enabled, false);
   assert.equal(resolveRewards({ enabled: true }).enabled, true);
@@ -372,4 +372,18 @@ test("effectiveBalance zeroes an expired balance, else returns the stored balanc
   assert.equal(effectiveBalance({ pointsBalance: 250, lastEarnAt: new Date("2026-07-01") }, rules, now), 250);
   assert.equal(effectiveBalance({ pointsBalance: 250, lastEarnAt: new Date("2025-01-01") }, { expiryMonths: 0 }, now), 250);
   assert.equal(effectiveBalance({ pointsBalance: -5, lastEarnAt: new Date("2026-07-01") }, rules, now), 0); // never negative
+});
+
+// ---- owner's extra excluded categories (on top of the legal base) ----
+
+test("resolveExclusions parses a string or array; trims, dedupes, drops blanks, caps", () => {
+  assert.deepEqual(resolveExclusions("Money orders, Boss Revolution top-ups"), ["Money orders", "Boss Revolution top-ups"]);
+  assert.deepEqual(resolveExclusions(["Money orders", "  ", "money ORDERS", "Stamps"]), ["Money orders", "Stamps"]); // case-insensitive dedupe
+  assert.deepEqual(resolveExclusions("a\nb\n\nc"), ["a", "b", "c"]); // newline-separated
+  assert.deepEqual(resolveExclusions(""), []);
+  assert.deepEqual(resolveExclusions(null), []);
+  const many = Array.from({ length: 20 }, (_, i) => `cat${i}`);
+  assert.equal(resolveExclusions(many).length, MAX_EXCLUSIONS);
+  assert.equal(resolveExclusions([" x".repeat(50)])[0].length, 40); // per-label cap
+  assert.deepEqual(resolveRewards({ excludedCategories: "Money orders" }).excludedCategories, ["Money orders"]);
 });
