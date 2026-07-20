@@ -9,6 +9,7 @@ import { applyLogFilter, buildVocabulary } from "@/lib/log-filter";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { CATALOG } from "@/lib/i18n";
+import { packDisplayParts } from "@/lib/scratch-barcode";
 import EmptyState, { IconReceipt } from "./EmptyState";
 import SearchInput from "./SearchInput";
 import Highlight from "./Highlight";
@@ -400,7 +401,7 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                   ) : (
                     <>
                       <div className="font-semibold text-[15px]"><Highlight text={e.game} terms={terms} /> · {t("log.price_tickets", { p: e.price })}</div>
-                      <div className="text-[13px] text-muted font-mono mt-0.5">{t("log.pack_no", { n: e.pack || "—" })} · #{e.startno}→{e.endno}</div>
+                      <div className="text-[13px] text-muted font-mono mt-0.5">{t("log.pack_no", { n: packDisplayParts(e.pack).bookNo || "—" })} · #{e.startno}→{e.endno}</div>
                       <div className="text-[13px] text-muted font-mono">{byStamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
                         <span className="pill bg-subtle text-muted">{t("log.sold_pill", { n: e.sold })}</span>
