@@ -3,6 +3,7 @@ import { useMemo, useState, useId } from "react";
 import { apiRewards } from "@/lib/data";
 import { money } from "@/lib/utils";
 import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, canRedeem, canRedeemTier, daysSince, isNewCustomer, isBirthdayMonth, normalizePhone, maskPhone } from "@/lib/rewards";
+import { parseCustomerToken } from "@/lib/customer-id";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import EmptyState, { IconReceipt } from "./EmptyState";
@@ -147,11 +148,21 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
     setCardTab("register"); setProf(null); setAdjPts(""); setAdjNote("");
   }
 
-  // Scan a customer code (a QR or barcode that encodes their phone number —
-  // e.g. a printed loyalty card). Enrolled → open their card; new but valid →
-  // jump straight into enrollment with the number filled.
+  // Scan a customer code. A DuoCount loyalty QR (duocount:{slug}:{id}, shown on
+  // the customer's /rewards page) opens the account by its customer id — after
+  // checking the code belongs to THIS store. Anything else falls back to a phone
+  // number (a printed card, or a typed one): enrolled → open the card; new but
+  // valid → jump into enrollment with the number filled.
   function onScanned(code) {
     setScanOpen(false);
+    const token = parseCustomerToken(code);
+    if (token) {
+      if (vendor?.slug && token.slug !== String(vendor.slug).toLowerCase()) { setError(t("rw.scan_wrong_store")); return; }
+      const byId = customers.find((c) => String(c.customerId || "").trim().toLowerCase() === token.customerId.toLowerCase());
+      if (byId) selectCustomer(byId);
+      else setError(t("rw.scan_not_found"));
+      return;
+    }
     const digits = normalizePhone(String(code || "").replace(/\D/g, ""));
     if (!digits) { setError(t("rewarderr.bad_phone")); return; }
     const hit = customers.find((c) => String(c.phone || "") === digits);

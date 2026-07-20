@@ -63,6 +63,10 @@ export async function POST(req) {
       ready: canRedeem(points, rules),
       expiryMonths: rules.expiryMonths || 0,
       expiresAt: exp.expiresAt ? exp.expiresAt.toISOString().slice(0, 10) : null,
+      // The customer's own loyalty id, so the page can show a QR they scan at the
+      // register (null for a legacy account that hasn't been given one yet — the
+      // register backfills it on the next visit).
+      customerId: cData.customerId || null,
     });
   } catch (e) {
     return NextResponse.json({ error: "Balance check failed." }, { status: 500 });

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
 import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak, pointsForSale, sanitizeProfile, normalizePhone, maskPhone, pointsExpiry } from "@/lib/rewards";
+import { customerIdFromBytes } from "@/lib/customer-id";
 
 export const runtime = "nodejs";
 
@@ -37,6 +39,18 @@ const expireLine = (customerId, balance, months) => ({
   by: "System", byId: "system", byRole: "system", ts: new Date(),
   note: `Points expired after ${months} months of inactivity`,
 });
+
+// A unique auto customer id for this store — a short Crockford code, re-rolled on
+// the ~never in-store collision (an 8-char code is ~1 in 10^12). The register
+// enrolls through the Admin SDK, so this query + write are trusted.
+async function generateUniqueCustomerId(customers) {
+  for (let i = 0; i < 8; i++) {
+    const code = customerIdFromBytes(randomBytes(8), 8);
+    const hit = await customers.where("customerId", "==", code).limit(1).get();
+    if (hit.empty) return code;
+  }
+  return customerIdFromBytes(randomBytes(12), 12); // vanishingly unlikely fallback
+}
 
 const publicCustomer = (id, c, rules) => {
   const exp = pointsExpiry(c, rules);
@@ -77,13 +91,20 @@ export async function POST(req) {
     const found = await customers.where("phone", "==", phone).limit(1).get();
     const existing = found.empty ? null : found.docs[0];
 
-    // Materialize lapsed points as a signed "expire" line and zero the balance,
-    // if the account has been inactive past the owner's expiry window. Called on
-    // any READ of an enrolled customer so the balance shown is always the real,
-    // post-expiry number; the earn/redeem/adjust path expires inside its own
-    // transaction (see commit). Idempotent and a no-op when nothing is due.
-    const withExpiry = async (doc) => {
-      const data = doc.data();
+    // Load an enrolled customer for a READ, keeping two invariants current: (1)
+    // backfill a missing customer id — legacy customers predate auto-ids, so the
+    // register and the customer's QR always have one; (2) materialize lapsed
+    // points as a signed "expire" line and zero the balance if the account has
+    // been inactive past the owner's expiry window (the earn/redeem/adjust path
+    // expires inside its own transaction, see commit). Both are idempotent no-ops
+    // once satisfied.
+    const hydrateCustomer = async (doc) => {
+      let data = doc.data();
+      if (!(data.customerId && String(data.customerId).trim())) {
+        const code = await generateUniqueCustomerId(customers);
+        await doc.ref.update({ customerId: code });
+        data = { ...data, customerId: code };
+      }
       const exp = pointsExpiry(data, rules, new Date());
       if (!(exp.expired && (data.pointsBalance || 0) > 0)) return data;
       await adminDb.runTransaction(async (tx) => {
@@ -101,13 +122,13 @@ export async function POST(req) {
     if (action === "lookup") {
       return NextResponse.json({
         ok: true, rules,
-        customer: existing ? publicCustomer(existing.id, await withExpiry(existing), rules) : null,
+        customer: existing ? publicCustomer(existing.id, await hydrateCustomer(existing), rules) : null,
       });
     }
 
     if (action === "enroll") {
       if (existing) // idempotent — typing an enrolled number just pulls them up
-        return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, await withExpiry(existing), rules) });
+        return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, await hydrateCustomer(existing), rules) });
 
       // Referral (optional): the new customer names who sent them. Both sides
       // get points as signed "referral" ledger lines — a kind the outpaced-
@@ -146,9 +167,13 @@ export async function POST(req) {
 
       const friendPts = referrerDoc ? rules.referral.friend : 0;
       const startBalance = friendPts + startPts;
+      // Auto-populate the customer id: use the one the clerk typed if any, else
+      // generate a unique short code so every customer has a scannable id.
+      const autoCustomerId = prof.patch.customerId || await generateUniqueCustomerId(customers);
       const doc = {
         phone, name: String(name ?? "").trim().slice(0, 80) || null,
-        ...prof.patch, // note, email, address, birthday, customerId
+        ...prof.patch, // note, email, address, birthday, customerId (overridden below)
+        customerId: autoCustomerId,
         pointsBalance: startBalance, lifetimePoints: startBalance, createdAt: new Date(), lastEarnAt: null,
         by: claims.name || "", byId: claims.userId,
         ...(referrerDoc ? { referredBy: referrerDoc.id } : {}),

@@ -3,9 +3,11 @@ import { useState } from "react";
 import Link from "next/link";
 import Logo from "./Logo";
 import Field from "./Field";
+import Qr from "./Qr";
 import { useLang } from "./LangProvider";
 import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 import { normalizePhone } from "@/lib/rewards";
+import { customerToken } from "@/lib/customer-id";
 import { money } from "@/lib/utils";
 
 // The customer's side of rewards: store code + phone → points. Talks to the
@@ -87,6 +89,16 @@ export default function BalanceCheck() {
               {result.ready && <p className="text-[13px] font-semibold mt-1.5">{t("rwb.ready_hint")}</p>}
               {result.expiryMonths > 0 && result.expiresAt && result.points > 0 && (
                 <p className="text-[11px] text-faint mt-2">{t("rwb.expiry_note", { date: result.expiresAt })}</p>
+              )}
+              {result.customerId && (
+                <div className="mt-4 pt-4 border-t border-line flex flex-col items-center">
+                  {/* Black-on-white so it scans in either app theme. The associate
+                      scans this with the register's camera to open the account. */}
+                  <Qr value={customerToken(store, result.customerId)} size={168} title={t("rwb.qr_alt")}
+                    className="bg-white p-2.5 rounded-lg inline-block" />
+                  <p className="text-[12px] text-muted mt-2.5 leading-snug">{t("rwb.qr_hint")}</p>
+                  <p className="text-[11px] text-faint font-mono tracking-wider mt-1">{result.customerId}</p>
+                </div>
               )}
             </div>
           )}
