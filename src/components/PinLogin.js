@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useSession } from "./SessionProvider";
+import { apiCheckSlug } from "@/lib/data";
 import { useLang } from "./LangProvider";
 import { LOCALES, LOCALE_LABELS, CATALOG } from "@/lib/i18n";
 import { PRODUCT } from "@/lib/store";
@@ -34,6 +35,25 @@ export default function PinLogin() {
   const [ownerName, setOwnerName] = useState("");
   const [newPin, setNewPin] = useState("");
   const ids = { storeCode: useId(), pin: useId(), bizName: useId(), logoUrl: useId(), ownerName: useId(), newPin: useId() };
+
+  // Live store-code availability while the owner types the business name — shows
+  // the code they'll get and whether that exact code is free, so a duplicate name
+  // is surfaced before they create (the signup txn still allocates atomically).
+  const [slug, setSlug] = useState(null); // { base, slug, available } | null
+  const [slugBusy, setSlugBusy] = useState(false);
+  useEffect(() => {
+    if (mode !== "signup") { setSlug(null); return undefined; }
+    const name = bizName.trim();
+    if (name.length < 2) { setSlug(null); setSlugBusy(false); return undefined; }
+    setSlugBusy(true);
+    const h = setTimeout(() => {
+      apiCheckSlug(name)
+        .then((r) => setSlug(r))
+        .catch(() => setSlug(null))
+        .finally(() => setSlugBusy(false));
+    }, 400);
+    return () => clearTimeout(h);
+  }, [bizName, mode]);
 
   async function doLogin() {
     setErr(null); setBusy(true);
@@ -76,7 +96,7 @@ export default function PinLogin() {
               onChange={(e) => setStoreCode(e.target.value)} placeholder="acme-market" autoFocus />
             <label htmlFor={ids.pin} className="label">{t("login.your_pin", { n: PIN_LENGTH })}</label>
             <input id={ids.pin} className="input text-center text-2xl tracking-[0.4em] font-mono"
-              inputMode="numeric" maxLength={PIN_LENGTH} value={pin}
+              type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
               onKeyDown={(e) => e.key === "Enter" && doLogin()} placeholder={PIN_PLACEHOLDER} />
             {err && <p className="text-sm text-neg mt-3">{errText(err)}</p>}
@@ -94,14 +114,22 @@ export default function PinLogin() {
         ) : (
           <>
             <label htmlFor={ids.bizName} className="label">{t("login.biz_name")}</label>
-            <input id={ids.bizName} className="input mb-4" value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Acme Market" />
+            <input id={ids.bizName} className="input" value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Acme Market" />
+            <p className="text-xs mt-1.5 mb-4 leading-relaxed min-h-[1.1rem]" aria-live="polite">
+              {bizName.trim().length < 2 ? <span className="text-muted">{t("login.slug_prompt")}</span>
+                : slugBusy ? <span className="text-muted">{t("login.slug_checking")}</span>
+                : slug ? (slug.available
+                    ? <span className="text-pos">{t("login.slug_ok", { slug: slug.slug })}</span>
+                    : <span className="text-gold">{t("login.slug_taken", { base: slug.base, slug: slug.slug })}</span>)
+                : <span className="text-muted"> </span>}
+            </p>
             <label htmlFor={ids.logoUrl} className="label">{t("login.logo_url")}</label>
             <input id={ids.logoUrl} className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
             <label htmlFor={ids.ownerName} className="label">{t("login.owner_name")}</label>
             <input id={ids.ownerName} className="input mb-4" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Jordan P." />
             <label htmlFor={ids.newPin} className="label">{t("login.choose_pin", { n: PIN_LENGTH })}</label>
             <input id={ids.newPin} className="input text-center text-xl tracking-[0.3em] font-mono"
-              inputMode="numeric" maxLength={PIN_LENGTH} value={newPin}
+              type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
             {err && <p className="text-sm text-neg mt-3">{errText(err)}</p>}
             <button className="btn-primary mt-5" disabled={busy || !isValidNewPin(newPin)} onClick={doSignup}>

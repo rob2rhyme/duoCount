@@ -3,6 +3,7 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
 import { throttleDecision, attemptKey, clientIp } from "@/lib/login-throttle";
+import { slugify } from "@/lib/slug";
 
 export const runtime = "nodejs";
 
@@ -13,10 +14,6 @@ export const runtime = "nodejs";
 const SIGNUP_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 5 };
 
 const ipOf = (req) => clientIp((n) => req.headers.get(n));
-
-function slugify(name) {
-  return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24) || "store";
-}
 
 export async function POST(req) {
   try {

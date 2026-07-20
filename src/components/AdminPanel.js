@@ -645,7 +645,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         <div className="p-4 border-b border-line bg-panel">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <Field label={t("admin.f_name")}><input className="input" value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder={t("admin.ph_name")} /></Field>
-            <Field label={t("admin.f_pin", { n: PIN_LENGTH })}><input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="123456" /></Field>
+            <Field label={t("admin.f_pin", { n: PIN_LENGTH })}><input className="input font-mono" type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} value={ns.pin} onChange={(e) => setNs({ ...ns, pin: e.target.value.replace(/\D/g, "") })} placeholder="123456" /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <Field label={t("admin.f_role")}>
@@ -1483,7 +1483,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </div>
             <div className="p-4 space-y-3">
               {staffModal.kind === "pin" ? (
-                <input className="input font-mono" inputMode="numeric" maxLength={PIN_LENGTH} autoFocus
+                <input className="input font-mono" type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} autoFocus
                   value={staffModalVal} placeholder="123456"
                   onChange={(e) => setStaffModalVal(e.target.value.replace(/\D/g, ""))} />
               ) : (

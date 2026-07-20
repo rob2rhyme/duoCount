@@ -151,6 +151,16 @@ export async function apiBranding({ dataUrl, format }) {
     body: JSON.stringify({ dataUrl, format }),
   });
 }
+// Pre-signup store-code availability — no auth (the owner isn't created yet).
+// Returns { base, slug, available } so the signup form can show the code the
+// owner will get before they commit.
+export async function apiCheckSlug(businessName) {
+  return fetchJson("/api/auth/check-slug", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ businessName }),
+  });
+}
 // Rewards audit feeds (manager-only subscribers): the ledger window for the
 // fraud detectors, and the customer list for the outstanding-liability figure.
 // Reads only — the rules allow no client writes to either collection.
