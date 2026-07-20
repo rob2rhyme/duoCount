@@ -122,9 +122,9 @@ opcionales (todas desactivadas por defecto — mira el paso 7).
 - **Mira las insignias.** Como gerente, aparecen pequeños contadores ámbar en
   la navegación junto a **Registro** (conteos con una variación o disputa sin
   resolver), **Incidentes** (reportes abiertos) y **Horario** (intercambios de
-  turno esperando tu aprobación) — un empujón silencioso hacia lo que necesita
-  una segunda mirada, para que nada espere sin ser visto. Se limpian solos
-  conforme resuelves cada punto.
+  turno y solicitudes de tiempo libre esperando tu aprobación) — un empujón
+  silencioso hacia lo que necesita una segunda mirada, para que nada espere sin
+  ser visto. Se limpian solos conforme resuelves cada punto.
 - **¿Tienes más de una tienda? Abre Portafolio.** Los dueños con dos o más
   ubicaciones tienen una pestaña **Portafolio**: elige cualquier período y ve
   cada tienda lado a lado — sobra/falta total, ventas, dólares de raspaditos y
@@ -173,6 +173,17 @@ opcionales (todas desactivadas por defecto — mira el paso 7).
 - **Incidentes.** Levanta un reporte firmado cuando pase algo que no es un
   número (una caja abierta, una falta). El empleado al que concierne puede
   reconocerlo y agregar su versión.
+- **Solicitudes de tiempo libre.** El personal pide días libres — o avisa de un
+  evento futuro previsible para el que necesitará faltar (una boda, una clase) —
+  desde la pestaña **Horario**. Tú **apruebas o rechazas cada una con una razón
+  corta**, y el empleado ve tu decisión y esa razón en el momento en que la
+  tomas. Las solicitudes que se traslapan muestran un aviso para que no dejes un
+  turno sin cubrir por accidente.
+- **Ayuda y soporte.** ¿Un tropiezo o crees que algo se rompió? En **Admin**, la
+  tarjeta **Ayuda y soporte** te deja reportar un problema de la app — adjunta
+  una captura de pantalla si ayuda — y seguirlo de *abierto* a *resuelto*;
+  cualquier respuesta llega directo al hilo, para que nunca te quedes con la
+  duda.
 
 ### 5. Saca un reporte para tus registros
 
@@ -346,6 +357,19 @@ registres.
    que un faltante de efectivo. (El modo ciego también aplica aquí, si está
    activado.)
 
+### Mover existencias de trastienda (surtir al frente, resurtir)
+
+Arriba del formulario de conteo, en la pestaña **Inventario**, está tu
+**existencia de trastienda en vivo** — cada artículo rastreado con cuántos hay
+en existencia y un botón **−** y **+**. Toca **−** cuando surtas uno al frente
+(o se venda) y **+** cuando una entrega lo resurta. Cada toque es su propia
+**línea de movimiento firmada**, así el número en existencia y el historial de
+quién/cuándo se mantienen honestos — un gerente puede ver cada retiro. Los
+artículos con poca existencia o cerca de caducar suben al principio. Este es el
+conteo rápido de todo el día que mantiene vivo el número del estante; el
+**conteo firmado** de arriba es el reconteo completo y periódico que queda en el
+registro.
+
 ### Recompensas en el mostrador (si tu tienda las activó)
 
 En la pestaña **Recompensas**, escribe el teléfono del cliente y toca
@@ -359,10 +383,13 @@ clientes pueden consultar su propio saldo en **/rewards**.
 
 ### Marcar entrada/salida y ver tu horario
 
-La pestaña **Horario** tiene el **Reloj checador** (marca entrada y salida — un
-error se corrige marcando de nuevo, nunca editando) y el **Horario** (tus
-próximos turnos; marca los días que no puedes trabajar, reclama turnos abiertos
-u ofrece un intercambio a un compañero).
+La pestaña **Horario** tiene tres partes: el **Reloj checador** (marca entrada y
+salida — un error se corrige marcando de nuevo, nunca editando), el **Horario**
+(tus próximos turnos; marca los días que no puedes trabajar, reclama turnos
+abiertos u ofrece un intercambio a un compañero) y **Tiempo libre** (pide días
+libres con una razón y observa el visto bueno o el rechazo de tu gerente — con
+su razón — en la propia solicitud; también puedes registrar un evento futuro
+previsible para el que necesitarás faltar, para que esté en su radar temprano).
 
 ### Dejar una nota de turno
 
@@ -407,7 +434,9 @@ importantes.
   no queda registrada hasta que veas la confirmación.
 - **Instálala como app.** DuoCount es una PWA — tu teléfono/navegador puede
   "Agregar a la pantalla de inicio", y abre a pantalla completa y funciona sin
-  conexión para lo básico.
+  conexión para lo básico. Reabre en la **pestaña que usaste por última vez** y
+  muestra tus datos recientes de inmediato, así una recarga te deja donde
+  estabas.
 - **Prefer English?** Toda la app habla inglés y español: elige el idioma en la
   pantalla de inicio de sesión (junto al sol/la luna) o en el **engrane
   (Configuración) → Idioma** del encabezado. Es una elección por dispositivo,
