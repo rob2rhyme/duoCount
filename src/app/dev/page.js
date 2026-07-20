@@ -30,6 +30,7 @@ function Thumbs({ attachments }) {
 export default function DevConsole() {
   const { t, lang } = useLang();
   const [gate, setGate] = useState("loading"); // loading | signin | denied | ok
+  const [uid, setUid] = useState("");          // the caller's platform-admin id, for the denied screen
   const [tab, setTab] = useState("inbox");
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function DevConsole() {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) { setGate("signin"); return; }
       apiDev({ action: "whoami" })
-        .then((r) => setGate(r.platformAdmin ? "ok" : "denied"))
+        .then((r) => { setUid(r.uid || ""); setGate(r.platformAdmin ? "ok" : "denied"); })
         .catch((e) => setGate(e?.status === 401 ? "signin" : "denied"));
     });
     return unsub;
@@ -46,7 +47,7 @@ export default function DevConsole() {
 
   if (gate === "loading") return <Shell><p className="text-muted text-sm">{t("common.loading")}</p></Shell>;
   if (gate === "signin") return <Shell><Notice title={t("dev.signin_title")} body={t("dev.signin_body")} /></Shell>;
-  if (gate === "denied") return <Shell><Notice title={t("dev.denied_title")} body={t("dev.denied_body")} /></Shell>;
+  if (gate === "denied") return <Shell><Notice title={t("dev.denied_title")} body={t("dev.denied_body")} uid={uid} t={t} /></Shell>;
 
   return (
     <Shell>
@@ -74,11 +75,34 @@ function Shell({ children }) {
     </div>
   );
 }
-function Notice({ title, body }) {
+function Notice({ title, body, uid = "", t = null }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    try {
+      navigator.clipboard?.writeText(uid);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard blocked — the id is shown, so it can still be typed */ }
+  };
   return (
     <div className="card p-6 text-center">
       <p className="font-semibold text-[15px]">{title}</p>
       <p className="text-[13px] text-muted mt-1.5 leading-relaxed">{body}</p>
+      {/* Bootstrap helper: a signed-in-but-not-allowlisted developer sees their
+          own id here and can copy it straight into PLATFORM_ADMIN_UIDS. */}
+      {uid && t && (
+        <div className="mt-4 border border-line rounded-xl bg-panel p-3.5 text-left">
+          <p className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("dev.your_id")}</p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <code className="flex-1 min-w-0 truncate font-mono text-[13px] text-fg select-all">{uid}</code>
+            <button type="button" onClick={copy}
+              className="flex-shrink-0 btn-ghost w-auto px-3 py-1.5 text-[13px]">
+              {copied ? t("dev.copied") : t("dev.copy")}
+            </button>
+          </div>
+          <p className="text-[12px] text-muted mt-2 leading-relaxed">{t("dev.your_id_hint")}</p>
+        </div>
+      )}
       <Link href="/" className="btn-ghost inline-flex mt-4 px-4 w-auto">← DuoCount</Link>
     </div>
   );
