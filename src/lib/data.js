@@ -177,6 +177,16 @@ export async function apiDev(payload) {
     body: JSON.stringify(payload),
   });
 }
+// Developer login — no Bearer token (this IS the login); returns { token } to
+// sign in with. The developer isn't a store member, so this is separate from the
+// PIN login.
+export async function apiDevLogin({ email, password }) {
+  return fetchJson("/api/auth/dev", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+}
 
 export async function apiStockMove(payload) {
   return fetchJson("/api/stock-move", {

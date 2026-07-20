@@ -27,6 +27,13 @@ export async function requireMember(req) {
   return claims;
 }
 
+// Require ANY valid Firebase session — a store member OR a platform-admin token
+// (which has no vendorId). Used by /api/dev whoami, the console gate that just
+// reports whether the caller is a developer.
+export async function requireSignedIn(req) {
+  return verifyBearer(req);
+}
+
 // Require a manager or owner. Shared by the staff and schedule-publish routes.
 export async function requireManager(req) {
   const claims = await verifyBearer(req);
@@ -43,25 +50,27 @@ export async function requireOwner(req) {
   return claims;
 }
 
-// The platform-admin (developer) allowlist — the store data is tenant-isolated,
-// so there is no cross-tenant ROLE; the developer is instead identified by their
-// Firebase Auth UID, which is `${vendorId}_${userId}` (the login route mints
-// tokens under that uid). PLATFORM_ADMIN_UIDS is a comma-separated allowlist,
-// the same shared-secret-in-env posture as CRON_SECRET. The developer signs in
-// through their normal store account; the dev console + /api/dev unlock only
-// when their uid is on the list. Env-based so it's revocable by redeploy with no
-// bootstrap problem.
+// Platform-admin (developer) identity. The store data is tenant-isolated, so
+// there is no cross-tenant ROLE. Two ways to be a developer:
+//   1. The dedicated developer login (/api/auth/dev) mints a token with a
+//      `platformAdmin: true` claim and no vendorId — the intended path, since a
+//      developer doesn't own a store.
+//   2. Legacy/bootstrap: a store account whose uid (`${vendorId}_${userId}`) is
+//      in the PLATFORM_ADMIN_UIDS env allowlist (the CRON_SECRET posture).
+// Both are server-signed — a store login never sets the platformAdmin claim — so
+// neither can be forged from the client. Env-based, revocable by redeploy.
 export function platformAdminUids() {
   return String(process.env.PLATFORM_ADMIN_UIDS || "")
     .split(",").map((s) => s.trim()).filter(Boolean);
 }
 export function isPlatformAdminClaims(claims) {
-  const uid = `${claims.vendorId}_${claims.userId}`;
-  return platformAdminUids().includes(uid);
+  if (claims?.platformAdmin === true) return true;
+  if (!claims?.vendorId || !claims?.userId) return false;
+  return platformAdminUids().includes(`${claims.vendorId}_${claims.userId}`);
 }
 export async function requirePlatformAdmin(req) {
   const claims = await verifyBearer(req);
-  if (!claims.vendorId || !claims.userId || !isPlatformAdminClaims(claims))
+  if (!isPlatformAdminClaims(claims))
     throw Object.assign(new Error("Developer access only."), { status: 403, code: "not_platform_admin" });
   return claims;
 }

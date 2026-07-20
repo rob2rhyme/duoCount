@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, signInWithCustomToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { apiDev } from "@/lib/data";
+import { apiDev, apiDevLogin } from "@/lib/data";
 import { downscaleImage } from "@/lib/image-downscale";
 import { compareTickets, toMs, ATTACH_MAX_PER_MSG } from "@/lib/support";
 import Link from "next/link";
@@ -51,7 +51,7 @@ export default function DevConsole() {
   const doSignOut = async () => { try { await signOut(auth); } finally { window.location.href = "/"; } };
 
   if (gate === "loading") return <Shell><p className="text-muted text-sm">{t("common.loading")}</p></Shell>;
-  if (gate === "signin") return <Shell><Notice title={t("dev.signin_title")} body={t("dev.signin_body")} /></Shell>;
+  if (gate === "signin") return <Shell><DevLogin t={t} /></Shell>;
   if (gate === "denied") return <Shell onSignOut={doSignOut} signOutLabel={signOutLabel}><Notice title={t("dev.denied_title")} body={t("dev.denied_body")} uid={uid} t={t} /></Shell>;
 
   return (
@@ -115,6 +115,46 @@ function Notice({ title, body, uid = "", t = null }) {
         </div>
       )}
       <Link href="/" className="btn-ghost inline-flex mt-4 px-4 w-auto">← DuoCount</Link>
+    </div>
+  );
+}
+
+// Dedicated developer sign-in — the developer isn't a store owner, so this is a
+// direct email + password, not a store PIN. On success it signs in with the
+// platform-admin custom token the server mints; the parent's auth listener then
+// flips the gate to the console.
+function DevLogin({ t }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const errText = (e) => (e?.code && t(`autherr.${e.code}`) !== `autherr.${e.code}`
+    ? t(`autherr.${e.code}`) : e?.message || t("autherr.login_failed"));
+  async function submit() {
+    setErr(""); setBusy(true);
+    try {
+      const { token } = await apiDevLogin({ email, password });
+      await signInWithCustomToken(auth, token); // parent's onAuthStateChanged takes it from here
+    } catch (e) { setErr(errText(e)); setBusy(false); }
+  }
+  return (
+    <div className="card p-6 max-w-sm mx-auto">
+      <p className="font-semibold text-[15px]">{t("dev.login_title")}</p>
+      <p className="text-[13px] text-muted mt-1.5 leading-relaxed">{t("dev.login_body")}</p>
+      <label className="label mt-4">{t("dev.login_email")}</label>
+      <input className="input" type="email" inputMode="email" autoComplete="username" autoCapitalize="none"
+        value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dev@duocount.app" />
+      <label className="label mt-3">{t("dev.login_password")}</label>
+      <input className="input" type="password" autoComplete="current-password"
+        value={password} onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && email && password && !busy && submit()} />
+      {err && <p role="alert" className="text-[13px] text-neg mt-3">{err}</p>}
+      <button className="btn-primary mt-5" disabled={busy || !email.trim() || !password} onClick={submit}>
+        {busy ? t("dev.login_checking") : t("dev.login_button")}
+      </button>
+      <Link href="/" className="block text-center text-[12px] text-muted underline underline-offset-2 mt-4 hover:text-fg">
+        {t("dev.login_back")}
+      </Link>
     </div>
   );
 }
