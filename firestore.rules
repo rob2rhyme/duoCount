@@ -99,6 +99,26 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // Gaming/amusement-machine registry — config like drawers/items: members
+      // read (staff need the machine names to file a collection), the owner
+      // creates/edits, soft-disable only (never deleted, so past collection
+      // lines keep their labels).
+      match /machines/{machineId} {
+        allow read: if member();
+        allow create, update: if owner() && liveActive();
+        allow delete: if false;
+      }
+
+      // Gaming collection ledger — written ONLY via the trusted /api/gaming
+      // route (Admin SDK), so it's append-only by construction, and read
+      // OWNER-ONLY: the attending staff enter a machine's collection + payout
+      // through the route but never see the computed split or the store's take
+      // ("owner only has access to the total amount").
+      match /gamingCollections/{collectionId} {
+        allow read: if owner();
+        allow create, update, delete: if false;
+      }
+
       // /packs — RETIRED (PR #125): the pack-lifecycle state machine is gone;
       // scratch theft-protection lives in the signed shift counts (entries) and
       // scratch-audit.js. No match block = default deny, so the old collection

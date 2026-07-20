@@ -210,6 +210,36 @@ export function watchStockMoves(vendorId, since, cb) {
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 
+// Gaming/amusement-machine registry (config, member-readable — staff need the
+// machine names to enter a collection). Owner CRUD via client SDK, like drawers.
+export function watchMachines(vendorId, cb) {
+  return onSnapshot(query(vcol(vendorId, "machines"), orderBy("createdAt", "asc")),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+export async function addMachine(vendorId, machine) {
+  await addDoc(vcol(vendorId, "machines"), { ...machine, active: true, createdAt: new Date() });
+}
+export async function updateMachine(vendorId, id, patch) {
+  await updateDoc(doc(db, "vendors", vendorId, "machines", id), patch);
+}
+// The signed collection ledger — OWNER-ONLY reads (firestore.rules); the client
+// SDK denies a staff read, so only the owner oversight view subscribes. Low
+// volume (a few machines, collected weekly–monthly), so the whole ledger is
+// watched — any report timeframe filters within it.
+export function watchGamingCollections(vendorId, cb) {
+  return onSnapshot(query(vcol(vendorId, "gamingCollections"), orderBy("collectionDate", "desc")),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
+}
+// Staff record a machine's collection + payout; the route computes the split and
+// appends a signed line. No money comes back — staff enter blind (owner-only totals).
+export async function apiGaming(payload) {
+  return fetchJson("/api/gaming", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function apiRewards(payload) {
   return fetchJson("/api/rewards", {
     method: "POST",

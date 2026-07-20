@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { featureEnabled, resolveFeatures } from "@/lib/features";
 import { useSession } from "./SessionProvider";
@@ -9,6 +9,7 @@ import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
 import InventoryForm from "./InventoryForm";
 import BackroomStock from "./BackroomStock";
+import GamingTab from "./GamingTab";
 import LogList from "./LogList";
 import RewardsPanel from "./RewardsPanel";
 import NotesPanel from "./NotesPanel";
@@ -37,6 +38,7 @@ const TABS = [
   { id: "cash", labelKey: "nav.cash" },
   { id: "scratch", labelKey: "nav.scratch", featureKey: "scratch" },
   { id: "inventory", labelKey: "nav.inventory", featureKey: "inventory" },
+  { id: "gaming", labelKey: "nav.gaming", featureKey: "gaming" },
   { id: "rewards", labelKey: "nav.rewards" },
   { id: "log", labelKey: "nav.log" },
   { id: "notes", labelKey: "nav.notes" },
@@ -132,6 +134,20 @@ export default function AppShell() {
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
     return watchStockMoves(vendor.id, since, setStockMoves);
   }, [vendor.id]);
+  // Gaming/amusement-machine module. The registry is member-readable (the entry
+  // form needs the machine names); the collection ledger is OWNER-ONLY, so only
+  // the owner's oversight view subscribes. Both only while the module is on.
+  const gamingOn = featureEnabled(vendor, "gaming");
+  const [machines, setMachines] = useState([]);
+  const [gamingCollections, setGamingCollections] = useState([]);
+  useEffect(() => {
+    if (!gamingOn) { setMachines([]); return undefined; }
+    return watchMachines(vendor.id, setMachines);
+  }, [vendor.id, gamingOn]);
+  useEffect(() => {
+    if (!gamingOn || !isOwner) { setGamingCollections([]); return undefined; }
+    return watchGamingCollections(vendor.id, setGamingCollections);
+  }, [vendor.id, gamingOn, isOwner]);
   // Pending time-off requests — managers only, to badge the Time tab (the
   // Time-off panel below subscribes on its own for the full list).
   const [timeOff, setTimeOff] = useState([]);
@@ -367,6 +383,10 @@ export default function AppShell() {
             </div>
           )
         )}
+        {tab === "gaming" && (
+          <GamingTab machines={machines} collections={gamingCollections} isOwner={isOwner}
+            onToast={ping} onGoAdmin={goAdmin} adminAction={adminAction} />
+        )}
         {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} customers={customers} rewardEvents={rewardEvents} />}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
         {tab === "notes" && <NotesPanel notes={notes} locations={activeLocations} locName={locName} onToast={ping} />}
@@ -386,7 +406,7 @@ export default function AppShell() {
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
-        {tab === "admin" && isOwner && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} />}
+        {tab === "admin" && isOwner && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} machines={machines} />}
       </main>
 
       <footer className="mt-6 border-t border-line-soft pb-28 sm:pb-0">

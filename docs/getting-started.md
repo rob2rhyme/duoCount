@@ -344,6 +344,27 @@ running low or near their expiry date float to the top. This is the quick,
 all-day tally that keeps the shelf number live; the **signed count** above is
 the periodic, full recount that goes on the record.
 
+### Record a gaming machine collection (if your store hosts machines)
+
+If outside companies run slot, ATM, or amusement machines in your store, the
+owner registers them under **Admin → Machines**. On the day a machine is
+collected:
+
+1. Tap **Gaming**, pick the **machine**, and set the **collection date**.
+2. Enter the machine's **total collection** and **total payout** for the period.
+3. **Submit** — your entry is recorded for the owner.
+
+You won't see the split or the store's take: the store and the machine's company
+split the remainder (collection − payout) by contract, and those totals are
+**owner-only**. If a machine paid out more than it collected, the store's share
+is simply **$0** — never a negative.
+
+> **Owner view.** On the same **Gaming** tab — and only for the owner — you see
+> the totals for any timeframe (collection, payout, net, your take and the
+> company's), broken down per machine and per company, with a store-take chart
+> and a **CSV export** for the dates you pick. Each collection is a signed,
+> append-only line, so the record of who entered what stays honest.
+
 ### Rewards at the register (if your store turned it on)
 
 On the **Rewards** tab, type the customer's phone number and **Look up**. Not

@@ -382,6 +382,28 @@ conteo rápido de todo el día que mantiene vivo el número del estante; el
 **conteo firmado** de arriba es el reconteo completo y periódico que queda en el
 registro.
 
+### Registrar una recaudación de máquina de juego (si tu tienda aloja máquinas)
+
+Si empresas externas operan máquinas tragamonedas, cajeros o de entretenimiento
+en tu tienda, el dueño las registra en **Admin → Máquinas**. El día que se
+recauda una máquina:
+
+1. Toca **Juegos**, elige la **máquina** y fija la **fecha de recaudación**.
+2. Ingresa la **recaudación total** y los **pagos totales** de la máquina del período.
+3. **Enviar** — tu entrada queda registrada para el dueño.
+
+No verás el reparto ni la parte de la tienda: la tienda y la empresa de la
+máquina reparten el resto (recaudación − pagos) por contrato, y esos totales son
+**solo para el dueño**. Si una máquina pagó más de lo que recaudó, la parte de la
+tienda es simplemente **$0** — nunca negativa.
+
+> **Vista del dueño.** En la misma pestaña **Juegos** — y solo para el dueño —
+> ves los totales de cualquier período (recaudación, pagos, neto, tu parte y la
+> de la empresa), desglosados por máquina y por empresa, con una gráfica de la
+> parte de la tienda y una **exportación CSV** para las fechas que elijas. Cada
+> recaudación es una línea firmada y solo-agregar, así que el registro de quién
+> ingresó qué se mantiene honesto.
+
 ### Recompensas en el mostrador (si tu tienda las activó)
 
 En la pestaña **Recompensas**, escribe el teléfono del cliente y toca

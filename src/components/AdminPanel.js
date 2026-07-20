@@ -21,11 +21,12 @@ import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
 import ScratchGamesCard from "./ScratchGamesCard";
+import MachineRegistryCard from "./MachineRegistryCard";
 import SupportCard from "./SupportCard";
 import Field from "./Field";
 import ShowMore, { usePaged } from "./ShowMore";
 
-export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null, machines = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const { t, lang } = useLang();
   const [staff, setStaff] = useState([]);
@@ -482,6 +483,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     ["adm-items", "admin.items_title"],
     ["adm-features", "admin.features_title"],
     ...(featureEnabled(vendor, "scratch") ? [["adm-games", "games.nav"]] : []),
+    ...(featureEnabled(vendor, "gaming") ? [["adm-machines", "mach.nav"]] : []),
     ["adm-settings", "admin.settings_title"],
     ["adm-rewards", "admin.rw_title"],
     ["adm-engage", "admin.engage_nav"],
@@ -495,7 +497,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const [activeSection, setActiveSection] = useState("adm-staff");
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return undefined;
-    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features", "adm-games", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
+    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features", "adm-games", "adm-machines", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
     const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
     if (!els.length) return undefined;
     const obs = new IntersectionObserver((es) => {
@@ -787,9 +789,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           {/* One switch per optional module. Turning one off hides its tab,
               its Dashboard card and its attention badge for the whole store;
               the core screens (Cash, Log, Dashboard, Team, Admin) are never
-              listed here. The gaming/amusement-machine ledger row appears
-              once that module ships — its flag already defaults off. */}
-          {FEATURE_KEYS.filter((k) => k !== "gaming").map((k) => (
+              listed here. Gaming defaults OFF — a store enables it to get the
+              machine registry and the collection ledger. */}
+          {FEATURE_KEYS.map((k) => (
             <div key={k} className="flex items-start gap-3 border border-line rounded-xl p-3.5 bg-panel">
               <input id={`feat-${k}`} type="checkbox" className="mt-1" checked={settings.features[k] === true}
                 disabled={!isOwner} onChange={setFeature(k)} />
@@ -808,6 +810,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       {/* -------- scratch games catalog (owner; only with the scratch module) -------- */}
       {featureEnabled(vendor, "scratch") && (
         <ScratchGamesCard scratchCatalog={scratchCatalog} onToast={onToast} />
+      )}
+
+      {/* -------- gaming machine registry (owner; only with the gaming module) -------- */}
+      {featureEnabled(vendor, "gaming") && (
+        <MachineRegistryCard machines={machines} onToast={onToast} />
       )}
 
       {/* ---------------- settings (owner) ---------------- */}
