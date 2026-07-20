@@ -11,6 +11,19 @@ export function money(n) {
 export const UNRESOLVED = ["open", "under-review"];
 export const isUnresolved = (status) => UNRESOLVED.includes(status);
 
+// Open-item BACKLOG counts over a set of entries: unresolved variances/disputes
+// and unverified counts. This is the M3 agreement in one place — the Dashboard
+// tiles, the owner digest, and the period report must all report the same
+// backlog, so whoever counts "still open" counts it this way, over the whole
+// set they hold (never a one-day slice, or a stale open item silently reads 0).
+export function openItemCounts(entries = []) {
+  return {
+    openVariances: entries.filter((e) => isUnresolved(e?.varianceStatus)).length,
+    openDisputes: entries.filter((e) => isUnresolved(e?.disputeStatus)).length,
+    unverified: entries.filter((e) => e && !e.verifiedBy).length,
+  };
+}
+
 export function expectedCash({ shift, start, sales, paidout }) {
   const s = Number(start) || 0, sa = Number(sales) || 0, p = Number(paidout) || 0;
   return shift === "open" ? s : s + sa - p;

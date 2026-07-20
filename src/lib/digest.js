@@ -6,7 +6,7 @@ import { detectPatterns, resolvePatternRules } from "./patterns";
 import { buildStockAlerts } from "./stock-alerts";
 import { buildRewardAudit, outstandingLiability } from "./reward-audit";
 import { resolveRewards } from "./rewards";
-import { isUnresolved } from "./utils";
+import { openItemCounts } from "./utils";
 import { aiNarrativeEnabled, generateNarrative } from "./digest-narrative";
 
 const money = (n) => {
@@ -33,7 +33,9 @@ function yesterdayInTz(tz, now = new Date()) {
   return y;
 }
 
-/** Aggregates for the digest body. Entries = docs whose `date` == yesterday. */
+/** Yesterday's per-location activity table + total. Entries = docs whose
+ *  `date` == yesterday. The open-item backlog counts are computed separately
+ *  (openItemCounts), over the whole window rather than this one-day slice. */
 function summarizeEntries(entries) {
   const byLoc = {};
   for (const e of entries) {
@@ -51,9 +53,6 @@ function summarizeEntries(entries) {
   return {
     locations: Object.values(byLoc).sort((a, b) => a.name.localeCompare(b.name)),
     total: entries.length,
-    openVariances: entries.filter((e) => isUnresolved(e.varianceStatus)).length,
-    openDisputes: entries.filter((e) => isUnresolved(e.disputeStatus)).length,
-    unverified: entries.filter((e) => !e.verifiedBy).length,
   };
 }
 
@@ -229,7 +228,11 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   const incidentsSnap = await vendorRef
     .collection("incidents").where("status", "==", "open").get();
 
-  const summary = summarizeEntries(entries);
+  // Yesterday's activity table, but the open-item backlog (variances/disputes/
+  // unverified) spans the whole lookback window — a still-open item from an
+  // earlier day must show, consistent with the all-open "Open incidents" line
+  // and the Dashboard's live counts (M3), instead of resetting to 0 each night.
+  const summary = { ...summarizeEntries(entries), ...openItemCounts(windowEntries) };
   // Pack continuity gaps come from the window's scratch entries themselves —
   // no packs collection read since the lifecycle was retired.
   summary.patterns = detectPatterns(windowEntries, { now, rules });
