@@ -47,6 +47,31 @@ export function parseTokens(css) {
   return { light: parseBlock(css, ":root"), dark: parseBlock(css, "\\.dark") };
 }
 
+// Hex tokens from one `[data-palette="id"]` block (empty if absent). Unlike
+// parseBlock this never throws — a palette simply may not exist in a test string.
+function parsePaletteBlock(css, selector) {
+  const m = new RegExp(`${selector}\\s*\\{([^}]*)\\}`).exec(css);
+  const out = {};
+  if (m) for (const line of m[1].matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{3,8})/g)) out[line[1]] = line[2];
+  return out;
+}
+
+// A palette's effective hex tokens per theme: the base set with the palette's
+// own hex overrides layered on. The color-mix neutral tints aren't hex, so they
+// aren't parsed — the pairings below fall back to the BASE surfaces, a fair
+// proxy since a palette only tints them a few percent. Returns null when the
+// palette has no block at all (so callers can skip it).
+export function paletteTokens(css, id) {
+  const light = parsePaletteBlock(css, `:root\\[data-palette="${id}"\\]`);
+  const dark = parsePaletteBlock(css, `\\.dark\\[data-palette="${id}"\\]`);
+  if (!Object.keys(light).length && !Object.keys(dark).length) return null;
+  const base = parseTokens(css);
+  return { light: { ...base.light, ...light }, dark: { ...base.dark, ...dark } };
+}
+
+// The five non-green owner palettes (green is the base, already covered above).
+const PALETTES = ["ocean", "indigo", "sunset", "rose", "slate"];
+
 // Fixed brand + Tailwind status-palette colors (constant across themes). Kept in
 // sync with tailwind.config.js and the status chips in LogList/IncidentsPanel.
 const FIXED = {
@@ -95,6 +120,16 @@ function resolve(name, theme, tokens) {
   return t[name];
 }
 
+// The text-legibility pairings re-checked for EACH owner palette — the tokens a
+// palette overrides and that carry text: the positive/success color on the
+// surfaces, the gold accent, and the primary button's own text on its fill.
+const PALETTE_PAIRS = [
+  ...["surface", "panel", "bg"].map((bg) => ({ label: `pos on ${bg}`, fg: "pos", bg, th: NORMAL })),
+  { label: "gold on surface", fg: "gold", bg: "surface", th: NORMAL },
+  { label: "gold on highlight", fg: "gold", bg: "highlight", th: NORMAL },
+  { label: "btn text on btn fill", fg: "btn-fg", bg: "btn-bg", th: NORMAL },
+];
+
 // Evaluate every pairing; returns [{ label, theme, fg, bg, ratio, threshold, pass }].
 export function evaluate(css = readFileSync(GLOBALS, "utf8")) {
   const tokens = parseTokens(css);
@@ -105,6 +140,19 @@ export function evaluate(css = readFileSync(GLOBALS, "utf8")) {
       const bg = resolve(p.bg, theme, tokens);
       const ratio = Math.round(contrastRatio(fg, bg) * 100) / 100;
       results.push({ label: p.label, theme, fg, bg, ratio, threshold: p.th, pass: ratio >= p.th });
+    }
+  }
+  // Per-palette text legibility (skips palettes with no block in `css`).
+  for (const id of PALETTES) {
+    const pt = paletteTokens(css, id);
+    if (!pt) continue;
+    for (const p of PALETTE_PAIRS) {
+      for (const theme of ["light", "dark"]) {
+        const fg = pt[theme][p.fg], bg = pt[theme][p.bg];
+        if (!fg || !bg) continue;
+        const ratio = Math.round(contrastRatio(fg, bg) * 100) / 100;
+        results.push({ label: `[${id}] ${p.label}`, theme, fg, bg, ratio, threshold: p.th, pass: ratio >= p.th });
+      }
     }
   }
   return results;

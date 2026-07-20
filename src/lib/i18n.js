@@ -1425,6 +1425,7 @@ export const CATALOG = {
     // preferences menu (header gear)
     "prefs.settings": "Settings",
     "prefs.appearance": "Appearance",
+    "prefs.display": "Display",
     "prefs.theme_light": "Light",
     "prefs.theme_dark": "Dark",
     "prefs.fab_title": "Scroll-to-top button",
@@ -3192,6 +3193,7 @@ export const CATALOG = {
 
     "prefs.settings": "Configuración",
     "prefs.appearance": "Apariencia",
+    "prefs.display": "Pantalla",
     "prefs.theme_light": "Claro",
     "prefs.theme_dark": "Oscuro",
     "prefs.fab_title": "Botón de volver arriba",

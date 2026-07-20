@@ -379,7 +379,7 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                         {Math.abs(e.diff) < 0.005
                           ? <span className="pill bg-subtle text-muted">{t("log.pill_balanced")}</span>
                           : e.diff > 0
-                            ? <span className="pill bg-green-100 text-green-700">{t("log.pill_over", { v: money(e.diff) })}</span>
+                            ? <span className="pill bg-highlight text-pos">{t("log.pill_over", { v: money(e.diff) })}</span>
                             : <span className="pill bg-red-100 text-red-700">{t("log.pill_short", { v: money(Math.abs(e.diff)) })}</span>}
                         {statusChips}{locChip}
                       </div>
@@ -392,7 +392,7 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                         {e.diff === 0
                           ? <span className="pill bg-subtle text-muted">{t("log.pill_exact")}</span>
                           : e.diff > 0
-                            ? <span className="pill bg-green-100 text-green-700">{t("log.pill_over_units", { v: e.diff })}</span>
+                            ? <span className="pill bg-highlight text-pos">{t("log.pill_over_units", { v: e.diff })}</span>
                             : <span className="pill bg-red-100 text-red-700">{t("log.pill_missing", { v: Math.abs(e.diff) })}</span>}
                         <span className="pill bg-highlight text-gold border border-brass/30">{e.unit || "unit"}s</span>
                         {statusChips}{locChip}

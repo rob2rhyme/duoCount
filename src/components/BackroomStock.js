@@ -6,6 +6,7 @@ import { money } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockFlow, flowShare } from "@/lib/stock-flow";
+import { chartBar } from "@/lib/branding";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { useTheme } from "./ThemeProvider";
@@ -289,7 +290,7 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
                       <Tooltip cursor={{ fill: ch.grid, opacity: 0.4 }}
                         contentStyle={{ background: ch.tipBg, border: `1px solid ${ch.tipBorder}`, borderRadius: 10, color: ch.tipText, fontSize: 12 }}
                         formatter={(v) => [t("br.flow_units", { n: v }), null]} />
-                      <Bar dataKey="out" fill={cat[0]} radius={[0, 4, 4, 0]} barSize={14} />
+                      <Bar dataKey="out" fill={chartBar(vendor, theme)} radius={[0, 4, 4, 0]} barSize={14} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

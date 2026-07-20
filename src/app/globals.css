@@ -54,21 +54,51 @@
   /* --ink inherits the light value so the header stays deep in dark mode too. */
 }
 
-/* ---- Owner-selectable color palettes (Admin → Appearance). Each overrides only
-   the accent tokens, per theme, so they compose with the .dark overrides above;
-   text/background/red-error stay put. `green` is the default (base :root/.dark).
-   --ink is set only in the light block of each palette so it's theme-invariant
-   (a deep header in both modes), matching green's behavior. WCAG-AA verified. */
-:root[data-palette="ocean"]  { --gold:#186592; --btn-bg:#0f4c75; --btn-fg:#f1f5ef; --highlight:#e6f0f7; --brass:42 127 184; --ink:#0f4c75; }
-.dark[data-palette="ocean"]  { --gold:#7cc4e8; --btn-bg:#b3ddf2; --btn-fg:#0a2233; --highlight:#182a35; --brass:42 127 184; }
-:root[data-palette="indigo"] { --gold:#5a4fcf; --btn-bg:#3f36a0; --btn-fg:#f2f1fb; --highlight:#ecebfa; --brass:106 95 214; --ink:#3f36a0; }
-.dark[data-palette="indigo"] { --gold:#b3a9f5; --btn-bg:#cbc3fa; --btn-fg:#1c1740; --highlight:#21203a; --brass:106 95 214; }
-:root[data-palette="sunset"] { --gold:#945200; --btn-bg:#7a3f00; --btn-fg:#fdf6ee; --highlight:#fbeede; --brass:194 106 0; --ink:#7a3f00; }
-.dark[data-palette="sunset"] { --gold:#f0b24a; --btn-bg:#f2c879; --btn-fg:#3a2400; --highlight:#2e2314; --brass:194 106 0; }
-:root[data-palette="rose"]   { --gold:#b02556; --btn-bg:#8f1f43; --btn-fg:#fdf0f4; --highlight:#fbe7ee; --brass:204 63 114; --ink:#8f1f43; }
-.dark[data-palette="rose"]   { --gold:#f090ac; --btn-bg:#f5b3c6; --btn-fg:#40101f; --highlight:#331923; --brass:204 63 114; }
-:root[data-palette="slate"]  { --gold:#3f4e5c; --btn-bg:#2b3843; --btn-fg:#f1f4f7; --highlight:#eceff2; --brass:90 107 122; --ink:#2b3843; }
-.dark[data-palette="slate"]  { --gold:#a9b8c4; --btn-bg:#c4d0da; --btn-fg:#182029; --highlight:#1e262d; --brass:90 107 122; }
+/* ---- Owner-selectable color palettes (Appearance settings). A palette recolors
+   the WHOLE app to its hue, per theme, composing with the .dark overrides above.
+   `green` is the default (base :root/.dark — it carries data-palette="green" but
+   has no block here, so it falls through). Only pure-red error (--neg) and near-
+   black/white text stay fixed. Each block sets the accent tokens (brass, ink,
+   gold, the button fill/text, highlight) plus pos (the positive/success color
+   follows the theme, so nothing reads green under a pink store). ink is set in the
+   light block so it stays theme-invariant (a deep header in both modes). The
+   neutral tints (bg/panel/surface/…) are derived from the accent just below, so
+   the surfaces carry the store's hue too instead of the base green cast. AA is
+   guarded per palette by scripts/contrast-check.mjs. */
+:root[data-palette="ocean"]  { --gold:#186592; --btn-bg:#0f4c75; --btn-fg:#f1f5ef; --highlight:#e6f0f7; --brass:42 127 184; --ink:#0f4c75; --pos:#0d7290; }
+.dark[data-palette="ocean"]  { --gold:#7cc4e8; --btn-bg:#b3ddf2; --btn-fg:#0a2233; --highlight:#182a35; --brass:42 127 184; --pos:#4cc4e6; }
+:root[data-palette="indigo"] { --gold:#5a4fcf; --btn-bg:#3f36a0; --btn-fg:#f2f1fb; --highlight:#ecebfa; --brass:106 95 214; --ink:#3f36a0; --pos:#5546c8; }
+.dark[data-palette="indigo"] { --gold:#b3a9f5; --btn-bg:#cbc3fa; --btn-fg:#1c1740; --highlight:#21203a; --brass:106 95 214; --pos:#b3a9f5; }
+:root[data-palette="sunset"] { --gold:#945200; --btn-bg:#7a3f00; --btn-fg:#fdf6ee; --highlight:#fbeede; --brass:194 106 0; --ink:#7a3f00; --pos:#8a5200; }
+.dark[data-palette="sunset"] { --gold:#f0b24a; --btn-bg:#f2c879; --btn-fg:#3a2400; --highlight:#2e2314; --brass:194 106 0; --pos:#eeb24a; }
+:root[data-palette="rose"]   { --gold:#b02556; --btn-bg:#8f1f43; --btn-fg:#fdf0f4; --highlight:#fbe7ee; --brass:204 63 114; --ink:#8f1f43; --pos:#b02556; }
+.dark[data-palette="rose"]   { --gold:#f090ac; --btn-bg:#f5b3c6; --btn-fg:#40101f; --highlight:#331923; --brass:204 63 114; --pos:#f090ac; }
+:root[data-palette="slate"]  { --gold:#3f4e5c; --btn-bg:#2b3843; --btn-fg:#f1f4f7; --highlight:#eceff2; --brass:90 107 122; --ink:#2b3843; --pos:#3a6383; }
+.dark[data-palette="slate"]  { --gold:#a9b8c4; --btn-bg:#c4d0da; --btn-fg:#182029; --highlight:#1e262d; --brass:90 107 122; --pos:#a9c4d6; }
+
+/* Neutral surfaces, tinted with the palette's own accent (via color-mix from
+   --brass) so a non-green store's backgrounds/borders carry its hue instead of
+   the base green cast. One rule for the five non-green palettes, per theme — the
+   accent differs per block, so each derives its own subtle tint. Kept low-% so
+   text contrast (near-black/white fg) is unaffected. `green` keeps the hand-
+   tuned base tokens above; login/dev have no data-palette and stay default. */
+:root[data-palette="ocean"], :root[data-palette="indigo"], :root[data-palette="sunset"], :root[data-palette="rose"], :root[data-palette="slate"] {
+  --bg:        color-mix(in srgb, rgb(var(--brass)) 6%,  #f7f8f7);
+  --panel:     color-mix(in srgb, rgb(var(--brass)) 4%,  #ffffff);
+  --subtle:    color-mix(in srgb, rgb(var(--brass)) 12%, #ffffff);
+  --field:     color-mix(in srgb, rgb(var(--brass)) 3%,  #ffffff);
+  --line:      color-mix(in srgb, rgb(var(--brass)) 15%, #e7e8e7);
+  --line-soft: color-mix(in srgb, rgb(var(--brass)) 9%,  #ececec);
+}
+.dark[data-palette="ocean"], .dark[data-palette="indigo"], .dark[data-palette="sunset"], .dark[data-palette="rose"], .dark[data-palette="slate"] {
+  --bg:        color-mix(in srgb, rgb(var(--brass)) 10%, #0e100f);
+  --surface:   color-mix(in srgb, rgb(var(--brass)) 9%,  #16181a);
+  --panel:     color-mix(in srgb, rgb(var(--brass)) 11%, #1b1d1f);
+  --subtle:    color-mix(in srgb, rgb(var(--brass)) 14%, #23262a);
+  --field:     color-mix(in srgb, rgb(var(--brass)) 8%,  #121416);
+  --line:      color-mix(in srgb, rgb(var(--brass)) 20%, #2c2f33);
+  --line-soft: color-mix(in srgb, rgb(var(--brass)) 13%, #24272b);
+}
 
 body {
   background: var(--bg);

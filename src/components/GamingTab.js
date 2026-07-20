@@ -3,8 +3,10 @@ import { useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
 import { useLang } from "./LangProvider";
 import { useTheme } from "./ThemeProvider";
+import { useSession } from "./SessionProvider";
 import { apiGaming } from "@/lib/data";
 import { buildGamingSummary } from "@/lib/gaming";
+import { chartBar } from "@/lib/branding";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
 import EmptyState, { IconChart } from "./EmptyState";
 import Field from "./Field";
@@ -41,7 +43,8 @@ function Stat({ label, value, tone }) {
 export default function GamingTab({ machines = [], collections = [], isOwner = false, onToast, adminAction }) {
   const { t } = useLang();
   const { theme } = useTheme();
-  const ch = CHART[theme] || CHART.light;
+  const { vendor } = useSession();
+  const ch = { ...(CHART[theme] || CHART.light), bar: chartBar(vendor, theme) };
   const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 13 };
 
   const activeMachines = useMemo(() => machines.filter((m) => m.active !== false), [machines]);
