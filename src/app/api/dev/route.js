@@ -26,10 +26,18 @@ export async function POST(req) {
     const body = await req.json();
     const { action } = body;
 
-    // whoami — member-level; the console gate.
+    // whoami — member-level; the console gate. Returns the caller's platform-
+    // admin uid (`${vendorId}_${userId}`) so a signed-in-but-not-yet-allowlisted
+    // developer can read it off the denied screen and add it to
+    // PLATFORM_ADMIN_UIDS — the only practical way to bootstrap on mobile, where
+    // there are no browser dev tools to dig the uid out of.
     if (action === "whoami") {
       const claims = await requireMember(req);
-      return NextResponse.json({ ok: true, platformAdmin: isPlatformAdminClaims(claims) });
+      return NextResponse.json({
+        ok: true,
+        platformAdmin: isPlatformAdminClaims(claims),
+        uid: `${claims.vendorId}_${claims.userId}`,
+      });
     }
 
     const claims = await requirePlatformAdmin(req);
