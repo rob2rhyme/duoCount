@@ -1,5 +1,8 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore, initializeFirestore,
+  persistentLocalCache, persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 // NEXT_PUBLIC_ values are inlined at build time, and prerendering "/"
@@ -16,5 +19,24 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+
+// Offline-first reads: cache snapshots in IndexedDB so a RETURNING user sees
+// their last data instantly on load (then it syncs live in the background),
+// instead of staring at a spinner while the first snapshot round-trips the
+// network. Browser-only — IndexedDB doesn't exist during SSR/prerender — and
+// multi-tab so several open tabs stay consistent. Falls back to the default
+// (memory) cache if persistence can't start (private mode, quota, or a
+// Fast-Refresh re-init where Firestore was already started).
+function makeDb() {
+  if (typeof window === "undefined") return getFirestore(app);
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch {
+    return getFirestore(app);
+  }
+}
+
+export const db = makeDb();
 export const auth = getAuth(app);

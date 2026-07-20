@@ -2,10 +2,11 @@
 import SessionProvider, { useSession } from "@/components/SessionProvider";
 import PinLogin from "@/components/PinLogin";
 import AppShell from "@/components/AppShell";
+import Splash from "@/components/Splash";
 
 function Gate() {
   const { profile, vendor, ready } = useSession();
-  if (!ready) return <div className="min-h-screen grid place-items-center text-muted">Loading…</div>;
+  if (!ready) return <Splash />;
   return profile && vendor ? <AppShell /> : <PinLogin />;
 }
 
