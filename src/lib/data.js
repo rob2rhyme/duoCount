@@ -1,6 +1,7 @@
 import { db, auth } from "./firebase";
 import { fetchJson } from "./api";
 import { weekDates } from "./schedule";
+import { dayISO } from "./timeclock";
 import { VENDOR_SETTING_KEYS } from "./vendor-settings";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
@@ -365,9 +366,10 @@ export function watchPunches(vendorId, selfId, cb) {
 }
 export async function addPunch(vendorId, punch) {
   // ts is the server clock (rules require ts == request.time so paid hours can't
-  // be forged); `day` stays the client's local business-day label.
+  // be forged); `day` is the client's LOCAL business-day label (dayISO, not the
+  // UTC date) so an evening punch lines up with its manager-picked shift date.
   await addDoc(vcol(vendorId, "timeclock"), {
-    ...punch, ts: serverTimestamp(), day: new Date().toISOString().slice(0, 10),
+    ...punch, ts: serverTimestamp(), day: dayISO(),
   });
 }
 
@@ -384,7 +386,9 @@ export async function addPunchCorrection(vendorId, { action, targetId = null, ty
     userId, userName, locationId, locationName,
     byId, byName, reason,
     ts: serverTimestamp(),
-    day: (effective || new Date()).toISOString().slice(0, 10),
+    // LOCAL business day of the effective (manager-chosen) time — matches the
+    // report's by-`day` fetch and the schedule reconciliation.
+    day: dayISO(effective ? effective.getTime() : Date.now()),
   });
 }
 
