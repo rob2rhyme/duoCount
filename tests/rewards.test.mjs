@@ -259,6 +259,13 @@ test("sanitizeProfile: note/address clamp, email validated", () => {
   assert.equal(sanitizeProfile({ email: "a b@c.com" }).error, "bad_email");
 });
 
+test("sanitizeProfile: customerId trims, clamps to 40, and blanks to null", () => {
+  assert.equal(sanitizeProfile({ customerId: "  M-0042  " }).patch.customerId, "M-0042");
+  assert.equal(sanitizeProfile({ customerId: "z".repeat(60) }).patch.customerId.length, 40);
+  assert.equal(sanitizeProfile({ customerId: "" }).patch.customerId, null);
+  assert.equal("customerId" in sanitizeProfile({ note: "x" }).patch, false); // untouched → absent
+});
+
 test("sanitizeProfile: birthday bounds — month 1-12, day fits the month, day needs a month", () => {
   assert.deepEqual(sanitizeProfile({ birthdayMonth: "4", birthdayDay: "15" }).patch,
     { birthdayMonth: 4, birthdayDay: 15 });

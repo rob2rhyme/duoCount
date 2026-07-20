@@ -238,6 +238,10 @@ export function sanitizeProfile(raw = {}) {
   const patch = {};
   if (raw.note !== undefined) patch.note = String(raw.note ?? "").trim().slice(0, 300) || null;
   if (raw.address !== undefined) patch.address = String(raw.address ?? "").trim().slice(0, 200) || null;
+  // A store-assigned member/customer number (optional, free-form) — distinct from
+  // the Firestore doc id. Handy for tying the rewards record to a POS or an
+  // existing membership list.
+  if (raw.customerId !== undefined) patch.customerId = String(raw.customerId ?? "").trim().slice(0, 40) || null;
   if (raw.email !== undefined) {
     const e = String(raw.email ?? "").trim();
     if (e && (!EMAIL_RE.test(e) || e.length > 200)) return { patch: {}, error: "bad_email" };

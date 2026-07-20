@@ -34,6 +34,7 @@ const publicCustomer = (id, c, rules) => ({
   currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
   // CRM fields the register card shows (staff serve the customer with them).
   note: c.note || null, email: c.email || null, address: c.address || null,
+  customerId: c.customerId || null,
   birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
   stamps: c.stamps || {},
 });
@@ -42,7 +43,8 @@ export async function POST(req) {
   try {
     const claims = await requireMember(req);
     const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy, cardId, eventId,
-      newName, newPhone, newNote, newEmail, newBirthdayMonth, newBirthdayDay, newAddress } = await req.json();
+      email, address, birthdayMonth, birthdayDay, customerId, initialPoints,
+      newName, newPhone, newNote, newEmail, newBirthdayMonth, newBirthdayDay, newAddress, newCustomerId } = await req.json();
     if (!["lookup", "enroll", "earn", "redeem", "adjust", "update", "stamp", "stampRedeem", "undo"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
 
@@ -89,14 +91,41 @@ export async function POST(req) {
         }
       }
 
+      // CRM fields + a store-assigned customer id set right at enrollment (same
+      // validators as the owner Profile edit). A bad email/birthday rejects the
+      // whole enroll rather than silently dropping the field.
+      const prof = sanitizeProfile({ note, email, address, birthdayMonth, birthdayDay, customerId });
+      if (prof.error) return err(400, prof.error, "Check the customer details.");
+      // A starting points balance is a POINTS GRANT, so it's owner-only (the same
+      // gate as adjust) and recorded as a signed ledger line below — never a
+      // silent, unaudited balance a clerk could seed.
+      let startPts = 0;
+      if (initialPoints !== undefined && initialPoints !== null && String(initialPoints).trim() !== "") {
+        if (claims.role !== "owner") return err(403, "owner_only", "Only the owner can set a starting points balance.");
+        const ip = Math.trunc(Number(initialPoints));
+        if (!Number.isFinite(ip) || ip < 0 || ip > 100000)
+          return err(400, "bad_initial_points", "Starting points must be a whole number, 0 or more.");
+        startPts = ip;
+      }
+
       const friendPts = referrerDoc ? rules.referral.friend : 0;
+      const startBalance = friendPts + startPts;
       const doc = {
         phone, name: String(name ?? "").trim().slice(0, 80) || null,
-        pointsBalance: friendPts, lifetimePoints: friendPts, createdAt: new Date(), lastEarnAt: null,
+        ...prof.patch, // note, email, address, birthday, customerId
+        pointsBalance: startBalance, lifetimePoints: startBalance, createdAt: new Date(), lastEarnAt: null,
         by: claims.name || "", byId: claims.userId,
         ...(referrerDoc ? { referredBy: referrerDoc.id } : {}),
       };
       const ref = await customers.add(doc);
+      // Audit the seeded balance as a signed adjust line (owner-gated above).
+      if (startPts > 0) {
+        await events.add({
+          kind: "adjust", points: startPts, customerId: ref.id,
+          by: claims.name || "", byId: claims.userId, byRole: claims.role || "owner",
+          ts: new Date(), note: "Starting balance (enrollment)",
+        });
+      }
 
       if (referrerDoc) {
         const signed = (pts, extra) => ({
@@ -138,7 +167,7 @@ export async function POST(req) {
       // change checks uniqueness so two customers can't collide on one number.
       if (claims.role !== "owner") return err(403, "owner_only", "Only the owner can edit customer profiles.");
       const prof = sanitizeProfile({
-        note: newNote, email: newEmail, address: newAddress,
+        note: newNote, email: newEmail, address: newAddress, customerId: newCustomerId,
         birthdayMonth: newBirthdayMonth, birthdayDay: newBirthdayDay,
       });
       if (prof.error) return err(400, prof.error, "Check the profile fields.");

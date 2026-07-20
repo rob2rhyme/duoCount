@@ -55,9 +55,10 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
   const [query, setQuery] = useState("");
   const [phone, setPhone] = useState("");         // the working phone (real digits) for API calls
   const [customer, setCustomer] = useState(null); // selected/enrolled customer (display shape)
-  const [enrollPhone, setEnrollPhone] = useState(null); // set while adding a new number
-  const [name, setName] = useState("");
-  const [refBy, setRefBy] = useState(""); // optional referrer phone at enrollment
+  // The +Add Customer form (null = not adding). One object so the many fields —
+  // id, name, phone, email, points, note, address, birthday, referrer — stay tidy.
+  const [add, setAdd] = useState(null);
+  const setA = (k) => (e) => setAdd((a) => ({ ...a, [k]: e.target.value }));
   const [sale, setSale] = useState("");
   const [busy, setBusy] = useState("");           // "" | enroll | earn | redeem | update | adjust
   const [error, setError] = useState("");
@@ -127,17 +128,22 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       lifetimePoints: lifetime, vipTier: vipTierFor(lifetime, vendor?.rewards)?.name || null,
       currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
       note: c.note || null, email: c.email || null, address: c.address || null,
+      customerId: c.customerId || null,
       birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
       stamps: c.stamps || {},
     });
-    setEnrollPhone(null); setName(""); setSale(""); setError("");
+    setAdd(null); setSale(""); setError("");
     setCardTab("register"); setProf(null); setAdjPts(""); setAdjNote("");
   }
-  function startEnroll(p) {
-    setEnrollPhone(p); setPhone(p); setName(""); setRefBy(""); setError("");
+  // Open the +Add Customer form. `p` pre-fills the phone (from a scan or a typed
+  // search); an empty string opens a blank form the clerk fills in.
+  function startAdd(p = "") {
+    setCustomer(null);
+    setAdd({ phone: p, name: "", email: "", customerId: "", initialPoints: "", note: "", address: "", birthdayMonth: "", birthdayDay: "", referredBy: "" });
+    setError("");
   }
   function back() {
-    setCustomer(null); setEnrollPhone(null); setSale(""); setError("");
+    setCustomer(null); setAdd(null); setSale(""); setError("");
     setCardTab("register"); setProf(null); setAdjPts(""); setAdjNote("");
   }
 
@@ -150,7 +156,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
     if (!digits) { setError(t("rewarderr.bad_phone")); return; }
     const hit = customers.find((c) => String(c.phone || "") === digits);
     if (hit) selectCustomer(hit);
-    else startEnroll(digits);
+    else startAdd(digits);
   }
 
   function openTab(id) {
@@ -162,6 +168,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
     setProf({
       name: customer?.name || "", phone,
       note: customer?.note || "", email: customer?.email || "",
+      customerId: customer?.customerId || "",
       birthdayMonth: customer?.birthdayMonth ?? "", birthdayDay: customer?.birthdayDay ?? "",
       address: customer?.address || "",
     });
@@ -173,6 +180,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       newName: prof.name, newPhone: prof.phone, newNote: prof.note,
       newEmail: prof.email, newBirthdayMonth: prof.birthdayMonth,
       newBirthdayDay: prof.birthdayDay, newAddress: prof.address,
+      newCustomerId: prof.customerId,
     }, (r) => {
       setCustomer((c) => ({ ...c, ...r.customer }));
       if (r.phoneDigits) setPhone(r.phoneDigits);
@@ -186,15 +194,22 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       onToast?.(t("rw.toast_adjusted", { n: r.adjusted, b: r.balance }), undoOf(r.eventId));
     });
 
-  const enroll = () =>
-    run("enroll", { action: "enroll", phone, name, referredBy: refBy }, (r) => {
-      setCustomer(r.customer); setEnrollPhone(null); setQuery(""); setRefBy("");
+  const doAdd = () => {
+    const p = normalizePhone(add.phone);
+    if (!p) { setError(t("rewarderr.bad_phone")); return; }
+    run("enroll", {
+      action: "enroll", phone: p, name: add.name, referredBy: add.referredBy,
+      email: add.email, customerId: add.customerId, initialPoints: isOwner ? add.initialPoints : undefined,
+      note: add.note, address: add.address, birthdayMonth: add.birthdayMonth, birthdayDay: add.birthdayDay,
+    }, (r) => {
+      setPhone(p); setCustomer(r.customer); setAdd(null); setQuery("");
       if (r.enrolled) {
         if (r.referral?.ok) onToast?.(t("rw.toast_referral", { who: r.referral.referrerName, rp: r.referral.referrerPts, fp: r.referral.friendPts }));
         else if (r.referral?.error) onToast?.(t(`rw.toast_ref_${r.referral.error}`));
         else onToast?.(t("rw.toast_enrolled"));
       }
     });
+  };
   const earn = () =>
     run("earn", { action: "earn", phone, saleDollars: Number(sale) }, (r) => {
       setCustomer((c) => ({
@@ -285,6 +300,7 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
 
   // Staff-facing read view of the CRM fields (owners get the edit form).
   const profileRows = customer ? [
+    [t("rw.id_label"), customer.customerId],
     [t("rw.note_label"), customer.note],
     [t("rw.email_label"), customer.email],
     [t("rw.bday"), customer.birthdayMonth
@@ -300,34 +316,73 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
       </div>
 
       <div className="p-4 space-y-3.5">
-        {/* ---- Working view: a selected (or being-enrolled) customer ---- */}
-        {(customer || enrollPhone) ? (
+        {/* ---- Working view: a selected (or being-added) customer ---- */}
+        {(customer || add) ? (
           <>
             <button type="button" className="text-[13px] text-muted hover:text-fg font-semibold flex items-center gap-1.5" onClick={back}>
               <span aria-hidden="true">←</span> {t("rw.back")}
             </button>
 
-            {enrollPhone && !customer && (
+            {add && !customer && (
               <div className="border border-line rounded-xl p-3.5 space-y-3 bg-panel">
                 <div>
                   <span className="font-medium text-[14px]">{t("rw.new_title")}</span>
                   <p className="text-xs text-muted leading-relaxed">{t("rw.new_sub")}</p>
-                  <p className="text-[12px] text-muted font-mono mt-1">{maskPhone(enrollPhone)}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={t("rw.phone_label")}>
+                    <input className="input font-mono" type="tel" inputMode="tel" pattern="[0-9]*" value={add.phone}
+                      onChange={setA("phone")} placeholder="555-123-4567" />
+                  </Field>
+                  <Field label={t("rw.f_customer_id")}>
+                    <input className="input" value={add.customerId} onChange={setA("customerId")} placeholder={t("rw.id_ph")} />
+                  </Field>
                 </div>
                 <Field label={t("rw.name_label")}>
-                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("rw.name_ph")} />
+                  <input className="input" value={add.name} onChange={setA("name")} placeholder={t("rw.name_ph")} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={t("rw.email_label")}>
+                    <input className="input" type="email" inputMode="email" value={add.email} onChange={setA("email")} placeholder="name@email.com" />
+                  </Field>
+                  {isOwner && (
+                    <Field label={t("rw.f_initial_points")}>
+                      <input className="input font-mono" type="number" inputMode="numeric" min="0" step="1"
+                        value={add.initialPoints} onChange={setA("initialPoints")} placeholder="0" />
+                    </Field>
+                  )}
+                </div>
+                <Field label={t("rw.address_label")}>
+                  <input className="input" value={add.address} onChange={setA("address")} placeholder={t("rw.addr_ph")} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label={t("rw.bday_month")}>
+                    <select className="input" value={add.birthdayMonth} onChange={setA("birthdayMonth")}>
+                      <option value="">—</option>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{monthName(m)}</option>)}
+                    </select>
+                  </Field>
+                  <Field label={t("rw.bday_day")}>
+                    <select className="input" value={add.birthdayDay} onChange={setA("birthdayDay")}>
+                      <option value="">—</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </Field>
+                </div>
+                <Field label={t("rw.note_label")}>
+                  <input className="input" value={add.note} onChange={setA("note")} placeholder={t("rw.note_ph")} />
                 </Field>
                 {(rules.referral.referrer > 0 || rules.referral.friend > 0) && (
                   <div>
                     <Field label={t("rw.ref_label")}>
-                      <input className="input font-mono" inputMode="tel" value={refBy}
-                        onChange={(e) => setRefBy(e.target.value)} placeholder={t("rw.ref_ph")} />
+                      <input className="input font-mono" inputMode="tel" value={add.referredBy}
+                        onChange={setA("referredBy")} placeholder={t("rw.ref_ph")} />
                     </Field>
                     <p className="text-xs text-muted mt-1 leading-relaxed">{t("rw.ref_hint", { rp: rules.referral.referrer, fp: rules.referral.friend })}</p>
                   </div>
                 )}
                 {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
-                <button className="btn-primary w-full" disabled={!!busy} onClick={enroll}>
+                <button className="btn-primary w-full" disabled={!!busy || !normalizePhone(add.phone)} onClick={doAdd}>
                   {busy === "enroll" ? t("rw.enrolling") : t("rw.enroll")}
                 </button>
               </div>
@@ -499,9 +554,14 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                   {cardTab === "profile" && (
                     isOwner && prof ? (
                       <div className="space-y-2.5">
-                        <Field label={t("rw.name_label")}>
-                          <input className="input" value={prof.name} onChange={setP("name")} placeholder={t("rw.name_ph")} />
-                        </Field>
+                        <div className="grid grid-cols-2 gap-3.5">
+                          <Field label={t("rw.name_label")}>
+                            <input className="input" value={prof.name} onChange={setP("name")} placeholder={t("rw.name_ph")} />
+                          </Field>
+                          <Field label={t("rw.f_customer_id")}>
+                            <input className="input" value={prof.customerId} onChange={setP("customerId")} placeholder={t("rw.id_ph")} />
+                          </Field>
+                        </div>
                         <Field label={t("rw.phone_label")}>
                           <input className="input font-mono" inputMode="tel" value={prof.phone} onChange={setP("phone")} />
                         </Field>
@@ -623,11 +683,17 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
               </div>
             </div>
 
+            {/* Always-available way to add a customer — no need to type a phone
+                first. Opens the full form (id, name, phone, email, points, …). */}
+            <button type="button" className="btn-primary" onClick={() => startAdd(normalizePhone(query) || "")}>
+              + {t("rw.add_customer")}
+            </button>
+
             {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
 
             {canAddNew && (
               <button type="button" className="w-full text-left border border-dashed border-brass/60 rounded-xl px-3.5 py-3 bg-panel hover:bg-subtle transition flex items-center gap-3"
-                onClick={() => startEnroll(queryPhone)}>
+                onClick={() => startAdd(queryPhone)}>
                 <span className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-brass/20 text-brass font-bold text-lg leading-none">+</span>
                 <span className="min-w-0">
                   <span className="block font-medium text-[14px]">{t("rw.add_new")}</span>
