@@ -10,7 +10,7 @@ import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
-import { FEATURES, FEATURE_KEYS, resolveFeatures } from "@/lib/features";
+import { FEATURES, FEATURE_KEYS, resolveFeatures, featureEnabled } from "@/lib/features";
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
@@ -20,6 +20,7 @@ import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
 import Avatar from "./Avatar";
 import BarcodeScanner from "./BarcodeScanner";
 import ImportCard from "./ImportCard";
+import ScratchGamesCard from "./ScratchGamesCard";
 import SupportCard from "./SupportCard";
 import Field from "./Field";
 import ShowMore, { usePaged } from "./ShowMore";
@@ -480,6 +481,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     ["adm-drawers", "admin.drawers_title"],
     ["adm-items", "admin.items_title"],
     ["adm-features", "admin.features_title"],
+    ...(featureEnabled(vendor, "scratch") ? [["adm-games", "games.nav"]] : []),
     ["adm-settings", "admin.settings_title"],
     ["adm-rewards", "admin.rw_title"],
     ["adm-engage", "admin.engage_nav"],
@@ -493,7 +495,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const [activeSection, setActiveSection] = useState("adm-staff");
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return undefined;
-    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
+    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features", "adm-games", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
     const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
     if (!els.length) return undefined;
     const obs = new IntersectionObserver((es) => {
@@ -802,6 +804,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             : <p className="text-[13px] text-muted italic">{t("admin.owner_only_note")}</p>}
         </div>
       </div>
+
+      {/* -------- scratch games catalog (owner; only with the scratch module) -------- */}
+      {featureEnabled(vendor, "scratch") && (
+        <ScratchGamesCard scratchCatalog={scratchCatalog} onToast={onToast} />
+      )}
 
       {/* ---------------- settings (owner) ---------------- */}
       <div id="adm-settings" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">

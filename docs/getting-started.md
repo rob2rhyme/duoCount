@@ -77,6 +77,16 @@ Open **Admin** and add the pieces your team will pick from when they count:
 > first time someone counts it, and from then on its ticket numbers chain from
 > count to count. Settlement paperwork stays with the lottery.
 
+> **Enter your scratch games (optional).** In **Admin → Scratch games**, an owner
+> can type each game the store sells — **game number**, **game name**, **ticket
+> price**, and optionally **tickets per pack**. After that, a scan or a typed pack
+> fills the game name and price on its own, so logging is quicker and the data
+> matches every time. DuoCount already ships with the current state game list, so
+> you only need this for a game it doesn't know yet (or a different state's games).
+> It's pure reference data — entering a game never sets a count or a ticket number,
+> and editing one never touches a past signed count. A game you no longer sell can
+> be removed; scans just fall back to the built-in list.
+
 > **Switching from a spreadsheet?** Owners get an **Import / migrate** card in
 > **Admin** that brings in your **tracked items**, your **staff roster**, your
 > **opening shelf counts**, your **stock levels** (on-hand quantity, price,

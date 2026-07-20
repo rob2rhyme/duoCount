@@ -84,6 +84,18 @@ Abre **Admin** y agrega las piezas que tu equipo elegirá al contar:
 > entonces sus números de boleto se encadenan de conteo en conteo. El papeleo
 > de liquidación se queda con la lotería.
 
+> **Ingresa tus juegos de raspadito (opcional).** En **Admin → Juegos de
+> raspadito**, el dueño puede escribir cada juego que vende la tienda — **número
+> de juego**, **nombre del juego**, **precio del boleto** y, opcionalmente,
+> **boletos por paquete**. Después de eso, un escaneo o un paquete escrito
+> completa el nombre y el precio del juego por sí solo, así que registrar es más
+> rápido y los datos coinciden siempre. DuoCount ya incluye la lista estatal
+> actual de juegos, así que solo necesitas esto para un juego que aún no conoce
+> (o los juegos de otro estado). Es pura información de referencia — ingresar un
+> juego nunca fija un conteo ni un número de boleto, y editar uno nunca toca un
+> conteo firmado anterior. Un juego que ya no vendes se puede quitar; los
+> escaneos simplemente vuelven a la lista incorporada.
+
 > **¿Vienes de una hoja de cálculo?** Los dueños tienen una tarjeta
 > **Importar / migrar** en **Admin** que trae tus **artículos rastreados**, tu
 > **lista de personal**, tus **conteos de apertura de estantes**, tus

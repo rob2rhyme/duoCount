@@ -124,6 +124,15 @@ export async function apiImport({ type, mode, mapping, rows, allowPartial }) {
     body: JSON.stringify({ type, mode, mapping, rows, allowPartial: !!allowPartial }),
   });
 }
+// Manually add/edit (upsert) or remove ONE scratch-game catalog entry — the typed
+// alternative to the CSV "games" import. Owner-only; the route re-validates.
+export async function apiCatalog({ action, game, name, price, perPack }) {
+  return fetchJson("/api/catalog", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify({ action, game, name, price, perPack }),
+  });
+}
 // Rewards audit feeds (manager-only subscribers): the ledger window for the
 // fraud detectors, and the customer list for the outstanding-liability figure.
 // Reads only — the rules allow no client writes to either collection.
