@@ -1145,6 +1145,14 @@ export const CATALOG = {
     "admin.scan_item_hint": "The scan fills the barcode — nothing saves until you add the item.",
     "admin.toast_scanned": "Scanned",
 
+    // admin — feature toggles (which optional modules this store uses)
+    "admin.features_title": "Features",
+    "admin.features_sub": "Turn whole modules on or off for this store. A module you turn off is hidden everywhere — its tab, its dashboard cards and its alerts — for every user until an owner turns it back on here.",
+    "admin.feat_scratch": "Scratch-off tracking",
+    "admin.feat_scratch_hint": "Shift-boundary lottery pack counts and the pack-audit gap alerts. Turn off if this store doesn't sell scratch-offs.",
+    "admin.feat_inventory": "Backroom inventory",
+    "admin.feat_inventory_hint": "Live stock counts plus the expiring-soon and low-stock alerts. Turn off if this store doesn't track inventory here.",
+
     // admin — business settings
     "admin.settings_title": "Business settings",
     "admin.store_code_label": "Store code",
@@ -2714,6 +2722,14 @@ export const CATALOG = {
     "admin.scan_item_title": "Escanear código del artículo",
     "admin.scan_item_hint": "El escaneo llena el código — nada se guarda hasta que agregues el artículo.",
     "admin.toast_scanned": "Escaneado",
+
+    // admin — módulos opcionales de esta tienda
+    "admin.features_title": "Funciones",
+    "admin.features_sub": "Activa o desactiva módulos completos para esta tienda. Un módulo que desactivas se oculta en todas partes — su pestaña, sus tarjetas del panel y sus alertas — para todos los usuarios hasta que un propietario lo vuelva a activar aquí.",
+    "admin.feat_scratch": "Seguimiento de raspaditos",
+    "admin.feat_scratch_hint": "Conteos de paquetes de lotería al abrir y cerrar turno y las alertas de brechas de auditoría de paquetes. Desactívalo si esta tienda no vende raspaditos.",
+    "admin.feat_inventory": "Inventario de trastienda",
+    "admin.feat_inventory_hint": "Conteos de existencias en vivo más las alertas de por vencer y de bajo stock. Desactívalo si esta tienda no controla el inventario aquí.",
 
     "admin.settings_title": "Configuración del negocio",
     "admin.store_code_label": "Código de tienda",

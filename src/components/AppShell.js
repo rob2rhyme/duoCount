@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
+import { featureEnabled, resolveFeatures } from "@/lib/features";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
@@ -34,8 +35,8 @@ import { PRODUCT } from "@/lib/store";
 const TABS = [
   { id: "dashboard", labelKey: "nav.dashboard" },
   { id: "cash", labelKey: "nav.cash" },
-  { id: "scratch", labelKey: "nav.scratch" },
-  { id: "inventory", labelKey: "nav.inventory" },
+  { id: "scratch", labelKey: "nav.scratch", featureKey: "scratch" },
+  { id: "inventory", labelKey: "nav.inventory", featureKey: "inventory" },
   { id: "rewards", labelKey: "nav.rewards" },
   { id: "log", labelKey: "nav.log" },
   { id: "notes", labelKey: "nav.notes" },
@@ -48,9 +49,11 @@ const TABS = [
 // Which tabs this person sees. Portfolio's ownerOnly is a product affordance
 // (a manager can already read every location via Reports); Admin's is the
 // owner's call — store configuration is the owner's room, managers and
-// employees never see the tab.
-const visibleTabs = (isManager, isOwner) =>
-  TABS.filter((t) => (!t.managerOnly || isManager) && (!t.ownerOnly || isOwner));
+// employees never see the tab. A tab with a `featureKey` also drops out when the
+// owner has turned that module off (Admin → Features) — hidden for everyone.
+const visibleTabs = (isManager, isOwner, vendor) =>
+  TABS.filter((t) => (!t.managerOnly || isManager) && (!t.ownerOnly || isOwner)
+    && (!t.featureKey || featureEnabled(vendor, t.featureKey)));
 
 export default function AppShell() {
   const { profile, vendor, logout, isManager, isOwner } = useSession();
@@ -169,23 +172,26 @@ export default function AppShell() {
   // enables the program; managers always see it (its empty state routes them
   // to the Reward settings). Both the strip and the shortcut ids share this.
   const rewardsVisible = vendor?.rewards?.enabled === true || isManager;
-  const tabs = visibleTabs(isManager, isOwner)
+  const tabs = visibleTabs(isManager, isOwner, vendor)
     .filter((tb) => tb.id !== "rewards" || rewardsVisible)
     .map((tb) => ({ ...tb, label: t(tb.labelKey) }));
   const showLocFilter = canPickLocation && activeLocations.length > 1 && ["log", "dashboard"].includes(tab);
+  // A stable signature of the toggleable modules, so effects re-validate when the
+  // owner flips a feature (not on every render's fresh `vendor.features` object).
+  const featuresSig = JSON.stringify(resolveFeatures(vendor));
 
   // Persist the active tab so the next load resumes here. If a restored tab
-  // isn't available to this user (permissions changed since last session, or a
+  // isn't available to this user (permissions changed, a disabled module, or a
   // stale value), fall back to the Dashboard so we never land on a blank tab.
   useEffect(() => {
     try { localStorage.setItem("duocount-tab", tab); } catch { /* storage blocked */ }
   }, [tab]);
   useEffect(() => {
-    if (!visibleTabs(isManager, isOwner).some((tb) => (tb.id !== "rewards" || rewardsVisible) && tb.id === tab)) {
+    if (!visibleTabs(isManager, isOwner, vendor).some((tb) => (tb.id !== "rewards" || rewardsVisible) && tb.id === tab)) {
       setTab("dashboard");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isManager, isOwner, rewardsVisible]);
+  }, [isManager, isOwner, rewardsVisible, featuresSig]);
 
   // First-run onboarding: derive what's set up, and only trust "empty" once the
   // relevant snapshots have arrived (so existing stores never flash an empty
@@ -229,7 +235,7 @@ export default function AppShell() {
   // The decision logic lives in resolveShortcut (unit-tested); this effect only
   // wires it to the DOM.
   useEffect(() => {
-    const ids = visibleTabs(isManager, isOwner)
+    const ids = visibleTabs(isManager, isOwner, vendor)
       .filter((tb) => tb.id !== "rewards" || rewardsVisible)
       .map((tb) => tb.id);
     function onKey(e) {
@@ -245,7 +251,9 @@ export default function AppShell() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isManager, isOwner, tab, rewardsVisible]);
+    // featuresSig is the stable proxy for vendor's feature map (see above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isManager, isOwner, tab, rewardsVisible, featuresSig]);
 
   // Hold the branded splash until the core data has loaded once, so a returning
   // user never sees a "No activity yet" flash before their real counts arrive

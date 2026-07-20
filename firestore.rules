@@ -45,7 +45,7 @@ service cloud.firestore {
              .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold',
                        'blindCounts', 'varianceThreshold', 'digest', 'patternRules',
                        'fiscalStartMonth', 'aiSearch', 'aiInsights', 'stockAlerts',
-                       'rewards']);
+                       'rewards', 'features']);
       allow create, delete: if false; // vendors are created by the signup API
 
       match /locations/{locationId} {

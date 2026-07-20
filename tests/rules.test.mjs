@@ -868,6 +868,15 @@ test("stockAlerts and rewards settings: owner may set them; a manager may not", 
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { rewards: { enabled: false } }));
 });
 
+/* ---------- feature toggles (owner-only vendor key) ---------- */
+
+test("features settings: owner may toggle modules; a manager may not", async () => {
+  await assertSucceeds(updateDoc(doc(db("owner"), `vendors/${V}`),
+    { features: { scratch: false, inventory: true, gaming: false } }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`),
+    { features: { scratch: false } }));
+});
+
 /* ---------- rewards ledger: readable by members, writable by NOBODY ---------- */
 
 test("customers + rewardEvents: members read, outsiders don't, and no client may write", async () => {
