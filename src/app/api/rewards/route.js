@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
-import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak, pointsForSale, sanitizeProfile, normalizePhone, maskPhone } from "@/lib/rewards";
+import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak, pointsForSale, sanitizeProfile, normalizePhone, maskPhone, pointsExpiry } from "@/lib/rewards";
 
 export const runtime = "nodejs";
 
@@ -28,16 +28,31 @@ const err = (status, code, message) =>
 // (they earned at least what they hold), so status never starts negative.
 const lifetimeOf = (c) => Math.max(Number(c.lifetimePoints) || 0, Number(c.pointsBalance) || 0);
 
-const publicCustomer = (id, c, rules) => ({
-  id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
-  lifetimePoints: lifetimeOf(c), vipTier: vipTierFor(lifetimeOf(c), rules)?.name || null,
-  currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
-  // CRM fields the register card shows (staff serve the customer with them).
-  note: c.note || null, email: c.email || null, address: c.address || null,
-  customerId: c.customerId || null,
-  birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
-  stamps: c.stamps || {},
+// A signed ledger line for points that lapsed under the inactivity-expiry
+// policy. Written by the SYSTEM, not a clerk — it's a policy event, not an
+// action — so it never reads as personnel activity. lifetimePoints is left
+// untouched (expiry sheds spendable points, never earned VIP status).
+const expireLine = (customerId, balance, months) => ({
+  kind: "expire", points: -Math.abs(balance), customerId,
+  by: "System", byId: "system", byRole: "system", ts: new Date(),
+  note: `Points expired after ${months} months of inactivity`,
 });
+
+const publicCustomer = (id, c, rules) => {
+  const exp = pointsExpiry(c, rules);
+  return {
+    id, name: c.name || null, phone: maskPhone(c.phone), pointsBalance: c.pointsBalance || 0,
+    lifetimePoints: lifetimeOf(c), vipTier: vipTierFor(lifetimeOf(c), rules)?.name || null,
+    currentStreak: Number(c.currentStreak) || 0, longestStreak: Number(c.longestStreak) || 0,
+    // CRM fields the register card shows (staff serve the customer with them).
+    note: c.note || null, email: c.email || null, address: c.address || null,
+    customerId: c.customerId || null,
+    birthdayMonth: c.birthdayMonth ?? null, birthdayDay: c.birthdayDay ?? null,
+    stamps: c.stamps || {},
+    // Inactivity-expiry disclosure the register can show the customer.
+    expiryMonths: exp.months, expiresAt: exp.expiresAt ? exp.expiresAt.toISOString().slice(0, 10) : null,
+  };
+};
 
 export async function POST(req) {
   try {
@@ -62,16 +77,37 @@ export async function POST(req) {
     const found = await customers.where("phone", "==", phone).limit(1).get();
     const existing = found.empty ? null : found.docs[0];
 
+    // Materialize lapsed points as a signed "expire" line and zero the balance,
+    // if the account has been inactive past the owner's expiry window. Called on
+    // any READ of an enrolled customer so the balance shown is always the real,
+    // post-expiry number; the earn/redeem/adjust path expires inside its own
+    // transaction (see commit). Idempotent and a no-op when nothing is due.
+    const withExpiry = async (doc) => {
+      const data = doc.data();
+      const exp = pointsExpiry(data, rules, new Date());
+      if (!(exp.expired && (data.pointsBalance || 0) > 0)) return data;
+      await adminDb.runTransaction(async (tx) => {
+        const snap = await tx.get(doc.ref);
+        const c = snap.data() || {};
+        const bal = c.pointsBalance || 0;
+        if (pointsExpiry(c, rules, new Date()).expired && bal > 0) {
+          tx.set(events.doc(), expireLine(doc.id, bal, exp.months));
+          tx.update(doc.ref, { pointsBalance: 0 });
+        }
+      });
+      return { ...data, pointsBalance: 0 };
+    };
+
     if (action === "lookup") {
       return NextResponse.json({
         ok: true, rules,
-        customer: existing ? publicCustomer(existing.id, existing.data(), rules) : null,
+        customer: existing ? publicCustomer(existing.id, await withExpiry(existing), rules) : null,
       });
     }
 
     if (action === "enroll") {
       if (existing) // idempotent — typing an enrolled number just pulls them up
-        return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, existing.data(), rules) });
+        return NextResponse.json({ ok: true, rules, customer: publicCustomer(existing.id, await withExpiry(existing), rules) });
 
       // Referral (optional): the new customer names who sent them. Both sides
       // get points as signed "referral" ledger lines — a kind the outpaced-
@@ -286,7 +322,15 @@ export async function POST(req) {
       adminDb.runTransaction(async (tx) => {
         const snap = await tx.get(customerRef);
         const c = snap.data() || {};
-        const balance = c.pointsBalance || 0;
+        // Expire lapsed points FIRST, as a signed line, so this action operates
+        // on the real post-expiry balance: a redeem can't spend expired points,
+        // and an earn re-starts the balance (and resets the inactivity clock).
+        let balance = c.pointsBalance || 0;
+        const exp = pointsExpiry(c, rules, new Date());
+        if (exp.expired && balance > 0) {
+          tx.set(events.doc(), expireLine(customerRef.id, balance, exp.months));
+          balance = 0;
+        }
         const pts = typeof ptsOrFn === "function" ? ptsOrFn(c) : ptsOrFn;
         const extra = typeof extraOrFn === "function" ? extraOrFn(c) : extraOrFn;
         if (kind === "redeem" && balance < minBalance)

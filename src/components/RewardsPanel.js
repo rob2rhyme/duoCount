@@ -636,7 +636,9 @@ export default function RewardsPanel({ onToast, customers = [], rewardEvents = [
                                       ? t("rw.h_stamp_redeem", { reward: e.reward || e.cardName || "" })
                                       : e.kind === "undo"
                                         ? t("rw.h_undo")
-                                        : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                                        : e.kind === "expire"
+                                          ? t("rw.h_expire")
+                                          : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
                             const ptsCell = e.kind === "undo" && pts === 0 ? "↩"
                               : e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
                                 : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;

@@ -15,6 +15,13 @@ export const REWARDS = {
   earnPerDollar: 1,  // points per $1 of qualifying sale
   redeemPoints: 100, // points needed for one reward (the base/legacy reward)
   redeemValue: 5,    // dollars off per redemption (the base/legacy reward)
+  // Points expire after this many months of INACTIVITY (no earning visit) — the
+  // breakage/liability control from the spec, disclosed to the customer on the
+  // balance page and the counter sign. 0 = never expire. Expiry is materialized
+  // as a signed "expire" ledger line the next time the account is touched, so it
+  // is never a silent balance edit. Anchored on the last earn, else enrollment;
+  // redeeming does not reset the clock (a visit is an earn).
+  expiryMonths: 12,
   streakHours: 48,   // a next-day visit within this window extends the streak
   tiers: [],         // optional named reward tiers; empty → the single reward above
   // Referral bonus (loyalty-plan-review.md, port slice 4): when a new
@@ -69,6 +76,7 @@ const BOUNDS = {
   earnPerDollar: [0.1, 100],
   redeemPoints: [10, 100000],
   redeemValue: [0.5, 1000],
+  expiryMonths: [0, 60], // 0 = never; up to 5 years of inactivity
   streakHours: [12, 168], // how long a streak survives between visits
 };
 const TIER_POINTS = [10, 100000];
@@ -131,7 +139,8 @@ function resolveVipTier(raw, i) {
 export function resolveRewards(raw = {}) {
   const out = { enabled: raw?.enabled === true };
   for (const [key, [lo, hi]] of Object.entries(BOUNDS)) {
-    const n = clampNum(raw?.[key], lo, hi, key === "redeemPoints" || key === "streakHours");
+    const whole = key === "redeemPoints" || key === "streakHours" || key === "expiryMonths";
+    const n = clampNum(raw?.[key], lo, hi, whole);
     out[key] = Number.isFinite(n) ? n : REWARDS[key];
   }
   const rawTiers = Array.isArray(raw?.tiers) ? raw.tiers.slice(0, MAX_TIERS) : [];
@@ -260,6 +269,32 @@ export function sanitizeProfile(raw = {}) {
     patch.birthdayDay = dd;
   }
   return { patch };
+}
+
+// Points-expiry status for a customer (rewards-program-spec.md §Compliance 7 —
+// breakage/liability control). Pure so the register route materializes it, the
+// public balance page displays it, and the liability figure discounts it, all
+// from ONE definition. Inactivity is measured from the last EARN (a visit),
+// falling back to enrollment when they've never earned; a redeem is not a visit
+// and does not reset the clock. `expiryMonths` 0 (or no anchor date) → never
+// expires. `now` is injectable for tests.
+export function pointsExpiry(c = {}, rules, now = new Date()) {
+  const months = resolveRewards(rules).expiryMonths;
+  if (!months || months <= 0) return { months: 0, anchor: null, expiresAt: null, expired: false };
+  const raw = c.lastEarnAt || c.createdAt;
+  const anchor = raw?.toDate ? raw.toDate() : (raw ? new Date(raw) : null);
+  if (!anchor || Number.isNaN(anchor.getTime())) return { months, anchor: null, expiresAt: null, expired: false };
+  const expiresAt = new Date(anchor.getTime());
+  expiresAt.setMonth(expiresAt.getMonth() + months);
+  return { months, anchor, expiresAt, expired: now.getTime() >= expiresAt.getTime() };
+}
+
+// The spendable balance after applying expiry — 0 once an inactive account has
+// lapsed, otherwise the stored balance. The single source of truth both the
+// public balance page and the liability figure read.
+export function effectiveBalance(c = {}, rules, now = new Date()) {
+  if (pointsExpiry(c, rules, now).expired) return 0;
+  return Math.max(0, Number(c.pointsBalance) || 0);
 }
 
 // Whole days since a Firestore Timestamp / Date / ISO string — for the

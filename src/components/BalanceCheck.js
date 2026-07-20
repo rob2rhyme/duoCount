@@ -85,6 +85,9 @@ export default function BalanceCheck() {
                   : t("rw.progress", { n: result.points, goal: result.goal, value: money(result.value), left: result.goal - result.points })}
               </p>
               {result.ready && <p className="text-[13px] font-semibold mt-1.5">{t("rwb.ready_hint")}</p>}
+              {result.expiryMonths > 0 && result.expiresAt && result.points > 0 && (
+                <p className="text-[11px] text-faint mt-2">{t("rwb.expiry_note", { date: result.expiresAt })}</p>
+              )}
             </div>
           )}
         </div>

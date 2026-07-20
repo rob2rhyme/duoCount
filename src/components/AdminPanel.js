@@ -401,6 +401,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         <div style="font-size:22px;margin-top:10px">${esc(translate(loc, "sign.line", vars))}</div>
         <div style="font-size:16px;color:#444;margin-top:10px">${esc(translate(loc, "sign.how"))}</div>
         <div style="font-size:14px;color:#444;margin-top:8px">${esc(translate(loc, "sign.check", vars))}</div>
+        ${R.expiryMonths > 0 ? `<div style="font-size:12px;color:#777;margin-top:8px">${esc(translate(loc, "sign.expiry", { months: R.expiryMonths }))}</div>` : ""}
       </div>`;
     const w = window.open("", "_blank", "width=800,height=900");
     if (!w) return;
@@ -1085,6 +1086,16 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </p>
             <p className="text-xs text-muted leading-relaxed">{t("admin.rw_exclusions")}</p>
 
+            {/* Points expiry — inactivity breakage/liability control. 0 = never.
+                Expiry is a signed ledger line, disclosed to the customer. */}
+            <div className="flex items-end gap-3">
+              <Field label={t("admin.rw_expiry_label")}>
+                <input type="number" inputMode="numeric" min="0" max="60" step="1" className="input w-24"
+                  value={settings.rewards.expiryMonths ?? REWARDS.expiryMonths} disabled={!isOwner} onChange={setReward("expiryMonths")} />
+              </Field>
+              <p className="text-xs text-muted leading-relaxed flex-1">{t("admin.rw_expiry_hint")}</p>
+            </div>
+
             {/* Referral bonus: both sides of a "who sent you?" enrollment get
                 points as signed referral ledger lines. 0 + 0 turns it off. */}
             <div className="border-t border-line pt-3 space-y-2.5">
@@ -1354,7 +1365,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                             ? t("rw.h_stamp_redeem", { reward: e.reward || e.cardName || "" })
                             : e.kind === "undo"
                               ? t("rw.h_undo")
-                              : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
+                              : e.kind === "expire"
+                                ? t("rw.h_expire")
+                                : `${t("rw.h_adjust")}${e.note ? ` — ${e.note}` : ""}`;
                   const ptsCell = e.kind === "undo" && pts === 0 ? "↩"
                     : e.kind === "stamp" ? "⬤" : e.kind === "stampRedeem" ? "🎁"
                       : `${pts > 0 ? `+${pts}` : pts} ${t("rw.pts")}`;

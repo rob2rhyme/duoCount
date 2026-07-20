@@ -19,7 +19,7 @@
 // are handled via toDate, like scratch-audit.
 
 import { toDate } from "./utils.js";
-import { resolveRewards, pointDollarValue, pointsForSale, maskPhone } from "./rewards.js";
+import { resolveRewards, pointDollarValue, pointsForSale, maskPhone, effectiveBalance } from "./rewards.js";
 import { renderPattern } from "./pattern-format.js";
 
 const money = (n) => `$${(Math.round(n * 100) / 100).toFixed(2)}`;
@@ -181,9 +181,11 @@ export function buildRewardAudit(events = [], entries = [], { rules, customers =
 // The outstanding-points liability (rewards-program-spec.md §Compliance 7):
 // what the store owes at the current settings if every point were redeemed.
 // Linear on purpose — a conservative ceiling the owner and the bookkeeper can
-// reason about; breakage only ever makes reality smaller.
-export function outstandingLiability(customersList = [], rules) {
-  const points = (customersList || []).reduce((s, c) => s + Math.max(0, Number(c?.pointsBalance) || 0), 0);
+// reason about; breakage only ever makes reality smaller. Balances already
+// lapsed under the inactivity-expiry policy are excluded (that IS the breakage
+// the spec calls for), using the same effectiveBalance the customer sees.
+export function outstandingLiability(customersList = [], rules, now = new Date()) {
+  const points = (customersList || []).reduce((s, c) => s + effectiveBalance(c, rules, now), 0);
   // Value every point at the MOST generous reward's dollars-per-point, so a
   // tiered menu is costed at its worst case (never understated).
   return { points, dollars: Math.round(points * pointDollarValue(rules) * 100) / 100 };
