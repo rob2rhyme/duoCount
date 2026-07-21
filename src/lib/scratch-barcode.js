@@ -117,6 +117,25 @@ export function packIdFromParts(gameNo, bookNo) {
   return b.startsWith(g) ? b : g + b; // don't double-prefix an already-full id
 }
 
+/**
+ * Reduce a value headed for a GAME-NUMBER field/key to just the game section.
+ * A whole pack or ticket (game+book[+ticket], e.g. "17920011361016" or
+ * "1792-0011361-016") collapses to its leading game # ("1792"); a bare game #
+ * comes back unchanged. This keeps the owner catalog keyed by GAME, so a scan —
+ * which looks a game up by its leading digits — always finds a stored game
+ * instead of a whole ticket masquerading as a 14-digit "game" no scan can match.
+ * The digit-count threshold is PA-tuned like the constants above.
+ *
+ * @param {string} raw
+ * @returns {string} the game section, or the input unchanged when already short
+ */
+export function reduceToGameNumber(raw) {
+  const s = String(raw ?? "").trim();
+  const digits = s.replace(/\D/g, "");
+  if (digits.length >= GAME_DIGITS + BOOK_DIGITS) return digits.slice(0, GAME_DIGITS);
+  return s;
+}
+
 // A PA pack/book number is this many digits; a scan (and the canonical id the
 // form saves) prefixes the 4-digit game #, so a FULL id is GAME_DIGITS +
 // BOOK_DIGITS long. Like the constants above it is PA-tuned — the one place to

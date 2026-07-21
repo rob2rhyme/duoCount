@@ -1,7 +1,22 @@
 // parseScratchBarcode is pure — no emulator. Run: npm run test:scratch-barcode
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts, MIN_TICKET_BARCODE_LEN, GAME_DIGITS } from "../src/lib/scratch-barcode.js";
+import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts, reduceToGameNumber, MIN_TICKET_BARCODE_LEN, GAME_DIGITS } from "../src/lib/scratch-barcode.js";
+
+test("reduceToGameNumber: a whole pack/ticket collapses to its game section; a bare game # is unchanged", () => {
+  // full ticket (14 digits, delimited or not) → leading game #
+  assert.equal(reduceToGameNumber("17920011361016"), "1792");
+  assert.equal(reduceToGameNumber("1792-0011361-016"), "1792");
+  assert.equal(reduceToGameNumber("1792 0011361 016"), "1792");
+  // game + book (11 digits) → game #
+  assert.equal(reduceToGameNumber("17920011361"), "1792");
+  // short values (a bare game #) come back untouched — never truncated
+  assert.equal(reduceToGameNumber("1792"), "1792");
+  assert.equal(reduceToGameNumber("1801"), "1801");
+  assert.equal(reduceToGameNumber("18010"), "18010");
+  assert.equal(reduceToGameNumber("#1792"), "#1792"); // normalization is the validator's job
+  assert.equal(reduceToGameNumber(""), "");
+});
 
 test("empty / whitespace → empty pack, no ticket", () => {
   assert.deepEqual(parseScratchBarcode(""), { pack: "", ticket: null, game: "" });

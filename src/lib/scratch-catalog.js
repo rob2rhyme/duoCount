@@ -1,3 +1,5 @@
+import { reduceToGameNumber } from "./scratch-barcode.js";
+
 // Bundled reference catalog: Pennsylvania Lottery instant (scratch-off) games.
 // Keyed by the 4-digit GAME NUMBER -> { name, price, perPack (tickets per book) }.
 // Source: PA Lottery "Scratch Games UPC Listing", 2026-08-11 new-game release.
@@ -148,5 +150,14 @@ export function lookupGameNumber(gameNo, catalog = SCRATCH_CATALOG) {
   const s = String(gameNo ?? "").replace(/\D/g, "");
   if (!s) return null;
   const key = String(Number(s));
-  return catalog[key] ? { game: key, ...catalog[key] } : null;
+  if (catalog[key]) return { game: key, ...catalog[key] };
+  // Legacy tolerance: a catalog key mistakenly stored as a WHOLE ticket
+  // (game+book[+ticket], e.g. "17920011361016" before the game-only fix) still
+  // matches by its game section, so a scan connects even before the owner tidies
+  // the entry. The exact-key match above always wins.
+  for (const k of Object.keys(catalog)) {
+    const g = reduceToGameNumber(k).replace(/\D/g, "");
+    if (g && String(Number(g)) === key) return { game: key, ...catalog[k] };
+  }
+  return null;
 }

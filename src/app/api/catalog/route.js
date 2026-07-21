@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireOwner } from "@/lib/require-manager";
 import { normalizeGameEntry } from "@/lib/catalog-entry";
+import { reduceToGameNumber } from "@/lib/scratch-barcode";
 
 export const runtime = "nodejs";
 
@@ -44,8 +45,11 @@ export async function POST(req) {
         return NextResponse.json({ error: "That game isn't in the catalog.", code: "game_absent" }, { status: 404 });
       delete games[key];
     } else {
-      // upsert — re-run the SAME pure validator the card used; never trust the client.
-      const r = normalizeGameEntry({ game, name, price, perPack });
+      // upsert — re-run the SAME pure validator the card used; never trust the
+      // client. Reduce a whole ticket/pack to its game section first, so the
+      // catalog is always keyed by GAME (never a 14-digit pseudo-game no scan
+      // could match), whatever the client sent.
+      const r = normalizeGameEntry({ game: reduceToGameNumber(game), name, price, perPack });
       if (!r.ok) return NextResponse.json({ error: `Invalid game (${r.code}).`, code: r.code }, { status: 400 });
       games[r.game] = r.value;
     }

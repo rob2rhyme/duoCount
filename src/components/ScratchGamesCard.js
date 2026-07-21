@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useLang } from "./LangProvider";
 import { apiCatalog } from "@/lib/data";
 import { normalizeGameEntry } from "@/lib/catalog-entry";
-import { parseScratchBarcode, packDisplayParts, packGameKey, GAME_DIGITS, BOOK_DIGITS } from "@/lib/scratch-barcode";
+import { parseScratchBarcode, packDisplayParts, packGameKey, reduceToGameNumber } from "@/lib/scratch-barcode";
 import { money } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import Field from "./Field";
@@ -26,15 +26,6 @@ function splitTicket(raw) {
   return { game, book: bookNo || "", ticket: ticket == null ? "" : String(ticket).padStart(3, "0") };
 }
 
-// Reduce whatever landed in the Game # field to the game section: if the owner
-// typed/pasted a whole pack or ticket (game+book[+ticket]) there, keep the game.
-function reduceGameNo(raw) {
-  const s = String(raw ?? "").trim();
-  const digits = s.replace(/\D/g, "");
-  if (digits.length >= GAME_DIGITS + BOOK_DIGITS) return digits.slice(0, GAME_DIGITS);
-  return s;
-}
-
 // Owner card: type the scratch games this store sells (game #, name, ticket
 // price, tickets-per-pack) so a scan or a typed pack fills the Game name +
 // Ticket price on its own — the same per-store catalog the CSV "games" import
@@ -47,6 +38,7 @@ export default function ScratchGamesCard({ scratchCatalog = null, onToast }) {
   const { t } = useLang();
   const [form, setForm] = useState(EMPTY);
   const [editing, setEditing] = useState(false); // editing an existing game #
+  const [editGame, setEditGame] = useState(null); // the ORIGINAL key being edited (for rename)
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState("");
   const [ticket, setTicket] = useState(""); // the "scan or paste a full ticket" field
@@ -75,23 +67,33 @@ export default function ScratchGamesCard({ scratchCatalog = null, onToast }) {
   const page = usePaged(shown, { resetKey: q });
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const reset = () => { setForm(EMPTY); setEditing(false); setTicket(""); setParsed(null); };
+  const reset = () => { setForm(EMPTY); setEditing(false); setEditGame(null); setTicket(""); setParsed(null); };
   const startEdit = (r) => {
     setForm({ game: r.game, name: r.name ?? "", price: r.price ?? "", perPack: r.perPack ?? "" });
     setEditing(true);
+    setEditGame(r.game);
     setTicket(""); setParsed(null);
-    if (typeof window !== "undefined") window.scrollTo({ top: document.getElementById("adm-games")?.offsetTop ?? 0, behavior: "smooth" });
+    if (typeof window !== "undefined") document.getElementById("adm-games")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const submit = async () => {
-    // Keep only the game section, so a whole ticket pasted into the Game # field
-    // is stored as its game — never as a 14-digit pseudo-game.
-    const gameNo = reduceGameNo(form.game);
+    // Keep only the game section, so a whole ticket typed/pasted into the Game #
+    // field is stored as its game — never as a 14-digit pseudo-game a scan can't
+    // match. (The server enforces the same, whatever a client sends.)
+    const gameNo = reduceToGameNumber(form.game);
     const v = normalizeGameEntry({ ...form, game: gameNo });
     if (!v.ok) { onToast?.(t(`games.err_${v.code}`)); return; }
     setBusy(true);
     try {
       await apiCatalog({ action: "upsert", game: gameNo, name: form.name, price: form.price, perPack: form.perPack });
+      // Editing the game # renames the catalog key — drop the old entry so a
+      // corrected number (e.g. a whole ticket fixed to its game "1792") doesn't
+      // leave a stale duplicate behind. Upsert-then-remove so we never lose data;
+      // best-effort, since the new entry is already saved and an old key that's
+      // already gone is the desired end state, not an error to surface.
+      if (editing && editGame && editGame !== v.game) {
+        try { await apiCatalog({ action: "remove", game: editGame }); } catch { /* old key already gone */ }
+      }
       onToast?.(t(editing ? "games.toast_saved" : "games.toast_added", { game: v.game }));
       reset();
     } catch (err) {
@@ -137,9 +139,9 @@ export default function ScratchGamesCard({ scratchCatalog = null, onToast }) {
           </Field>
         )}
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("games.f_game")}>
+          <Field label={t("games.f_game")} hint={editing ? t("games.edit_game_hint") : undefined}>
             <input className="input font-mono" inputMode="numeric" value={form.game}
-              onChange={set("game")} disabled={editing} placeholder="1801" />
+              onChange={set("game")} placeholder="1801" />
           </Field>
           <Field label={t("games.f_price")}>
             <input className="input" inputMode="decimal" value={form.price}
@@ -177,16 +179,15 @@ export default function ScratchGamesCard({ scratchCatalog = null, onToast }) {
           <>
             {page.visible.map((r) => (
               <div key={r.game} className="flex items-center gap-3 py-2 border-b border-line last:border-0">
-                <span className="font-mono text-sm text-muted w-14 flex-shrink-0">{r.game}</span>
                 <div className="min-w-0 flex-1">
                   <span className="text-sm font-medium truncate block">{r.name}</span>
-                  <span className="text-xs text-muted">
-                    {money(r.price)}{r.perPack ? ` · ${t("games.n_tickets", { n: r.perPack })}` : ""}
+                  <span className="text-xs text-muted truncate block">
+                    <span className="font-mono">#{r.game}</span> · {money(r.price)}{r.perPack ? ` · ${t("games.n_tickets", { n: r.perPack })}` : ""}
                   </span>
                 </div>
-                <button type="button" className="btn-ghost text-[13px] px-2.5 py-1" disabled={busy}
+                <button type="button" className="btn-ghost text-[13px] px-2.5 py-1 flex-shrink-0" disabled={busy}
                   onClick={() => startEdit(r)}>{t("games.edit")}</button>
-                <button type="button" className="btn-ghost text-[13px] px-2.5 py-1 text-neg" disabled={busy}
+                <button type="button" className="btn-ghost text-[13px] px-2.5 py-1 text-neg flex-shrink-0" disabled={busy}
                   onClick={() => remove(r)}>{t("games.remove")}</button>
               </div>
             ))}

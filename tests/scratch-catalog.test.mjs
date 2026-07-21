@@ -75,3 +75,16 @@ test("lookupGameNumber: tolerates leading zeros; declines an unknown number", ()
   assert.equal(lookupGameNumber(""), null);
   assert.equal(lookupGameNumber(null), null);
 });
+
+test("lookupGameNumber: a scan matches a legacy key stored as a whole ticket", () => {
+  // A game the owner stored (before the game-only fix) under a 14-digit ticket
+  // key. A scan looks up by the game section "1792" and must still connect.
+  const catalog = { "17920011361016": { name: "Wild Side", price: 5, perPack: 60 } };
+  const hit = lookupGameNumber("1792", catalog);
+  assert.equal(hit.game, "1792");
+  assert.equal(hit.name, "Wild Side");
+  assert.equal(hit.price, 5);
+  // an exact game key always wins over the legacy fallback
+  const both = { "1792": { name: "Correct", price: 5 }, "17920011361016": { name: "Legacy", price: 9 } };
+  assert.equal(lookupGameNumber("1792", both).name, "Correct");
+});
