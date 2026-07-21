@@ -8,18 +8,28 @@
 // module owns the pickable OPTIONS + validation + the small helpers the applier
 // and the settings UI share. Login and /dev have no vendor, so they stay default.
 
-// The 6 selectable palettes. `swatch`/`swatchDark` are just the representative
-// accent shown in the picker chip; the full token sets are in globals.css keyed
-// by these same ids. WCAG-AA verified (accent ≥4.5:1 on bg, button text ≥4.5:1).
+// The 6 selectable palettes. `swatch`/`swatchDark` are the representative accent
+// shown in the picker chip; `bar`/`barDark` are the deep/light accent the charts
+// paint their bars with (Recharts takes JS color values, not CSS vars, so the
+// chart components read these per the store's palette). The full CSS token sets
+// are in globals.css keyed by these same ids. WCAG-AA verified.
 export const PALETTES = [
-  { id: "green", label: "Forest", swatch: "#1f6b3e", swatchDark: "#7fd39e" },
-  { id: "ocean", label: "Ocean", swatch: "#186592", swatchDark: "#7cc4e8" },
-  { id: "indigo", label: "Indigo", swatch: "#5a4fcf", swatchDark: "#b3a9f5" },
-  { id: "sunset", label: "Sunset", swatch: "#945200", swatchDark: "#f0b24a" },
-  { id: "rose", label: "Rose", swatch: "#b02556", swatchDark: "#f090ac" },
-  { id: "slate", label: "Slate", swatch: "#3f4e5c", swatchDark: "#a9b8c4" },
+  { id: "green", label: "Forest", swatch: "#1f6b3e", swatchDark: "#7fd39e", bar: "#14532d", barDark: "#7fd39e" },
+  { id: "ocean", label: "Ocean", swatch: "#186592", swatchDark: "#7cc4e8", bar: "#0f4c75", barDark: "#7cc4e8" },
+  { id: "indigo", label: "Indigo", swatch: "#5a4fcf", swatchDark: "#b3a9f5", bar: "#3f36a0", barDark: "#b3a9f5" },
+  { id: "sunset", label: "Sunset", swatch: "#945200", swatchDark: "#f0b24a", bar: "#7a3f00", barDark: "#f0b24a" },
+  { id: "rose", label: "Rose", swatch: "#b02556", swatchDark: "#f090ac", bar: "#8f1f43", barDark: "#f090ac" },
+  { id: "slate", label: "Slate", swatch: "#3f4e5c", swatchDark: "#a9b8c4", bar: "#2b3843", barDark: "#a9b8c4" },
 ];
 export const PALETTE_IDS = PALETTES.map((p) => p.id);
+
+// The chart bar/line color for a vendor's palette in the given theme — so the
+// Dashboard/gaming/backroom charts paint in the store's hue, not a fixed green.
+export function chartBar(vendor, theme = "light") {
+  const id = PALETTE_IDS.includes(vendor?.themePalette) ? vendor.themePalette : "green";
+  const p = PALETTES.find((x) => x.id === id) || PALETTES[0];
+  return theme === "dark" ? p.barDark : p.bar;
+}
 
 // The custom-font internal family name (fixed — never the uploaded filename, so a
 // crafted name can't break out of the injected @font-face rule).

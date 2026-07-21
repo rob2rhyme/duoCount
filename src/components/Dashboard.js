@@ -13,6 +13,7 @@ import { packDisplayParts } from "@/lib/scratch-barcode";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockMoveAudit } from "@/lib/stockmove-audit";
 import { featureEnabled } from "@/lib/features";
+import { chartBar } from "@/lib/branding";
 import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange } from "@/lib/data";
 import { buildTheftReport } from "@/lib/theft-report";
 import { useSession } from "./SessionProvider";
@@ -53,7 +54,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     const { gameNo, bookNo } = packDisplayParts(pack);
     return gameNo ? t("dash.pack_ident", { game: gameNo, pack: bookNo }) : `#${bookNo}`;
   };
-  const ch = CHART[theme] || CHART.light;
+  const ch = { ...(CHART[theme] || CHART.light), bar: chartBar(vendor, theme) };
   const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 13 };
   const [reportOpen, setReportOpen] = useState(false);
   // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink

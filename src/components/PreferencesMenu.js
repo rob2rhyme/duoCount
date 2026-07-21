@@ -3,8 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme } from "./ThemeProvider";
 import { usePrefs } from "./PrefsProvider";
 import { useLang } from "./LangProvider";
+import { useSession } from "./SessionProvider";
 import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 import { useInstallPrompt } from "@/lib/install";
+import { updateVendorSettings } from "@/lib/data";
+import { PALETTES, FONTS, FONT_SCALES, resolveBranding } from "@/lib/branding";
 
 function Switch({ on, onChange, label }) {
   return (
@@ -26,8 +29,23 @@ export default function PreferencesMenu({ onSignOut }) {
   const { lang, setLang, t } = useLang();
   const { fabEnabled, setFabEnabled } = usePrefs();
   const { available: canInstall, promptInstall } = useInstallPrompt();
+  const { vendor, isOwner, setVendor } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
+  // Store appearance (color theme / font / text size) — owner-only, store-wide.
+  // Saves immediately and live-applies: setVendor drives BrandingApplier, and
+  // updateVendorSettings filters the patch to the branding keys the rules allow.
+  // Reverts on a failed write.
+  const brand = resolveBranding(vendor);
+  async function saveBranding(patch) {
+    if (!vendor?.id) return;
+    const prev = { themePalette: brand.themePalette, fontFamily: brand.fontFamily, fontScale: brand.fontScale };
+    const next = { ...prev, ...patch };
+    setVendor({ ...vendor, ...next });
+    try { await updateVendorSettings(vendor.id, next); }
+    catch { setVendor({ ...vendor, ...prev }); }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +69,7 @@ export default function PreferencesMenu({ onSignOut }) {
 
       {open && (
         <div role="menu" aria-label={t("prefs.settings")}
-          className="card absolute right-0 mt-2 w-64 z-50 p-3 space-y-3.5 text-fg shadow-xl">
+          className="card absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto z-50 p-3 space-y-3.5 text-fg shadow-xl">
           <div>
             <div className="label mb-1.5">{t("lang.language")}</div>
             <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-subtle">
@@ -65,7 +83,7 @@ export default function PreferencesMenu({ onSignOut }) {
           </div>
 
           <div>
-            <div className="label mb-1.5">{t("prefs.appearance")}</div>
+            <div className="label mb-1.5">{t("prefs.display")}</div>
             <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-subtle">
               {["light", "dark"].map((th) => (
                 <button key={th} type="button" onClick={() => setTheme(th)} role="menuitemradio" aria-checked={theme === th}
@@ -75,6 +93,49 @@ export default function PreferencesMenu({ onSignOut }) {
               ))}
             </div>
           </div>
+
+          {/* Store appearance — the owner's color theme / font / text size,
+              store-wide, applied instantly. Only owners see it; other users keep
+              the personal Display + Language controls above. Custom-font UPLOAD
+              stays in Admin (a file picker doesn't belong in a quick menu). */}
+          {isOwner && vendor?.id && (
+            <div className="pt-3 border-t border-line">
+              <div className="label mb-1">{t("appr.title")}</div>
+              <p className="text-[11px] text-muted mb-2 leading-snug">{t("appr.sub")}</p>
+              <div className="text-[11px] text-muted font-semibold mb-1.5">{t("appr.theme")}</div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {PALETTES.map((p) => {
+                  const on = brand.themePalette === p.id;
+                  return (
+                    <button key={p.id} type="button" onClick={() => saveBranding({ themePalette: p.id })}
+                      aria-pressed={on} title={t(`appr.pal_${p.id}`)}
+                      className={`inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-full border text-[12px] font-semibold transition ${on ? "border-fg text-fg" : "border-line text-muted hover:text-fg"}`}>
+                      <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-line" style={{ background: p.swatch }} />
+                      {t(`appr.pal_${p.id}`)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block min-w-0">
+                  <span className="text-[11px] text-muted font-semibold">{t("appr.font")}</span>
+                  <select className="input mt-1 py-1.5 text-[13px]" value={brand.fontFamily}
+                    onChange={(e) => saveBranding({ fontFamily: e.target.value })}>
+                    {FONTS.filter((f) => f.id !== "custom" || vendor.fontFamily === "custom").map((f) => (
+                      <option key={f.id} value={f.id}>{f.id === "" ? t("appr.font_system") : f.id === "custom" ? t("appr.font_custom") : f.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block min-w-0">
+                  <span className="text-[11px] text-muted font-semibold">{t("appr.size")}</span>
+                  <select className="input mt-1 py-1.5 text-[13px]" value={String(brand.fontScale)}
+                    onChange={(e) => saveBranding({ fontScale: Number(e.target.value) })}>
+                    {FONT_SCALES.map((sc) => <option key={sc.id} value={sc.scale}>{t(`appr.size_${sc.id}`)}</option>)}
+                  </select>
+                </label>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-medium">{t("prefs.fab_title")}</div>

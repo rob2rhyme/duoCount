@@ -24,6 +24,17 @@ const useBrandingLayout = typeof window !== "undefined" ? useLayoutEffect : useE
 
 const LINK_ID = "brand-font-link";
 const FACE_ID = "brand-font-face";
+// The base green ink (layout.js seeds the same value), restored on sign-out.
+const DEFAULT_THEME_COLOR = "#14532d";
+
+// Match the mobile browser chrome (status-bar tint) to the store's palette, so a
+// pink store doesn't show a green status bar. Reads the computed --ink the
+// palette CSS just set — no per-palette table to keep in sync.
+function setThemeColor(hex) {
+  if (typeof document === "undefined") return;
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m && hex) m.setAttribute("content", hex);
+}
 
 function setFontLink(href) {
   if (typeof document === "undefined") return;
@@ -70,11 +81,14 @@ export default function BrandingApplier() {
       el.style.removeProperty("--font-scale");
       setFontLink(null);
       setCustomFace(null);
+      setThemeColor(DEFAULT_THEME_COLOR);
       return undefined;
     }
     const b = resolveBranding({ themePalette: palette, fontFamily, fontScale });
     el.dataset.palette = b.themePalette;
     el.style.setProperty("--font-scale", String(b.fontScale));
+    // The palette CSS (data-palette) has now set --ink; mirror it to the chrome.
+    setThemeColor(getComputedStyle(el).getPropertyValue("--ink").trim() || DEFAULT_THEME_COLOR);
 
     const font = fontById(b.fontFamily);
     if (!b.fontFamily) {
