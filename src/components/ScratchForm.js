@@ -18,7 +18,7 @@ import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ScratchForm({ onSaved, locations, locName, entries = [], catalog = null }) {
+export default function ScratchForm({ onSaved, locations, locName, entries = [], catalog = null, onSetup }) {
   const { profile, vendor, isManager } = useSession();
   const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
@@ -448,12 +448,17 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
 
   return (
     <div className="card overflow-hidden">
-      <div className="px-4 py-3.5 border-b border-line flex items-center justify-between gap-2">
+      <div className="px-4 py-3.5 border-b border-line flex items-center justify-between gap-2 flex-wrap">
         <h2 className="font-semibold text-[15px] flex items-center gap-2 min-w-0"><TabIcon id="scratch" size={18} className="text-gold" /> <span className="truncate">{t("scratch.title")}</span></h2>
-        {isManager && (
-          <button type="button" className="btn-ghost text-[13px] px-3 py-1.5 flex-shrink-0"
-            onClick={() => { setRptErr(""); setRptOpen(true); }}>🖨 {t("scratch.report_btn")}</button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {onSetup && (
+            <button type="button" className="btn-ghost text-[13px] px-3 py-1.5" onClick={onSetup}>⚙ {t("scratch.setup_games")}</button>
+          )}
+          {isManager && (
+            <button type="button" className="btn-ghost text-[13px] px-3 py-1.5"
+              onClick={() => { setRptErr(""); setRptOpen(true); }}>🖨 {t("scratch.report_btn")}</button>
+          )}
+        </div>
       </div>
       <div className="p-4 space-y-3.5">
         <Field label={t("common.location")}>

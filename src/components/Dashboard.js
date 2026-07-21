@@ -42,7 +42,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], onOpenLog, onRecord, onToast, locPicker = null }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], collections = [], onOpenLog, onRecord, onToast, locPicker = null }) {
   const { isManager, vendor, profile } = useSession();
   const profileName = profile?.name || "";
   const { theme } = useTheme();
@@ -305,7 +305,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
     </div>
   );
   const reportModal = reportOpen && (
-    <ReportModal locations={locations} locName={locName} incidents={incidents}
+    <ReportModal locations={locations} locName={locName} incidents={incidents} collections={collections}
       onClose={() => setReportOpen(false)} onToast={onToast} />
   );
   const theftModal = theftOpen && (
