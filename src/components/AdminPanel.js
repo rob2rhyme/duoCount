@@ -26,35 +26,21 @@ import SupportCard from "./SupportCard";
 import Field from "./Field";
 import ShowMore, { usePaged } from "./ShowMore";
 
-// Per-section accent — a spread of green/teal shades so each Admin section reads
-// as its own place (owners said the panel "looked all the same" and got lost).
-// The nav chip and its section share the color: the chip carries a colored dot
-// (and fully tints when active), the section a colored top edge + a faint header
-// wash. Kept in ONE map so the chip and its section can never drift apart.
-const SECTION_ACCENT = {
-  "adm-staff": "#2f9e44",
-  "adm-locations": "#0ca678",
-  "adm-drawers": "#66a80f",
-  "adm-items": "#099268",
-  "adm-features": "#37b24d",
-  "adm-games": "#82c91e",
-  "adm-machines": "#12b886",
-  "adm-settings": "#4c9a2a",
-  "adm-rewards": "#20c997",
-  "adm-engage": "#5c940d",
-  "adm-support": "#087f5b",
-  "adm-import": "#94d82d",
-  "adm-demo": "#38d9a9",
+// Admin is grouped into a few tabs so it reads as a handful of short pages
+// instead of one endless scroll. Each tab renders only its own cards. `owner`
+// marks a tab whose cards are all owner-only, so it drops for a non-owner.
+const ADMIN_TABS = [
+  { id: "store", labelKey: "admin.tab_store" },
+  { id: "modules", labelKey: "admin.tab_modules" },
+  { id: "settings", labelKey: "admin.tab_settings" },
+  { id: "rewards", labelKey: "admin.tab_rewards" },
+  { id: "more", labelKey: "admin.tab_more" },
+];
+// Which tab an at-a-glance overview tile jumps to.
+const SECTION_TAB = {
+  "adm-staff": "store", "adm-locations": "store", "adm-drawers": "store",
+  "adm-items": "store", "adm-engage": "rewards",
 };
-// Sections that are a plain .card (their header is the first child) get a colored
-// top edge + a faint header wash. Rewards is a nested box (a left accent reads
-// better there); the Import wrapper isn't a card, so it stays chip-only. The wash
-// mixes into var(--surface), so it re-tints correctly in light and dark.
-const CARD_SECTIONS = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features",
-  "adm-games", "adm-machines", "adm-settings", "adm-engage", "adm-support", "adm-demo"];
-const SECTION_STYLE = CARD_SECTIONS
-  .map((id) => `#${id}{border-top:4px solid ${SECTION_ACCENT[id]}}#${id}>div:first-child{background:color-mix(in srgb,${SECTION_ACCENT[id]} 10%,var(--surface))}`)
-  .join("") + `#adm-rewards{border-left:4px solid ${SECTION_ACCENT["adm-rewards"]}}`;
 
 export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null, machines = [] }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
@@ -509,38 +495,16 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     downloadCSV(lines.join("\n"), `rewards-customers-${stamp()}.csv`);
   }
 
-  const NAV_SECTIONS = [
-    ["adm-staff", "admin.staff_title"],
-    ["adm-locations", "admin.locations_title"],
-    ["adm-drawers", "admin.drawers_title"],
-    ["adm-items", "admin.items_title"],
-    ["adm-features", "admin.features_title"],
-    ...(featureEnabled(vendor, "scratch") ? [["adm-games", "games.nav"]] : []),
-    ...(featureEnabled(vendor, "gaming") ? [["adm-machines", "mach.nav"]] : []),
-    ["adm-settings", "admin.settings_title"],
-    ["adm-rewards", "admin.rw_title"],
-    ["adm-engage", "admin.engage_nav"],
-    ["adm-support", "sup.nav"],
-    ...(isOwner ? [["adm-import", "imp.title"], ["adm-demo", "admin.demo_title"]] : []),
-  ];
-  const jumpTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-
-  // Scrollspy: highlight the section chip you're actually looking at. The
-  // rootMargin band tracks the section crossing under the sticky chrome.
-  const [activeSection, setActiveSection] = useState("adm-staff");
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return undefined;
-    const ids = ["adm-staff", "adm-locations", "adm-drawers", "adm-items", "adm-features", "adm-games", "adm-machines", "adm-settings", "adm-rewards", "adm-engage", "adm-support", "adm-import", "adm-demo"];
-    const els = ids.map((id) => document.getElementById(id)).filter(Boolean);
-    if (!els.length) return undefined;
-    const obs = new IntersectionObserver((es) => {
-      const vis = es.filter((e) => e.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-      if (vis[0]) setActiveSection(vis[0].target.id);
-    }, { rootMargin: "-130px 0px -55% 0px" });
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, []);
+  // The tabs a non-owner can see (the "more" tab is import/demo — owner-only —
+  // so it drops). Admin is owner-only today, but keep the guard honest.
+  const adminTabs = useMemo(() => ADMIN_TABS.filter((tb) => tb.id !== "more" || isOwner), [isOwner]);
+  const [adminTab, setAdminTab] = useState("store");
+  // Switch tab and lift the view back to the tab bar, so a long tab (Settings)
+  // doesn't leave the next tab scrolled halfway down.
+  const goTab = (id) => {
+    setAdminTab(id);
+    if (typeof window !== "undefined") document.getElementById("adm-top")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // At-a-glance strip: live counts, each tile a jump link into its section.
   const [itemQ, setItemQ] = useState("");
@@ -573,13 +537,11 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
 
   return (
     <div className="space-y-4">
-      {/* Section color-coding: one green shade per section, shared by its nav
-          chip and the section itself (top edge + faint header wash). */}
-      <style>{SECTION_STYLE}</style>
+      <div id="adm-top" className="scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+56px)]" />
       {/* ---------------- at a glance ---------------- */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {overview.map(([target, key, value, hot], i) => (
-          <button key={`${key}-${i}`} type="button" onClick={() => jumpTo(target)}
+          <button key={`${key}-${i}`} type="button" onClick={() => goTab(SECTION_TAB[target] || "store")}
             className={`card rounded-xl px-2.5 py-2.5 text-center transition hover:border-brass active:scale-[.97] ${hot ? "border-neg/50" : ""}`}>
             <span className={`block text-xl font-bold font-mono leading-tight ${hot ? "text-neg" : ""}`}>{value}</span>
             <span className="block text-[10px] uppercase tracking-wide text-muted font-semibold mt-0.5 truncate">{t(key)}</span>
@@ -587,22 +549,21 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         ))}
       </div>
 
-      <nav aria-label={t("admin.nav_aria")}
+      {/* Grouped tabs — one short page per tab instead of one long scroll. */}
+      <nav aria-label={t("admin.nav_aria")} role="tablist"
         className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+45px)] z-10 -mx-4 px-4 py-2 bg-[var(--bg)]/95 backdrop-blur-sm flex gap-1.5 overflow-x-auto">
-        {NAV_SECTIONS.map(([id, key]) => {
-          const c = SECTION_ACCENT[id] || "var(--gold)";
-          const active = activeSection === id;
+        {adminTabs.map((tb) => {
+          const active = adminTab === tb.id;
           return (
-            <button key={id} type="button" onClick={() => jumpTo(id)}
-              style={active ? { borderColor: c, backgroundColor: `color-mix(in srgb, ${c} 16%, transparent)`, color: "var(--fg)" } : undefined}
-              className={`flex-shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold px-3 py-1.5 rounded-full border transition ${active ? "" : "border-line bg-subtle text-muted hover:text-fg hover:border-brass"}`}>
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c }} />
-              {t(key)}
+            <button key={tb.id} type="button" role="tab" aria-selected={active} onClick={() => goTab(tb.id)}
+              className={`flex-shrink-0 whitespace-nowrap text-[13px] font-semibold px-3.5 py-1.5 rounded-full border transition ${active ? "border-brass bg-highlight text-fg" : "border-line bg-subtle text-muted hover:text-fg hover:border-brass"}`}>
+              {t(tb.labelKey)}
             </button>
           );
         })}
       </nav>
 
+      {adminTab === "store" && (<>
       {/* ---------------- staff ---------------- */}
       <div id="adm-staff" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
@@ -821,6 +782,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         <ShowMore hasMore={itemsPage.hasMore} nextStep={itemsPage.nextStep} onMore={itemsPage.showMore} />
       </div>
 
+      </>)}
+
+      {adminTab === "modules" && (<>
       {/* ---------------- features (owner) ---------------- */}
       <div id="adm-features" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
@@ -872,6 +836,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         <MachineRegistryCard machines={machines} onToast={onToast} />
       )}
 
+      </>)}
+
+      {adminTab === "settings" && (<>
       {/* ---------------- settings (owner) ---------------- */}
       <div id="adm-settings" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
@@ -1224,6 +1191,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         </div>
       </div>
 
+      </>)}
+
+      {adminTab === "rewards" && (<>
       {/* ---------------- customer engagement audit ---------------- */}
       <div id="adm-engage" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">
@@ -1335,6 +1305,9 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         </div>
       </div>
 
+      </>)}
+
+      {adminTab === "more" && (<>
       <SupportCard />
 
       {isOwner && (
@@ -1362,6 +1335,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           </div>
         </div>
       )}
+      </>)}
 
       {/* Full item editor — every Add-form field plus price & expiry. */}
       {editModal && (

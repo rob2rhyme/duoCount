@@ -1080,6 +1080,11 @@ export const CATALOG = {
 
     // admin — staff
     "admin.nav_aria": "Admin sections",
+    "admin.tab_store": "Store",
+    "admin.tab_modules": "Modules",
+    "admin.tab_settings": "Settings",
+    "admin.tab_rewards": "Rewards",
+    "admin.tab_more": "More",
     "admin.staff_title": "Staff & roles",
     "admin.staff_sub": "Employees log counts. Managers also verify. Owners control settings.",
     "admin.f_name": "Name",
@@ -2880,6 +2885,11 @@ export const CATALOG = {
     "imp.tgt.baselines.countedBy": "Contado por",
 
     "admin.nav_aria": "Secciones de administración",
+    "admin.tab_store": "Tienda",
+    "admin.tab_modules": "Módulos",
+    "admin.tab_settings": "Ajustes",
+    "admin.tab_rewards": "Recompensas",
+    "admin.tab_more": "Más",
     "admin.staff_title": "Personal y roles",
     "admin.staff_sub": "Los empleados registran conteos. Los gerentes también verifican. Los dueños controlan la configuración.",
     "admin.f_name": "Nombre",
