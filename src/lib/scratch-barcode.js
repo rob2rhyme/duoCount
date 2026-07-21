@@ -59,8 +59,18 @@ export function parseScratchBarcode(raw) {
     return { pack, ticket: toTicket(groups[groups.length - 1]), game: packGameKey(pack) };
   }
 
-  // One long run of digits → peel the trailing ticket off.
+  // One long run of digits = a scanned ticket barcode. PA lays it out as
+  // game(4) + book(7) + ticket(3); the scanner appends a couple of validation
+  // digits the printed number omits — e.g. the ticket printed "1792-0011361-016"
+  // scans as "179200113610 16" plus 2 more on the end. Read the ticket from its
+  // FIXED position right after game+book and ignore anything trailing, so those
+  // extra digits are never mistaken for the ticket number.
   const digits = groups[0] || "";
+  const HEAD = GAME_DIGITS + BOOK_DIGITS;         // game+book = the stable pack id
+  if (digits.length >= HEAD + TICKET_DIGITS) {    // full game+book+ticket present
+    const pack = digits.slice(0, HEAD);
+    return { pack, ticket: toTicket(digits.slice(HEAD, HEAD + TICKET_DIGITS)), game: packGameKey(pack) };
+  }
   if (digits.length >= MIN_TICKET_BARCODE_LEN) {
     const pack = digits.slice(0, -TICKET_DIGITS);
     return { pack, ticket: toTicket(digits.slice(-TICKET_DIGITS)), game: packGameKey(pack) };
