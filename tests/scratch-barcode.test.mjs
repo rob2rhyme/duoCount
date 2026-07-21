@@ -32,11 +32,26 @@ test("delimited barcode: last numeric group is the ticket, rest is the pack", ()
 });
 
 test("one long digit run: the trailing 3 digits are the ticket, the rest the pack", () => {
-  // 14 digits ≥ threshold → peel last 3; game key is the leading GAME_DIGITS
+  // 14 digits = game(4)+book(7)+ticket(3) → ticket is the run after game+book
   const r = parseScratchBarcode("12345678901234");
   assert.equal(r.pack, "12345678901");
   assert.equal(r.ticket, 234);
   assert.equal(r.game, "1234");
+});
+
+test("scanned barcode with trailing validation digits: the extras are ignored", () => {
+  // The reported case: "1792-0011361-016" prints 14 digits but the barcode scans
+  // with 2 more on the end. The ticket must read 16 (016), NOT the last 3 digits.
+  const printed = parseScratchBarcode("17920011361016");   // 14, no extras
+  const scanned = parseScratchBarcode("1792001136101699"); // 16, +2 trailing
+  assert.equal(scanned.pack, "17920011361", "pack = game+book, extras dropped");
+  assert.equal(scanned.ticket, 16, "ticket read from its fixed position, not the tail");
+  assert.equal(scanned.game, "1792");
+  // the extra digits must not change the pack id or the ticket vs. the printed form
+  assert.equal(scanned.pack, printed.pack);
+  assert.equal(scanned.ticket, printed.ticket);
+  // any amount of trailing padding is ignored, not just two
+  assert.equal(parseScratchBarcode("179200113610169999").ticket, 16);
 });
 
 test("the same pack scanned at two ticket positions yields the SAME pack id", () => {

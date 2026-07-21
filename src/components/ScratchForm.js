@@ -432,7 +432,12 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
       });
       scannedRef.current.add(key);
       saveContext(vendor.id, profile.id, { locationId: f.locationId });
-      setLogSession((s) => [{ key: key + Date.now(), game: g.name, book: packDisplayParts(canonical).bookNo, ticket: Number(ticket), sold: rowSold, at: new Date() }, ...s].slice(0, 50));
+      const parts = packDisplayParts(canonical);
+      setLogSession((s) => [{
+        key: key + Date.now(), game: g.name, price: Number(g.price) || 0,
+        gameNo: parts.gameNo || gameNo, book: parts.bookNo, ticket: Number(ticket),
+        sold: rowSold, shift: f.shift, at: new Date(),
+      }, ...s].slice(0, 50));
       const m = t("scratch.scan_logged", { game: g.name, n: ticket });
       setLogStatus(m); onSaved?.(m);
     } catch {
@@ -485,14 +490,20 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
             {logSession.length > 0 && (
               <div className="border border-line rounded-lg overflow-hidden bg-surface">
                 <div className="px-3 py-1.5 bg-panel text-[11px] uppercase tracking-wide text-muted font-semibold">{t("scratch.scanlog_count", { n: logSession.length })}</div>
+                {/* Three columns, exactly as the ticket reads: game + price · game#-pack# · ticket#. */}
+                <div className="px-3 py-1 flex items-center gap-2.5 text-[10px] uppercase tracking-wide text-muted font-semibold border-b border-line-soft">
+                  <span className="flex-1 min-w-0">{t("scratch.col_game")}</span>
+                  <span className="flex-shrink-0">{t("scratch.col_pack")}</span>
+                  <span className="flex-shrink-0 w-10 text-right">{t("scratch.col_ticket")}</span>
+                </div>
                 <div className="divide-y divide-line-soft max-h-56 overflow-y-auto">
                   {logSession.map((r) => (
-                    <div key={r.key} className="px-3 py-2 flex items-center gap-2 text-[12px]">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium truncate">{r.game}</div>
-                        <div className="text-[11px] text-muted font-mono">#{r.book} · #{r.ticket}{r.sold > 0 ? ` · +${r.sold}` : ""}</div>
-                      </div>
-                      <div className="text-[11px] text-muted font-mono flex-shrink-0">{r.at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                    <div key={r.key} className="px-3 py-2 flex items-center gap-2.5 text-[12px]">
+                      <span className="flex-1 min-w-0 font-medium truncate">
+                        {r.game}{r.price > 0 ? <span className="text-muted"> {money(r.price)}</span> : null}
+                      </span>
+                      <span className="font-mono text-[11px] text-muted flex-shrink-0">{r.gameNo}-{r.book}</span>
+                      <span className="font-mono text-[13px] font-semibold flex-shrink-0 w-10 text-right tabular-nums">{String(r.ticket).padStart(3, "0")}</span>
                     </div>
                   ))}
                 </div>

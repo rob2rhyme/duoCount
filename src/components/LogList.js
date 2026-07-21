@@ -27,6 +27,13 @@ export const CAUSE_CODES = [
 // permanent record (status comments); the UI renders through cause.* keys.
 export const causeLabel = (c) => CAUSE_CODES.find(([k]) => k === c)?.[1] || c || "";
 
+// "Game#-Pack#" the way it prints on the ticket (e.g. 1792-0011361); a legacy
+// pack with no game # falls back to just the book #.
+function packLabel(pack) {
+  const { gameNo, bookNo } = packDisplayParts(pack);
+  return gameNo ? `${gameNo}-${bookNo}` : (bookNo || "—");
+}
+
 /* ---------- expanded detail: thread + dispute + resolution ---------- */
 function EntryDetail({ e, onToast }) {
   const { profile, vendor, isManager } = useSession();
@@ -400,8 +407,8 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
                     </>
                   ) : (
                     <>
-                      <div className="font-semibold text-[15px]"><Highlight text={e.game} terms={terms} /> · {t("log.price_tickets", { p: e.price })}</div>
-                      <div className="text-[13px] text-muted font-mono mt-0.5">{t("log.pack_no", { n: packDisplayParts(e.pack).bookNo || "—" })} · #{e.startno}→{e.endno}</div>
+                      <div className="font-semibold text-[15px]"><Highlight text={e.game} terms={terms} /> {e.price > 0 ? <span className="text-muted font-normal">{money(e.price)}</span> : null}</div>
+                      <div className="text-[13px] text-muted font-mono mt-0.5"><Highlight text={packLabel(e.pack)} terms={terms} /> · #{e.startno}→{e.endno}</div>
                       <div className="text-[13px] text-muted font-mono">{byStamp}</div>
                       <div className="mt-2 flex gap-2 flex-wrap">
                         <span className="pill bg-subtle text-muted">{t("log.sold_pill", { n: e.sold })}</span>
