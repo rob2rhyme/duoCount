@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
 import { computeSplit } from "@/lib/gaming";
+import { normalizeRequestId, ledgerDocId } from "@/lib/idempotency";
 
 export const runtime = "nodejs";
 
@@ -25,10 +26,14 @@ const isMoney = (v) => Number.isFinite(v) && v >= 0 && v <= MAX;
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { machineId, collectionDate, collection, payout, note } = await req.json();
+    const { machineId, collectionDate, collection, payout, note, requestId } = await req.json();
 
     if (!machineId || typeof machineId !== "string")
       return err(400, "machine_missing", "Pick a machine.");
+    // Idempotency: a client-supplied key dedupes a replayed POST. Malformed →
+    // reject; missing → today's behavior (a fresh line every time).
+    const rid = normalizeRequestId(requestId);
+    if (rid.error) return err(400, "bad_request_id", "Invalid request id.");
     if (typeof collectionDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(collectionDate))
       return err(400, "date_invalid", "Enter a valid collection date.");
     const c = Number(collection);
@@ -50,25 +55,37 @@ export async function POST(req) {
     // recomputed here so a tampered client can't inflate the store's take.
     const split = computeSplit(c, p, m.storePct);
 
-    await vendorRef.collection("gamingCollections").add({
-      machineId,
-      machineName: m.name || "",
-      company: m.company || "",
-      machineType: m.type || "other",
-      cadence: m.cadence || "weekly",
-      collectionDate,
-      collection: split.collection,
-      payout: split.payout,
-      net: split.net,
-      storePct: split.storePct,
-      storeShare: split.storeShare,
-      companyShare: split.companyShare,
-      note: String(note ?? "").trim().slice(0, 200) || null,
-      by: claims.name || "",
-      byId: claims.userId,
-      byRole: claims.role || "employee",
-      ts: new Date(),
-    });
+    // A deterministic doc id from the requestId means a replay lands on the same
+    // doc; create() refuses to overwrite, so ALREADY_EXISTS is the idempotent
+    // no-op. No requestId → a fresh id, never a collision.
+    const gc = vendorRef.collection("gamingCollections");
+    const lineRef = rid.id ? gc.doc(ledgerDocId(machineId, rid.id)) : gc.doc();
+    try {
+      await lineRef.create({
+        machineId,
+        machineName: m.name || "",
+        company: m.company || "",
+        machineType: m.type || "other",
+        cadence: m.cadence || "weekly",
+        collectionDate,
+        collection: split.collection,
+        payout: split.payout,
+        net: split.net,
+        storePct: split.storePct,
+        storeShare: split.storeShare,
+        companyShare: split.companyShare,
+        note: String(note ?? "").trim().slice(0, 200) || null,
+        by: claims.name || "",
+        byId: claims.userId,
+        byRole: claims.role || "employee",
+        ts: new Date(),
+      });
+    } catch (e) {
+      // gRPC ALREADY_EXISTS (6) → the same request already booked this line.
+      if (rid.id && (e?.code === 6 || e?.code === "already-exists"))
+        return NextResponse.json({ ok: true, deduped: true });
+      throw e;
+    }
 
     // No money in the response — staff submit blind (owner-only totals).
     return NextResponse.json({ ok: true });
