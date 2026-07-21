@@ -18,12 +18,12 @@ import BarcodeScanner from "./BarcodeScanner";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export default function ScratchForm({ onSaved, locations, drawers, locName, entries = [], catalog = null }) {
+export default function ScratchForm({ onSaved, locations, locName, entries = [], catalog = null }) {
   const { profile, vendor, isManager } = useSession();
   const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
-    date: today(), shift: defaultShift(new Date().getHours()), locationId: "", drawerId: "",
+    date: today(), shift: defaultShift(new Date().getHours()), locationId: "",
     game: "", gameNo: "", pack: "", price: "", startno: "", endno: "", soldOut: false,
   });
   // Canonical pack identity = game # + book #, matching what a scan produces, so
@@ -141,20 +141,8 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     }
   }, [canonicalPack, f.locationId]); // eslint-disable-line
 
-  const locDrawers = drawers.filter((d) => d.active !== false && d.locationId === f.locationId);
-  // default drawer: the one last used for scratch here if valid, else one named like "Lottery"
-  useEffect(() => {
-    if (locDrawers.length && !locDrawers.some((d) => d.id === f.drawerId)) {
-      const rememberedId = loadContext(vendor.id, profile.id).scratchDrawerId;
-      const pick = locDrawers.find((d) => d.id === rememberedId)
-        || locDrawers.find((d) => /lott/i.test(d.name)) || locDrawers[0];
-      setF((p) => ({ ...p, drawerId: pick.id }));
-    }
-  }, [f.locationId, drawers]); // eslint-disable-line
-
   const sold = ticketsSold(f.startno, f.endno);
   const dollars = sold * (Number(f.price) || 0);
-  const drawer = locDrawers.find((d) => d.id === f.drawerId);
 
   const valid = validateScratch(f);
 
@@ -288,7 +276,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     setShowMissing(false);
   }
 
-  const walkReady = walk.length > 0 && !!drawer && walk.every((r) =>
+  const walkReady = walk.length > 0 && !!f.locationId && walk.every((r) =>
     String(r.endno).trim() !== "" && Number(r.endno) >= (Number(r.startno) || 0));
 
   // Sign the whole walk: one entry per pack, the same signed shape as the
@@ -307,7 +295,6 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         await addEntry(vendor.id, {
           kind: "scratch", date: f.date, shift: f.shift,
           locationId: f.locationId, locationName: locName(f.locationId),
-          drawerId: drawer.id, drawerName: drawer.name,
           game: (r.game || "").trim() || "Game", pack: r.pack,
           price: Number(r.price) || 0, startno, endno,
           sold: rowSold, dollars: rowSold * (Number(r.price) || 0),
@@ -316,7 +303,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
           by: profile.name, byId: profile.id, byRole: profile.role,
         });
       }
-      saveContext(vendor.id, profile.id, { locationId: f.locationId, scratchDrawerId: drawer.id });
+      saveContext(vendor.id, profile.id, { locationId: f.locationId });
       const n = walk.length;
       setWalk([]); setLastScan("");
       onSaved?.(t("scratch.walk_saved", { n }));
@@ -398,14 +385,13 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     await addEntry(vendor.id, {
       kind: "scratch", date: f.date, shift: f.shift,
       locationId: f.locationId, locationName: locName(f.locationId),
-      drawerId: drawer.id, drawerName: drawer.name,
       game: f.game.trim() || "Game", pack: canonicalPack.trim(),
       price: Number(f.price) || 0, startno: Number(f.startno) || 0, endno: Number(f.endno) || 0,
       sold, dollars, soldOut: f.soldOut === true,
       ...(packSize ? { perPack: packSize } : {}),
       by: profile.name, byId: profile.id, byRole: profile.role,
     });
-    saveContext(vendor.id, profile.id, { locationId: f.locationId, scratchDrawerId: drawer.id });
+    saveContext(vendor.id, profile.id, { locationId: f.locationId });
     setF((p) => ({ ...p, pack: "", startno: "", endno: "", soldOut: false }));
     onSaved?.(t("toast.saved_scratch"));
   }
@@ -427,7 +413,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     // is refused so staff can't log a ticket the owner hasn't registered.
     const g = lookupGameNumber(gameNo, catalog || {});
     if (!g) { const m = t("scratch.scan_not_stored", { n: gameNo || "?" }); setLogStatus(m); onSaved?.(m); return; }
-    if (!f.locationId || !drawer) { const m = t("scratch.scanlog_need_ctx"); setLogStatus(m); onSaved?.(m); return; }
+    if (!f.locationId) { const m = t("scratch.scanlog_need_ctx"); setLogStatus(m); onSaved?.(m); return; }
     const key = `${canonical}:${ticket}`;
     if (scannedRef.current.has(key)) { const m = t("scratch.scan_dup"); setLogStatus(m); onSaved?.(m); return; }
     const prev = entries.find((e) => e.kind === "scratch" && e.locationId === f.locationId && (e.pack || "") === canonical);
@@ -438,7 +424,6 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       await addEntry(vendor.id, {
         kind: "scratch", date: f.date, shift: f.shift,
         locationId: f.locationId, locationName: locName(f.locationId),
-        drawerId: drawer.id, drawerName: drawer.name,
         game: g.name || "Game", pack: canonical,
         price: Number(g.price) || 0, startno, endno,
         sold: rowSold, dollars: rowSold * (Number(g.price) || 0),
@@ -446,7 +431,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         by: profile.name, byId: profile.id, byRole: profile.role,
       });
       scannedRef.current.add(key);
-      saveContext(vendor.id, profile.id, { locationId: f.locationId, scratchDrawerId: drawer.id });
+      saveContext(vendor.id, profile.id, { locationId: f.locationId });
       setLogSession((s) => [{ key: key + Date.now(), game: g.name, book: packDisplayParts(canonical).bookNo, ticket: Number(ticket), sold: rowSold, at: new Date() }, ...s].slice(0, 50));
       const m = t("scratch.scan_logged", { game: g.name, n: ticket });
       setLogStatus(m); onSaved?.(m);
@@ -466,17 +451,10 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         )}
       </div>
       <div className="p-4 space-y-3.5">
-        <div className="grid grid-cols-2 gap-3.5">
-          <Field label={t("common.location")}>
-            <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select></Field>
-          <Field label={t("scratch.drawer")}>
-            <select className="input" value={f.drawerId} onChange={set("drawerId")}>
-              {locDrawers.length === 0 && <option value="">{t("cash.no_drawers")}</option>}
-              {locDrawers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select></Field>
-        </div>
+        <Field label={t("common.location")}>
+          <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
+            {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select></Field>
         <div className="grid grid-cols-2 gap-3.5">
           <Field label={t("common.date")}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
           <Field label={t("common.shift")}>
@@ -672,7 +650,7 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         </div>
 
         <SaveError message={error} onRetry={() => run(save)} busy={busy} />
-        <button className="btn-primary" disabled={busy || !valid.ok || !drawer} onClick={() => run(save)}>
+        <button className="btn-primary" disabled={busy || !valid.ok} onClick={() => run(save)}>
           <span aria-hidden="true">✓</span> {busy ? t("common.saving") : t("common.save_sign")}
         </button>
         {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{t(`err.${valid.code}`)}</p>}

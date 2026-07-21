@@ -362,11 +362,8 @@ export default function AppShell() {
           setupReady && !setup.hasLocation ? (
             <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
               subtitle={isOwner ? t("empty.scratch_loc_mgr") : t("empty.scratch_loc_emp")} />
-          ) : setupReady && !setup.hasDrawer ? (
-            <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title_scratch")} action={adminAction}
-              subtitle={isOwner ? t("empty.scratch_drawer_mgr") : t("empty.scratch_drawer_emp")} />
           ) : (
-            <ScratchForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} entries={entries} catalog={scratchCatalog} />
+            <ScratchForm onSaved={ping} locations={activeLocations} locName={locName} entries={entries} catalog={scratchCatalog} />
           )
         )}
         {tab === "inventory" && (

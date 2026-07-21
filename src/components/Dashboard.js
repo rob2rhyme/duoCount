@@ -175,18 +175,19 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     });
     const itemRows = Object.values(byItem).sort((x, y) => x.diff - y.diff);
 
-    // by drawer (cash & scratch only â€” inventory has no drawer)
+    // by drawer (cash only â€” a drawer is a cash concept; scratch is a pack count
+    // tied to a location/shift, and inventory has no drawer)
     const byDrawer = {};
     entries.forEach((e) => {
-      if (e.kind === "inventory") return;
+      if (e.kind !== "cash") return;
       const key = e.drawerName || "(no drawer)";
-      byDrawer[key] = byDrawer[key] || { name: key, entries: 0, diff: 0, cash: 0, scratch: 0 };
+      byDrawer[key] = byDrawer[key] || { name: key, entries: 0, diff: 0, cash: 0 };
       byDrawer[key].entries++;
-      if (e.kind === "cash") { byDrawer[key].diff += e.diff || 0; byDrawer[key].cash += e.counted || 0; }
-      if (e.kind === "scratch") byDrawer[key].scratch += e.dollars || 0;
+      byDrawer[key].diff += e.diff || 0;
+      byDrawer[key].cash += e.counted || 0;
     });
     const drawerRows = Object.values(byDrawer)
-      .map((r) => ({ ...r, diff: Math.round(r.diff * 100) / 100, cash: Math.round(r.cash * 100) / 100, scratch: Math.round(r.scratch * 100) / 100 }))
+      .map((r) => ({ ...r, diff: Math.round(r.diff * 100) / 100, cash: Math.round(r.cash * 100) / 100 }))
       .sort((x, y) => y.entries - x.entries);
 
     // top scratch games
@@ -624,6 +625,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
         </div>
       )}
 
+      {cashOn && (
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">{t("dash.by_drawer")}</h3></div>
         <div className="overflow-auto max-h-[26rem]">
@@ -632,8 +634,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
               <th className="px-4 py-2 font-semibold">{t("dash.col_drawer")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_entries")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_net")}</th>
-              {cashOn && <th className="px-4 py-2 font-semibold text-right">{t("dash.col_cash_counted")}</th>}
-              {scratchOn && <th className="px-4 py-2 font-semibold text-right">{t("dash.col_scratch")}</th>}
+              <th className="px-4 py-2 font-semibold text-right">{t("dash.col_cash_counted")}</th>
             </tr></thead>
             <tbody>
               {a.drawerRows.map((r) => (
@@ -641,14 +642,14 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
                   <td className="px-4 py-2.5 font-medium">{r.name}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-neg" : r.diff > 0.005 ? "text-pos" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
-                  {cashOn && <td className="px-4 py-2.5 text-right font-mono">{money(r.cash)}</td>}
-                  {scratchOn && <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>}
+                  <td className="px-4 py-2.5 text-right font-mono">{money(r.cash)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+      )}
 
       {inventoryOn && a.itemRows.length > 0 && (
         <div className="card overflow-hidden">

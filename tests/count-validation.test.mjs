@@ -26,21 +26,22 @@ test("inventory: needs location, item, and an on-hand amount", () => {
   assert.equal(validateInventory({ locationId: "l1", itemId: "i1", counted: "0" }).ok, true);
 });
 
-test("scratch: needs location, drawer, and both ticket numbers", () => {
+test("scratch: needs location and both ticket numbers (no drawer)", () => {
   assert.equal(validateScratch({}).field, "locationId");
-  assert.equal(validateScratch({ locationId: "l1" }).field, "drawerId");
-  assert.equal(validateScratch({ locationId: "l1", drawerId: "d1", startno: "100" }).field, "numbers");
-  assert.equal(validateScratch({ locationId: "l1", drawerId: "d1", startno: "100", endno: "150" }).ok, true);
+  // A scratch pack count is location + shift, never a cash drawer.
+  assert.equal(validateScratch({ locationId: "l1" }).field, "numbers");
+  assert.equal(validateScratch({ locationId: "l1", startno: "100" }).field, "numbers");
+  assert.equal(validateScratch({ locationId: "l1", startno: "100", endno: "150" }).ok, true);
 });
 
 test("scratch: the end number can't be below the start", () => {
-  const r = validateScratch({ locationId: "l1", drawerId: "d1", startno: "150", endno: "100" });
+  const r = validateScratch({ locationId: "l1", startno: "150", endno: "100" });
   assert.equal(r.ok, false);
   assert.equal(r.field, "numbers");
 });
 
 test("scratch: start == end (a no-sales shift) is valid", () => {
-  assert.equal(validateScratch({ locationId: "l1", drawerId: "d1", startno: "150", endno: "150" }).ok, true);
+  assert.equal(validateScratch({ locationId: "l1", startno: "150", endno: "150" }).ok, true);
 });
 
 test("a valid result carries no field, code, or message", () => {
