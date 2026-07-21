@@ -34,8 +34,9 @@ export function validateInventory(f = {}) {
 }
 
 export function validateScratch(f = {}) {
+  // A scratch pack count is a shift-boundary ticket count tied to a location —
+  // not a cash drawer — so no drawer is required (unlike validateCash).
   if (!f.locationId) return fail("locationId", "pick_location", "Pick a location first.");
-  if (!f.drawerId) return fail("drawerId", "pick_drawer", "Pick a drawer first.");
   if (!entered(f.startno) || !entered(f.endno))
     return fail("numbers", "enter_numbers", "Enter the start and end ticket numbers.");
   if (Number(f.endno) < Number(f.startno))
