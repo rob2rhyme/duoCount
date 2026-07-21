@@ -4,6 +4,7 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { requireMember } from "@/lib/require-manager";
 import { resolveRewards, rewardTiers, tierDollarValue, vipTierFor, nextStreak, pointsForSale, sanitizeProfile, normalizePhone, maskPhone, pointsExpiry } from "@/lib/rewards";
 import { customerIdFromBytes } from "@/lib/customer-id";
+import { normalizeRequestId, ledgerDocId } from "@/lib/idempotency";
 
 export const runtime = "nodejs";
 
@@ -71,11 +72,16 @@ const publicCustomer = (id, c, rules) => {
 export async function POST(req) {
   try {
     const claims = await requireMember(req);
-    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy, cardId, eventId,
+    const { action, phone: rawPhone, name, saleDollars, points, note, tierId, referredBy, cardId, eventId, requestId,
       email, address, birthdayMonth, birthdayDay, customerId, initialPoints,
       newName, newPhone, newNote, newEmail, newBirthdayMonth, newBirthdayDay, newAddress, newCustomerId } = await req.json();
     if (!["lookup", "enroll", "earn", "redeem", "adjust", "update", "stamp", "stampRedeem", "undo"].includes(action))
       return err(400, "bad_action", "Unknown rewards action.");
+    // Idempotency key for the point-moving actions (earn/redeem/adjust): a
+    // replayed POST lands on the same ledger line instead of doubling it.
+    // Malformed → reject; missing → today's behavior.
+    const idem = normalizeRequestId(requestId);
+    if (idem.error) return err(400, "bad_request_id", "Invalid request id.");
 
     const { adminDb } = await getAdmin();
     const vendorRef = adminDb.collection("vendors").doc(claims.vendorId);
@@ -228,6 +234,9 @@ export async function POST(req) {
     // earn / redeem / adjust / update need an enrolled customer.
     if (!existing) return err(404, "customer_not_found", "No rewards customer with that number — enroll them first.");
     const customerRef = existing.ref;
+    // Deterministic ledger line id for this request (scoped by customer), or
+    // null when no requestId was sent (fresh id per line, as before).
+    const idemRef = idem.id ? events.doc(ledgerDocId(customerRef.id, idem.id)) : null;
 
     if (action === "update") {
       // Owner-only profile edit (name / phone / CRM fields). Touches identity
@@ -353,7 +362,16 @@ export async function POST(req) {
     const commit = (kind, ptsOrFn, extraOrFn, minBalance = 0) =>
       adminDb.runTransaction(async (tx) => {
         const snap = await tx.get(customerRef);
+        const prior = idemRef ? await tx.get(idemRef) : null; // read before any write
         const c = snap.data() || {};
+        // Idempotent replay: this request's ledger line already committed — apply
+        // nothing further and report the committed balance. Response fields come
+        // from the stored line, so a retried earn still answers with its points.
+        if (prior && prior.exists) {
+          const pd = prior.data();
+          return { balance: c.pointsBalance || 0, pts: Number(pd.points) || 0, extra: pd,
+            streak: c.currentStreak ?? null, eventId: idemRef.id, deduped: true };
+        }
         // Expire lapsed points FIRST, as a signed line, so this action operates
         // on the real post-expiry balance: a redeem can't spend expired points,
         // and an earn re-starts the balance (and resets the inactivity clock).
@@ -367,7 +385,7 @@ export async function POST(req) {
         const extra = typeof extraOrFn === "function" ? extraOrFn(c) : extraOrFn;
         if (kind === "redeem" && balance < minBalance)
           throw Object.assign(new Error("Not enough points to redeem."), { status: 409, code: "insufficient_points" });
-        const eventRef = events.doc();
+        const eventRef = idemRef || events.doc();
         tx.set(eventRef, signedEvent(kind, pts, extra));
         // Streak advances on visits (earns) only, computed from the PRE-earn
         // lastEarnAt inside this transaction; longest is a high-water mark.

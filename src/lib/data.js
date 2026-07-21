@@ -3,6 +3,7 @@ import { fetchJson } from "./api";
 import { weekDates } from "./schedule";
 import { dayISO } from "./timeclock";
 import { VENDOR_SETTING_KEYS } from "./vendor-settings";
+import { newRequestId } from "./idempotency";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, onSnapshot, getDoc, getDocs, serverTimestamp, increment,
@@ -226,10 +227,12 @@ export async function apiDevLogin({ email, password }) {
 }
 
 export async function apiStockMove(payload) {
+  // requestId dedupes a replayed POST (a proxy retry after the write committed)
+  // so one tap can't book two movement lines. A caller-supplied id wins.
   return fetchJson("/api/stock-move", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ requestId: newRequestId(), ...payload }),
   });
 }
 // Live movement log for the Backroom history + flow charts (member-readable).
@@ -261,18 +264,21 @@ export function watchGamingCollections(vendorId, cb) {
 // Staff record a machine's collection + payout; the route computes the split and
 // appends a signed line. No money comes back — staff enter blind (owner-only totals).
 export async function apiGaming(payload) {
+  // requestId dedupes a replayed collection entry (see apiStockMove).
   return fetchJson("/api/gaming", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ requestId: newRequestId(), ...payload }),
   });
 }
 
 export async function apiRewards(payload) {
+  // requestId dedupes a replayed earn/redeem/adjust so a retry can't double the
+  // ledger (lookup/enroll ignore it — enroll is already idempotent by phone).
   return fetchJson("/api/rewards", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ requestId: newRequestId(), ...payload }),
   });
 }
 // Manager-only natural-language log search: turns a query into a filter object
