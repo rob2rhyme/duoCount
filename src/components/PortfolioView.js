@@ -103,12 +103,15 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
     return () => { alive = false; };
   }, [vendor.id, startISO, endISO, reload]);
 
-  const summary = useMemo(() => (range ? buildPortfolioSummary(rows, range) : null), [rows, range]);
+  // A disabled module's rows must not feed the portfolio KPIs, leaderboard or
+  // people rollup — entry `kind` (cash/scratch/inventory) IS the feature key.
+  const visibleRows = useMemo(() => rows.filter((e) => featureEnabled(vendor, e.kind)), [rows, vendor]);
+  const summary = useMemo(() => (range ? buildPortfolioSummary(visibleRows, range) : null), [visibleRows, range]);
   const board = useMemo(
-    () => (range ? buildStoreLeaderboard(rows, range, locations, sort ? { sortBy: sort.key, dir: sort.dir } : {}) : null),
-    [rows, range, locations, sort],
+    () => (range ? buildStoreLeaderboard(visibleRows, range, locations, sort ? { sortBy: sort.key, dir: sort.dir } : {}) : null),
+    [visibleRows, range, locations, sort],
   );
-  const employees = useMemo(() => (range ? buildEmployeeRollup(rows, range, locations) : null), [rows, range, locations]);
+  const employees = useMemo(() => (range ? buildEmployeeRollup(visibleRows, range, locations) : null), [visibleRows, range, locations]);
   // Reveal the people table 20 at a time; a new period snaps back to the top.
   const empPage = usePaged(employees?.rows || [], { resetKey: `${startISO}|${endISO}` });
 
@@ -129,9 +132,10 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
     });
   }
 
-  // Raw rows for the whole portfolio window — every store, one CSV.
+  // Rows for the whole portfolio window — every store, one CSV. Matches the
+  // on-screen view: a disabled module's rows are excluded.
   function downloadCsv() {
-    downloadCSV(entriesToCSV(rows), `duocount-portfolio-${range.key}.csv`);
+    downloadCSV(entriesToCSV(visibleRows), `duocount-portfolio-${range.key}.csv`);
   }
 
   // One-page portfolio PDF: the consolidated close, the leaderboard exactly as

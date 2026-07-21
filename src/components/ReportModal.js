@@ -8,6 +8,7 @@ import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPeriodReport, buildLocationComparison } from "@/lib/report-build";
 import { buildJournalCSV, buildJournalEntries, buildFranchiseCSV, FRANCHISE_PROFILES } from "@/lib/report-accounting";
 import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
+import { featureEnabled } from "@/lib/features";
 import { paletteAccent } from "@/lib/branding";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -33,7 +34,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   const [customStart, setCustomStart] = useState(initialCustomStart || today());
   const [customEnd, setCustomEnd] = useState(initialCustomEnd || today());
   const [locId, setLocId] = useState(initialLocId || "all");
-  const [rows, setRows] = useState([]);
+  const [rawRows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -73,6 +74,10 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       .catch((err) => { if (alive) { console.error(err); setLoadError("Couldn't load this period — try again."); setLoading(false); } });
     return () => { alive = false; };
   }, [vendor.id, startISO, endISO, scopeLocId]);
+
+  // A disabled module never appears in a report — drop its rows before anything
+  // downstream (preview, comparison, CSV/journal/franchise, PDFs) reads them.
+  const rows = useMemo(() => rawRows.filter((e) => featureEnabled(vendor, e.kind)), [rawRows, vendor]);
 
   // Preview report (entries + incidents, both already in memory). Labor needs a
   // punch fetch, so it's computed only for the PDF, on demand.
@@ -123,7 +128,8 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     try {
       const day = preset === "day" && range ? range.startISO : today();
       const dayRange = { startISO: day, endISO: day };
-      const dayRows = await fetchEntriesInRange(vendor.id, day, day, scopeLocId);
+      const dayRows = (await fetchEntriesInRange(vendor.id, day, day, scopeLocId))
+        .filter((e) => featureEnabled(vendor, e.kind));
       const r = buildPeriodReport(dayRows, dayRange, locId);
       const journal = buildJournalEntries(dayRows, dayRange);
       const expected = Math.round((r.cash.counted - r.cash.netDiff) * 100) / 100;

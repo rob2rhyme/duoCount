@@ -161,10 +161,13 @@ export default function AppShell() {
   const locName = (id) => locations.find((l) => l.id === id)?.name || "—";
 
   const visibleEntries = useMemo(() => {
-    if (lockedLoc) return entries;
-    if (viewLoc === "all") return entries;
-    return entries.filter((e) => e.locationId === viewLoc);
-  }, [entries, viewLoc, lockedLoc]);
+    // A disabled module's counts must not show anywhere they feed — the Log, the
+    // Dashboard totals/attention, the charts. Entry `kind` (cash/scratch/
+    // inventory) IS the feature key, so drop any entry whose module is off.
+    const byModule = entries.filter((e) => featureEnabled(vendor, e.kind));
+    if (lockedLoc || viewLoc === "all") return byModule;
+    return byModule.filter((e) => e.locationId === viewLoc);
+  }, [entries, viewLoc, lockedLoc, vendor]);
 
   // Toast, now with an optional one-tap Undo. Callers pass a second argument
   // { fn } — an async reversal — and the toast holds for 8s with an UNDO

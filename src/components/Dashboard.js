@@ -87,8 +87,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
   // Backroom pull ledger detectors (outsized pulls, clerk-dominated outflow) â€”
   // manager-only, over the 30-day window of moves the shell already watches.
   const stockMoveAudit = useMemo(
-    () => (isManager ? buildStockMoveAudit(stockMoves, { days: 30 }) : { alerts: [] }),
-    [stockMoves, isManager]);
+    () => (isManager && featureEnabled(vendor, "inventory") ? buildStockMoveAudit(stockMoves, { days: 30 }) : { alerts: [] }),
+    [stockMoves, isManager, vendor]);
   const patterns = useMemo(
     () => [...basePatterns, ...rewardAudit.alerts, ...stockMoveAudit.alerts],
     [basePatterns, rewardAudit.alerts, stockMoveAudit.alerts]);
@@ -233,10 +233,12 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
   async function runTheftReport() {
     setTheftBusy(true); setTheftErr("");
     try {
-      const [rangedEntries, rangedEvents] = await Promise.all([
+      const [rangedRaw, rangedEvents] = await Promise.all([
         fetchEntriesInRange(vendor.id, theftRange.from, theftRange.to, null),
         fetchRewardEventsInRange(vendor.id, theftRange.from, theftRange.to),
       ]);
+      // Keep a disabled module out of the theft report too.
+      const rangedEntries = rangedRaw.filter((e) => featureEnabled(vendor, e.kind));
       const r = buildTheftReport(rangedEntries, rangedEvents, {
         from: theftRange.from, to: theftRange.to, rewardRules: vendor?.rewards,
       });
