@@ -61,9 +61,9 @@ security rules keyed on server-issued auth claims.
   - `legal-disclaimers.md` — non-affiliation, not-advice, and warranty notices
 - `LICENSE` — proprietary "all rights reserved" by default; swap for MIT/Apache
   if you intend a self-host/open-source template (see `distribution-analysis.md`)
-- `print-forms/` — printable paper log PDFs (cash drawer + scratch-off),
-  branded for Smokers Haven, useful as backup or during onboarding. The app
-  also serves them from its footer (`public/forms/`).
+- Paper backup logs (cash drawer + scratch-off) are generated on demand from
+  the app footer, branded with the signed-in store's name + code
+  (`src/lib/paper-forms.js`) — no static PDFs to keep in sync.
 
 The full-catalog inventory application that previously lived in this repo
 (products, expiry dates, suppliers, barcode scanning) is preserved in git

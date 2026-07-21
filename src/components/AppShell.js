@@ -28,6 +28,7 @@ import EmptyState, { IconStore, IconReceipt, IconBox } from "./EmptyState";
 import { setupProgress } from "@/lib/setup-progress";
 import { attentionCounts } from "@/lib/attention";
 import { resolveShortcut } from "@/lib/shortcuts";
+import { downloadPaperLog } from "@/lib/paper-forms";
 import { PRODUCT } from "@/lib/store";
 
 // Labels resolve through the i18n catalog (t(labelKey)); the icon (TabIcon,
@@ -218,9 +219,12 @@ export default function AppShell() {
   // prerequisites exist; the checklist banner steers managers to Admin.
   const setup = setupProgress(locations, drawers, items);
   const setupReady = loaded.locations && loaded.drawers && loaded.items;
-  const goAdmin = () => setTab("admin");
+  // Jump to Admin, optionally landing on a specific section tab (e.g. "modules"
+  // for the game catalog / machine registry setup shortcuts).
+  const [adminInitialTab, setAdminInitialTab] = useState(null);
+  const goAdmin = (adminTab = null) => { setAdminInitialTab(typeof adminTab === "string" ? adminTab : null); setTab("admin"); };
   // Admin is owner-only, so only the owner gets "go to Admin" call-to-actions.
-  const adminAction = isOwner ? { onClick: goAdmin, label: t("setup.go_admin") } : undefined;
+  const adminAction = isOwner ? { onClick: () => goAdmin(), label: t("setup.go_admin") } : undefined;
 
   // Ambient "needs attention" badges for managers: unresolved variances/disputes
   // (Log), open write-ups (Incidents), and swaps awaiting approval (Time). Pure
@@ -366,7 +370,8 @@ export default function AppShell() {
             <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
               subtitle={isOwner ? t("empty.scratch_loc_mgr") : t("empty.scratch_loc_emp")} />
           ) : (
-            <ScratchForm onSaved={ping} locations={activeLocations} locName={locName} entries={entries} catalog={scratchCatalog} />
+            <ScratchForm onSaved={ping} locations={activeLocations} locName={locName} entries={entries} catalog={scratchCatalog}
+              onSetup={isOwner ? () => goAdmin("modules") : undefined} />
           )
         )}
         {tab === "inventory" && (
@@ -385,7 +390,8 @@ export default function AppShell() {
         )}
         {tab === "gaming" && (
           <GamingTab machines={machines} collections={gamingCollections} isOwner={isOwner}
-            onToast={ping} onGoAdmin={goAdmin} adminAction={adminAction} />
+            onToast={ping} onGoAdmin={goAdmin} adminAction={adminAction}
+            onSetup={isOwner ? () => goAdmin("modules") : undefined} />
         )}
         {tab === "rewards" && rewardsVisible && <RewardsPanel onToast={ping} customers={customers} rewardEvents={rewardEvents} />}
         {tab === "log" && <LogList entries={visibleEntries} onToast={ping} locName={locName} showLocation={activeLocations.length > 1} />}
@@ -394,7 +400,7 @@ export default function AppShell() {
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
-            items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves}
+            items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves} collections={gamingCollections}
             onOpenLog={featureEnabled(vendor, "log") ? () => setTab("log") : undefined}
             onRecord={featureEnabled(vendor, "cash") ? () => setTab("cash") : undefined} onToast={ping}
             locPicker={showLocFilter ? (
@@ -407,7 +413,7 @@ export default function AppShell() {
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />
         )}
-        {tab === "admin" && isOwner && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} machines={machines} />}
+        {tab === "admin" && isOwner && <AdminPanel onToast={ping} locations={locations} drawers={drawers} items={items} entries={entries} customers={customers} rewardEvents={rewardEvents} scratchCatalog={scratchCatalog} machines={machines} initialTab={adminInitialTab} />}
       </main>
 
       <footer className="mt-6 border-t border-line-soft pb-28 sm:pb-0">
@@ -426,18 +432,18 @@ export default function AppShell() {
             {t("shell.paper_forms")}
           </p>
           <div className="flex justify-center gap-2 flex-wrap">
-            <a href="/forms/cash-drawer-log.pdf" download
+            <button type="button" onClick={() => downloadPaperLog("cash", vendor, t).catch(() => ping(t("forms.err")))}
               className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border bg-subtle text-fg hover:border-brass transition"
               style={{ borderColor: "var(--line)" }}
               aria-label={t("shell.form_cash_aria")}>
               <span aria-hidden="true">📄</span> {t("shell.form_cash")}
-            </a>
-            <a href="/forms/scratch-off-log.pdf" download
+            </button>
+            <button type="button" onClick={() => downloadPaperLog("scratch", vendor, t).catch(() => ping(t("forms.err")))}
               className="inline-flex items-center gap-1.5 text-[12px] font-medium px-3 py-1.5 rounded-full border bg-subtle text-fg hover:border-brass transition"
               style={{ borderColor: "var(--line)" }}
               aria-label={t("shell.form_scratch_aria")}>
               <span aria-hidden="true">📄</span> {t("shell.form_scratch")}
-            </a>
+            </button>
           </div>
 
           <p className="text-center text-[11px] text-faint mt-5">{t("shell.built_for")}</p>

@@ -1,15 +1,34 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { money, entriesToCSV, downloadCSV } from "@/lib/utils";
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line as RLine, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
+import { money, csvCell, entriesToCSV, downloadCSV } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
+import { useTheme } from "./ThemeProvider";
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import Field from "./Field";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPeriodReport, buildLocationComparison } from "@/lib/report-build";
 import { buildJournalCSV, buildJournalEntries, buildFranchiseCSV, FRANCHISE_PROFILES } from "@/lib/report-accounting";
+import { buildGamingSummary } from "@/lib/gaming";
 import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
 import { featureEnabled } from "@/lib/features";
-import { paletteAccent } from "@/lib/branding";
+import { paletteAccent, chartBar } from "@/lib/branding";
+
+// Recharts paints literal color strings; neutral chrome + a per-store bar color.
+const CHART = {
+  light: { grid: "#e6e7e4", axis: "#82857f", tipBg: "#ffffff", tipBorder: "#dbdcd9", tipText: "#1a241c" },
+  dark: { grid: "#2c2e2c", axis: "#777a76", tipBg: "#1c1d1c", tipBorder: "#353736", tipText: "#e8eee9" },
+};
+
+function Kpi({ label, value, tone }) {
+  const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : "text-fg";
+  return (
+    <div className="bg-surface border border-line rounded-lg px-2.5 py-2 text-center">
+      <div className={`text-[15px] font-bold font-mono leading-tight ${color}`}>{value}</div>
+      <div className="text-[10px] text-muted uppercase tracking-wide font-semibold mt-0.5 truncate">{label}</div>
+    </div>
+  );
+}
 
 const today = () => new Date().toISOString().slice(0, 10);
 const slug = (s) => String(s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "x";
@@ -24,10 +43,19 @@ const FISCAL_PRESETS = new Set(["year", "quarter", "half"]); // periods the fisc
 // initialLocId / initialPreset / initialRefDate pre-scope the report (the
 // Portfolio drill-down opens a store's report for the period being viewed);
 // they're just initial state — the user can still change every control.
-export default function ReportModal({ locations = [], locName = () => "—", incidents = [], onClose, onToast,
+export default function ReportModal({ locations = [], locName = () => "—", incidents = [], collections = [], onClose, onToast,
   initialLocId, initialPreset, initialRefDate, initialCustomStart, initialCustomEnd }) {
   const { profile, vendor } = useSession();
+  const { theme } = useTheme();
   const panelRef = useModalA11y(onClose);
+  // Which modules to report on — a disabled module shows no section, chart, KPI,
+  // or download; turning it back on in Admin → Modules brings it back.
+  const cashOn = featureEnabled(vendor, "cash");
+  const scratchOn = featureEnabled(vendor, "scratch");
+  const inventoryOn = featureEnabled(vendor, "inventory");
+  const gamingOn = featureEnabled(vendor, "gaming");
+  const ch = { ...(CHART[theme] || CHART.light), bar: chartBar(vendor, theme) };
+  const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 12 };
 
   const [preset, setPreset] = useState(initialPreset || "day");
   const [refDate, setRefDate] = useState(initialRefDate || today());
@@ -90,6 +118,30 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     [rows, range, locId, locations],
   );
 
+  // Gaming lives outside the entries spine (owner-only collections), so it is
+  // summarized separately over the same window when the module is on.
+  const gaming = useMemo(
+    () => (range && gamingOn ? buildGamingSummary(collections, { from: startISO, to: endISO }) : null),
+    [collections, startISO, endISO, gamingOn, range],
+  );
+  // Chart rows: top scratch games by dollars, and the biggest inventory shrink.
+  const gameRows = useMemo(
+    () => (report ? [...report.scratch.byGame].sort((a, b) => b.dollars - a.dollars).slice(0, 6) : []),
+    [report]);
+  const shrinkRows = useMemo(
+    () => (report ? report.inventory.byItem.map((r) => ({ name: r.itemName, missing: -r.netShrink }))
+      .filter((r) => r.missing > 0).sort((a, b) => b.missing - a.missing).slice(0, 6) : []),
+    [report]);
+  // Revenue mix (donut): where the period's money came from, across enabled
+  // modules — cash sales, scratch sales, gaming store take. Fixed distinct fills
+  // (identity also carried by the text legend, never color alone).
+  const revenueMix = useMemo(() => (report ? [
+    cashOn ? { label: "Cash", value: report.cash.sales, fill: "#2f7d5b" } : null,
+    scratchOn ? { label: "Scratch", value: report.scratch.dollars, fill: "#b08d2f" } : null,
+    gamingOn && gaming ? { label: "Gaming", value: gaming.totals.storeShare, fill: "#4c6ef5" } : null,
+  ].filter((r) => r && r.value > 0) : []), [report, gaming, cashOn, scratchOn, gamingOn]);
+  const revenueTotal = revenueMix.reduce((s, r) => s + r.value, 0);
+
   const locLabel = locId === "all" ? "All locations" : locName(locId);
   const fileBase = `duocount-report-${locId === "all" ? "all" : slug(locName(locId))}-${range ? range.key : "period"}`;
   const ready = !!range && !loading && !loadError;
@@ -97,6 +149,22 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   // An empty period is a valid record too — it exports a header-only CSV.
   function downloadCsv() {
     downloadCSV(entriesToCSV(rows), `${fileBase}.csv`);
+  }
+
+  // Gaming collections aren't part of the entries CSV (separate ledger), so the
+  // report offers them as their own file when the module is on. Same columns as
+  // the Gaming tab export.
+  function downloadGamingCsv() {
+    const inRange = collections
+      .filter((c) => c.collectionDate >= startISO && c.collectionDate <= endISO)
+      .sort((a, b) => (a.collectionDate < b.collectionDate ? -1 : 1));
+    const header = ["Date", "Machine", "Company", "Type", "Collection", "Payout", "Net", "Store %", "Store share", "Company share", "Entered by"];
+    const lines = [header.map(csvCell).join(",")];
+    for (const c of inRange) {
+      lines.push([c.collectionDate, c.machineName, c.company, c.machineType, c.collection, c.payout, c.net, c.storePct, c.storeShare, c.companyShare, c.by]
+        .map(csvCell).join(","));
+    }
+    downloadCSV(lines.join("\n"), `${fileBase}-gaming.csv`);
   }
 
   // Bookkeeper export: a balanced general journal over the same in-memory rows
@@ -438,7 +506,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="report-modal-title"
-        className="bg-surface rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        className="bg-surface rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="px-4 py-3.5 border-b border-line flex items-center justify-between">
           <h2 id="report-modal-title" className="font-semibold text-[15px]">Reports</h2>
           <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose} aria-label="Close"><span aria-hidden="true">✕</span></button>
@@ -478,26 +546,174 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
             <p className="text-[11px] text-muted -mt-1">Fiscal year starts {MONTHS[fiscalStartMonth - 1]}.</p>
           )}
 
-          <div className="bg-panel border border-line rounded-xl p-3.5 text-sm space-y-1" aria-live="polite">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1.5">Will include</div>
+          <div className="space-y-3" aria-live="polite">
             {!range ? (
-              <div className="text-neg">End date is before the start date.</div>
+              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-neg">End date is before the start date.</div>
             ) : loading ? (
-              <div className="text-muted">Loading {range.label}…</div>
+              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-muted">Loading {range.label}…</div>
             ) : loadError ? (
-              <div className="text-neg">{loadError}</div>
+              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-neg">{loadError}</div>
             ) : report ? (
               <>
-                {preset === "custom" && <div className="text-muted font-mono text-[11px] mb-1">{range.startISO} → {range.endISO}</div>}
-                <div>{report.counts.cash} cash counts · net {report.cash.netDiff >= 0 ? "+" : ""}{money(report.cash.netDiff)}</div>
-                <div>{report.counts.scratch} scratch-off counts · {money(report.scratch.dollars)}</div>
-                <div>{report.counts.inventory} inventory counts · net shrink {report.inventory.netShrink} units</div>
-                <div>{report.integrity.flagged} flagged · {report.integrity.disputed} disputed</div>
-                <div>{report.integrity.verified} of {report.integrity.total} verified ({Math.round(report.integrity.verificationRate * 100)}%)</div>
-                {report.incidents && (report.incidents.opened + report.incidents.acknowledged + report.incidents.closed) > 0 && (
-                  <div>{report.incidents.opened} incidents opened · {report.incidents.acknowledged} acknowledged · {report.incidents.closed} closed</div>
+                {/* ---- Revenue mix (donut overview) ---- */}
+                {revenueMix.length >= 2 && (
+                  <section className="bg-panel border border-line rounded-xl p-3.5">
+                    <h3 className="font-semibold text-[14px] mb-2">Revenue mix</h3>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="w-40 h-40 flex-shrink-0 mx-auto">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={revenueMix} dataKey="value" nameKey="label" innerRadius="55%" outerRadius="95%"
+                              stroke={ch.tipBg} strokeWidth={2} isAnimationActive={false}>
+                              {revenueMix.map((p, i) => <Cell key={i} fill={p.fill} />)}
+                            </Pie>
+                            <Tooltip formatter={(v, n) => [money(v), n]} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <ul className="flex-1 min-w-[11rem] space-y-1.5">
+                        {revenueMix.map((p, i) => (
+                          <li key={i} className="flex items-center gap-2 text-[12px]">
+                            <span aria-hidden="true" className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: p.fill }} />
+                            <span className="min-w-0 flex-1 truncate">{p.label}</span>
+                            <span className="font-mono font-semibold flex-shrink-0">
+                              {money(p.value)} <span className="text-muted font-normal">({revenueTotal ? Math.round((p.value / revenueTotal) * 100) : 0}%)</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </section>
                 )}
-                {report.empty && <div className="text-muted italic mt-1">No activity in this period.</div>}
+
+                {/* ---- Cash ---- */}
+                {cashOn && (
+                  <section className="bg-panel border border-line rounded-xl p-3.5">
+                    <h3 className="font-semibold text-[14px] mb-2">Cash</h3>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <Kpi label="Cash sales" value={money(report.cash.sales)} />
+                      <Kpi label="Net over/short" value={`${report.cash.netDiff >= 0 ? "+" : ""}${money(report.cash.netDiff)}`}
+                        tone={report.cash.netDiff < -0.005 ? "neg" : report.cash.netDiff > 0.005 ? "pos" : null} />
+                      <Kpi label="Counts" value={report.counts.cash} />
+                    </div>
+                    {report.trend.length > 1 && (
+                      <>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Over / short by {report.trendBy}</div>
+                        <ResponsiveContainer width="100%" height={150}>
+                          <BarChart data={report.trend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
+                            <XAxis dataKey="label" tickFormatter={(v) => String(v).slice(5)} tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} />
+                            <YAxis tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} width={40} />
+                            <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+                            <Bar dataKey="netDiff" radius={[3, 3, 0, 0]}>
+                              {report.trend.map((b, i) => <Cell key={i} fill={b.netDiff < 0 ? "#b03a3a" : "#2f7d5b"} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mt-3 mb-1">Cash sales trend</div>
+                        <ResponsiveContainer width="100%" height={140}>
+                          <LineChart data={report.trend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
+                            <XAxis dataKey="label" tickFormatter={(v) => String(v).slice(5)} tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} />
+                            <YAxis tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} width={40} />
+                            <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+                            <RLine type="monotone" dataKey="sales" stroke={ch.bar} strokeWidth={2.5} dot={{ r: 2 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </>
+                    )}
+                  </section>
+                )}
+
+                {/* ---- Scratch-off ---- */}
+                {scratchOn && (
+                  <section className="bg-panel border border-line rounded-xl p-3.5">
+                    <h3 className="font-semibold text-[14px] mb-2">Scratch-off</h3>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <Kpi label="Tickets sold" value={report.scratch.tickets} />
+                      <Kpi label="Scratch sales" value={money(report.scratch.dollars)} />
+                      <Kpi label="Games" value={report.scratch.byGame.length} />
+                    </div>
+                    {gameRows.length > 0 && (
+                      <>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Top games by sales</div>
+                        <ResponsiveContainer width="100%" height={Math.max(120, gameRows.length * 34)}>
+                          <BarChart layout="vertical" data={gameRows} margin={{ left: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} horizontal={false} />
+                            <XAxis type="number" tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} />
+                            <YAxis type="category" dataKey="game" width={96} tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
+                            <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+                            <Bar dataKey="dollars" fill={ch.bar} radius={[0, 3, 3, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </>
+                    )}
+                  </section>
+                )}
+
+                {/* ---- Inventory ---- */}
+                {inventoryOn && (
+                  <section className="bg-panel border border-line rounded-xl p-3.5">
+                    <h3 className="font-semibold text-[14px] mb-2">Inventory</h3>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <Kpi label="Counts" value={report.counts.inventory} />
+                      <Kpi label="Net shrink" value={`${report.inventory.netShrink} u`} tone={report.inventory.netShrink < 0 ? "neg" : null} />
+                      <Kpi label="Items" value={report.inventory.byItem.length} />
+                    </div>
+                    {shrinkRows.length > 0 && (
+                      <>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Biggest shrink (units)</div>
+                        <ResponsiveContainer width="100%" height={Math.max(120, shrinkRows.length * 34)}>
+                          <BarChart layout="vertical" data={shrinkRows} margin={{ left: 8 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} horizontal={false} />
+                            <XAxis type="number" tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} />
+                            <YAxis type="category" dataKey="name" width={96} tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
+                            <Tooltip contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+                            <Bar dataKey="missing" fill="#b03a3a" radius={[0, 3, 3, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </>
+                    )}
+                  </section>
+                )}
+
+                {/* ---- Gaming (owner-only, separate from the entries spine) ---- */}
+                {gamingOn && gaming && gaming.count > 0 && (
+                  <section className="bg-panel border border-line rounded-xl p-3.5">
+                    <h3 className="font-semibold text-[14px] mb-2">Gaming</h3>
+                    <div className="grid grid-cols-4 gap-2 mb-3">
+                      <Kpi label="Collection" value={money(gaming.totals.collection)} />
+                      <Kpi label="Payout" value={money(gaming.totals.payout)} />
+                      <Kpi label="Net" value={money(gaming.totals.net)} tone={gaming.totals.net < 0 ? "neg" : null} />
+                      <Kpi label="Store take" value={money(gaming.totals.storeShare)} tone="pos" />
+                    </div>
+                    {gaming.series.length > 1 && (
+                      <>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Store take by date</div>
+                        <ResponsiveContainer width="100%" height={150}>
+                          <LineChart data={gaming.series}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
+                            <XAxis dataKey="date" tickFormatter={(v) => String(v).slice(5)} tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} />
+                            <YAxis tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} width={40} />
+                            <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+                            <RLine type="monotone" dataKey="storeShare" stroke={ch.bar} strokeWidth={2.5} dot={{ r: 2 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </>
+                    )}
+                  </section>
+                )}
+
+                {/* ---- Integrity + incidents (always) ---- */}
+                <div className="bg-panel border border-line rounded-xl p-3.5 text-sm space-y-1">
+                  <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Integrity</div>
+                  <div>{report.integrity.flagged} flagged · {report.integrity.disputed} disputed</div>
+                  <div>{report.integrity.verified} of {report.integrity.total} verified ({Math.round(report.integrity.verificationRate * 100)}%)</div>
+                  {report.incidents && (report.incidents.opened + report.incidents.acknowledged + report.incidents.closed) > 0 && (
+                    <div>{report.incidents.opened} incidents opened · {report.incidents.acknowledged} acknowledged · {report.incidents.closed} closed</div>
+                  )}
+                  {report.empty && (!gaming || gaming.count === 0) && <div className="text-muted italic mt-1">No activity in this period.</div>}
+                </div>
               </>
             ) : null}
           </div>
@@ -544,6 +760,9 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
             <button className="btn-ghost flex-1" disabled={!ready || busy} onClick={downloadCsv}>Download CSV</button>
           </div>
           <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={printReport}>Print (line-by-line)</button>
+          {gamingOn && gaming && gaming.count > 0 && (
+            <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={downloadGamingCsv}>Download gaming CSV</button>
+          )}
 
           <div className="border-t border-line-soft pt-3 space-y-2">
             <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">For the bookkeeper</div>

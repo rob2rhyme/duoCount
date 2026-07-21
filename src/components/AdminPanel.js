@@ -42,7 +42,7 @@ const SECTION_TAB = {
   "adm-items": "store", "adm-engage": "rewards",
 };
 
-export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null, machines = [] }) {
+export default function AdminPanel({ onToast, locations, drawers, items = [], entries = [], customers = [], rewardEvents = [], scratchCatalog = null, machines = [], initialTab = null }) {
   const { profile, vendor, isOwner, setVendor } = useSession();
   const { t, lang } = useLang();
   const [staff, setStaff] = useState([]);
@@ -498,7 +498,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   // The tabs a non-owner can see (the "more" tab is import/demo — owner-only —
   // so it drops). Admin is owner-only today, but keep the guard honest.
   const adminTabs = useMemo(() => ADMIN_TABS.filter((tb) => tb.id !== "more" || isOwner), [isOwner]);
-  const [adminTab, setAdminTab] = useState("store");
+  const [adminTab, setAdminTab] = useState(ADMIN_TABS.some((tb) => tb.id === initialTab) ? initialTab : "store");
   // Switch tab and lift the view back to the tab bar, so a long tab (Settings)
   // doesn't leave the next tab scrolled halfway down.
   const goTab = (id) => {

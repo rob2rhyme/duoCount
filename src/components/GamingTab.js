@@ -40,7 +40,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function GamingTab({ machines = [], collections = [], isOwner = false, onToast, adminAction }) {
+export default function GamingTab({ machines = [], collections = [], isOwner = false, onToast, adminAction, onSetup }) {
   const { t } = useLang();
   const { theme } = useTheme();
   const { vendor } = useSession();
@@ -153,6 +153,9 @@ export default function GamingTab({ machines = [], collections = [], isOwner = f
               <button type="button" className="btn-ghost text-[13px] px-3 py-2" disabled={inRange.length === 0} onClick={exportCSV}>
                 {t("game.export_csv")}
               </button>
+              {onSetup && (
+                <button type="button" className="btn-ghost text-[13px] px-3 py-2" onClick={onSetup}>⚙ {t("game.setup_machines")}</button>
+              )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               <Stat label={t("game.stat_collection")} value={money(summary.totals.collection)} />
