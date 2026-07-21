@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { featureEnabled, resolveFeatures } from "@/lib/features";
@@ -9,15 +10,10 @@ import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
 import ScratchForm from "./ScratchForm";
 import InventoryForm from "./InventoryForm";
-import BackroomStock from "./BackroomStock";
-import GamingTab from "./GamingTab";
 import LogList from "./LogList";
 import RewardsPanel from "./RewardsPanel";
 import NotesPanel from "./NotesPanel";
 import IncidentsPanel from "./IncidentsPanel";
-import Dashboard from "./Dashboard";
-import PortfolioView from "./PortfolioView";
-import AdminPanel from "./AdminPanel";
 import TimeClock from "./TimeClock";
 import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
@@ -31,6 +27,17 @@ import { attentionCounts } from "@/lib/attention";
 import { resolveShortcut } from "@/lib/shortcuts";
 import { downloadPaperLog } from "@/lib/paper-forms";
 import { PRODUCT } from "@/lib/store";
+
+// Heavy, chart-bearing or rarely-first tabs are code-split so recharts and the
+// admin bundle leave the initial (pre-login) download and load only when their
+// tab is first opened. They already render only while their tab is active, so
+// deferring the code matches when it's actually needed.
+const LazyFallback = () => <div className="py-16 text-center text-muted">…</div>;
+const Dashboard = dynamic(() => import("./Dashboard"), { ssr: false, loading: LazyFallback });
+const PortfolioView = dynamic(() => import("./PortfolioView"), { ssr: false, loading: LazyFallback });
+const AdminPanel = dynamic(() => import("./AdminPanel"), { ssr: false, loading: LazyFallback });
+const BackroomStock = dynamic(() => import("./BackroomStock"), { ssr: false, loading: LazyFallback });
+const GamingTab = dynamic(() => import("./GamingTab"), { ssr: false, loading: LazyFallback });
 
 // Labels resolve through the i18n catalog (t(labelKey)); the icon (TabIcon,
 // keyed by tab id) is the language-neutral recognition anchor a clerk learns,
