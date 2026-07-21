@@ -208,6 +208,8 @@ export default function Schedule({ punches = [], locations = [], locName, onToas
     } catch (e) { console.error(e); onToast?.(t("sched.toast_template_apply_failed")); }
   }
   async function removeTemplate(id) {
+    // A template is a whole saved week — one mis-tap shouldn't wipe it silently.
+    if (typeof window !== "undefined" && !window.confirm(t("sched.confirm_delete_template"))) return;
     try { await deleteTemplate(vendor.id, id); onToast?.(t("sched.toast_template_deleted")); }
     catch (e) { console.error(e); onToast?.(t("sched.toast_template_delete_failed")); }
   }

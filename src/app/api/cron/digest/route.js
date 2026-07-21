@@ -39,6 +39,6 @@ export async function GET(req) {
     return NextResponse.json({ sent, skipped, failed, vendors: vendors.size });
   } catch (e) {
     console.error("cron digest error", e);
-    return NextResponse.json({ error: e.message || "Failed." }, { status: 500 });
+    return NextResponse.json({ error: "Digest run failed." }, { status: 500 });
   }
 }

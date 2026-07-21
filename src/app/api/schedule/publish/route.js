@@ -58,6 +58,8 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true, notified: sent, recipients: emails.length, noEmail, failed });
   } catch (e) {
-    return NextResponse.json({ error: e.message || "Publish failed." }, { status: e.status || 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    console.error("schedule publish error", e);
+    return NextResponse.json({ error: "Publish failed." }, { status: 500 });
   }
 }

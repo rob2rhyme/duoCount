@@ -14,6 +14,7 @@ import { FEATURES, FEATURE_KEYS, resolveFeatures, featureEnabled } from "@/lib/f
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { translate } from "@/lib/i18n";
 import { PIN_LENGTH, isValidNewPin } from "@/lib/pin";
@@ -133,6 +134,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   // the stock-sync fields the alerts read (price, expiry). Quantity is NOT
   // here on purpose — stock only moves through the signed Backroom − / +.
   const [editModal, setEditModal] = useState(null);
+  const editPanelRef = useModalA11y(() => setEditModal(null), !!editModal);
+  const staffPanelRef = useModalA11y(() => setStaffModal(null), !!staffModal);
   function openEditItem(it) {
     setEditModal({
       id: it.id, name: it.name || "", category: it.category || "",
@@ -1340,7 +1343,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       {/* Full item editor — every Add-form field plus price & expiry. */}
       {editModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setEditModal(null)}>
-          <div role="dialog" aria-modal="true" className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div ref={editPanelRef} tabIndex={-1} role="dialog" aria-modal="true" className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-2">
               <h2 className="font-semibold text-[15px] min-w-0 truncate">{t("admin.edit_item_title", { name: editModal.name || "—" })}</h2>
               <button className="btn-ghost text-[13px] px-2.5 py-1 flex-shrink-0" onClick={() => setEditModal(null)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
@@ -1398,7 +1401,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       {/* PIN-reset / email dialog — replaces the old browser prompt()s. */}
       {staffModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setStaffModal(null)}>
-          <div role="dialog" aria-modal="true" className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div ref={staffPanelRef} tabIndex={-1} role="dialog" aria-modal="true" className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-2">
               <h2 className="font-semibold text-[15px] min-w-0">
                 {staffModal.kind === "pin"

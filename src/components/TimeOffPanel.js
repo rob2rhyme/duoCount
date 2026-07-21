@@ -76,9 +76,13 @@ export default function TimeOffPanel({ onToast }) {
   const cancel = (r) => run(`cancel:${r.id}`, async () => {
     await cancelTimeOff(vendor.id, r.id); onToast?.(t("toff.toast_canceled"));
   });
-  const remove = (r) => run(`del:${r.id}`, async () => {
-    await deleteTimeOff(vendor.id, r.id);
-  });
+  const remove = (r) => {
+    // Deleting a request drops the record for good — confirm first.
+    if (typeof window !== "undefined" && !window.confirm(t("toff.confirm_delete"))) return;
+    return run(`del:${r.id}`, async () => {
+      await deleteTimeOff(vendor.id, r.id);
+    });
+  };
   const decide = (r, status) => run(`decide:${r.id}`, async () => {
     await decideTimeOff(vendor.id, r.id, {
       status, decidedBy: profile.name, decidedById: profile.id, decisionNote: decideNote,

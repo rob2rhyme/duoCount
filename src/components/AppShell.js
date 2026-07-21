@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { featureEnabled, resolveFeatures } from "@/lib/features";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import CashForm from "./CashForm";
@@ -81,6 +82,7 @@ export default function AppShell() {
   const [viewLoc, setViewLoc] = useState("all");
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
+  const helpPanelRef = useModalA11y(() => setShowHelp(false), showHelp);
   // Tracks whether the entries/location/drawer/item snapshots have each landed
   // once, so the onboarding + dashboard empty-states only appear after we truly
   // know the store is empty — never as a flash while an existing vendor's data
@@ -468,7 +470,7 @@ export default function AppShell() {
       )}
 
       {showHelp && (
-        <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4"
+        <div ref={helpPanelRef} tabIndex={-1} className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4"
           onClick={() => setShowHelp(false)} role="dialog" aria-modal="true" aria-label={t("shell.shortcuts_title")}>
           <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
