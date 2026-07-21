@@ -14,22 +14,29 @@
 // chart components read these per the store's palette). The full CSS token sets
 // are in globals.css keyed by these same ids. WCAG-AA verified.
 export const PALETTES = [
-  { id: "green", label: "Forest", swatch: "#1f6b3e", swatchDark: "#7fd39e", bar: "#14532d", barDark: "#7fd39e" },
-  { id: "ocean", label: "Ocean", swatch: "#186592", swatchDark: "#7cc4e8", bar: "#0f4c75", barDark: "#7cc4e8" },
-  { id: "indigo", label: "Indigo", swatch: "#5a4fcf", swatchDark: "#b3a9f5", bar: "#3f36a0", barDark: "#b3a9f5" },
-  { id: "sunset", label: "Sunset", swatch: "#945200", swatchDark: "#f0b24a", bar: "#7a3f00", barDark: "#f0b24a" },
-  { id: "rose", label: "Rose", swatch: "#b02556", swatchDark: "#f090ac", bar: "#8f1f43", barDark: "#f090ac" },
-  { id: "slate", label: "Slate", swatch: "#3f4e5c", swatchDark: "#a9b8c4", bar: "#2b3843", barDark: "#a9b8c4" },
+  { id: "green", label: "Forest", swatch: "#1f6b3e", swatchDark: "#7fd39e", bar: "#14532d", barDark: "#7fd39e", accent: "#298050" },
+  { id: "ocean", label: "Ocean", swatch: "#186592", swatchDark: "#7cc4e8", bar: "#0f4c75", barDark: "#7cc4e8", accent: "#2a7fb8" },
+  { id: "indigo", label: "Indigo", swatch: "#5a4fcf", swatchDark: "#b3a9f5", bar: "#3f36a0", barDark: "#b3a9f5", accent: "#6a5fd6" },
+  { id: "sunset", label: "Sunset", swatch: "#945200", swatchDark: "#f0b24a", bar: "#7a3f00", barDark: "#f0b24a", accent: "#c26a00" },
+  { id: "rose", label: "Rose", swatch: "#b02556", swatchDark: "#f090ac", bar: "#8f1f43", barDark: "#f090ac", accent: "#cc3f72" },
+  { id: "slate", label: "Slate", swatch: "#3f4e5c", swatchDark: "#a9b8c4", bar: "#2b3843", barDark: "#a9b8c4", accent: "#5a6b7a" },
 ];
 export const PALETTE_IDS = PALETTES.map((p) => p.id);
+
+const paletteOf = (vendor) =>
+  PALETTES.find((p) => p.id === (PALETTE_IDS.includes(vendor?.themePalette) ? vendor.themePalette : "green")) || PALETTES[0];
 
 // The chart bar/line color for a vendor's palette in the given theme — so the
 // Dashboard/gaming/backroom charts paint in the store's hue, not a fixed green.
 export function chartBar(vendor, theme = "light") {
-  const id = PALETTE_IDS.includes(vendor?.themePalette) ? vendor.themePalette : "green";
-  const p = PALETTES.find((x) => x.id === id) || PALETTES[0];
+  const p = paletteOf(vendor);
   return theme === "dark" ? p.barDark : p.bar;
 }
+
+// The store's accent (brass-level) and deep-ink hex — for the brand mark and
+// rules on printed/exported reports, so those carry the store's theme too.
+export function paletteAccent(vendor) { return paletteOf(vendor).accent; }
+export function paletteInk(vendor) { return paletteOf(vendor).bar; }
 
 // The custom-font internal family name (fixed — never the uploaded filename, so a
 // crafted name can't break out of the injected @font-face rule).

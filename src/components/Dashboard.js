@@ -13,7 +13,7 @@ import { packDisplayParts } from "@/lib/scratch-barcode";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockMoveAudit } from "@/lib/stockmove-audit";
 import { featureEnabled } from "@/lib/features";
-import { chartBar } from "@/lib/branding";
+import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
 import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange } from "@/lib/data";
 import { buildTheftReport } from "@/lib/theft-report";
 import { useSession } from "./SessionProvider";
@@ -25,9 +25,11 @@ import EmptyState, { IconChart } from "./EmptyState";
 // Recharts paints SVG with literal color strings (CSS vars aren't reliable on
 // SVG presentation attributes), so the chart palette is resolved from the
 // active theme in JS rather than through Tailwind tokens.
+// grid/axis/tooltip are neutral grays (theme-independent chrome); `bar` is
+// replaced per store by chartBar(vendor, theme), so nothing here reads green.
 const CHART = {
-  light: { grid: "#e1e9dc", axis: "#7f8b80", tipBg: "#ffffff", tipBorder: "#d4ded0", tipText: "#1a241c", bar: "#14532d" },
-  dark: { grid: "#29322a", axis: "#6e7d70", tipBg: "#19211a", tipBorder: "#324034", tipText: "#e8eee9", bar: "#7fd39e" },
+  light: { grid: "#e6e7e4", axis: "#82857f", tipBg: "#ffffff", tipBorder: "#dbdcd9", tipText: "#1a241c", bar: "#14532d" },
+  dark: { grid: "#2c2e2c", axis: "#777a76", tipBg: "#1c1d1c", tipBorder: "#353736", tipText: "#e8eee9", bar: "#7fd39e" },
 };
 
 function Stat({ label, value, tone }) {
@@ -248,12 +250,13 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
       }`).join("") : "";
       const rewardRows = r.rewardAlerts.length
         ? r.rewardAlerts.map((al) => `<p><b>${esc(al.title)}</b> — ${esc(al.detail)}</p>`).join("") : "";
+      const accent = paletteAccent(vendor), ink = paletteInk(vendor);
       win.document.write(`<!doctype html><html><head><title>${esc(vendor.name)} — ${esc(t("trpt.title"))}</title>
-      <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a241c}h1{font-size:18px;margin:0}h2{font-size:14px;margin:22px 0 6px;border-bottom:2px solid #14532d;padding-bottom:2px}p{margin:3px 0}
+      <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a241c}h1{font-size:18px;margin:0}h2{font-size:14px;margin:22px 0 6px;border-bottom:2px solid ${ink};padding-bottom:2px}p{margin:3px 0}
       table{border-collapse:collapse;width:100%;margin-top:6px;font-size:11px}
       th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
       .gap{color:#b91c1c;font-weight:bold}.muted{color:#666;font-size:11px}
-      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:#298050;color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}</style>
+      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}</style>
       </head><body>
       <div class="brand"><div class="mark">D</div><div><h1>${esc(vendor.name)} — ${esc(t("trpt.title"))}</h1>
       <p class="muted">${esc(t("srpt.range", { from: theftRange.from, to: theftRange.to }))} · ${esc(t("srpt.generated", { date: new Date().toLocaleString(), name: profileName }))}</p></div></div>
@@ -590,7 +593,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
             <YAxis tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
             <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
-            <Line type="monotone" dataKey="sales" stroke="#298050" strokeWidth={2.5} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="sales" stroke={ch.bar} strokeWidth={2.5} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>

@@ -20,8 +20,8 @@ import Field from "./Field";
 //     `collections` is empty for non-owners — the oversight simply doesn't show.)
 
 const CHART = {
-  light: { grid: "#e1e9dc", axis: "#7f8b80", tipBg: "#ffffff", tipBorder: "#d4ded0", tipText: "#1a241c", bar: "#14532d" },
-  dark: { grid: "#29322a", axis: "#6e7d70", tipBg: "#19211a", tipBorder: "#324034", tipText: "#e8eee9", bar: "#7fd39e" },
+  light: { grid: "#e6e7e4", axis: "#82857f", tipBg: "#ffffff", tipBorder: "#dbdcd9", tipText: "#1a241c", bar: "#14532d" },
+  dark: { grid: "#2c2e2c", axis: "#777a76", tipBg: "#1c1d1c", tipBorder: "#353736", tipText: "#e8eee9", bar: "#7fd39e" },
 };
 
 // Local business day (YYYY-MM-DD), DST-safe — the collection date the ledger keys on.

@@ -41,8 +41,8 @@ const CAT = {
 };
 const OTHER = { light: "#7c857e", dark: "#98a29a" };
 const CHART = {
-  light: { axis: "#7f8b80", grid: "#e1e9dc", tipBg: "#ffffff", tipBorder: "#d4ded0", tipText: "#1a241c", surface: "#ffffff" },
-  dark: { axis: "#6e7d70", grid: "#29322a", tipBg: "#19211a", tipBorder: "#324034", tipText: "#e8eee9", surface: "#19211a" },
+  light: { axis: "#82857f", grid: "#e6e7e4", tipBg: "#ffffff", tipBorder: "#dbdcd9", tipText: "#1a241c", surface: "#ffffff" },
+  dark: { axis: "#777a76", grid: "#2c2e2c", tipBg: "#1c1d1c", tipBorder: "#353736", tipText: "#e8eee9", surface: "#1c1d1c" },
 };
 
 export default function BackroomStock({ onToast, items = [], locations = [], moves = [], locName }) {
@@ -50,7 +50,9 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
   const { t } = useLang();
   const { theme } = useTheme();
   const ch = CHART[theme] || CHART.light;
-  const cat = CAT[theme] || CAT.light;
+  // Top category paints in the store's palette accent; the rest keep their fixed
+  // distinct hues (they only distinguish categories, they're not brand color).
+  const cat = [chartBar(vendor, theme), ...(CAT[theme] || CAT.light).slice(1)];
   const other = OTHER[theme] || OTHER.light;
   const searchId = useId();
 
