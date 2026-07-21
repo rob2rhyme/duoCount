@@ -5,6 +5,7 @@ import {
   Tooltip, CartesianGrid, Cell,
 } from "recharts";
 import { money, toDate, isUnresolved } from "@/lib/utils";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 import { detectPatterns, resolvePatternRules } from "@/lib/patterns";
 import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
 import { renderPattern } from "@/lib/pattern-format";
@@ -308,9 +309,10 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     <ReportModal locations={locations} locName={locName} incidents={incidents} collections={collections}
       onClose={() => setReportOpen(false)} onToast={onToast} />
   );
+  const theftPanelRef = useModalA11y(() => setTheftOpen(false), theftOpen);
   const theftModal = theftOpen && (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setTheftOpen(false)}>
-      <div role="dialog" aria-modal="true" aria-label={t("trpt.title")}
+      <div ref={theftPanelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("trpt.title")}
         className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-4 py-3 border-b border-line flex items-center justify-between">
           <h2 className="font-semibold text-[15px]">{t("trpt.title")}</h2>

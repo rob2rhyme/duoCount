@@ -9,6 +9,7 @@ import { buildPackFlow } from "@/lib/scratch-report";
 import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
 import { useSaveState } from "@/lib/use-save-state";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import SaveError from "./SaveError";
@@ -51,6 +52,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
   const scannedRef = useRef(new Set());              // barcodes logged this session (dedup)
   // ---- Printable pack-flow report over an on-demand range (manager) ----
   const [rptOpen, setRptOpen] = useState(false);
+  const rptPanelRef = useModalA11y(() => setRptOpen(false), rptOpen);
   const [rptBusy, setRptBusy] = useState(false);
   const [rptErr, setRptErr] = useState("");
   const [rpt, setRpt] = useState(() => ({
@@ -723,7 +725,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
       {/* Pack-flow report: pick the range, print the exact-missing-tickets table. */}
       {rptOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setRptOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label={t("scratch.report_title")}
+          <div ref={rptPanelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("scratch.report_title")}
             className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-line flex items-center justify-between">
               <h2 className="font-semibold text-[15px]">{t("scratch.report_title")}</h2>
