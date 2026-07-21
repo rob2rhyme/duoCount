@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useId } from "react";
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { addEntry, fetchEntriesInRange } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts } from "@/lib/scratch-barcode";
@@ -43,6 +43,12 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
   const [walkErr, setWalkErr] = useState("");
   const [lastScan, setLastScan] = useState("");
   const [showMissing, setShowMissing] = useState(false);
+  // ---- Instant scan-to-log: one signed reading per ticket, logged on the spot ----
+  const [logInput, setLogInput] = useState("");
+  const [logScanOpen, setLogScanOpen] = useState(false);
+  const [logSession, setLogSession] = useState([]); // [{ key, game, book, ticket, sold, at }]
+  const [logStatus, setLogStatus] = useState("");
+  const scannedRef = useRef(new Set());              // barcodes logged this session (dedup)
   // ---- Printable pack-flow report over an on-demand range (manager) ----
   const [rptOpen, setRptOpen] = useState(false);
   const [rptBusy, setRptBusy] = useState(false);
@@ -404,6 +410,52 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
     onSaved?.(t("toast.saved_scratch"));
   }
 
+  // Instant scan-to-log: parse a ticket, REFUSE it unless its game is in the
+  // owner's stored catalog (they register games in Admin), then sign one reading
+  // on the spot with its timestamp — chained from the pack's last reading so the
+  // pack audit reads it exactly like a walk scan. A repeat of the same barcode is
+  // ignored with a nudge (another ticket, or an accidental double-scan?).
+  async function logTicket(raw) {
+    const code = String(raw || "").trim();
+    if (!code) return;
+    const { pack, ticket } = parseScratchBarcode(code);
+    const packNo = pack || code;
+    const canonical = packNo.replace(/\D/g, "") || packNo;   // game+book, matching manual entry
+    const gameNo = packGameKey(canonical) || packGameKey(packNo);
+    if (ticket == null) { const m = t("scratch.scan_no_ticket"); setLogStatus(m); onSaved?.(m); return; }
+    // Strict: the OWNER's catalog only (no bundled fallback) — an unknown game
+    // is refused so staff can't log a ticket the owner hasn't registered.
+    const g = lookupGameNumber(gameNo, catalog || {});
+    if (!g) { const m = t("scratch.scan_not_stored", { n: gameNo || "?" }); setLogStatus(m); onSaved?.(m); return; }
+    if (!f.locationId || !drawer) { const m = t("scratch.scanlog_need_ctx"); setLogStatus(m); onSaved?.(m); return; }
+    const key = `${canonical}:${ticket}`;
+    if (scannedRef.current.has(key)) { const m = t("scratch.scan_dup"); setLogStatus(m); onSaved?.(m); return; }
+    const prev = entries.find((e) => e.kind === "scratch" && e.locationId === f.locationId && (e.pack || "") === canonical);
+    const startno = prev && prev.endno != null ? Number(prev.endno) : Number(ticket);
+    const endno = Number(ticket);
+    const rowSold = ticketsSold(startno, endno);
+    try {
+      await addEntry(vendor.id, {
+        kind: "scratch", date: f.date, shift: f.shift,
+        locationId: f.locationId, locationName: locName(f.locationId),
+        drawerId: drawer.id, drawerName: drawer.name,
+        game: g.name || "Game", pack: canonical,
+        price: Number(g.price) || 0, startno, endno,
+        sold: rowSold, dollars: rowSold * (Number(g.price) || 0),
+        soldOut: false, ...(Number(g.perPack) > 0 ? { perPack: Number(g.perPack) } : {}),
+        by: profile.name, byId: profile.id, byRole: profile.role,
+      });
+      scannedRef.current.add(key);
+      saveContext(vendor.id, profile.id, { locationId: f.locationId, scratchDrawerId: drawer.id });
+      setLogSession((s) => [{ key: key + Date.now(), game: g.name, book: packDisplayParts(canonical).bookNo, ticket: Number(ticket), sold: rowSold, at: new Date() }, ...s].slice(0, 50));
+      const m = t("scratch.scan_logged", { game: g.name, n: ticket });
+      setLogStatus(m); onSaved?.(m);
+    } catch {
+      const m = t("scratch.scanlog_save_err");
+      setLogStatus(m); onSaved?.(m);
+    }
+  }
+
   return (
     <div className="card overflow-hidden">
       <div className="px-4 py-3.5 border-b border-line flex items-center justify-between gap-2">
@@ -431,6 +483,44 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
             <select className="input" value={f.shift} onChange={set("shift")}>
               <option value="open">🌅 {t("common.opening")}</option><option value="close">🌇 {t("common.closing")}</option>
             </select></Field>
+        </div>
+
+        {/* ---- Instant scan-to-log: one signed reading per ticket, on the spot.
+            The single scan/search bar staff use each shift — scan or type a
+            ticket, it logs immediately (or refuses an unregistered game). ---- */}
+        <div className="border border-brass/40 rounded-xl overflow-hidden">
+          <div className="px-3.5 py-2.5 bg-highlight border-b border-line">
+            <div className="text-[13px] font-semibold flex items-center gap-2"><TabIcon id="scratch" size={16} className="text-gold" /> {t("scratch.scanlog_title")}</div>
+            <p className="text-[11px] text-muted leading-snug mt-0.5">{t("scratch.scanlog_sub")}</p>
+          </div>
+          <div className="p-3 space-y-2.5">
+            <div className="flex gap-2">
+              <input className="input min-w-0 font-mono" value={logInput} placeholder={t("scratch.scanlog_input_ph")}
+                inputMode="numeric" autoComplete="off" onChange={(e) => setLogInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && logInput.trim()) { logTicket(logInput); setLogInput(""); } }} />
+              <button type="button" className="btn-ghost px-3 whitespace-nowrap" disabled={!logInput.trim()}
+                onClick={() => { logTicket(logInput); setLogInput(""); }}>{t("scratch.scanlog_log")}</button>
+              <button type="button" className="btn-ghost w-11 px-0 flex-shrink-0 text-lg" title={t("scratch.scanlog_scan")}
+                aria-label={t("scratch.scanlog_scan")} onClick={() => { setLogStatus(""); setLogScanOpen(true); }}>📷</button>
+            </div>
+            {logStatus && <p className="text-[12px] leading-snug text-muted" role="status">{logStatus}</p>}
+            {logSession.length > 0 && (
+              <div className="border border-line rounded-lg overflow-hidden bg-surface">
+                <div className="px-3 py-1.5 bg-panel text-[11px] uppercase tracking-wide text-muted font-semibold">{t("scratch.scanlog_count", { n: logSession.length })}</div>
+                <div className="divide-y divide-line-soft max-h-56 overflow-y-auto">
+                  {logSession.map((r) => (
+                    <div key={r.key} className="px-3 py-2 flex items-center gap-2 text-[12px]">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{r.game}</div>
+                        <div className="text-[11px] text-muted font-mono">#{r.book} · #{r.ticket}{r.sold > 0 ? ` · +${r.sold}` : ""}</div>
+                      </div>
+                      <div className="text-[11px] text-muted font-mono flex-shrink-0">{r.at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ---- Shelf walk: scan every pack; each scan lands in the list ---- */}
@@ -627,6 +717,14 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
         title={t("scratch.walk_scan_title")}
         hint={t("scratch.walk_scan_hint")}
         onDetected={onWalkScan} />
+
+      {/* Instant scan-to-log scanner — continuous: log each ticket, then the
+          next, without closing the camera. */}
+      <BarcodeScanner open={logScanOpen} onClose={() => setLogScanOpen(false)}
+        continuous status={logStatus}
+        title={t("scratch.scanlog_title")}
+        hint={t("scratch.scanlog_scan_hint")}
+        onDetected={logTicket} />
 
       {/* Pack-flow report: pick the range, print the exact-missing-tickets table. */}
       {rptOpen && (
