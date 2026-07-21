@@ -4,6 +4,7 @@ import { ResponsiveContainer, BarChart, Bar, LineChart, Line as RLine, PieChart,
 import { money, csvCell, entriesToCSV, downloadCSV } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
+import { useLang } from "./LangProvider";
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import Field from "./Field";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
@@ -32,8 +33,6 @@ function Kpi({ label, value, tone }) {
 
 const today = () => new Date().toISOString().slice(0, 10);
 const slug = (s) => String(s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "x";
-const MONTHS = ["January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"];
 const FISCAL_PRESETS = new Set(["year", "quarter", "half"]); // periods the fiscal start reshapes
 
 // The Reports center: pick any period (day … year, or custom dates) and a
@@ -47,6 +46,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   initialLocId, initialPreset, initialRefDate, initialCustomStart, initialCustomEnd }) {
   const { profile, vendor } = useSession();
   const { theme } = useTheme();
+  const { t } = useLang();
   const panelRef = useModalA11y(onClose);
   // Which modules to report on — a disabled module shows no section, chart, KPI,
   // or download; turning it back on in Admin → Modules brings it back.
@@ -64,7 +64,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   const [locId, setLocId] = useState(initialLocId || "all");
   const [rawRows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState(null);
+  const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
   // Franchise format is an export-time choice, never a persisted setting — so
   // the feature needs no vendor write and no rules change. "" = none.
@@ -92,14 +92,16 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   const scopeLocId = locId === "all" ? null : locId;
 
   // One-shot fetch of the period's entries whenever the window or scope changes.
+  // The error is stored as a flag and localized at render time, so switching
+  // language never re-triggers the fetch.
   useEffect(() => {
     if (!startISO || !endISO) { setRows([]); setLoading(false); return; }
     let alive = true;
     setLoading(true);
-    setLoadError(null);
+    setLoadError(false);
     fetchEntriesInRange(vendor.id, startISO, endISO, scopeLocId)
       .then((es) => { if (alive) { setRows(es); setLoading(false); } })
-      .catch((err) => { if (alive) { console.error(err); setLoadError("Couldn't load this period — try again."); setLoading(false); } });
+      .catch((err) => { if (alive) { console.error(err); setLoadError(true); setLoading(false); } });
     return () => { alive = false; };
   }, [vendor.id, startISO, endISO, scopeLocId]);
 
@@ -134,15 +136,16 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     [report]);
   // Revenue mix (donut): where the period's money came from, across enabled
   // modules — cash sales, scratch sales, gaming store take. Fixed distinct fills
-  // (identity also carried by the text legend, never color alone).
+  // (identity also carried by the text legend, never color alone). Labels are
+  // localized so the legend + tooltip match the section headings.
   const revenueMix = useMemo(() => (report ? [
-    cashOn ? { label: "Cash", value: report.cash.sales, fill: "#2f7d5b" } : null,
-    scratchOn ? { label: "Scratch", value: report.scratch.dollars, fill: "#b08d2f" } : null,
-    gamingOn && gaming ? { label: "Gaming", value: gaming.totals.storeShare, fill: "#4c6ef5" } : null,
-  ].filter((r) => r && r.value > 0) : []), [report, gaming, cashOn, scratchOn, gamingOn]);
+    cashOn ? { label: t("report.cash"), value: report.cash.sales, fill: "#2f7d5b" } : null,
+    scratchOn ? { label: t("report.scratch"), value: report.scratch.dollars, fill: "#b08d2f" } : null,
+    gamingOn && gaming ? { label: t("report.gaming"), value: gaming.totals.storeShare, fill: "#4c6ef5" } : null,
+  ].filter((r) => r && r.value > 0) : []), [report, gaming, cashOn, scratchOn, gamingOn, t]);
   const revenueTotal = revenueMix.reduce((s, r) => s + r.value, 0);
 
-  const locLabel = locId === "all" ? "All locations" : locName(locId);
+  const locLabel = locId === "all" ? t("report.all_locations") : locName(locId);
   const fileBase = `duocount-report-${locId === "all" ? "all" : slug(locName(locId))}-${range ? range.key : "period"}`;
   const ready = !!range && !loading && !loadError;
 
@@ -235,40 +238,40 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
         </View>
       );
       const osTone = r.cash.netDiff < -0.005 ? s.neg : r.cash.netDiff > 0.005 ? s.pos : null;
-      const osLabel = r.cash.netDiff < -0.005 ? "SHORT" : r.cash.netDiff > 0.005 ? "OVER" : "BALANCED";
+      const osLabel = r.cash.netDiff < -0.005 ? t("report.short") : r.cash.netDiff > 0.005 ? t("report.over") : t("report.balanced");
 
       const doc = (
         <Document title={`duocount-closeofday-${locId === "all" ? "all" : slug(locName(locId))}-${day}`}>
           <Page size="A4" style={s.page}>
             <View style={s.brandRow}>
               <View style={s.mark}><Text style={s.markText}>DC</Text></View>
-              <Text style={s.h1}>{vendor.name} — Close-of-Day Summary</Text>
+              <Text style={s.h1}>{vendor.name} — {t("report.pdf_cod_title")}</Text>
             </View>
-            <Text style={s.meta}>Store code: {vendor.slug} · {locLabel} · {day}</Text>
-            <Text style={s.meta}>Prepared by {profile.name} at {new Date().toLocaleString()}</Text>
+            <Text style={s.meta}>{t("report.store_code")}: {vendor.slug} · {locLabel} · {day}</Text>
+            <Text style={s.meta}>{t("report.pdf_prepared_by", { name: profile.name, time: new Date().toLocaleString() })}</Text>
 
-            {r.empty && <Text style={s.empty}>No activity recorded on {day}.</Text>}
+            {r.empty && <Text style={s.empty}>{t("report.pdf_no_activity_day", { day })}</Text>}
 
-            <Text style={s.section}>Cash reconciliation</Text>
-            <Line label={`Cash sales (${r.counts.cash} count${r.counts.cash === 1 ? "" : "s"})`} value={money(r.cash.sales)} />
-            <Line label="Paid-outs / drops" value={`− ${money(r.cash.paidout)}`} />
-            <Line label="Expected in drawer(s)" value={money(expected)} />
-            <Line label="Counted" value={money(r.cash.counted)} />
-            <Line bold label={`${osLabel} (counted − expected)`} tone={osTone}
+            <Text style={s.section}>{t("report.pdf_cash_recon")}</Text>
+            <Line label={t("report.pdf_cash_sales_count", { n: r.counts.cash })} value={money(r.cash.sales)} />
+            <Line label={t("report.pdf_paidouts")} value={`− ${money(r.cash.paidout)}`} />
+            <Line label={t("report.pdf_expected")} value={money(expected)} />
+            <Line label={t("report.th_counted")} value={money(r.cash.counted)} />
+            <Line bold label={t("report.pdf_os_result", { label: osLabel })} tone={osTone}
               value={`${r.cash.netDiff >= 0 ? "+" : ""}${money(r.cash.netDiff)}`} />
 
-            <Text style={s.section}>Other sales</Text>
-            <Line label={`Lottery / scratch sales (${r.counts.scratch} count${r.counts.scratch === 1 ? "" : "s"})`} value={money(r.scratch.dollars)} />
+            <Text style={s.section}>{t("report.pdf_other_sales")}</Text>
+            <Line label={t("report.pdf_lottery_sales_count", { n: r.counts.scratch })} value={money(r.scratch.dollars)} />
 
-            <Text style={s.section}>Journal entry preview — matches the QuickBooks CSV</Text>
-            {journal.length === 0 && <Text style={s.empty}>Nothing to journal for this day.</Text>}
+            <Text style={s.section}>{t("report.pdf_journal_preview")}</Text>
+            {journal.length === 0 && <Text style={s.empty}>{t("report.pdf_nothing_journal")}</Text>}
             {journal.map((entry) => {
               const debits = entry.lines.reduce((sum, l) => sum + (l.debit || 0), 0);
               const credits = entry.lines.reduce((sum, l) => sum + (l.credit || 0), 0);
               return (
                 <View key={entry.journalNo}>
                   <Text style={s.jLoc}>{entry.journalNo} · {entry.locationName}</Text>
-                  <View style={s.jHead}><C w="46%">Account</C><C w="18%">Description</C><C w="18%" style={{ textAlign: "right" }}>Debit</C><C w="18%" style={{ textAlign: "right" }}>Credit</C></View>
+                  <View style={s.jHead}><C w="46%">{t("report.th_account")}</C><C w="18%">{t("report.th_description")}</C><C w="18%" style={{ textAlign: "right" }}>{t("report.th_debit")}</C><C w="18%" style={{ textAlign: "right" }}>{t("report.th_credit")}</C></View>
                   {entry.lines.map((l, i) => (
                     <View key={i} style={s.jRow}>
                       <C w="46%">{l.account}</C>
@@ -278,18 +281,18 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                     </View>
                   ))}
                   <View style={s.jTotals}>
-                    <C w="46%">Totals</C><C w="18%">balanced</C>
+                    <C w="46%">{t("report.totals")}</C><C w="18%">{t("report.balanced_lc")}</C>
                     <C w="18%" style={{ textAlign: "right" }}>{debits.toFixed(2)}</C>
                     <C w="18%" style={{ textAlign: "right" }}>{credits.toFixed(2)}</C>
                   </View>
                 </View>
               );
             })}
-            <Text style={s.cap}>A draft for review — import the matching journal CSV instead of re-keying. DuoCount is the count-of-record; your accounting software remains the ledger.</Text>
+            <Text style={s.cap}>{t("report.pdf_cod_caption")}</Text>
 
             <View style={s.sig}>
-              <View style={s.sigLine}><Text>Prepared by · date</Text></View>
-              <View style={s.sigLine}><Text>Reviewed by (manager) · date</Text></View>
+              <View style={s.sigLine}><Text>{t("report.sig_prepared")}</Text></View>
+              <View style={s.sigLine}><Text>{t("report.sig_reviewed")}</Text></View>
             </View>
           </Page>
         </Document>
@@ -302,7 +305,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       URL.revokeObjectURL(a.href);
     } catch (err) {
       console.error(err);
-      onToast?.("PDF failed — try the journal CSV");
+      onToast?.(t("report.toast_pdf_fail_journal"));
     }
     setBusy(false);
   }
@@ -356,22 +359,22 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
           <Page size="A4" style={s.page}>
             <View style={s.brandRow}>
               <View style={s.mark}><Text style={s.markText}>DC</Text></View>
-              <Text style={s.h1}>{vendor.name} — Records Report</Text>
+              <Text style={s.h1}>{vendor.name} — {t("report.pdf_records_title")}</Text>
             </View>
-            <Text style={s.meta}>Store code: {vendor.slug} · {locLabel} · {r.range.startISO} → {r.range.endISO}</Text>
-            <Text style={s.meta}>{range.label} · generated by {profile.name} at {new Date().toLocaleString()}</Text>
+            <Text style={s.meta}>{t("report.store_code")}: {vendor.slug} · {locLabel} · {r.range.startISO} → {r.range.endISO}</Text>
+            <Text style={s.meta}>{range.label} · {t("report.generated_by", { name: profile.name, time: new Date().toLocaleString() })}</Text>
 
-            {r.empty && <Text style={s.empty}>No activity recorded in this period.</Text>}
+            {r.empty && <Text style={s.empty}>{t("report.pdf_no_activity_period")}</Text>}
 
             <View style={s.kpis}>
-              <View style={s.kpi}><Text style={s.kpiV}>{sgn(r.cash.netDiff, money)}</Text><Text style={s.kpiL}>Net over/short</Text></View>
-              <View style={s.kpi}><Text style={s.kpiV}>{money(r.cash.sales)}</Text><Text style={s.kpiL}>Cash sales</Text></View>
-              <View style={s.kpi}><Text style={s.kpiV}>{money(r.scratch.dollars)}</Text><Text style={s.kpiL}>Scratch $</Text></View>
-              <View style={[s.kpi, { marginRight: 0 }]}><Text style={s.kpiV}>{Math.round(r.integrity.verificationRate * 100)}%</Text><Text style={s.kpiL}>Verified</Text></View>
+              <View style={s.kpi}><Text style={s.kpiV}>{sgn(r.cash.netDiff, money)}</Text><Text style={s.kpiL}>{t("report.net_over_short")}</Text></View>
+              <View style={s.kpi}><Text style={s.kpiV}>{money(r.cash.sales)}</Text><Text style={s.kpiL}>{t("report.cash_sales")}</Text></View>
+              <View style={s.kpi}><Text style={s.kpiV}>{money(r.scratch.dollars)}</Text><Text style={s.kpiL}>{t("report.th_scratch_dollars")}</Text></View>
+              <View style={[s.kpi, { marginRight: 0 }]}><Text style={s.kpiV}>{Math.round(r.integrity.verificationRate * 100)}%</Text><Text style={s.kpiL}>{t("report.th_verified")}</Text></View>
             </View>
 
             {spark.length > 0 && (<>
-              <Text style={s.section}>Over / short by {r.trendBy}</Text>
+              <Text style={s.section}>{t("report.over_short_by", { unit: t(`report.by_${r.trendBy}`) })}</Text>
               <Svg width={SW} height={SH}>
                 <Line x1={0} y1={mid} x2={SW} y2={mid} strokeWidth={0.5} stroke="#bbb" />
                 {spark.map((b, i) => {
@@ -383,69 +386,69 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
             </>)}
 
             {comparison && (<>
-              <Text style={s.section}>By location</Text>
-              <View style={s.head}><C w="28%">Location</C><C w="12%">Counts</C><C w="16%">Over/short</C><C w="16%">Scratch $</C><C w="12%">Shrink</C><C w="16%">Verified</C></View>
+              <Text style={s.section}>{t("report.by_location")}</Text>
+              <View style={s.head}><C w="28%">{t("report.th_location")}</C><C w="12%">{t("report.counts")}</C><C w="16%">{t("report.th_over_short")}</C><C w="16%">{t("report.th_scratch_dollars")}</C><C w="12%">{t("report.th_shrink")}</C><C w="16%">{t("report.th_verified")}</C></View>
               {comparison.locations.map((l, i) => (
                 <View key={i} style={s.row}><C w="28%">{l.locName}</C><C w="12%">{l.total}</C><C w="16%" style={tone(l.cashNet)}>{sgn(l.cashNet, money)}</C><C w="16%">{money(l.scratchDollars)}</C><C w="12%" style={l.invShrink < 0 ? s.neg : null}>{l.invShrink}</C><C w="16%">{l.total ? `${Math.round(l.verificationRate * 100)}%` : "—"}</C></View>
               ))}
-              <View style={s.totals}><C w="28%">All</C><C w="12%">{comparison.total.total}</C><C w="16%" style={tone(comparison.total.cashNet)}>{sgn(comparison.total.cashNet, money)}</C><C w="16%">{money(comparison.total.scratchDollars)}</C><C w="12%" style={comparison.total.invShrink < 0 ? s.neg : null}>{comparison.total.invShrink}</C><C w="16%">{comparison.total.total ? `${Math.round(comparison.total.verificationRate * 100)}%` : "—"}</C></View>
+              <View style={s.totals}><C w="28%">{t("report.all")}</C><C w="12%">{comparison.total.total}</C><C w="16%" style={tone(comparison.total.cashNet)}>{sgn(comparison.total.cashNet, money)}</C><C w="16%">{money(comparison.total.scratchDollars)}</C><C w="12%" style={comparison.total.invShrink < 0 ? s.neg : null}>{comparison.total.invShrink}</C><C w="16%">{comparison.total.total ? `${Math.round(comparison.total.verificationRate * 100)}%` : "—"}</C></View>
             </>)}
 
             {r.cash.byLocation.length > 0 && (<>
-              <Text style={s.section}>Cash — by location</Text>
-              <View style={s.head}><C w="28%">Location</C><C w="12%">Counts</C><C w="15%">Sales</C><C w="15%">Paid out</C><C w="15%">Counted</C><C w="15%">Over/short</C></View>
+              <Text style={s.section}>{t("report.pdf_cash_by_location")}</Text>
+              <View style={s.head}><C w="28%">{t("report.th_location")}</C><C w="12%">{t("report.counts")}</C><C w="15%">{t("report.th_sales")}</C><C w="15%">{t("report.th_paid_out")}</C><C w="15%">{t("report.th_counted")}</C><C w="15%">{t("report.th_over_short")}</C></View>
               {r.cash.byLocation.map((l, i) => (
                 <View key={i} style={s.row}><C w="28%">{l.locationName || "—"}</C><C w="12%">{l.count}</C><C w="15%">{money(l.sales)}</C><C w="15%">{money(l.paidout)}</C><C w="15%">{money(l.counted)}</C><C w="15%" style={tone(l.netDiff)}>{sgn(l.netDiff, money)}</C></View>
               ))}
-              <View style={s.totals}><C w="28%">Total</C><C w="12%">{r.cash.count}</C><C w="15%">{money(r.cash.sales)}</C><C w="15%">{money(r.cash.paidout)}</C><C w="15%">{money(r.cash.counted)}</C><C w="15%" style={tone(r.cash.netDiff)}>{sgn(r.cash.netDiff, money)}</C></View>
+              <View style={s.totals}><C w="28%">{t("report.total")}</C><C w="12%">{r.cash.count}</C><C w="15%">{money(r.cash.sales)}</C><C w="15%">{money(r.cash.paidout)}</C><C w="15%">{money(r.cash.counted)}</C><C w="15%" style={tone(r.cash.netDiff)}>{sgn(r.cash.netDiff, money)}</C></View>
             </>)}
 
             {r.cash.byDrawer.length > 0 && (<>
-              <Text style={s.section}>Cash — by drawer</Text>
-              <View style={s.head}><C w="34%">Drawer</C><C w="30%">Location</C><C w="12%">Counts</C><C w="24%">Over/short</C></View>
+              <Text style={s.section}>{t("report.pdf_cash_by_drawer")}</Text>
+              <View style={s.head}><C w="34%">{t("report.th_drawer")}</C><C w="30%">{t("report.th_location")}</C><C w="12%">{t("report.counts")}</C><C w="24%">{t("report.th_over_short")}</C></View>
               {r.cash.byDrawer.map((d, i) => (
                 <View key={i} style={s.row}><C w="34%">{d.drawerName || "—"}</C><C w="30%">{d.locationName || "—"}</C><C w="12%">{d.count}</C><C w="24%" style={tone(d.netDiff)}>{sgn(d.netDiff, money)}</C></View>
               ))}
             </>)}
 
             {r.scratch.byGame.length > 0 && (<>
-              <Text style={s.section}>Scratch-offs — by game</Text>
-              <View style={s.head}><C w="46%">Game</C><C w="14%">Counts</C><C w="18%">Tickets</C><C w="22%">Dollars</C></View>
+              <Text style={s.section}>{t("report.pdf_scratch_by_game")}</Text>
+              <View style={s.head}><C w="46%">{t("report.th_game")}</C><C w="14%">{t("report.counts")}</C><C w="18%">{t("report.th_tickets")}</C><C w="22%">{t("report.th_dollars")}</C></View>
               {r.scratch.byGame.map((g, i) => (
                 <View key={i} style={s.row}><C w="46%">{g.game}</C><C w="14%">{g.count}</C><C w="18%">{g.tickets}</C><C w="22%">{money(g.dollars)}</C></View>
               ))}
-              <View style={s.totals}><C w="46%">Total</C><C w="14%">{r.scratch.count}</C><C w="18%">{r.scratch.tickets}</C><C w="22%">{money(r.scratch.dollars)}</C></View>
+              <View style={s.totals}><C w="46%">{t("report.total")}</C><C w="14%">{r.scratch.count}</C><C w="18%">{r.scratch.tickets}</C><C w="22%">{money(r.scratch.dollars)}</C></View>
             </>)}
 
             {r.inventory.byItem.length > 0 && (<>
-              <Text style={s.section}>Inventory — by item</Text>
-              <View style={s.head}><C w="50%">Item</C><C w="16%">Counts</C><C w="16%">Counted</C><C w="18%">Net shrink</C></View>
+              <Text style={s.section}>{t("report.pdf_inventory_by_item")}</Text>
+              <View style={s.head}><C w="50%">{t("report.th_item")}</C><C w="16%">{t("report.counts")}</C><C w="16%">{t("report.th_counted")}</C><C w="18%">{t("report.net_shrink")}</C></View>
               {r.inventory.byItem.map((it, i) => (
                 <View key={i} style={s.row}><C w="50%">{it.itemName}</C><C w="16%">{it.count}</C><C w="16%">{it.counted}</C><C w="18%" style={it.netShrink < 0 ? s.neg : null}>{it.netShrink}</C></View>
               ))}
-              <View style={s.totals}><C w="82%">Total net shrink (units)</C><C w="18%" style={r.inventory.netShrink < 0 ? s.neg : null}>{r.inventory.netShrink}</C></View>
+              <View style={s.totals}><C w="82%">{t("report.total_net_shrink")}</C><C w="18%" style={r.inventory.netShrink < 0 ? s.neg : null}>{r.inventory.netShrink}</C></View>
             </>)}
 
-            <Text style={s.section}>Integrity</Text>
-            <Text>{r.integrity.flagged} flagged · {r.integrity.disputed} disputed · {r.integrity.resolvedWithCause} resolved with cause · {r.integrity.verified} of {r.integrity.total} verified ({Math.round(r.integrity.verificationRate * 100)}%).</Text>
+            <Text style={s.section}>{t("report.integrity")}</Text>
+            <Text>{t("report.pdf_integrity_line", { flagged: r.integrity.flagged, disputed: r.integrity.disputed, resolved: r.integrity.resolvedWithCause, verified: r.integrity.verified, total: r.integrity.total, pct: Math.round(r.integrity.verificationRate * 100) })}</Text>
 
             {r.labor && r.labor.length > 0 && (<>
-              <Text style={s.section}>Labor — hours by employee</Text>
-              <View style={s.head}><C w="60%">Employee</C><C w="18%">Shifts</C><C w="22%">Hours</C></View>
+              <Text style={s.section}>{t("report.pdf_labor")}</Text>
+              <View style={s.head}><C w="60%">{t("report.th_employee")}</C><C w="18%">{t("report.th_shifts")}</C><C w="22%">{t("report.th_hours")}</C></View>
               {r.labor.map((u, i) => (
                 <View key={i} style={s.row}><C w="60%">{u.userName || "—"}</C><C w="18%">{u.shifts}</C><C w="22%">{u.hours}</C></View>
               ))}
-              <View style={s.totals}><C w="60%">Total</C><C w="18%">{r.labor.reduce((a, u) => a + u.shifts, 0)}</C><C w="22%">{Math.round(r.labor.reduce((a, u) => a + u.hours, 0) * 100) / 100}</C></View>
+              <View style={s.totals}><C w="60%">{t("report.total")}</C><C w="18%">{r.labor.reduce((a, u) => a + u.shifts, 0)}</C><C w="22%">{Math.round(r.labor.reduce((a, u) => a + u.hours, 0) * 100) / 100}</C></View>
             </>)}
 
             {r.incidents && (r.incidents.opened + r.incidents.acknowledged + r.incidents.closed) > 0 && (<>
-              <Text style={s.section}>Incidents</Text>
-              <Text>{r.incidents.opened} opened · {r.incidents.acknowledged} acknowledged · {r.incidents.closed} closed within the period.</Text>
+              <Text style={s.section}>{t("report.incidents_heading")}</Text>
+              <Text>{t("report.pdf_incidents_line", { opened: r.incidents.opened, ack: r.incidents.acknowledged, closed: r.incidents.closed })}</Text>
             </>)}
 
             <View style={s.sig}>
-              <View style={s.sigLine}><Text>Prepared by · date</Text></View>
-              <View style={s.sigLine}><Text>Reviewed by (manager) · date</Text></View>
+              <View style={s.sigLine}><Text>{t("report.sig_prepared")}</Text></View>
+              <View style={s.sigLine}><Text>{t("report.sig_reviewed")}</Text></View>
             </View>
           </Page>
         </Document>
@@ -458,7 +461,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       URL.revokeObjectURL(a.href);
     } catch (err) {
       console.error(err);
-      onToast?.("PDF failed — try Print");
+      onToast?.(t("report.toast_pdf_fail_print"));
     }
     setBusy(false);
   }
@@ -472,32 +475,32 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     const scratch = rows.filter((e) => e.kind === "scratch");
     const inv = rows.filter((e) => e.kind === "inventory");
     const w = window.open("", "_blank", "width=800,height=900");
-    if (!w) return onToast?.("Allow pop-ups to print");
+    if (!w) return onToast?.(t("report.toast_popups"));
     const cashRows = cash.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.drawerName)}</td><td>${esc(e.by)}</td><td>${money(e.sales)}</td><td>${money(e.paidout)}</td><td>${money(e.expected)}</td><td>${money(e.counted)}</td><td>${e.diff >= 0 ? "+" : ""}${money(e.diff)}</td><td>${esc(e.verifiedBy || "")}</td></tr>`).join("");
     const scratchRows = scratch.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.game)}</td><td>${esc(e.pack)}</td><td>${money(e.price)}</td><td>${esc(e.sold)}</td><td>${money(e.dollars)}</td><td>${esc(e.by)}</td></tr>`).join("");
     const invRows = inv.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.itemName)}</td><td>${esc(e.startQty ?? "")}</td><td>${esc(e.counted)}</td><td>${e.diff >= 0 ? "+" : ""}${esc(e.diff)}</td></tr>`).join("");
     const pct = (l) => (l.total ? `${Math.round(l.verificationRate * 100)}%` : "—");
     const cmpRow = (name, l, cell = "td") => `<tr><${cell}>${esc(name)}</${cell}><${cell}>${l.total}</${cell}><${cell}>${l.cashNet >= 0 ? "+" : ""}${money(l.cashNet)}</${cell}><${cell}>${money(l.scratchDollars)}</${cell}><${cell}>${l.invShrink}</${cell}><${cell}>${pct(l)}</${cell}></tr>`;
     const cmpTable = comparison
-      ? `<h2>By location</h2><table><tr><th>Location</th><th>Counts</th><th>Over/short</th><th>Scratch $</th><th>Shrink</th><th>Verified</th></tr>${comparison.locations.map((l) => cmpRow(l.locName, l)).join("")}${cmpRow("All", comparison.total, "th")}</table>`
+      ? `<h2>${esc(t("report.by_location"))}</h2><table><tr><th>${esc(t("report.th_location"))}</th><th>${esc(t("report.counts"))}</th><th>${esc(t("report.th_over_short"))}</th><th>${esc(t("report.th_scratch_dollars"))}</th><th>${esc(t("report.th_shrink"))}</th><th>${esc(t("report.th_verified"))}</th></tr>${comparison.locations.map((l) => cmpRow(l.locName, l)).join("")}${cmpRow(t("report.all"), comparison.total, "th")}</table>`
       : "";
     const accent = paletteAccent(vendor);
-    w.document.write(`<!doctype html><title>${esc(fileBase)}</title>
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(fileBase)}</title>
       <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a1c2e}h1{font-size:18px;margin:0}p{color:#666;margin:2px 0}
       h2{font-size:13px;margin:18px 0 6px}table{width:100%;border-collapse:collapse;font-size:11px}
       th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}th{border-bottom:2px solid #1a1c2e}
       .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}
       .sig{display:flex;justify-content:space-between;margin-top:48px}.sig div{width:44%;border-top:1px solid #1a1c2e;padding-top:4px;font-size:10px;color:#666}</style>
-      <div class="brand"><span class="mark">DC</span><h1>${esc(vendor.name)} — Records Report</h1></div>
-      <p>Store code: ${esc(vendor.slug)} · ${esc(locLabel)} · ${esc(range.label)} (${range.startISO} → ${range.endISO})</p>
-      <p>Generated by ${esc(profile.name)} at ${new Date().toLocaleString()}</p>
-      ${rows.length === 0 ? "<p><i>No activity recorded for this period.</i></p>" : ""}
+      <div class="brand"><span class="mark">DC</span><h1>${esc(vendor.name)} — ${esc(t("report.pdf_records_title"))}</h1></div>
+      <p>${esc(t("report.store_code"))}: ${esc(vendor.slug)} · ${esc(locLabel)} · ${esc(range.label)} (${range.startISO} → ${range.endISO})</p>
+      <p>${esc(t("report.print_generated_by", { name: profile.name, time: new Date().toLocaleString() }))}</p>
+      ${rows.length === 0 ? `<p><i>${esc(t("report.print_no_activity"))}</i></p>` : ""}
       ${cmpTable}
-      ${cash.length ? `<h2>Cash drawers</h2><table><tr><th>Date</th><th>Drawer</th><th>By</th><th>Sales</th><th>Paid out</th><th>Expected</th><th>Counted</th><th>Over/short</th><th>Verified</th></tr>${cashRows}<tr><th colspan="3">Totals</th><th>${money(report.cash.sales)}</th><th>${money(report.cash.paidout)}</th><th></th><th>${money(report.cash.counted)}</th><th>${report.cash.netDiff >= 0 ? "+" : ""}${money(report.cash.netDiff)}</th><th></th></tr></table>` : ""}
-      ${scratch.length ? `<h2>Scratch-offs</h2><table><tr><th>Date</th><th>Game</th><th>Pack</th><th>Price</th><th>Sold</th><th>Dollars</th><th>By</th></tr>${scratchRows}<tr><th colspan="4">Total</th><th>${report.scratch.tickets}</th><th>${money(report.scratch.dollars)}</th><th></th></tr></table>` : ""}
-      ${inv.length ? `<h2>Inventory counts</h2><table><tr><th>Date</th><th>Item</th><th>Start</th><th>Counted</th><th>Diff</th></tr>${invRows}<tr><th colspan="4">Net shrink (units)</th><th>${report.inventory.netShrink}</th></tr></table>` : ""}
-      <h2>Verification</h2><p>${report.integrity.verified} of ${report.integrity.total} entries verified by a manager (${Math.round(report.integrity.verificationRate * 100)}%).</p>
-      <div class="sig"><div>Prepared by · date</div><div>Reviewed by (manager) · date</div></div>`);
+      ${cash.length ? `<h2>${esc(t("report.h_cash_drawers"))}</h2><table><tr><th>${esc(t("report.th_date"))}</th><th>${esc(t("report.th_drawer"))}</th><th>${esc(t("report.th_by"))}</th><th>${esc(t("report.th_sales"))}</th><th>${esc(t("report.th_paid_out"))}</th><th>${esc(t("report.th_expected"))}</th><th>${esc(t("report.th_counted"))}</th><th>${esc(t("report.th_over_short"))}</th><th>${esc(t("report.th_verified"))}</th></tr>${cashRows}<tr><th colspan="3">${esc(t("report.totals"))}</th><th>${money(report.cash.sales)}</th><th>${money(report.cash.paidout)}</th><th></th><th>${money(report.cash.counted)}</th><th>${report.cash.netDiff >= 0 ? "+" : ""}${money(report.cash.netDiff)}</th><th></th></tr></table>` : ""}
+      ${scratch.length ? `<h2>${esc(t("report.h_scratch"))}</h2><table><tr><th>${esc(t("report.th_date"))}</th><th>${esc(t("report.th_game"))}</th><th>${esc(t("report.th_pack"))}</th><th>${esc(t("report.th_price"))}</th><th>${esc(t("report.th_sold"))}</th><th>${esc(t("report.th_dollars"))}</th><th>${esc(t("report.th_by"))}</th></tr>${scratchRows}<tr><th colspan="4">${esc(t("report.total"))}</th><th>${report.scratch.tickets}</th><th>${money(report.scratch.dollars)}</th><th></th></tr></table>` : ""}
+      ${inv.length ? `<h2>${esc(t("report.h_inventory"))}</h2><table><tr><th>${esc(t("report.th_date"))}</th><th>${esc(t("report.th_item"))}</th><th>${esc(t("report.th_start"))}</th><th>${esc(t("report.th_counted"))}</th><th>${esc(t("report.th_diff"))}</th></tr>${invRows}<tr><th colspan="4">${esc(t("report.net_shrink_units"))}</th><th>${report.inventory.netShrink}</th></tr></table>` : ""}
+      <h2>${esc(t("report.h_verification"))}</h2><p>${esc(t("report.print_verification_line", { v: report.integrity.verified, total: report.integrity.total, pct: Math.round(report.integrity.verificationRate * 100) }))}</p>
+      <div class="sig"><div>${esc(t("report.sig_prepared"))}</div><div>${esc(t("report.sig_reviewed"))}</div></div>`);
     w.document.close();
     w.focus();
     w.print();
@@ -508,19 +511,19 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="report-modal-title"
         className="bg-surface rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="px-4 py-3.5 border-b border-line flex items-center justify-between">
-          <h2 id="report-modal-title" className="font-semibold text-[15px]">Reports</h2>
-          <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose} aria-label="Close"><span aria-hidden="true">✕</span></button>
+          <h2 id="report-modal-title" className="font-semibold text-[15px]">{t("report.title")}</h2>
+          <button className="btn-ghost text-[13px] px-2.5 py-1" onClick={onClose} aria-label={t("report.close")}><span aria-hidden="true">✕</span></button>
         </div>
         <div className="p-4 space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Period">
+            <Field label={t("report.period")}>
               <select className="input" value={preset} onChange={(e) => setPreset(e.target.value)}>
-                {PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                {PRESETS.map((p) => <option key={p.value} value={p.value}>{t(`report.preset_${p.value}`)}</option>)}
               </select>
             </Field>
-            <Field label="Location">
+            <Field label={t("report.location")}>
               <select className="input" value={locId} onChange={(e) => setLocId(e.target.value)}>
-                <option value="all">All locations</option>
+                <option value="all">{t("report.all_locations")}</option>
                 {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </Field>
@@ -528,37 +531,37 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
 
           {preset === "custom" ? (
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Start"><input type="date" className="input" value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} /></Field>
-              <Field label="End"><input type="date" className="input" value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} /></Field>
+              <Field label={t("report.start")}><input type="date" className="input" value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} /></Field>
+              <Field label={t("report.end")}><input type="date" className="input" value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} /></Field>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, -1, fiscalOpts))} aria-label="Previous period"><span aria-hidden="true">◀</span></button>
+              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, -1, fiscalOpts))} aria-label={t("report.prev_period")}><span aria-hidden="true">◀</span></button>
               <div className="flex-1 text-center">
                 <div className="font-semibold text-sm">{range ? range.label : "—"}</div>
                 {range && <div className="text-[11px] text-muted font-mono">{range.startISO} → {range.endISO}</div>}
               </div>
-              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, 1, fiscalOpts))} aria-label="Next period"><span aria-hidden="true">▶</span></button>
+              <button className="btn-ghost px-3 py-2" onClick={() => setRefDate(stepPeriod(preset, refDate, 1, fiscalOpts))} aria-label={t("report.next_period")}><span aria-hidden="true">▶</span></button>
             </div>
           )}
 
           {fiscalStartMonth !== 1 && preset !== "custom" && FISCAL_PRESETS.has(preset) && (
-            <p className="text-[11px] text-muted -mt-1">Fiscal year starts {MONTHS[fiscalStartMonth - 1]}.</p>
+            <p className="text-[11px] text-muted -mt-1">{t("report.fy_note", { month: t(`report.month_${fiscalStartMonth}`) })}</p>
           )}
 
           <div className="space-y-3" aria-live="polite">
             {!range ? (
-              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-neg">End date is before the start date.</div>
+              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-neg">{t("report.invalid_range")}</div>
             ) : loading ? (
-              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-muted">Loading {range.label}…</div>
+              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-muted">{t("report.loading", { label: range.label })}</div>
             ) : loadError ? (
-              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-neg">{loadError}</div>
+              <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-neg">{t("report.load_error")}</div>
             ) : report ? (
               <>
                 {/* ---- Revenue mix (donut overview) ---- */}
                 {revenueMix.length >= 2 && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
-                    <h3 className="font-semibold text-[14px] mb-2">Revenue mix</h3>
+                    <h3 className="font-semibold text-[14px] mb-2">{t("report.revenue_mix")}</h3>
                     <div className="flex flex-wrap items-center gap-4">
                       <div className="w-40 h-40 flex-shrink-0 mx-auto">
                         <ResponsiveContainer width="100%" height="100%">
@@ -589,16 +592,16 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 {/* ---- Cash ---- */}
                 {cashOn && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
-                    <h3 className="font-semibold text-[14px] mb-2">Cash</h3>
+                    <h3 className="font-semibold text-[14px] mb-2">{t("report.cash")}</h3>
                     <div className="grid grid-cols-3 gap-2 mb-3">
-                      <Kpi label="Cash sales" value={money(report.cash.sales)} />
-                      <Kpi label="Net over/short" value={`${report.cash.netDiff >= 0 ? "+" : ""}${money(report.cash.netDiff)}`}
+                      <Kpi label={t("report.cash_sales")} value={money(report.cash.sales)} />
+                      <Kpi label={t("report.net_over_short")} value={`${report.cash.netDiff >= 0 ? "+" : ""}${money(report.cash.netDiff)}`}
                         tone={report.cash.netDiff < -0.005 ? "neg" : report.cash.netDiff > 0.005 ? "pos" : null} />
-                      <Kpi label="Counts" value={report.counts.cash} />
+                      <Kpi label={t("report.counts")} value={report.counts.cash} />
                     </div>
                     {report.trend.length > 1 && (
                       <>
-                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Over / short by {report.trendBy}</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("report.over_short_by", { unit: t(`report.by_${report.trendBy}`) })}</div>
                         <ResponsiveContainer width="100%" height={150}>
                           <BarChart data={report.trend}>
                             <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
@@ -610,7 +613,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                             </Bar>
                           </BarChart>
                         </ResponsiveContainer>
-                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mt-3 mb-1">Cash sales trend</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mt-3 mb-1">{t("report.cash_trend")}</div>
                         <ResponsiveContainer width="100%" height={140}>
                           <LineChart data={report.trend}>
                             <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
@@ -628,15 +631,15 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 {/* ---- Scratch-off ---- */}
                 {scratchOn && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
-                    <h3 className="font-semibold text-[14px] mb-2">Scratch-off</h3>
+                    <h3 className="font-semibold text-[14px] mb-2">{t("report.scratch")}</h3>
                     <div className="grid grid-cols-3 gap-2 mb-3">
-                      <Kpi label="Tickets sold" value={report.scratch.tickets} />
-                      <Kpi label="Scratch sales" value={money(report.scratch.dollars)} />
-                      <Kpi label="Games" value={report.scratch.byGame.length} />
+                      <Kpi label={t("report.tickets_sold")} value={report.scratch.tickets} />
+                      <Kpi label={t("report.scratch_sales")} value={money(report.scratch.dollars)} />
+                      <Kpi label={t("report.games")} value={report.scratch.byGame.length} />
                     </div>
                     {gameRows.length > 0 && (
                       <>
-                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Top games by sales</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("report.top_games")}</div>
                         <ResponsiveContainer width="100%" height={Math.max(120, gameRows.length * 34)}>
                           <BarChart layout="vertical" data={gameRows} margin={{ left: 8 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} horizontal={false} />
@@ -654,15 +657,15 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 {/* ---- Inventory ---- */}
                 {inventoryOn && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
-                    <h3 className="font-semibold text-[14px] mb-2">Inventory</h3>
+                    <h3 className="font-semibold text-[14px] mb-2">{t("report.inventory")}</h3>
                     <div className="grid grid-cols-3 gap-2 mb-3">
-                      <Kpi label="Counts" value={report.counts.inventory} />
-                      <Kpi label="Net shrink" value={`${report.inventory.netShrink} u`} tone={report.inventory.netShrink < 0 ? "neg" : null} />
-                      <Kpi label="Items" value={report.inventory.byItem.length} />
+                      <Kpi label={t("report.counts")} value={report.counts.inventory} />
+                      <Kpi label={t("report.net_shrink")} value={`${report.inventory.netShrink} u`} tone={report.inventory.netShrink < 0 ? "neg" : null} />
+                      <Kpi label={t("report.items")} value={report.inventory.byItem.length} />
                     </div>
                     {shrinkRows.length > 0 && (
                       <>
-                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Biggest shrink (units)</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("report.biggest_shrink")}</div>
                         <ResponsiveContainer width="100%" height={Math.max(120, shrinkRows.length * 34)}>
                           <BarChart layout="vertical" data={shrinkRows} margin={{ left: 8 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} horizontal={false} />
@@ -680,16 +683,16 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 {/* ---- Gaming (owner-only, separate from the entries spine) ---- */}
                 {gamingOn && gaming && gaming.count > 0 && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
-                    <h3 className="font-semibold text-[14px] mb-2">Gaming</h3>
+                    <h3 className="font-semibold text-[14px] mb-2">{t("report.gaming")}</h3>
                     <div className="grid grid-cols-4 gap-2 mb-3">
-                      <Kpi label="Collection" value={money(gaming.totals.collection)} />
-                      <Kpi label="Payout" value={money(gaming.totals.payout)} />
-                      <Kpi label="Net" value={money(gaming.totals.net)} tone={gaming.totals.net < 0 ? "neg" : null} />
-                      <Kpi label="Store take" value={money(gaming.totals.storeShare)} tone="pos" />
+                      <Kpi label={t("report.collection")} value={money(gaming.totals.collection)} />
+                      <Kpi label={t("report.payout")} value={money(gaming.totals.payout)} />
+                      <Kpi label={t("report.net")} value={money(gaming.totals.net)} tone={gaming.totals.net < 0 ? "neg" : null} />
+                      <Kpi label={t("report.store_take")} value={money(gaming.totals.storeShare)} tone="pos" />
                     </div>
                     {gaming.series.length > 1 && (
                       <>
-                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Store take by date</div>
+                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("report.store_take_by_date")}</div>
                         <ResponsiveContainer width="100%" height={150}>
                           <LineChart data={gaming.series}>
                             <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
@@ -706,13 +709,13 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
 
                 {/* ---- Integrity + incidents (always) ---- */}
                 <div className="bg-panel border border-line rounded-xl p-3.5 text-sm space-y-1">
-                  <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Integrity</div>
-                  <div>{report.integrity.flagged} flagged · {report.integrity.disputed} disputed</div>
-                  <div>{report.integrity.verified} of {report.integrity.total} verified ({Math.round(report.integrity.verificationRate * 100)}%)</div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("report.integrity")}</div>
+                  <div>{t("report.flagged_disputed", { flagged: report.integrity.flagged, disputed: report.integrity.disputed })}</div>
+                  <div>{t("report.verified_line", { v: report.integrity.verified, total: report.integrity.total, pct: Math.round(report.integrity.verificationRate * 100) })}</div>
                   {report.incidents && (report.incidents.opened + report.incidents.acknowledged + report.incidents.closed) > 0 && (
-                    <div>{report.incidents.opened} incidents opened · {report.incidents.acknowledged} acknowledged · {report.incidents.closed} closed</div>
+                    <div>{t("report.incidents_line", { opened: report.incidents.opened, ack: report.incidents.acknowledged, closed: report.incidents.closed })}</div>
                   )}
-                  {report.empty && (!gaming || gaming.count === 0) && <div className="text-muted italic mt-1">No activity in this period.</div>}
+                  {report.empty && (!gaming || gaming.count === 0) && <div className="text-muted italic mt-1">{t("report.no_activity")}</div>}
                 </div>
               </>
             ) : null}
@@ -720,16 +723,16 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
 
           {ready && comparison && !report?.empty && (
             <div className="bg-panel border border-line rounded-xl p-3.5">
-              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-2">By location</div>
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-2">{t("report.by_location")}</div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[12px] border-collapse">
                   <thead>
                     <tr className="text-muted text-left border-b border-line">
-                      <th className="py-1 pr-2 font-medium">Location</th>
-                      <th className="py-1 px-1 font-medium text-right">Over/short</th>
-                      <th className="py-1 px-1 font-medium text-right">Scratch $</th>
-                      <th className="py-1 px-1 font-medium text-right">Shrink</th>
-                      <th className="py-1 pl-1 font-medium text-right">Verified</th>
+                      <th className="py-1 pr-2 font-medium">{t("report.th_location")}</th>
+                      <th className="py-1 px-1 font-medium text-right">{t("report.th_over_short")}</th>
+                      <th className="py-1 px-1 font-medium text-right">{t("report.th_scratch_dollars")}</th>
+                      <th className="py-1 px-1 font-medium text-right">{t("report.th_shrink")}</th>
+                      <th className="py-1 pl-1 font-medium text-right">{t("report.th_verified")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -743,7 +746,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                       </tr>
                     ))}
                     <tr className="font-semibold">
-                      <td className="py-1 pr-2">All</td>
+                      <td className="py-1 pr-2">{t("report.all")}</td>
                       <td className={`py-1 px-1 text-right tabular-nums ${comparison.total.cashNet < 0 ? "text-neg" : comparison.total.cashNet > 0 ? "text-pos" : ""}`}>{comparison.total.cashNet >= 0 ? "+" : ""}{money(comparison.total.cashNet)}</td>
                       <td className="py-1 px-1 text-right tabular-nums">{money(comparison.total.scratchDollars)}</td>
                       <td className={`py-1 px-1 text-right tabular-nums ${comparison.total.invShrink < 0 ? "text-neg" : ""}`}>{comparison.total.invShrink}</td>
@@ -756,53 +759,49 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
           )}
 
           <div className="flex gap-2">
-            <button className="btn-primary flex-1" disabled={!ready || busy} onClick={downloadPdf}>{busy ? "Generating…" : "Download PDF"}</button>
-            <button className="btn-ghost flex-1" disabled={!ready || busy} onClick={downloadCsv}>Download CSV</button>
+            <button className="btn-primary flex-1" disabled={!ready || busy} onClick={downloadPdf}>{busy ? t("report.generating") : t("report.download_pdf")}</button>
+            <button className="btn-ghost flex-1" disabled={!ready || busy} onClick={downloadCsv}>{t("report.download_csv")}</button>
           </div>
-          <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={printReport}>Print (line-by-line)</button>
+          <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={printReport}>{t("report.print")}</button>
           {gamingOn && gaming && gaming.count > 0 && (
-            <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={downloadGamingCsv}>Download gaming CSV</button>
+            <button className="btn-ghost w-full text-[13px]" disabled={!ready || busy} onClick={downloadGamingCsv}>{t("report.download_gaming_csv")}</button>
           )}
 
           <div className="border-t border-line-soft pt-3 space-y-2">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">For the bookkeeper</div>
+            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold">{t("report.for_bookkeeper")}</div>
             <div className="flex gap-2">
               <button className="btn-ghost flex-1 text-[13px]" disabled={busy} onClick={downloadBookkeeperPdf}>
-                {busy ? "Working…" : `Close-of-day PDF${preset === "day" && range ? "" : " (today)"}`}
+                {busy ? t("report.working") : t("report.close_of_day_pdf") + (preset === "day" && range ? "" : t("report.today_suffix"))}
               </button>
               <button className="btn-ghost flex-1 text-[13px]" disabled={!ready || busy} onClick={downloadJournalCsv}>
-                QuickBooks journal CSV
+                {t("report.qb_journal_csv")}
               </button>
             </div>
             <p className="text-[11px] text-muted leading-relaxed">
-              The close-of-day sheet reconciles one day&apos;s cash{preset === "day" && range ? ` (${range.startISO})` : " (today)"} and
-              previews the exact journal entry the CSV exports — paper and file always agree. The journal CSV covers the
-              selected period, one balanced entry per day and location, ready to import instead of re-keying. Both are
-              <b> drafts</b> your bookkeeper reviews and posts; DuoCount is the count-of-record, never the ledger.
+              {t("report.bookkeeper_help_a", { day: preset === "day" && range ? range.startISO : t("report.today_paren") })}
+              <b>{t("report.drafts")}</b>{t("report.bookkeeper_help_b")}
             </p>
 
             <div className="flex items-center gap-2">
-              <select className="input flex-1" value={franchiseProfile} aria-label="Franchise report format"
+              <select className="input flex-1" value={franchiseProfile} aria-label={t("report.franchise_aria")}
                 onChange={(e) => setFranchiseProfile(e.target.value)}>
-                <option value="">Franchise format: none</option>
+                <option value="">{t("report.franchise_none")}</option>
                 {Object.values(FRANCHISE_PROFILES).map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
               {franchiseProfile && (
                 <button className="btn-ghost w-auto px-4 text-[13px]" disabled={!ready || busy} onClick={downloadFranchiseCsv}>
-                  Download
+                  {t("report.download")}
                 </button>
               )}
             </div>
             {franchiseProfile && (
               <p className="text-[11px] text-muted leading-relaxed">
-                One row per business day in a fixed column layout (store #, gross/cash/lottery sales, paid-outs,
-                over/short, verified %). A <b>generic scaffold</b> — check it against your franchisor&apos;s actual
-                template before submitting; pick a location above to scope it to one store.
+                {t("report.franchise_help_a")}<b>{t("report.generic_scaffold")}</b>{t("report.franchise_help_b")}
               </p>
             )}
           </div>
 
-          <p className="text-[11px] text-muted">A read-only snapshot of recorded counts for the period — saved for your records.</p>
+          <p className="text-[11px] text-muted">{t("report.snapshot_note")}</p>
         </div>
       </div>
     </div>

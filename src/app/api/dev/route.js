@@ -137,8 +137,23 @@ export async function POST(req) {
       const op = body.op;
 
       if (op === "suspend" || op === "activate") {
-        await vref.update({ status: op === "suspend" ? "suspended" : "active" });
-        return NextResponse.json({ ok: true, status: op === "suspend" ? "suspended" : "active" });
+        const status = op === "suspend" ? "suspended" : "active";
+        await vref.update({ status });
+        // Suspending must bite live sessions, not just block the next login.
+        // Revoke every store user's refresh tokens: their next API call fails
+        // the checkRevoked verify in require-manager (401), and no revoked token
+        // can mint a fresh ID token — while the login route already refuses a
+        // suspended store. (A Firestore client listener on an already-issued ID
+        // token can still read until that token expires, ≤1h, then can't
+        // refresh; no writes — client rules are append-only / server-gated.)
+        // Mirrors the resetOwnerPin revocation below. Activate needs no revoke:
+        // the store's users simply sign in again.
+        if (op === "suspend") {
+          const users = await vref.collection("users").get();
+          await Promise.all(users.docs.map((u) =>
+            adminAuth.revokeRefreshTokens(`${vref.id}_${u.id}`).catch(() => { /* never signed in */ })));
+        }
+        return NextResponse.json({ ok: true, status });
       }
       if (op === "rename") {
         const name = String(body.name ?? "").trim().slice(0, 80);
