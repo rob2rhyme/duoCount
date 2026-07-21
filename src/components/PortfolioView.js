@@ -5,6 +5,7 @@ import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPortfolioSummary, buildStoreLeaderboard, buildEmployeeRollup } from "@/lib/portfolio-rollup";
 import { fetchEntriesInRange } from "@/lib/data";
 import { paletteAccent } from "@/lib/branding";
+import { featureEnabled } from "@/lib/features";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconChart } from "./EmptyState";
 import ReportModal from "./ReportModal";
@@ -22,14 +23,22 @@ const toneOf = (n) => (n < -0.005 ? "text-neg" : n > 0.005 ? "text-pos" : "text-
 
 // Sortable leaderboard columns. `key` must be a numeric field on the decorated
 // leaderboard row (portfolio-rollup.js); clearing the sort returns to the
-// default attention order.
+// default attention order. `cell` renders the body value so the header and body
+// stay in lockstep when a column is dropped, and `feature` (when set) hides both
+// header and cell for a store that turned that module off.
 const COLUMNS = [
-  { key: "total", label: "Counts", title: "Entries recorded in the period" },
-  { key: "cashNet", label: "Over/short", title: "Net cash over/short ($)" },
-  { key: "cashNetRate", label: "O/S rate", title: "Over/short per cash-sales dollar — comparable across store sizes" },
-  { key: "invShrink", label: "Shrink", title: "Net inventory shrink (units — not dollars)" },
-  { key: "flagRate", label: "Flags", title: "Share of entries with an unresolved variance" },
-  { key: "verificationRate", label: "Verified", title: "Share of entries verified by a second person" },
+  { key: "total", label: "Counts", title: "Entries recorded in the period",
+    cell: (r) => ({ cn: "", node: r.total }) },
+  { key: "cashNet", feature: "cash", label: "Over/short", title: "Net cash over/short ($)",
+    cell: (r) => ({ cn: `font-semibold ${toneOf(r.cashNet)}`, node: `${r.cashNet >= 0 ? "+" : ""}${money(r.cashNet)}` }) },
+  { key: "cashNetRate", feature: "cash", label: "O/S rate", title: "Over/short per cash-sales dollar — comparable across store sizes",
+    cell: (r) => ({ cn: r.cashNetRate == null ? "text-faint" : toneOf(r.cashNetRate), node: pct(r.cashNetRate) }) },
+  { key: "invShrink", feature: "inventory", label: "Shrink", title: "Net inventory shrink (units — not dollars)",
+    cell: (r) => ({ cn: toneOf(r.invShrink), node: r.invShrink }) },
+  { key: "flagRate", label: "Flags", title: "Share of entries with an unresolved variance",
+    cell: (r) => ({ cn: r.flagRate ? "text-neg" : r.flagRate == null ? "text-faint" : "", node: pct(r.flagRate, 0) }) },
+  { key: "verificationRate", label: "Verified", title: "Share of entries verified by a second person",
+    cell: (r) => ({ cn: r.verificationRate == null ? "text-faint" : "", node: r.total ? pct(r.verificationRate, 0) : "—" }) },
 ];
 
 // Owner-only portfolio cockpit: one view of every store for any report period.
@@ -56,6 +65,17 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
 
   const fiscalStartMonth = vendor.fiscalStartMonth ?? 1;
   const fiscalOpts = useMemo(() => ({ fiscalStartMonth }), [fiscalStartMonth]);
+
+  // Hide a disabled module's figures across the portfolio — KPI tiles, leaderboard
+  // columns and the people table all drop their cash/scratch/inventory cells so
+  // an owner sees only the modules they run.
+  const cashOn = featureEnabled(vendor, "cash");
+  const scratchOn = featureEnabled(vendor, "scratch");
+  const inventoryOn = featureEnabled(vendor, "inventory");
+  const columns = useMemo(() => COLUMNS.filter((c) => !c.feature || featureEnabled(vendor, c.feature)), [vendor]);
+  // People-table column count varies with the enabled modules (for the ShowMore
+  // row's colSpan): Person, Stores, Entries, Verified are always on.
+  const peopleColSpan = 4 + (cashOn ? 2 : 0) + (scratchOn ? 1 : 0);
 
   const range = useMemo(() => {
     try {
@@ -153,6 +173,41 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
       const sgn = (n, fmt = (x) => x) => `${n >= 0 ? "+" : ""}${fmt(n)}`;
       const pdfPct = (r, d = 0) => (r == null ? "—" : `${(r * 100).toFixed(d)}%`);
 
+      // Keep the PDF in step with the owner's enabled modules: drop a disabled
+      // module's KPI tile / table column and re-spread the freed width across the
+      // survivors so the fixed-layout tables never leave a gap.
+      const on = (c) => !c.feature || featureEnabled(vendor, c.feature);
+      const spread = (cols) => {
+        const vis = cols.filter(on);
+        const sum = vis.reduce((n, c) => n + c.w, 0) || 1;
+        return vis.map((c) => ({ ...c, width: `${((c.w / sum) * 100).toFixed(2)}%` }));
+      };
+      const kpiCells = [
+        { feature: "cash", v: sgn(summary.cash.netDiff, money), vs: tone(summary.cash.netDiff), l: "Net over/short" },
+        { feature: "cash", v: money(summary.cash.sales), l: "Cash sales" },
+        { feature: "scratch", v: money(summary.scratch.dollars), l: "Scratch $" },
+        { feature: "inventory", v: `${summary.inventory.netShrink} u`, vs: summary.inventory.netShrink < 0 ? s.neg : null, l: "Net shrink" },
+        { v: `${Math.round(summary.integrity.verificationRate * 100)}%`, l: "Verified" },
+      ].filter(on);
+      const lbCols = spread([
+        { w: 6, head: "#", get: (r) => r.rank, tot: () => " " },
+        { w: 24, head: "Store", get: (r) => r.locName, tot: () => "All stores" },
+        { w: 10, head: "Counts", get: (r) => r.total, tot: (b) => b.total },
+        { w: 15, feature: "cash", head: "Over/short", get: (r) => sgn(r.cashNet, money), st: (r) => tone(r.cashNet), tot: (b) => sgn(b.cashNet, money), tst: (b) => tone(b.cashNet) },
+        { w: 12, feature: "cash", head: "O/S rate", get: (r) => pdfPct(r.cashNetRate, 1), st: (r) => tone(r.cashNetRate ?? 0), tot: (b) => pdfPct(b.cashNetRate, 1), tst: (b) => tone(b.cashNetRate ?? 0) },
+        { w: 11, feature: "inventory", head: "Shrink", get: (r) => r.invShrink, st: (r) => (r.invShrink < 0 ? s.neg : null), tot: (b) => b.invShrink, tst: (b) => (b.invShrink < 0 ? s.neg : null) },
+        { w: 10, head: "Flags", get: (r) => pdfPct(r.flagRate), tot: (b) => pdfPct(b.flagRate) },
+        { w: 12, head: "Verified", get: (r) => (r.total ? pdfPct(r.verificationRate) : "—"), tot: (b) => (b.total ? pdfPct(b.verificationRate) : "—") },
+      ]);
+      const ppCols = spread([
+        { w: 30, head: "Person", get: (p) => p.name, sub: (l) => `    ↳ ${l.locationName}` },
+        { w: 12, head: "Entries", get: (p) => p.entries, sub: (l) => l.entries },
+        { w: 16, feature: "cash", head: "Over/short", get: (p) => sgn(p.cashNet, money), st: (p) => tone(p.cashNet), sub: (l) => sgn(l.cashNet, money), sst: (l) => tone(l.cashNet) },
+        { w: 12, feature: "cash", head: "Shorts", get: (p) => p.shorts, sub: (l) => l.shorts },
+        { w: 16, feature: "scratch", head: "Scratch $", get: (p) => money(p.scratchDollars), sub: (l) => money(l.scratchDollars) },
+        { w: 14, head: "Verified", get: (p) => pdfPct(p.verificationRate), sub: (l) => pdfPct(l.verificationRate) },
+      ]);
+
       const doc = (
         <Document title={`duocount-portfolio-${range.key}`}>
           <Page size="A4" style={s.page}>
@@ -166,52 +221,37 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
             {summary.empty && <Text style={s.empty}>No activity recorded in this period.</Text>}
 
             <View style={s.kpis}>
-              <View style={s.kpi}><Text style={[s.kpiV, tone(summary.cash.netDiff)]}>{sgn(summary.cash.netDiff, money)}</Text><Text style={s.kpiL}>Net over/short</Text></View>
-              <View style={s.kpi}><Text style={s.kpiV}>{money(summary.cash.sales)}</Text><Text style={s.kpiL}>Cash sales</Text></View>
-              <View style={s.kpi}><Text style={s.kpiV}>{money(summary.scratch.dollars)}</Text><Text style={s.kpiL}>Scratch $</Text></View>
-              <View style={s.kpi}><Text style={[s.kpiV, summary.inventory.netShrink < 0 ? s.neg : null]}>{summary.inventory.netShrink} u</Text><Text style={s.kpiL}>Net shrink</Text></View>
-              <View style={[s.kpi, { marginRight: 0 }]}><Text style={s.kpiV}>{Math.round(summary.integrity.verificationRate * 100)}%</Text><Text style={s.kpiL}>Verified</Text></View>
+              {kpiCells.map((k, i) => (
+                <View key={k.l} style={i === kpiCells.length - 1 ? [s.kpi, { marginRight: 0 }] : s.kpi}>
+                  <Text style={k.vs ? [s.kpiV, k.vs] : s.kpiV}>{k.v}</Text>
+                  <Text style={s.kpiL}>{k.l}</Text>
+                </View>
+              ))}
             </View>
 
             <Text style={s.section}>Store leaderboard{sort ? "" : " — ranked by needs-attention"}</Text>
-            <View style={s.head}><C w="6%">#</C><C w="24%">Store</C><C w="10%">Counts</C><C w="15%">Over/short</C><C w="12%">O/S rate</C><C w="11%">Shrink</C><C w="10%">Flags</C><C w="12%">Verified</C></View>
+            <View style={s.head}>{lbCols.map((c) => <C key={c.head} w={c.width}>{c.head}</C>)}</View>
             {board.rows.map((r) => (
               <View key={r.locId} style={s.row}>
-                <C w="6%">{r.rank}</C><C w="24%">{r.locName}</C><C w="10%">{r.total}</C>
-                <C w="15%" style={tone(r.cashNet)}>{sgn(r.cashNet, money)}</C>
-                <C w="12%" style={tone(r.cashNetRate ?? 0)}>{pdfPct(r.cashNetRate, 1)}</C>
-                <C w="11%" style={r.invShrink < 0 ? s.neg : null}>{r.invShrink}</C>
-                <C w="10%">{pdfPct(r.flagRate)}</C>
-                <C w="12%">{r.total ? pdfPct(r.verificationRate) : "—"}</C>
+                {lbCols.map((c) => <C key={c.head} w={c.width} style={c.st ? c.st(r) : undefined}>{c.get(r)}</C>)}
               </View>
             ))}
             <View style={s.totals}>
-              <C w="6%"> </C><C w="24%">All stores</C><C w="10%">{board.total.total}</C>
-              <C w="15%" style={tone(board.total.cashNet)}>{sgn(board.total.cashNet, money)}</C>
-              <C w="12%" style={tone(board.total.cashNetRate ?? 0)}>{pdfPct(board.total.cashNetRate, 1)}</C>
-              <C w="11%" style={board.total.invShrink < 0 ? s.neg : null}>{board.total.invShrink}</C>
-              <C w="10%">{pdfPct(board.total.flagRate)}</C>
-              <C w="12%">{board.total.total ? pdfPct(board.total.verificationRate) : "—"}</C>
+              {lbCols.map((c) => <C key={c.head} w={c.width} style={c.tst ? c.tst(board.total) : undefined}>{c.tot ? c.tot(board.total) : " "}</C>)}
             </View>
             <Text style={s.cap}>O/S rate = over/short per cash-sales dollar. Shrink is units, not dollars. Each row equals that store&apos;s own records report for this period.</Text>
 
             {employees && employees.rows.length > 0 && (<>
               <Text style={s.section}>People across stores — most short first</Text>
-              <View style={s.head}><C w="30%">Person</C><C w="12%">Entries</C><C w="16%">Over/short</C><C w="12%">Shorts</C><C w="16%">Scratch $</C><C w="14%">Verified</C></View>
+              <View style={s.head}>{ppCols.map((c) => <C key={c.head} w={c.width}>{c.head}</C>)}</View>
               {employees.rows.map((p) => (
                 <Fragment key={p.key}>
                   <View style={s.row}>
-                    <C w="30%">{p.name}</C><C w="12%">{p.entries}</C>
-                    <C w="16%" style={tone(p.cashNet)}>{sgn(p.cashNet, money)}</C>
-                    <C w="12%">{p.shorts}</C><C w="16%">{money(p.scratchDollars)}</C>
-                    <C w="14%">{pdfPct(p.verificationRate)}</C>
+                    {ppCols.map((c) => <C key={c.head} w={c.width} style={c.st ? c.st(p) : undefined}>{c.get(p)}</C>)}
                   </View>
                   {p.byLocation.length > 1 && p.byLocation.map((l, i) => (
                     <View key={i} style={s.sub}>
-                      <C w="30%">    ↳ {l.locationName}</C><C w="12%">{l.entries}</C>
-                      <C w="16%" style={tone(l.cashNet)}>{sgn(l.cashNet, money)}</C>
-                      <C w="12%">{l.shorts}</C><C w="16%">{money(l.scratchDollars)}</C>
-                      <C w="14%">{pdfPct(l.verificationRate)}</C>
+                      {ppCols.map((c) => <C key={c.head} w={c.width} style={c.sst ? c.sst(l) : undefined}>{c.sub(l)}</C>)}
                     </View>
                   ))}
                 </Fragment>
@@ -301,10 +341,10 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
         <>
           {/* Consolidated close — identical to the report's scope-All numbers */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Kpi label="Net over/short" value={`${summary.cash.netDiff >= 0 ? "+" : ""}${money(summary.cash.netDiff)}`} tone={toneOf(summary.cash.netDiff)} />
-            <Kpi label="Cash sales" value={money(summary.cash.sales)} />
-            <Kpi label="Scratch dollars" value={money(summary.scratch.dollars)} />
-            <Kpi label="Net shrink" value={`${summary.inventory.netShrink} units`} tone={toneOf(summary.inventory.netShrink)} />
+            {cashOn && <Kpi label="Net over/short" value={`${summary.cash.netDiff >= 0 ? "+" : ""}${money(summary.cash.netDiff)}`} tone={toneOf(summary.cash.netDiff)} />}
+            {cashOn && <Kpi label="Cash sales" value={money(summary.cash.sales)} />}
+            {scratchOn && <Kpi label="Scratch dollars" value={money(summary.scratch.dollars)} />}
+            {inventoryOn && <Kpi label="Net shrink" value={`${summary.inventory.netShrink} units`} tone={toneOf(summary.inventory.netShrink)} />}
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Kpi label="Total counts" value={summary.counts.total} small />
@@ -327,7 +367,7 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                   <tr>
                     <th className="text-left font-semibold px-3 py-2 w-8">#</th>
                     <th className="text-left font-semibold px-3 py-2">Store</th>
-                    {COLUMNS.map((c) => (
+                    {columns.map((c) => (
                       <th key={c.key} className="text-right font-semibold px-3 py-2"
                         aria-sort={sort?.key === c.key ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
                         <button type="button" onClick={() => toggleSort(c.key)} title={c.title}
@@ -349,14 +389,10 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                         </button>
                         {r.total === 0 && <span className="ml-1.5 text-[11px] text-faint font-normal">idle</span>}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">{r.total}</td>
-                      <td className={`px-3 py-2.5 text-right font-mono tabular-nums font-semibold ${toneOf(r.cashNet)}`}>
-                        {r.cashNet >= 0 ? "+" : ""}{money(r.cashNet)}
-                      </td>
-                      <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${r.cashNetRate == null ? "text-faint" : toneOf(r.cashNetRate)}`}>{pct(r.cashNetRate)}</td>
-                      <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${toneOf(r.invShrink)}`}>{r.invShrink}</td>
-                      <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${r.flagRate ? "text-neg" : r.flagRate == null ? "text-faint" : ""}`}>{pct(r.flagRate, 0)}</td>
-                      <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${r.verificationRate == null ? "text-faint" : ""}`}>{r.total ? pct(r.verificationRate, 0) : "—"}</td>
+                      {columns.map((c) => {
+                        const { cn, node } = c.cell(r);
+                        return <td key={c.key} className={`px-3 py-2.5 text-right font-mono tabular-nums ${cn}`}>{node}</td>;
+                      })}
                     </tr>
                   ))}
                 </tbody>
@@ -383,9 +419,9 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                       <th className="text-left font-semibold px-3 py-2">Person</th>
                       <th className="text-right font-semibold px-3 py-2">Stores</th>
                       <th className="text-right font-semibold px-3 py-2">Entries</th>
-                      <th className="text-right font-semibold px-3 py-2">Over/short</th>
-                      <th className="text-right font-semibold px-3 py-2">Shorts</th>
-                      <th className="text-right font-semibold px-3 py-2">Scratch $</th>
+                      {cashOn && <th className="text-right font-semibold px-3 py-2">Over/short</th>}
+                      {cashOn && <th className="text-right font-semibold px-3 py-2">Shorts</th>}
+                      {scratchOn && <th className="text-right font-semibold px-3 py-2">Scratch $</th>}
                       <th className="text-right font-semibold px-3 py-2">Verified</th>
                     </tr>
                   </thead>
@@ -406,11 +442,13 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                             {p.byLocation.length > 1 && <span aria-hidden="true" className="ml-1 text-brass">●</span>}
                           </td>
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums">{p.entries}</td>
-                          <td className={`px-3 py-2.5 text-right font-mono tabular-nums font-semibold ${toneOf(p.cashNet)}`}>
-                            {p.cashNet >= 0 ? "+" : ""}{money(p.cashNet)}
-                          </td>
-                          <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${p.shorts ? "text-neg" : ""}`}>{p.shorts}</td>
-                          <td className="px-3 py-2.5 text-right font-mono tabular-nums">{money(p.scratchDollars)}</td>
+                          {cashOn && (
+                            <td className={`px-3 py-2.5 text-right font-mono tabular-nums font-semibold ${toneOf(p.cashNet)}`}>
+                              {p.cashNet >= 0 ? "+" : ""}{money(p.cashNet)}
+                            </td>
+                          )}
+                          {cashOn && <td className={`px-3 py-2.5 text-right font-mono tabular-nums ${p.shorts ? "text-neg" : ""}`}>{p.shorts}</td>}
+                          {scratchOn && <td className="px-3 py-2.5 text-right font-mono tabular-nums">{money(p.scratchDollars)}</td>}
                           <td className="px-3 py-2.5 text-right font-mono tabular-nums">{pct(p.verificationRate, 0)}</td>
                         </tr>
                         {expanded.has(p.key) && p.byLocation.map((l, i) => (
@@ -418,11 +456,13 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                             <td className="pl-9 pr-3 py-2">↳ {l.locationName}</td>
                             <td className="px-3 py-2" />
                             <td className="px-3 py-2 text-right font-mono tabular-nums">{l.entries}</td>
-                            <td className={`px-3 py-2 text-right font-mono tabular-nums ${toneOf(l.cashNet)}`}>
-                              {l.cashNet >= 0 ? "+" : ""}{money(l.cashNet)}
-                            </td>
-                            <td className={`px-3 py-2 text-right font-mono tabular-nums ${l.shorts ? "text-neg" : ""}`}>{l.shorts}</td>
-                            <td className="px-3 py-2 text-right font-mono tabular-nums">{money(l.scratchDollars)}</td>
+                            {cashOn && (
+                              <td className={`px-3 py-2 text-right font-mono tabular-nums ${toneOf(l.cashNet)}`}>
+                                {l.cashNet >= 0 ? "+" : ""}{money(l.cashNet)}
+                              </td>
+                            )}
+                            {cashOn && <td className={`px-3 py-2 text-right font-mono tabular-nums ${l.shorts ? "text-neg" : ""}`}>{l.shorts}</td>}
+                            {scratchOn && <td className="px-3 py-2 text-right font-mono tabular-nums">{money(l.scratchDollars)}</td>}
                             <td className="px-3 py-2 text-right font-mono tabular-nums">{pct(l.verificationRate, 0)}</td>
                           </tr>
                         ))}
@@ -430,7 +470,7 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                     ))}
                     {empPage.hasMore && (
                       <tr>
-                        <td colSpan={7} className="p-0 border-t border-line-soft">
+                        <td colSpan={peopleColSpan} className="p-0 border-t border-line-soft">
                           <ShowMore hasMore nextStep={empPage.nextStep} onMore={empPage.showMore} />
                         </td>
                       </tr>

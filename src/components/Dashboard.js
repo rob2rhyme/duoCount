@@ -69,6 +69,13 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
   // Its alerts are pattern-shaped and merge into the same Patterns card and
   // AI-insight flow (clerk names ride the redactor's person list).
   const rewardsOn = vendor?.rewards?.enabled === true;
+  // Hide a disabled module's figures everywhere on the dashboard â€” a store that
+  // turned scratch/inventory/cash off should never see its stats, charts, or
+  // table columns. Grids/tables below drop the cell or column so the layout
+  // reflows cleanly rather than leaving a hole.
+  const scratchOn = featureEnabled(vendor, "scratch");
+  const inventoryOn = featureEnabled(vendor, "inventory");
+  const cashOn = featureEnabled(vendor, "cash");
   const rewardAudit = useMemo(
     () => (isManager && rewardsOn
       ? buildRewardAudit(rewardEvents, entries, {
@@ -558,18 +565,19 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
         </div>
       )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Stat label={t("dash.stat_cash_sales")} value={money(a.cashSales)} />
-        <Stat label={t("dash.stat_scratch_sales")} value={money(a.scratchDollars)} />
-        <Stat label={t("dash.stat_overs")} value={a.overs} tone={a.overs ? "pos" : null} />
+        {cashOn && <Stat label={t("dash.stat_cash_sales")} value={money(a.cashSales)} />}
+        {scratchOn && <Stat label={t("dash.stat_scratch_sales")} value={money(a.scratchDollars)} />}
+        {cashOn && <Stat label={t("dash.stat_overs")} value={a.overs} tone={a.overs ? "pos" : null} />}
         <Stat label={t("dash.stat_staff")} value={a.empRows.length} />
       </div>
-      {a.invCount > 0 && (
+      {inventoryOn && a.invCount > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label={t("dash.stat_inv_counts")} value={a.invCount} />
           <Stat label={t("dash.stat_missing_units")} value={a.missingUnits} tone={a.missingUnits ? "neg" : null} />
         </div>
       )}
 
+      {cashOn && (
       <div className="card p-4">
         <h3 className="font-semibold text-[15px] mb-3">{t("dash.chart_daily")}</h3>
         <ResponsiveContainer width="100%" height={220}>
@@ -584,7 +592,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
           </BarChart>
         </ResponsiveContainer>
       </div>
+      )}
 
+      {cashOn && (
       <div className="card p-4">
         <h3 className="font-semibold text-[15px] mb-3">{t("dash.chart_cash_trend")}</h3>
         <ResponsiveContainer width="100%" height={200}>
@@ -597,8 +607,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
           </LineChart>
         </ResponsiveContainer>
       </div>
+      )}
 
-      {a.gameRows.length > 0 && (
+      {scratchOn && a.gameRows.length > 0 && (
         <div className="card p-4">
           <h3 className="font-semibold text-[15px] mb-3">{t("dash.chart_top_games")}</h3>
           <ResponsiveContainer width="100%" height={Math.max(160, a.gameRows.length * 42)}>
@@ -621,8 +632,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
               <th className="px-4 py-2 font-semibold">{t("dash.col_drawer")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_entries")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_net")}</th>
-              <th className="px-4 py-2 font-semibold text-right">{t("dash.col_cash_counted")}</th>
-              <th className="px-4 py-2 font-semibold text-right">{t("dash.col_scratch")}</th>
+              {cashOn && <th className="px-4 py-2 font-semibold text-right">{t("dash.col_cash_counted")}</th>}
+              {scratchOn && <th className="px-4 py-2 font-semibold text-right">{t("dash.col_scratch")}</th>}
             </tr></thead>
             <tbody>
               {a.drawerRows.map((r) => (
@@ -630,8 +641,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
                   <td className="px-4 py-2.5 font-medium">{r.name}</td>
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-neg" : r.diff > 0.005 ? "text-pos" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono">{money(r.cash)}</td>
-                  <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>
+                  {cashOn && <td className="px-4 py-2.5 text-right font-mono">{money(r.cash)}</td>}
+                  {scratchOn && <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>}
                 </tr>
               ))}
             </tbody>
@@ -639,7 +650,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
         </div>
       </div>
 
-      {a.itemRows.length > 0 && (
+      {inventoryOn && a.itemRows.length > 0 && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">{t("dash.by_item")}</h3></div>
           <div className="overflow-auto max-h-[26rem]">
@@ -674,7 +685,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_entries")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_net")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_shorts")}</th>
-              <th className="px-4 py-2 font-semibold text-right">{t("dash.col_scratch")}</th>
+              {scratchOn && <th className="px-4 py-2 font-semibold text-right">{t("dash.col_scratch")}</th>}
             </tr></thead>
             <tbody>
               {a.empRows.map((r) => (
@@ -683,7 +694,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-neg" : r.diff > 0.005 ? "text-pos" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
                   <td className={`px-4 py-2.5 text-right font-mono ${r.shorts ? "text-neg" : ""}`}>{r.shorts}</td>
-                  <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>
+                  {scratchOn && <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>}
                 </tr>
               ))}
             </tbody>
