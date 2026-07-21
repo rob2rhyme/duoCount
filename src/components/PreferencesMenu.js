@@ -6,7 +6,7 @@ import { useLang } from "./LangProvider";
 import { useSession } from "./SessionProvider";
 import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 import { useInstallPrompt } from "@/lib/install";
-import { updateVendorSettings } from "@/lib/data";
+import { updateVendorSettings, apiBranding } from "@/lib/data";
 import { PALETTES, FONTS, FONT_SCALES, resolveBranding } from "@/lib/branding";
 
 function Switch({ on, onChange, label }) {
@@ -38,6 +38,8 @@ export default function PreferencesMenu({ onSignOut }) {
   // updateVendorSettings filters the patch to the branding keys the rules allow.
   // Reverts on a failed write.
   const brand = resolveBranding(vendor);
+  const [uploadingFont, setUploadingFont] = useState(false);
+  const [fontErr, setFontErr] = useState("");
   async function saveBranding(patch) {
     if (!vendor?.id) return;
     const prev = { themePalette: brand.themePalette, fontFamily: brand.fontFamily, fontScale: brand.fontScale };
@@ -45,6 +47,29 @@ export default function PreferencesMenu({ onSignOut }) {
     setVendor({ ...vendor, ...next });
     try { await updateVendorSettings(vendor.id, next); }
     catch { setVendor({ ...vendor, ...prev }); }
+  }
+  // Custom-font upload → the trusted /api/branding route (validates + stores the
+  // bytes off the vendor doc), then select "custom" so it applies immediately.
+  async function onFontUpload(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingFont(true); setFontErr("");
+    try {
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = () => rej(new Error(t("appr.upload_read_err")));
+        r.readAsDataURL(file);
+      });
+      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const format = ext === "woff2" ? "woff2" : ext === "woff" ? "woff"
+        : ext === "ttf" ? "truetype" : ext === "otf" ? "opentype" : "woff2";
+      await apiBranding({ dataUrl, format });
+      await saveBranding({ fontFamily: "custom" });
+    } catch (err) {
+      setFontErr(err?.code ? t(`appr.err_${err.code}`) : (err?.message || t("appr.upload_read_err")));
+    } finally { setUploadingFont(false); }
   }
 
   useEffect(() => {
@@ -133,6 +158,14 @@ export default function PreferencesMenu({ onSignOut }) {
                     {FONT_SCALES.map((sc) => <option key={sc.id} value={sc.scale}>{t(`appr.size_${sc.id}`)}</option>)}
                   </select>
                 </label>
+              </div>
+              <div className="mt-2.5">
+                <span className="text-[11px] text-muted font-semibold">{t("appr.upload")}</span>
+                <input type="file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+                  disabled={uploadingFont} onChange={onFontUpload}
+                  className="block w-full text-[12px] text-muted mt-1 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border file:border-line file:bg-subtle file:text-fg file:font-semibold file:text-[12px]" />
+                <p className="text-[11px] text-muted mt-1 leading-snug">{uploadingFont ? t("appr.uploading") : t("appr.upload_hint")}</p>
+                {fontErr && <p className="text-[11px] text-neg mt-1">{fontErr}</p>}
               </div>
             </div>
           )}

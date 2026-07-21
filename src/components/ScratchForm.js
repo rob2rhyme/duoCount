@@ -4,6 +4,7 @@ import { addEntry, fetchEntriesInRange } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts } from "@/lib/scratch-barcode";
 import { resolveCatalogGame, lookupGameNumber } from "@/lib/scratch-catalog";
+import { paletteAccent, paletteInk } from "@/lib/branding";
 import { buildPackFlow } from "@/lib/scratch-report";
 import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
@@ -332,14 +333,15 @@ export default function ScratchForm({ onSaved, locations, drawers, locName, entr
       const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const allLocs = !rpt.locationId;
       const gapRows = rows.filter((r) => r.gaps.length);
+      const accent = paletteAccent(vendor), ink = paletteInk(vendor);
       win.document.write(`<!doctype html><html><head><title>${esc(vendor.name)} — ${esc(t("srpt.title"))}</title>
       <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a241c}h1{font-size:18px;margin:0}h2{font-size:14px;margin:24px 0 6px}p{color:#666;margin:2px 0}
       table{border-collapse:collapse;width:100%;margin-top:12px;font-size:11px}
-      th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc;vertical-align:top}th{border-bottom:2px solid #14532d}
+      th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc;vertical-align:top}th{border-bottom:2px solid ${ink}}
       td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
-      tr.tot td{border-top:2px solid #14532d;font-weight:bold}
+      tr.tot td{border-top:2px solid ${ink};font-weight:bold}
       .gap{color:#b91c1c;font-weight:bold}.muted{color:#666;font-size:10px}
-      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:#298050;color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}</style>
+      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}</style>
       </head><body>
       <div class="brand"><div class="mark">D</div><div><h1>${esc(vendor.name)} — ${esc(t("srpt.title"))}</h1>
       <p>${esc(t("srpt.range", { from: rpt.from, to: rpt.to }))}${allLocs ? "" : ` · ${esc(locName(rpt.locationId))}`} · ${esc(t("srpt.packs", { n: totals.packs }))}</p>

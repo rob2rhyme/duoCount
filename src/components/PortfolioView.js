@@ -4,6 +4,7 @@ import { money, entriesToCSV, downloadCSV } from "@/lib/utils";
 import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPortfolioSummary, buildStoreLeaderboard, buildEmployeeRollup } from "@/lib/portfolio-rollup";
 import { fetchEntriesInRange } from "@/lib/data";
+import { paletteAccent } from "@/lib/branding";
 import { useSession } from "./SessionProvider";
 import EmptyState, { IconChart } from "./EmptyState";
 import ReportModal from "./ReportModal";
@@ -126,7 +127,7 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
       const s = StyleSheet.create({
         page: { padding: 28, fontSize: 9, fontFamily: "Helvetica", color: "#1a1c2e" },
         brandRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
-        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#298050", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: paletteAccent(vendor), alignItems: "center", justifyContent: "center", marginRight: 7 },
         markText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
         h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
         meta: { color: "#666", marginBottom: 2, fontSize: 8 },

@@ -8,6 +8,7 @@ import { PRESETS, periodRange, stepPeriod } from "@/lib/report-period";
 import { buildPeriodReport, buildLocationComparison } from "@/lib/report-build";
 import { buildJournalCSV, buildJournalEntries, buildFranchiseCSV, FRANCHISE_PROFILES } from "@/lib/report-accounting";
 import { fetchEntriesInRange, fetchPunchesInRange } from "@/lib/data";
+import { paletteAccent } from "@/lib/branding";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const slug = (s) => String(s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "x";
@@ -131,7 +132,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       const s = StyleSheet.create({
         page: { padding: 28, fontSize: 10, fontFamily: "Helvetica", color: "#1a1c2e" },
         brandRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
-        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#298050", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: paletteAccent(vendor), alignItems: "center", justifyContent: "center", marginRight: 7 },
         markText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
         h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
         meta: { color: "#666", marginBottom: 2, fontSize: 8 },
@@ -248,7 +249,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
         // The DuoCount "DC" mark, drawn with primitives (no external image, which
         // can fail to load and blank the whole render). Brass on ink, matching the
         // app's Logo fallback.
-        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: "#298050", alignItems: "center", justifyContent: "center", marginRight: 7 },
+        mark: { width: 22, height: 22, borderRadius: 4, backgroundColor: paletteAccent(vendor), alignItems: "center", justifyContent: "center", marginRight: 7 },
         markText: { color: "#ffffff", fontFamily: "Helvetica-Bold", fontSize: 11 },
         h1: { fontSize: 15, fontFamily: "Helvetica-Bold", marginBottom: 2 },
         meta: { color: "#666", marginBottom: 2, fontSize: 8 },
@@ -406,11 +407,12 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     const cmpTable = comparison
       ? `<h2>By location</h2><table><tr><th>Location</th><th>Counts</th><th>Over/short</th><th>Scratch $</th><th>Shrink</th><th>Verified</th></tr>${comparison.locations.map((l) => cmpRow(l.locName, l)).join("")}${cmpRow("All", comparison.total, "th")}</table>`
       : "";
+    const accent = paletteAccent(vendor);
     w.document.write(`<!doctype html><title>${esc(fileBase)}</title>
       <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a1c2e}h1{font-size:18px;margin:0}p{color:#666;margin:2px 0}
       h2{font-size:13px;margin:18px 0 6px}table{width:100%;border-collapse:collapse;font-size:11px}
       th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}th{border-bottom:2px solid #1a1c2e}
-      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:#298050;color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}
+      .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}
       .sig{display:flex;justify-content:space-between;margin-top:48px}.sig div{width:44%;border-top:1px solid #1a1c2e;padding-top:4px;font-size:10px;color:#666}</style>
       <div class="brand"><span class="mark">DC</span><h1>${esc(vendor.name)} — Records Report</h1></div>
       <p>Store code: ${esc(vendor.slug)} · ${esc(locLabel)} · ${esc(range.label)} (${range.startISO} → ${range.endISO})</p>
