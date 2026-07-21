@@ -178,38 +178,45 @@ export async function POST(req) {
         by: claims.name || "", byId: claims.userId,
         ...(referrerDoc ? { referredBy: referrerDoc.id } : {}),
       };
-      const ref = await customers.add(doc);
-      // Audit the seeded balance as a signed adjust line (owner-gated above).
-      if (startPts > 0) {
-        await events.add({
-          kind: "adjust", points: startPts, customerId: ref.id,
-          by: claims.name || "", byId: claims.userId, byRole: claims.role || "owner",
-          ts: new Date(), note: "Starting balance (enrollment)",
-        });
-      }
-
-      if (referrerDoc) {
-        const signed = (pts, extra) => ({
-          kind: "referral", points: pts,
-          by: claims.name || "", byId: claims.userId, byRole: claims.role || "employee",
-          ts: new Date(), ...extra,
-        });
-        if (friendPts > 0)
-          await events.add(signed(friendPts, { customerId: ref.id, referredBy: referrerDoc.id }));
-        if (rules.referral.referrer > 0) {
-          // Credit the referrer atomically against their LIVE balance.
-          await adminDb.runTransaction(async (tx) => {
-            const s = await tx.get(referrerDoc.ref);
-            const c = s.data() || {};
-            tx.set(events.doc(), signed(rules.referral.referrer, { customerId: referrerDoc.id, referredCustomerId: ref.id }));
-            tx.update(referrerDoc.ref, {
-              pointsBalance: (c.pointsBalance || 0) + rules.referral.referrer,
-              // Referral points are earned points for status purposes — but a
-              // referral is not a VISIT, so lastEarnAt/streak stay untouched.
-              lifetimePoints: lifetimeOf(c) + rules.referral.referrer,
-            });
+      // Enrollment writes the new customer AND every signed ledger line that
+      // backs its opening balance in ONE transaction — a mid-write crash can
+      // never leave a balance with no backing line (or the reverse). The
+      // referrer's credit (a second customer's balance + its own signed line)
+      // rides the same transaction, reading the referrer's live balance first
+      // since Firestore requires all reads before any write.
+      const ref = customers.doc();
+      const signed = (pts, extra) => ({
+        kind: "referral", points: pts,
+        by: claims.name || "", byId: claims.userId, byRole: claims.role || "employee",
+        ts: new Date(), ...extra,
+      });
+      const creditReferrer = !!referrerDoc && rules.referral.referrer > 0;
+      await adminDb.runTransaction(async (tx) => {
+        // READS first.
+        const referrerData = creditReferrer ? ((await tx.get(referrerDoc.ref)).data() || {}) : null;
+        // WRITES: the customer, then the lines backing its opening balance.
+        tx.set(ref, doc);
+        // Audit any seeded balance as a signed adjust line (owner-gated above).
+        if (startPts > 0) {
+          tx.set(events.doc(), {
+            kind: "adjust", points: startPts, customerId: ref.id,
+            by: claims.name || "", byId: claims.userId, byRole: claims.role || "owner",
+            ts: new Date(), note: "Starting balance (enrollment)",
           });
         }
+        if (friendPts > 0)
+          tx.set(events.doc(), signed(friendPts, { customerId: ref.id, referredBy: referrerDoc.id }));
+        if (creditReferrer) {
+          tx.set(events.doc(), signed(rules.referral.referrer, { customerId: referrerDoc.id, referredCustomerId: ref.id }));
+          tx.update(referrerDoc.ref, {
+            pointsBalance: (referrerData.pointsBalance || 0) + rules.referral.referrer,
+            // Referral points count as earned for status — but a referral is not
+            // a VISIT, so lastEarnAt/streak stay untouched.
+            lifetimePoints: lifetimeOf(referrerData) + rules.referral.referrer,
+          });
+        }
+      });
+      if (referrerDoc) {
         referral = {
           ok: true, referrerName: referrerDoc.data().name || maskPhone(referrerDoc.data().phone),
           referrerPts: rules.referral.referrer, friendPts,
