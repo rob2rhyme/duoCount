@@ -304,11 +304,20 @@ export async function apiPatternNarrative(payload) {
 /* ---------- entries ---------- */
 // lockedLocationId: pass an id to query only that location (required for
 // employees in per-location mode so reads satisfy the security rules).
+// The live feed powers recent-oriented views (the Log, Dashboard's analysis,
+// count-form context); anything older is read on demand by reports
+// (fetchEntriesInRange). Bound it to a rolling window so read cost + client
+// memory stay flat as a store ages instead of growing without limit. The window
+// comfortably exceeds every live look-back (pattern windowDays caps at 90, the
+// stock/theft windows are shorter). Same-field ts range + orderBy needs no index
+// beyond the locationId+ts one the scoped query already uses.
+const LIVE_ENTRIES_DAYS = 180;
 export function watchEntries(vendorId, lockedLocationId, cb) {
   const base = vcol(vendorId, "entries");
+  const since = new Date(Date.now() - LIVE_ENTRIES_DAYS * 86400000);
   const q = lockedLocationId
-    ? query(base, where("locationId", "==", lockedLocationId), orderBy("ts", "desc"))
-    : query(base, orderBy("ts", "desc"));
+    ? query(base, where("locationId", "==", lockedLocationId), where("ts", ">=", since), orderBy("ts", "desc"))
+    : query(base, where("ts", ">=", since), orderBy("ts", "desc"));
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 // One-shot snapshot of entries whose business `date` falls within
