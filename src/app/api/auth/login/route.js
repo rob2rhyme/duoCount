@@ -91,10 +91,10 @@ export async function POST(req) {
     });
   } catch (e) {
     console.error("login error", e);
-    // e.message may be diagnostic (env/config) — no code, so the client shows
-    // it verbatim; the generic fallback localizes.
-    return NextResponse.json(
-      e.message ? { error: e.message } : { error: "Login failed.", code: "login_failed" },
-      { status: 500 });
+    // A typed error (e.status set) carries a client-safe message; anything else
+    // is unexpected — logged above, returned generic so raw Firestore/config
+    // detail (project id, index-creation URLs) never reaches the client.
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    return NextResponse.json({ error: "Login failed.", code: "login_failed" }, { status: 500 });
   }
 }

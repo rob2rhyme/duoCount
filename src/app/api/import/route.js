@@ -355,6 +355,8 @@ export async function POST(req) {
     const counts = await commitBaselines(adminDb, vendorRef, report);
     return NextResponse.json({ ok: true, type, mode: "commit", counts });
   } catch (e) {
-    return NextResponse.json({ error: e.message || "Import failed." }, { status: e.status || 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    console.error("import error", e);
+    return NextResponse.json({ error: "Import failed." }, { status: 500 });
   }
 }

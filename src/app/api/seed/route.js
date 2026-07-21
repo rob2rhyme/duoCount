@@ -107,6 +107,8 @@ export async function POST(req) {
 
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   } catch (e) {
-    return NextResponse.json({ error: e.message || "Failed." }, { status: e.status || 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    console.error("seed error", e);
+    return NextResponse.json({ error: "Seeding failed." }, { status: 500 });
   }
 }

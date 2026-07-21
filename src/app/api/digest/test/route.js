@@ -22,9 +22,12 @@ export async function POST(req) {
     await sendDigestForVendor(adminDb, vendorSnap, { force: true });
     return NextResponse.json({ ok: true, message: `Test digest sent to ${recipients.length} recipient(s)` });
   } catch (e) {
-    const msg = /RESEND_API_KEY|DIGEST_FROM/.test(e.message)
-      ? "Email isn't configured yet — set RESEND_API_KEY and DIGEST_FROM. See README."
-      : e.message || "Failed.";
-    return NextResponse.json({ error: msg }, { status: e.status || 500 });
+    // Keep the one actionable config hint; otherwise surface only typed errors,
+    // never a raw message (which could carry project/config detail).
+    if (/RESEND_API_KEY|DIGEST_FROM/.test(e.message || ""))
+      return NextResponse.json({ error: "Email isn't configured yet — set RESEND_API_KEY and DIGEST_FROM. See README." }, { status: e.status || 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    console.error("digest test error", e);
+    return NextResponse.json({ error: "Failed to send the test digest." }, { status: 500 });
   }
 }

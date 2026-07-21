@@ -44,8 +44,7 @@ export async function POST(req) {
     return NextResponse.json({ token });
   } catch (e) {
     console.error("dev-login error", e);
-    return NextResponse.json(
-      e.message ? { error: e.message } : { error: "Login failed.", code: "login_failed" },
-      { status: 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    return NextResponse.json({ error: "Login failed.", code: "login_failed" }, { status: 500 });
   }
 }

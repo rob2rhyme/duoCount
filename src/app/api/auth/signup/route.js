@@ -89,8 +89,7 @@ export async function POST(req) {
     });
   } catch (e) {
     console.error("signup error", e);
-    return NextResponse.json(
-      e.message ? { error: e.message } : { error: "Signup failed.", code: "signup_failed" },
-      { status: 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    return NextResponse.json({ error: "Signup failed.", code: "signup_failed" }, { status: 500 });
   }
 }

@@ -72,7 +72,9 @@ export async function POST(req) {
     await ref.collection("private").doc("creds").set({ pinHash: hashPin(pin) });
     return NextResponse.json({ ok: true, id: ref.id });
   } catch (e) {
-    return NextResponse.json({ error: e.message || "Failed." }, { status: e.status || 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    console.error("staff error", e);
+    return NextResponse.json({ error: "Staff action failed." }, { status: 500 });
   }
 }
 
@@ -171,6 +173,8 @@ export async function PATCH(req) {
     }
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: e.message || "Failed." }, { status: e.status || 500 });
+    if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
+    console.error("staff error", e);
+    return NextResponse.json({ error: "Staff action failed." }, { status: 500 });
   }
 }
