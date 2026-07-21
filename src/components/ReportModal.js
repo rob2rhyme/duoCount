@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { ResponsiveContainer, BarChart, Bar, LineChart, Line as RLine, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line as RLine, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
 import { money, csvCell, entriesToCSV, downloadCSV } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -132,6 +132,15 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     () => (report ? report.inventory.byItem.map((r) => ({ name: r.itemName, missing: -r.netShrink }))
       .filter((r) => r.missing > 0).sort((a, b) => b.missing - a.missing).slice(0, 6) : []),
     [report]);
+  // Revenue mix (donut): where the period's money came from, across enabled
+  // modules — cash sales, scratch sales, gaming store take. Fixed distinct fills
+  // (identity also carried by the text legend, never color alone).
+  const revenueMix = useMemo(() => (report ? [
+    cashOn ? { label: "Cash", value: report.cash.sales, fill: "#2f7d5b" } : null,
+    scratchOn ? { label: "Scratch", value: report.scratch.dollars, fill: "#b08d2f" } : null,
+    gamingOn && gaming ? { label: "Gaming", value: gaming.totals.storeShare, fill: "#4c6ef5" } : null,
+  ].filter((r) => r && r.value > 0) : []), [report, gaming, cashOn, scratchOn, gamingOn]);
+  const revenueTotal = revenueMix.reduce((s, r) => s + r.value, 0);
 
   const locLabel = locId === "all" ? "All locations" : locName(locId);
   const fileBase = `duocount-report-${locId === "all" ? "all" : slug(locName(locId))}-${range ? range.key : "period"}`;
@@ -546,6 +555,37 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
               <div className="bg-panel border border-line rounded-xl p-3.5 text-sm text-neg">{loadError}</div>
             ) : report ? (
               <>
+                {/* ---- Revenue mix (donut overview) ---- */}
+                {revenueMix.length >= 2 && (
+                  <section className="bg-panel border border-line rounded-xl p-3.5">
+                    <h3 className="font-semibold text-[14px] mb-2">Revenue mix</h3>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="w-40 h-40 flex-shrink-0 mx-auto">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={revenueMix} dataKey="value" nameKey="label" innerRadius="55%" outerRadius="95%"
+                              stroke={ch.tipBg} strokeWidth={2} isAnimationActive={false}>
+                              {revenueMix.map((p, i) => <Cell key={i} fill={p.fill} />)}
+                            </Pie>
+                            <Tooltip formatter={(v, n) => [money(v), n]} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <ul className="flex-1 min-w-[11rem] space-y-1.5">
+                        {revenueMix.map((p, i) => (
+                          <li key={i} className="flex items-center gap-2 text-[12px]">
+                            <span aria-hidden="true" className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: p.fill }} />
+                            <span className="min-w-0 flex-1 truncate">{p.label}</span>
+                            <span className="font-mono font-semibold flex-shrink-0">
+                              {money(p.value)} <span className="text-muted font-normal">({revenueTotal ? Math.round((p.value / revenueTotal) * 100) : 0}%)</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </section>
+                )}
+
                 {/* ---- Cash ---- */}
                 {cashOn && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
@@ -651,13 +691,13 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                       <>
                         <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">Store take by date</div>
                         <ResponsiveContainer width="100%" height={150}>
-                          <BarChart data={gaming.series}>
+                          <LineChart data={gaming.series}>
                             <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} vertical={false} />
                             <XAxis dataKey="date" tickFormatter={(v) => String(v).slice(5)} tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} />
                             <YAxis tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} width={40} />
                             <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
-                            <Bar dataKey="storeShare" fill={ch.bar} radius={[3, 3, 0, 0]} />
-                          </BarChart>
+                            <RLine type="monotone" dataKey="storeShare" stroke={ch.bar} strokeWidth={2.5} dot={{ r: 2 }} />
+                          </LineChart>
                         </ResponsiveContainer>
                       </>
                     )}
