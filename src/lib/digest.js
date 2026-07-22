@@ -105,7 +105,7 @@ function composeEmail(vendor, dateStr, s, appUrl, narrative = null) {
     appUrl ? `Review in DuoCount: ${appUrl}` : "",
   ].join("\n");
 
-  const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
 
   const narrativeHtml = hasNarrative ? `
     <div style="margin:0 0 16px;padding:12px 14px;background:#f2f6fb;border:1px solid #d9e2ef;border-radius:8px">

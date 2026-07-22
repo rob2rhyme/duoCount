@@ -470,7 +470,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   // period's rows — a complement to the summary PDF for a line-by-line record.
   function printReport() {
     if (!range || !report) return; // an empty period still prints, with a "no activity" line
-    const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
     const cash = rows.filter((e) => e.kind === "cash");
     const scratch = rows.filter((e) => e.kind === "scratch");
     const inv = rows.filter((e) => e.kind === "inventory");

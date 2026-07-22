@@ -53,6 +53,11 @@ function setCustomFace(dataUrl, format) {
   if (typeof document === "undefined") return;
   let style = document.getElementById(FACE_ID);
   if (!dataUrl) { style?.remove(); return; }
+  // Defense-in-depth: only ever inject a strictly-shaped font data: URL into the
+  // CSS url(). Even if the /api/branding re-encode or the Firestore rules ever
+  // regressed, a crafted value can't break out of the @font-face rule — anything
+  // that doesn't match is dropped (no face) rather than injected.
+  if (!/^data:font\/(woff2?|otf|ttf);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)) { style?.remove(); return; }
   if (!style) {
     style = document.createElement("style");
     style.id = FACE_ID;

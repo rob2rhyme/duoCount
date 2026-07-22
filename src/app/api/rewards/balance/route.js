@@ -63,10 +63,11 @@ export async function POST(req) {
       ready: canRedeem(points, rules),
       expiryMonths: rules.expiryMonths || 0,
       expiresAt: exp.expiresAt ? exp.expiresAt.toISOString().slice(0, 10) : null,
-      // The customer's own loyalty id, so the page can show a QR they scan at the
-      // register (null for a legacy account that hasn't been given one yet — the
-      // register backfills it on the next visit).
-      customerId: cData.customerId || null,
+      // Deliberately NOT returned: the customer's loyalty id. This endpoint is
+      // unauthenticated (store code + phone), so echoing the scannable register
+      // id would let anyone who knows a number pull that customer's QR. The id is
+      // handed out only through the authenticated register flow. Keeping this
+      // response to balance + program shape (its documented contract).
     });
   } catch (e) {
     return NextResponse.json({ error: "Balance check failed." }, { status: 500 });

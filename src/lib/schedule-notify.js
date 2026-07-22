@@ -4,7 +4,7 @@
 // an assigned shift this week AND an email on file; open (unassigned) shifts are
 // skipped, and shifts are sorted by date then start time.
 
-const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
 
 function fmtDate(dateStr) {
   const [y, m, d] = String(dateStr).split("-").map(Number);

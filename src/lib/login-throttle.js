@@ -15,6 +15,12 @@
 // so real staff aren't locked out; it only bites during an actual attack.
 export const IP_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 10 };
 export const STORE_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 50 };
+// Developer login has a single credential and no store, so the per-IP cap alone
+// lets an IP-rotating attacker get a fresh allowance per address. A global
+// backstop bounds TOTAL dev-login failures per window across all IPs — well
+// above the real developer's honest typos, so it only bites during an attack
+// (and auto-expires with the window, like the others).
+export const DEV_GLOBAL_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 60 };
 
 export function throttleDecision(record, now, { windowMs, maxFails }) {
   const inWindow =
