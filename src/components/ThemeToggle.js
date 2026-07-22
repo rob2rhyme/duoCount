@@ -1,10 +1,12 @@
 "use client";
 import { useTheme } from "./ThemeProvider";
+import { useLang } from "./LangProvider";
 
 // Sun / moon toggle. `variant="dark"` styles it for placement on the app's
 // dark header; the default suits light card surfaces (e.g. the login screen).
 export default function ThemeToggle({ variant = "light", className = "" }) {
   const { theme, toggle } = useTheme();
+  const { t } = useLang();
   const dark = theme === "dark";
   const onDarkChrome = variant === "dark";
   const base = onDarkChrome
@@ -14,8 +16,8 @@ export default function ThemeToggle({ variant = "light", className = "" }) {
     <button
       type="button"
       onClick={toggle}
-      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-      title={dark ? "Light theme" : "Dark theme"}
+      aria-label={dark ? t("theme.to_light") : t("theme.to_dark")}
+      title={dark ? t("theme.light") : t("theme.dark")}
       className={`inline-grid place-items-center w-8 h-8 rounded-full transition ${base} ${className}`}
     >
       {dark ? (

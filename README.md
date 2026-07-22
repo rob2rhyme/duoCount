@@ -132,6 +132,25 @@ settings — a build without them still succeeds (the Firebase client falls
 back to placeholders at build time), but nobody can sign in until the real
 values are set.
 
+## Developer console
+
+A separate platform-admin console lives at `/dev` (for support/ops — not a
+store owner). It signs in with a dedicated email + password set via
+`DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD`; if either is unset the login is
+disabled. The custom token it mints carries a `platformAdmin` claim and **no**
+`vendorId`, so every tenant Firestore rule denies it — it reaches only the
+cross-store support/billing views through the Admin SDK. There is also a
+lightweight `GET /api/health` liveness probe for uptime monitors.
+
+## Optional env vars at a glance
+
+Beyond the Firebase web config + `FIREBASE_SERVICE_ACCOUNT_KEY`, these unlock
+optional features (all listed in `.env.local.example`):
+
+- **Email digest:** `RESEND_API_KEY`, `DIGEST_FROM`, `CRON_SECRET` (+ optional `APP_URL`).
+- **AI narrative:** `ANTHROPIC_API_KEY` (per-vendor opt-in via `vendor.digest.narrative`).
+- **Developer console:** `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD`.
+
 ## Tier one: trust features
 
 - **Blind counts** (owner toggle): the cash form hides expected/over-short for

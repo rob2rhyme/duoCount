@@ -3,12 +3,15 @@ import { useMemo, useState, useId } from "react";
 import Link from "next/link";
 import { searchDocs } from "@/lib/doc-search";
 import Highlight from "./Highlight";
+import { useLang } from "./LangProvider";
 
 // A live search box over the whole documentation set (all of /docs and the
 // /guide). Ranking is the pure searchDocs() over a build-time index passed in as
 // a prop; results deep-link to the matching doc + heading. Client-only (needs
 // input state), but does no fetching — the index ships with the page.
-export default function DocSearch({ index = [], placeholder = "Search the documentation…" }) {
+export default function DocSearch({ index = [], placeholder }) {
+  const { t } = useLang();
+  const ph = placeholder ?? t("docsearch.placeholder");
   const [q, setQ] = useState("");
   const listId = useId();
   const results = useMemo(() => searchDocs(index, q), [index, q]);
@@ -32,21 +35,21 @@ export default function DocSearch({ index = [], placeholder = "Search the docume
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Escape") setQ(""); }}
-          placeholder={placeholder}
-          aria-label="Search the documentation"
+          placeholder={ph}
+          aria-label={t("docsearch.aria")}
           aria-expanded={active}
           aria-controls={listId}
           role="combobox"
           autoComplete="off"
         />
         {q && (
-          <button type="button" aria-label="Clear search" onClick={() => setQ("")}
+          <button type="button" aria-label={t("common.clear_search")} onClick={() => setQ("")}
             className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-lg leading-none text-muted hover:text-fg">×</button>
         )}
       </div>
 
       {active && (
-        <div id={listId} role="listbox" aria-label="Search results"
+        <div id={listId} role="listbox" aria-label={t("docsearch.results")}
           className="absolute z-20 mt-2 w-full max-h-[60vh] overflow-y-auto rounded-xl border border-line bg-surface shadow-xl">
           {results.length === 0 ? (
             <div className="px-4 py-3 text-sm text-muted">No matches for “{q.trim()}”.</div>
