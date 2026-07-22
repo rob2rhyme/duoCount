@@ -84,7 +84,7 @@ export default function PreferencesMenu({ onSignOut }) {
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((o) => !o)}
-        aria-label={t("prefs.settings")} aria-haspopup="menu" aria-expanded={open}
+        aria-label={t("prefs.settings")} aria-haspopup="true" aria-expanded={open}
         className="inline-grid place-items-center w-8 h-8 rounded-full text-paper/90 hover:text-paper hover:bg-white/10 border border-white/15 transition">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3" />
@@ -93,7 +93,7 @@ export default function PreferencesMenu({ onSignOut }) {
       </button>
 
       {open && (
-        <div role="menu" aria-label={t("prefs.settings")}
+        <div role="group" aria-label={t("prefs.settings")}
           className="card absolute right-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] max-h-[85vh] overflow-y-auto z-50 p-3 space-y-3.5 text-fg shadow-xl">
           <div>
             <div className="label mb-1.5">{t("lang.language")}</div>
@@ -189,7 +189,7 @@ export default function PreferencesMenu({ onSignOut }) {
 
           {onSignOut && (
             <div className="pt-2.5 border-t border-line">
-              <button type="button" role="menuitem" onClick={() => { setOpen(false); onSignOut(); }}
+              <button type="button" onClick={() => { setOpen(false); onSignOut(); }}
                 className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold text-neg hover:bg-subtle transition">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M12 2v10" />
