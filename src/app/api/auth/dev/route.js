@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { devCredentialsOk } from "@/lib/dev-auth";
-import { throttleDecision, attemptKey, IP_LIMIT, clientIp } from "@/lib/login-throttle";
+import { throttleDecision, attemptKey, IP_LIMIT, DEV_GLOBAL_LIMIT, clientIp } from "@/lib/login-throttle";
 
 export const runtime = "nodejs";
 
@@ -20,24 +20,33 @@ export async function POST(req) {
     const { adminDb, adminAuth } = await getAdmin();
     const now = Date.now();
 
+    // Per-IP AND a global backstop (single dev credential, no store) — block if
+    // either trips; on a failure, advance both windows.
     const ipRef = adminDb.collection("loginAttempts").doc(`dev_${attemptKey(ipOf(req))}`);
-    const ipSnap = await ipRef.get();
+    const globalRef = adminDb.collection("loginAttempts").doc("dev_global");
+    const [ipSnap, globalSnap] = await Promise.all([ipRef.get(), globalRef.get()]);
     const ipDec = throttleDecision(ipSnap.exists ? ipSnap.data() : null, now, IP_LIMIT);
-    if (ipDec.blocked)
+    const globalDec = throttleDecision(globalSnap.exists ? globalSnap.data() : null, now, DEV_GLOBAL_LIMIT);
+    if (ipDec.blocked || globalDec.blocked)
       return NextResponse.json({ error: "Too many attempts — wait a few minutes.", code: "throttled" }, { status: 429 });
+    const onFail = () => Promise.all([ipRef.set(ipDec.nextOnFail), globalRef.set(globalDec.nextOnFail)]);
 
     // Login is OFF unless BOTH secrets are configured; treat that as a failed
     // attempt so it also throttles and can't be probed for free.
     if (!process.env.DEV_ADMIN_EMAIL || !process.env.DEV_ADMIN_PASSWORD) {
-      await ipRef.set(ipDec.nextOnFail);
+      await onFail();
       return NextResponse.json({ error: "Developer login isn't set up on the server yet.", code: "dev_unconfigured" }, { status: 403 });
     }
     if (!devCredentialsOk({ email, password })) {
-      await ipRef.set(ipDec.nextOnFail);
+      await onFail();
       return NextResponse.json({ error: "Wrong developer email or password.", code: "bad_dev_login" }, { status: 401 });
     }
 
-    if (ipSnap.exists) await ipRef.delete(); // clear the counter on success
+    // Success clears both counters.
+    await Promise.all([
+      ipSnap.exists ? ipRef.delete() : Promise.resolve(),
+      globalSnap.exists ? globalRef.delete() : Promise.resolve(),
+    ]);
     const token = await adminAuth.createCustomToken("platform-admin", {
       platformAdmin: true, name: "DuoCount support",
     });

@@ -343,7 +343,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   // BILINGUAL (both catalog languages on one sheet, like a real c-store sign).
   // Values are esc()'d; the print window is the report-print pattern.
   function printRewardsSign() {
-    const esc = (x) => String(x ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
     const R = resolveRewards(settings.rewards);
     const url = `${window.location.origin}/rewards`;
     const vars = {
