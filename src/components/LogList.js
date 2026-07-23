@@ -197,9 +197,14 @@ function EntryDetail({ e, onToast }) {
 }
 
 /* ---------- list ---------- */
-export default function LogList({ entries, onToast, locName, showLocation }) {
+export default function LogList({ entries: rawEntries, onToast, locName, showLocation }) {
   const { profile, vendor, isManager } = useSession();
   const { t } = useLang();
+  // Scratch-off moved to its own dedicated report pages (the Scratch tab's
+  // History view + the owner Scratch report), so it's filtered out of the
+  // general log here — this stays a cash/inventory ledger. Everything downstream
+  // (filters, CSV export, search vocabulary) reads this scratch-free list.
+  const entries = useMemo(() => (rawEntries || []).filter((e) => e.kind !== "scratch"), [rawEntries]);
   // Localized cause label for display; a legacy/unknown code falls back to the
   // English causeLabel rather than leaking a raw catalog key.
   const tCause = (c) => (CATALOG.en[`cause.${c}`] ? t(`cause.${c}`) : causeLabel(c));
@@ -320,7 +325,6 @@ export default function LogList({ entries, onToast, locName, showLocation }) {
         <select className="input w-auto flex-1 min-w-[110px]" value={fType} onChange={(e) => setFType(e.target.value)}>
           <option value="all">{t("log.f_all_entries")}</option>
           <option value="cash">{t("log.f_cash")}</option>
-          <option value="scratch">{t("log.f_scratch")}</option>
           <option value="inventory">{t("log.f_inventory")}</option>
         </select>
         <select className="input w-auto flex-1 min-w-[110px]" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>

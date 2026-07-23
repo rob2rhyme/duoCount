@@ -17,6 +17,7 @@ import SaveError from "./SaveError";
 import Field from "./Field";
 import TabIcon from "./TabIcon";
 import BarcodeScanner from "./BarcodeScanner";
+import ScratchHistory from "./ScratchHistory";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -50,6 +51,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
   const [logScanOpen, setLogScanOpen] = useState(false);
   const [logSession, setLogSession] = useState([]); // [{ key, game, book, ticket, sold, at }]
   const [logStatus, setLogStatus] = useState("");
+  const [view, setView] = useState("count"); // "count" (the form) | "history" (per-staff/shift report)
   const scannedRef = useRef(new Set());              // dedup keys logged this session
   const settledTodayRef = useRef(new Set());         // "<date>|<loc>|<game#>" settled this session
   // ---- Printable pack-flow report over an on-demand range (manager) ----
@@ -519,6 +521,17 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
           )}
         </div>
       </div>
+      <div className="px-4 pt-4">
+        <div className="inline-flex rounded-xl border border-line p-1 bg-panel gap-1 text-[13px] font-semibold">
+          <button type="button" onClick={() => setView("count")}
+            className={`px-3.5 py-1.5 rounded-lg transition ${view === "count" ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>{t("shist.tab_count")}</button>
+          <button type="button" onClick={() => setView("history")}
+            className={`px-3.5 py-1.5 rounded-lg transition ${view === "history" ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>{t("shist.tab_history")}</button>
+        </div>
+      </div>
+      {view === "history" ? (
+        <div className="p-4"><ScratchHistory entries={entries} locations={locations} locName={locName} /></div>
+      ) : (
       <div className="p-4 space-y-3.5">
         <Field label={t("common.location")}>
           <select className="input" value={f.locationId} onChange={set("locationId")} disabled={!!lockedLoc}>
@@ -738,6 +751,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
         {!valid.ok && <p className="text-[12px] text-muted -mt-1.5">{t(`err.${valid.code}`)}</p>}
         <p className="text-xs text-muted leading-relaxed">{t("scratch.helper")}</p>
       </div>
+      )}
 
       <BarcodeScanner open={scanOpen} onClose={() => setScanOpen(false)}
         title={t("scratch.scan_pack")}

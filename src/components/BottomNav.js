@@ -26,7 +26,7 @@ const ICONS = {
 const GROUPS = [
   { key: "count", labelKey: "nav.group_count", ids: ["cash", "scratch", "inventory", "rewards"] },
   { key: "team", labelKey: "nav.group_team", ids: ["time", "incidents", "notes"] },
-  { key: "insights", labelKey: "nav.group_insights", ids: ["dashboard", "portfolio", "log"] },
+  { key: "insights", labelKey: "nav.group_insights", ids: ["dashboard", "scratchreport", "portfolio", "log"] },
   { key: "admin", labelKey: "nav.admin", ids: ["admin"] },
 ];
 
