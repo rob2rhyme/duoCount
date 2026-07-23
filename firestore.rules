@@ -701,5 +701,24 @@ service cloud.firestore {
     match /adminAudit/{id} {
       allow read, write: if false;
     }
+
+    // ---- Platform-admin registry (top-level, server-only) ----
+    // Who is a developer/operator and their RBAC role. Written ONLY by the Admin
+    // SDK via /api/dev (the `operators` scope — superadmin); resolved server-side
+    // on every /api/dev call. No client reads or writes it, so a store account
+    // can never grant itself (or anyone) platform access or a higher role.
+    match /platformAdmins/{uid} {
+      allow read, write: if false;
+      match /{sub=**} { allow read, write: if false; }
+    }
+
+    // ---- Manual billing records (top-level, server-only) ----
+    // Per-store subscription record (plan/status/price — NO card data), written
+    // and read ONLY by the Admin SDK via /api/dev (the `billing` scope). It holds
+    // no store-tenant data a member should reach, so — belt-and-braces on top of
+    // the default deny — clients get nothing here, not even the store's own owner.
+    match /billing/{vendorId} {
+      allow read, write: if false;
+    }
   }
 }

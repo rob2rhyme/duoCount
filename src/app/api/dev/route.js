@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
-import { requireSignedIn, requirePlatformAdmin, isPlatformAdminClaims } from "@/lib/require-manager";
+import { requireSignedIn, requirePlatformAdmin, resolvePlatformAdmin, assertScope } from "@/lib/require-manager";
+import { scopesForRole, ROLES, normalizeRole } from "@/lib/platform-admins";
 import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
@@ -23,6 +24,26 @@ const err = (status, code, message) => NextResponse.json({ error: message, code 
 const DOC_BUDGET = 900 * 1024;
 const roughSize = (obj) => { try { return Buffer.byteLength(JSON.stringify(obj), "utf8"); } catch { return DOC_BUDGET; } };
 
+// Evict a store's staff on suspend/delete: revoke every store user's refresh
+// tokens so their next API call fails the checkRevoked verify. EXCEPT any store
+// user who is themselves an ACTIVE platform operator — a developer's console
+// identity is separate from their store membership, so killing the store must
+// not also knock them out of /dev. Their operator doc keeps them resolvable; the
+// suspended store just refuses a fresh store login.
+async function revokeStoreUsers(adminDb, adminAuth, vref) {
+  const [users, admins] = await Promise.all([
+    vref.collection("users").get(),
+    adminDb.collection("platformAdmins").get(),
+  ]);
+  const keepActive = new Set(
+    admins.docs.filter((d) => d.data().active !== false).map((d) => d.id));
+  await Promise.all(users.docs.map((u) => {
+    const uid = `${vref.id}_${u.id}`;
+    if (keepActive.has(uid)) return null; // active operator — don't evict from /dev
+    return adminAuth.revokeRefreshTokens(uid).catch(() => { /* never signed in */ });
+  }));
+}
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -35,19 +56,27 @@ export async function POST(req) {
     // read it off the denied screen and add it to PLATFORM_ADMIN_UIDS.
     if (action === "whoami") {
       const claims = await requireSignedIn(req);
+      const { adminDb } = await getAdmin();
+      const op = await resolvePlatformAdmin(claims, adminDb);
       return NextResponse.json({
         ok: true,
-        platformAdmin: isPlatformAdminClaims(claims),
+        platformAdmin: !!op,
+        role: op?.role || null,
+        scopes: op ? scopesForRole(op.role) : [],
         uid: claims.vendorId && claims.userId ? `${claims.vendorId}_${claims.userId}` : "",
       });
     }
 
-    const claims = await requirePlatformAdmin(req);
+    // Every action below requires a resolved operator (`me`); per-action scopes
+    // are enforced with assertScope(me, "<scope>") so a support / finance /
+    // readonly operator can only reach what their role allows.
+    const me = await requirePlatformAdmin(req);
     const { adminDb, adminAuth } = await getAdmin();
     const now = new Date();
     const devName = "DuoCount support";
 
     if (action === "listTickets") {
+      assertScope(me, "read");
       const status = body.status;
       let q = adminDb.collection("supportTickets");
       if (["open", "pending", "resolved"].includes(status)) q = q.where("status", "==", status);
@@ -61,6 +90,7 @@ export async function POST(req) {
     }
 
     if (action === "ticketReply" || action === "ticketStatus") {
+      assertScope(me, "tickets");
       const ref = adminDb.collection("supportTickets").doc(String(body.ticketId || ""));
       const snap = await ref.get();
       if (!snap.exists) return err(404, "not_found", "That ticket doesn't exist.");
@@ -98,6 +128,7 @@ export async function POST(req) {
     }
 
     if (action === "listStores") {
+      assertScope(me, "read");
       const [vSnap, tSnap] = await Promise.all([
         adminDb.collection("vendors").orderBy("createdAt", "desc").limit(500).get(),
         adminDb.collection("supportTickets").where("status", "in", ["open", "pending"]).get(),
@@ -133,6 +164,7 @@ export async function POST(req) {
     }
 
     if (action === "listAudit") {
+      assertScope(me, "read");
       // Recent platform-admin actions, newest first. Read only through this
       // trusted route (clients are denied by firestore.rules `adminAudit`).
       const snap = await adminDb.collection("adminAudit").orderBy("ts", "desc").limit(200).get();
@@ -150,12 +182,13 @@ export async function POST(req) {
       // fixes what happened, to which store, by which credential, and when.
       const logAudit = (act, detail = "") =>
         adminDb.collection("adminAudit").add(buildAuditEntry({
-          actor: claims.name || devName,
-          actorId: claims.vendorId && claims.userId ? `${claims.vendorId}_${claims.userId}` : "",
+          actor: me.name || devName,
+          actorId: me.id,
           action: act, vendorId: vref.id, vendorName: vname, detail, ts: now,
         })).catch((e) => { console.error("audit write failed", e); });
 
       if (op === "suspend" || op === "activate") {
+        assertScope(me, "lifecycle");
         const status = op === "suspend" ? "suspended" : "active";
         await vref.update({ status });
         // Suspending must bite live sessions, not just block the next login.
@@ -167,15 +200,12 @@ export async function POST(req) {
         // refresh; no writes — client rules are append-only / server-gated.)
         // Mirrors the resetOwnerPin revocation below. Activate needs no revoke:
         // the store's users simply sign in again.
-        if (op === "suspend") {
-          const users = await vref.collection("users").get();
-          await Promise.all(users.docs.map((u) =>
-            adminAuth.revokeRefreshTokens(`${vref.id}_${u.id}`).catch(() => { /* never signed in */ })));
-        }
+        if (op === "suspend") await revokeStoreUsers(adminDb, adminAuth, vref);
         await logAudit(op);
         return NextResponse.json({ ok: true, status });
       }
       if (op === "delete" || op === "restore") {
+        assertScope(me, "lifecycle");
         // SOFT delete: flag the store archived (a third `status`) and revoke its
         // users' sessions — the same eviction suspend uses — so a deleted store
         // vanishes for staff (the login route refuses it below) while the doc and
@@ -183,10 +213,8 @@ export async function POST(req) {
         // audit history keeps its labels. Deliberately NOT a hard subtree purge
         // (the dev-console roadmap forbids un-audited wipes); reversible by design.
         if (op === "delete") {
-          await vref.update({ status: "deleted", deletedAt: now, deletedBy: claims.name || devName });
-          const users = await vref.collection("users").get();
-          await Promise.all(users.docs.map((u) =>
-            adminAuth.revokeRefreshTokens(`${vref.id}_${u.id}`).catch(() => { /* never signed in */ })));
+          await vref.update({ status: "deleted", deletedAt: now, deletedBy: me.name || devName });
+          await revokeStoreUsers(adminDb, adminAuth, vref);
           await logAudit("delete");
           return NextResponse.json({ ok: true, status: "deleted" });
         }
@@ -196,6 +224,7 @@ export async function POST(req) {
         return NextResponse.json({ ok: true, status: "active" });
       }
       if (op === "rename") {
+        assertScope(me, "stores");
         const name = String(body.name ?? "").trim().slice(0, 80);
         if (name.length < 2) return err(400, "bad_name", "Enter a store name.");
         await vref.update({ name });
@@ -203,22 +232,25 @@ export async function POST(req) {
         return NextResponse.json({ ok: true, name });
       }
       if (op === "note") {
+        assertScope(me, "stores");
         const note = String(body.note ?? "").trim().slice(0, 500) || null;
         await vref.update({ devNote: note });
         await logAudit("note", note ? "set" : "cleared");
         return NextResponse.json({ ok: true, note });
       }
       if (op === "billing") {
+        assertScope(me, "billing");
         // Manual subscription record — NO card data. Stored dev-only at
         // billing/{vendorId}; the split from service on/off (suspend/activate)
         // is deliberate, so "past due" doesn't itself cut a store's access.
         const b = normalizeBilling(body.billing || {});
         await adminDb.collection("billing").doc(vref.id).set(
-          { ...b, updatedAt: now, updatedBy: claims.name || "developer" }, { merge: true });
+          { ...b, updatedAt: now, updatedBy: me.name || "developer" }, { merge: true });
         await logAudit("billing", `${b.plan} · ${b.status}`);
         return NextResponse.json({ ok: true, billing: b });
       }
       if (op === "resetOwnerPin") {
+        assertScope(me, "pin");
         const pin = String(body.pin ?? "").trim();
         if (!isValidNewPin(pin)) return err(400, "bad_pin", "Enter a valid 6-digit PIN.");
         const users = await vref.collection("users").where("role", "==", "owner").where("active", "==", true).limit(1).get();
@@ -231,6 +263,95 @@ export async function POST(req) {
         return NextResponse.json({ ok: true });
       }
       return err(400, "bad_op", "Unknown store operation.");
+    }
+
+    // ---- Operator (platform-admin) management — superadmin only ----
+    // The roster of who holds platform access (and their roles) is itself
+    // sensitive, so LISTING requires the operators scope too — a support /
+    // finance / readonly operator can't enumerate the admin set. (The UI already
+    // hides this tab for them; this is the matching server gate.)
+    if (action === "listAdmins") {
+      assertScope(me, "operators");
+      const snap = await adminDb.collection("platformAdmins").orderBy("createdAt", "desc").limit(200).get();
+      return NextResponse.json({ ok: true, admins: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+    }
+
+    if (action === "adminAction") {
+      assertScope(me, "operators");
+      const aop = body.op;
+      const uid = String(body.uid || "").trim();
+      if (!uid || /\s/.test(uid) || !uid.includes("_") || uid.length > 200)
+        return err(400, "bad_uid", "Enter a valid operator id (vendorId_userId).");
+      // Never let an operator change their OWN role/status here — prevents both
+      // accidental self-lockout and any self-escalation edge case. (The env
+      // break-glass login can always recover access regardless.)
+      if (uid === me.id) return err(400, "self_edit", "You can't change your own operator access here.");
+      const ref = adminDb.collection("platformAdmins").doc(uid);
+
+      // Guard the registry from being emptied of admins: if this write would drop
+      // the last ACTIVE superadmin (a remove, a demotion, or a deactivation of the
+      // sole one), refuse. Transactional so two concurrent demotes can't both pass
+      // a stale count and race the registry to zero superadmins. `willBeSuper` is
+      // the target end-state; `write(tx, prev)` applies the mutation. Returns the
+      // prior doc data (for the audit label) or throws code "last_superadmin".
+      const withSuperGuard = (willBeSuper, write) =>
+        adminDb.runTransaction(async (tx) => {
+          const cur = await tx.get(ref);
+          const prev = cur.exists ? cur.data() : {};
+          const wasActiveSuper = cur.exists && prev.role === "superadmin" && prev.active !== false;
+          if (wasActiveSuper && !willBeSuper) {
+            const supers = await tx.get(
+              adminDb.collection("platformAdmins").where("role", "==", "superadmin").where("active", "==", true));
+            if (supers.size <= 1) throw Object.assign(new Error("last superadmin"), { code: "last_superadmin" });
+          }
+          write(tx, prev);
+          return prev;
+        });
+
+      if (aop === "remove") {
+        // TOMBSTONE (active:false), never a hard delete: if this uid is ALSO in the
+        // env PLATFORM_ADMIN_UIDS allowlist, deleting the doc would fall through to
+        // the env grant and silently re-mint superadmin (revocation inverting to
+        // escalation). The authoritative doc left inactive keeps denying.
+        let prev;
+        try {
+          prev = await withSuperGuard(false, (tx) => tx.set(ref, { active: false, updatedAt: now }, { merge: true }));
+        } catch (e) {
+          if (e?.code === "last_superadmin") return err(400, "last_superadmin", "You can't remove the last active superadmin.");
+          throw e;
+        }
+        await adminDb.collection("adminAudit").add(buildAuditEntry({
+          actor: me.name || devName, actorId: me.id, action: "operator_revoke", vendorId: uid, vendorName: prev?.name || "", detail: "", ts: now,
+        })).catch((e) => { console.error("audit write failed", e); });
+        return NextResponse.json({ ok: true });
+      }
+      if (aop === "upsert") {
+        if (!ROLES.includes(body.role)) return err(400, "bad_role", "Pick a valid role.");
+        const role = normalizeRole(body.role);
+        const name = String(body.name ?? "").trim().slice(0, 80);
+        const email = String(body.email ?? "").trim().toLowerCase().slice(0, 120);
+        const active = body.active !== false;
+        let prev;
+        try {
+          prev = await withSuperGuard(role === "superadmin" && active, (tx, cur) => tx.set(ref, {
+            name: name || cur.name || "",
+            email: email || cur.email || "",
+            role, active,
+            addedBy: cur.addedBy || me.id,
+            createdAt: cur.createdAt || now,
+            updatedAt: now,
+          }, { merge: true }));
+        } catch (e) {
+          if (e?.code === "last_superadmin") return err(400, "last_superadmin", "You can't demote the last active superadmin.");
+          throw e;
+        }
+        await adminDb.collection("adminAudit").add(buildAuditEntry({
+          actor: me.name || devName, actorId: me.id, action: "operator_grant",
+          vendorId: uid, vendorName: name || prev?.name || "", detail: `${role}${active ? "" : " · inactive"}`, ts: now,
+        })).catch((e) => { console.error("audit write failed", e); });
+        return NextResponse.json({ ok: true, role });
+      }
+      return err(400, "bad_op", "Unknown operator operation.");
     }
 
     return err(400, "bad_action", "Unknown developer action.");
