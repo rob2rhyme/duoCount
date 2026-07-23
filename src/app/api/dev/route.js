@@ -5,6 +5,7 @@ import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
 import { normalizeBilling } from "@/lib/billing";
+import { buildAuditEntry } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -131,11 +132,28 @@ export async function POST(req) {
       return NextResponse.json({ ok: true, stores });
     }
 
+    if (action === "listAudit") {
+      // Recent platform-admin actions, newest first. Read only through this
+      // trusted route (clients are denied by firestore.rules `adminAudit`).
+      const snap = await adminDb.collection("adminAudit").orderBy("ts", "desc").limit(200).get();
+      return NextResponse.json({ ok: true, entries: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
+    }
+
     if (action === "storeAction") {
       const vref = adminDb.collection("vendors").doc(String(body.vendorId || ""));
       const vsnap = await vref.get();
       if (!vsnap.exists) return err(404, "no_store", "No such store.");
       const op = body.op;
+      const vname = vsnap.data().name || "";
+      // Append-only audit of every successful store action. Best-effort so a
+      // transient audit-write failure never blocks store management; the record
+      // fixes what happened, to which store, by which credential, and when.
+      const logAudit = (act, detail = "") =>
+        adminDb.collection("adminAudit").add(buildAuditEntry({
+          actor: claims.name || devName,
+          actorId: claims.vendorId && claims.userId ? `${claims.vendorId}_${claims.userId}` : "",
+          action: act, vendorId: vref.id, vendorName: vname, detail, ts: now,
+        })).catch((e) => { console.error("audit write failed", e); });
 
       if (op === "suspend" || op === "activate") {
         const status = op === "suspend" ? "suspended" : "active";
@@ -154,6 +172,7 @@ export async function POST(req) {
           await Promise.all(users.docs.map((u) =>
             adminAuth.revokeRefreshTokens(`${vref.id}_${u.id}`).catch(() => { /* never signed in */ })));
         }
+        await logAudit(op);
         return NextResponse.json({ ok: true, status });
       }
       if (op === "delete" || op === "restore") {
@@ -168,21 +187,25 @@ export async function POST(req) {
           const users = await vref.collection("users").get();
           await Promise.all(users.docs.map((u) =>
             adminAuth.revokeRefreshTokens(`${vref.id}_${u.id}`).catch(() => { /* never signed in */ })));
+          await logAudit("delete");
           return NextResponse.json({ ok: true, status: "deleted" });
         }
         // restore — clear the flags; users simply sign in again (no revoke needed).
         await vref.update({ status: "active", deletedAt: null, deletedBy: null });
+        await logAudit("restore");
         return NextResponse.json({ ok: true, status: "active" });
       }
       if (op === "rename") {
         const name = String(body.name ?? "").trim().slice(0, 80);
         if (name.length < 2) return err(400, "bad_name", "Enter a store name.");
         await vref.update({ name });
+        await logAudit("rename", name);
         return NextResponse.json({ ok: true, name });
       }
       if (op === "note") {
         const note = String(body.note ?? "").trim().slice(0, 500) || null;
         await vref.update({ devNote: note });
+        await logAudit("note", note ? "set" : "cleared");
         return NextResponse.json({ ok: true, note });
       }
       if (op === "billing") {
@@ -192,6 +215,7 @@ export async function POST(req) {
         const b = normalizeBilling(body.billing || {});
         await adminDb.collection("billing").doc(vref.id).set(
           { ...b, updatedAt: now, updatedBy: claims.name || "developer" }, { merge: true });
+        await logAudit("billing", `${b.plan} · ${b.status}`);
         return NextResponse.json({ ok: true, billing: b });
       }
       if (op === "resetOwnerPin") {
@@ -203,6 +227,7 @@ export async function POST(req) {
         await ownerRef.collection("private").doc("creds").set({ pinHash: hashPin(pin) }, { merge: true });
         // Force re-auth so any live session with the old PIN's token is dropped.
         try { await adminAuth.revokeRefreshTokens(`${vref.id}_${ownerRef.id}`); } catch { /* not signed in */ }
+        await logAudit("resetOwnerPin");
         return NextResponse.json({ ok: true });
       }
       return err(400, "bad_op", "Unknown store operation.");

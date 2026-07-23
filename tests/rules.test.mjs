@@ -516,6 +516,17 @@ test("supportTickets: an owner reads only their store's tickets; nobody writes f
   await assertFails(updateDoc(doc(db("owner"), "supportTickets/tA"), { status: "resolved" }));
 });
 
+test("adminAudit: no client — not even an owner — can read or write the admin audit log", async () => {
+  await env.withSecurityRulesDisabled(async (c) => {
+    const f = c.firestore();
+    await setDoc(doc(f, "adminAudit/e1"), { actor: "DuoCount support", action: "delete", vendorId: V, ts: new Date() });
+  });
+  await assertFails(getDoc(doc(db("owner"), "adminAudit/e1")));
+  await assertFails(getDoc(doc(db("mgr"), "adminAudit/e1")));
+  await assertFails(setDoc(doc(db("owner"), "adminAudit/e2"), { actor: "x", action: "rename", vendorId: V, ts: new Date() }));
+  await assertFails(updateDoc(doc(db("owner"), "adminAudit/e1"), { action: "restore" }));
+});
+
 /* ---------- subscriber billing (dev-only, closed to every client) ---------- */
 
 test("billing: no client — not even an owner — can read or write a billing record", async () => {

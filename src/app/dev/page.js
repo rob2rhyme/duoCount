@@ -59,14 +59,14 @@ export default function DevConsole() {
   return (
     <Shell onSignOut={doSignOut} signOutLabel={signOutLabel}>
       <div className="flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4">
-        {[["inbox", "dev.tab_inbox"], ["stores", "dev.tab_stores"]].map(([id, key]) => (
+        {[["inbox", "dev.tab_inbox"], ["stores", "dev.tab_stores"], ["audit", "dev.tab_audit"]].map(([id, key]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${tab === id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
             {t(key)}
           </button>
         ))}
       </div>
-      {tab === "inbox" ? <Inbox t={t} lang={lang} /> : <Stores t={t} lang={lang} />}
+      {tab === "inbox" ? <Inbox t={t} lang={lang} /> : tab === "audit" ? <Audit t={t} lang={lang} /> : <Stores t={t} lang={lang} />}
     </Shell>
   );
 }
@@ -277,6 +277,41 @@ function Inbox({ t, lang }) {
             </button>
           ))}
           <ShowMore hasMore={ticketPage.hasMore} nextStep={ticketPage.nextStep} onMore={ticketPage.showMore} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------ Audit log ------------------------------ */
+// Append-only record of platform-admin store actions, read through /api/dev
+// (clients are denied by firestore.rules). Read-only view — newest first.
+function Audit({ t, lang }) {
+  const [entries, setEntries] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    apiDev({ action: "listAudit" }).then((r) => setEntries(r.entries)).catch((e) => setError(e?.message || "load failed"));
+  }, []);
+  const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleString(lang === "es" ? "es" : "en") : ""; };
+
+  if (entries === null && !error) return <p className="text-muted text-sm">{t("common.loading")}</p>;
+  return (
+    <div className="space-y-3">
+      <p className="text-[12px] text-muted">{t("dev.audit_sub")}</p>
+      {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
+      {entries && entries.length === 0 ? (
+        <div className="card p-6 text-center text-[13px] text-muted">{t("dev.audit_empty")}</div>
+      ) : (
+        <div className="card overflow-hidden divide-y divide-line-soft">
+          {(entries || []).map((e) => (
+            <div key={e.id} className="px-4 py-2.5 flex items-start gap-3 text-[13px]">
+              <span className={`pill flex-shrink-0 mt-0.5 ${e.action === "delete" ? "bg-neg/10 text-neg" : "bg-subtle text-muted"}`}>{t(`dev.aud_${e.action}`)}</span>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium truncate">{e.vendorName || e.vendorId}{e.detail ? <span className="text-muted font-normal"> · {e.detail}</span> : null}</div>
+                <div className="text-[11px] text-muted">{t("dev.audit_by", { actor: e.actor })} · {fmt(e.ts)}</div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
