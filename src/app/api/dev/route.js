@@ -119,6 +119,7 @@ export async function POST(req) {
         return {
           id: d.id, name: v.name || "", slug: v.slug || "",
           status: v.status || "active", createdAt: v.createdAt || null,
+          deletedAt: v.deletedAt || null, deletedBy: v.deletedBy || null,
           rewardsOn: v.rewards?.enabled === true,
           ownerName: owner ? owner.data().name : (v.ownerName || ""),
           ownerEmail: owner ? (owner.data().email || null) : null,
@@ -154,6 +155,24 @@ export async function POST(req) {
             adminAuth.revokeRefreshTokens(`${vref.id}_${u.id}`).catch(() => { /* never signed in */ })));
         }
         return NextResponse.json({ ok: true, status });
+      }
+      if (op === "delete" || op === "restore") {
+        // SOFT delete: flag the store archived (a third `status`) and revoke its
+        // users' sessions — the same eviction suspend uses — so a deleted store
+        // vanishes for staff (the login route refuses it below) while the doc and
+        // its whole subtree stay intact, so a restore is a single write and the
+        // audit history keeps its labels. Deliberately NOT a hard subtree purge
+        // (the dev-console roadmap forbids un-audited wipes); reversible by design.
+        if (op === "delete") {
+          await vref.update({ status: "deleted", deletedAt: now, deletedBy: claims.name || devName });
+          const users = await vref.collection("users").get();
+          await Promise.all(users.docs.map((u) =>
+            adminAuth.revokeRefreshTokens(`${vref.id}_${u.id}`).catch(() => { /* never signed in */ })));
+          return NextResponse.json({ ok: true, status: "deleted" });
+        }
+        // restore — clear the flags; users simply sign in again (no revoke needed).
+        await vref.update({ status: "active", deletedAt: null, deletedBy: null });
+        return NextResponse.json({ ok: true, status: "active" });
       }
       if (op === "rename") {
         const name = String(body.name ?? "").trim().slice(0, 80);
