@@ -340,6 +340,7 @@ function Operators({ t, lang, myId }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [form, setForm] = useState({ uid: "", name: "", email: "", role: "support" });
+  const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleDateString(lang === "es" ? "es" : "en") : ""; };
 
   const load = () => apiDev({ action: "listAdmins" }).then((r) => setAdmins(r.admins)).catch((e) => setError(e?.message || "load failed"));
   useEffect(() => { load(); }, []);
@@ -387,6 +388,7 @@ function Operators({ t, lang, myId }) {
               <div className="min-w-0 flex-1">
                 <div className="font-medium truncate">{a.name || a.id}{a.active === false ? <span className="text-muted font-normal"> · {t("dev.ops_inactive")}</span> : null}</div>
                 <div className="text-[11px] text-muted font-mono truncate">{a.id}{a.email ? ` · ${a.email}` : ""}</div>
+                {a.createdAt ? <div className="text-[11px] text-muted">{t("dev.ops_added", { date: fmt(a.createdAt) })}</div> : null}
               </div>
               {a.id === myId ? (
                 <span className="pill bg-subtle text-muted flex-shrink-0">{t(`dev.role_${a.role}`)} · {t("dev.ops_you")}</span>

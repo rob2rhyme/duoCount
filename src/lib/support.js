@@ -127,6 +127,22 @@ export function compareTickets(a, b) {
 export function toMs(v) {
   if (v == null) return null;
   if (typeof v === "number") return v;
-  const d = v?.toDate ? v.toDate() : new Date(v);
+  // A live client-SDK Firestore Timestamp still has toDate().
+  if (typeof v?.toDate === "function") {
+    const d = v.toDate();
+    return d && !Number.isNaN(d.getTime()) ? d.getTime() : null;
+  }
+  // An Admin-SDK Timestamp serialized over a JSON API route (e.g. /api/dev) loses
+  // its toDate() method and arrives as a plain { _seconds, _nanoseconds } object
+  // (some SDK versions use { seconds, nanoseconds }). Without this it fell through
+  // to new Date(obj) → Invalid Date → null, so every dev-console timestamp (audit,
+  // tickets, store createdAt) rendered blank.
+  const secs = typeof v?._seconds === "number" ? v._seconds
+    : typeof v?.seconds === "number" ? v.seconds : null;
+  if (secs !== null) {
+    const nanos = v?._nanoseconds ?? v?.nanoseconds ?? 0;
+    return secs * 1000 + Math.floor(nanos / 1e6);
+  }
+  const d = new Date(v);
   return d && !Number.isNaN(d.getTime()) ? d.getTime() : null;
 }
