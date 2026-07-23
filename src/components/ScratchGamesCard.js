@@ -4,6 +4,7 @@ import { useLang } from "./LangProvider";
 import { apiCatalog } from "@/lib/data";
 import { normalizeGameEntry } from "@/lib/catalog-entry";
 import { parseScratchBarcode, packDisplayParts, packGameKey, reduceToGameNumber } from "@/lib/scratch-barcode";
+import { resolveGameEntry } from "@/lib/scratch-catalog";
 import { money } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import Field from "./Field";
@@ -51,7 +52,30 @@ export default function ScratchGamesCard({ scratchCatalog = null, onToast }) {
     setTicket(String(raw ?? ""));
     const p = splitTicket(raw);
     setParsed(p);
-    if (p?.game) setForm((f) => ({ ...f, game: p.game }));
+    if (!p?.game) return;
+    // Fill the game # always, and pull name / price / tickets-per-pack from the
+    // catalog (this store's own entry first, then the bundled PA list). On a NEW
+    // game # the catalog values take over (so scanning a second ticket doesn't
+    // leave the first game's name behind); on a re-scan of the SAME game # only
+    // blanks are filled, so a manual correction survives. All stay editable.
+    const hit = resolveGameEntry(p.game, scratchCatalog);
+    setForm((f) => {
+      const changed = f.game !== p.game;
+      // New game # → adopt the catalog's field (blank when unknown, so the old
+      // game's value doesn't linger). Same game # → keep a manual edit, fill only
+      // a blank. `val` is the catalog value; missing → "".
+      const pick = (cur, val) => {
+        const v = val == null ? "" : String(val);
+        return changed ? v : (cur === "" ? v : cur);
+      };
+      return {
+        ...f,
+        game: p.game,
+        name: pick(f.name, hit?.name),
+        price: pick(f.price, hit?.price),
+        perPack: pick(f.perPack, hit?.perPack),
+      };
+    });
   };
 
   const rows = useMemo(() => {

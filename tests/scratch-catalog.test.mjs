@@ -2,7 +2,7 @@
 // Run: npm run test:scratch-catalog
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SCRATCH_CATALOG, CATALOG_META, resolveCatalogGame, lookupGameNumber } from "../src/lib/scratch-catalog.js";
+import { SCRATCH_CATALOG, CATALOG_META, resolveCatalogGame, lookupGameNumber, resolveGameEntry, resolveGameByBarcode } from "../src/lib/scratch-catalog.js";
 
 test("catalog is a non-trivial keyed table of well-formed entries", () => {
   const keys = Object.keys(SCRATCH_CATALOG);
@@ -87,4 +87,35 @@ test("lookupGameNumber: a scan matches a legacy key stored as a whole ticket", (
   // an exact game key always wins over the legacy fallback
   const both = { "1792": { name: "Correct", price: 5 }, "17920011361016": { name: "Legacy", price: 9 } };
   assert.equal(lookupGameNumber("1792", both).name, "Correct");
+});
+
+test("resolveGameEntry: the store's own entry wins, the bundled catalog is the backstop", () => {
+  const owner = { "1792": { name: "House Price Wild Side", price: 7, perPack: 60 } };
+  // owner has it → owner's custom name/price win over the bundled default
+  const own = resolveGameEntry("1792", owner);
+  assert.equal(own.name, "House Price Wild Side");
+  assert.equal(own.price, 7);
+  // a game the owner hasn't stored still auto-fills from the bundled PA catalog
+  const fell = resolveGameEntry("1788", owner);
+  assert.equal(fell.name, SCRATCH_CATALOG["1788"].name); // "Lights, Camera, Crossword"
+  assert.equal(fell.price, SCRATCH_CATALOG["1788"].price);
+});
+
+test("resolveGameEntry: null / empty owner catalog falls straight through to bundled", () => {
+  assert.equal(resolveGameEntry("1788", null).name, SCRATCH_CATALOG["1788"].name);
+  assert.equal(resolveGameEntry("1788", {}).name, SCRATCH_CATALOG["1788"].name);
+  assert.equal(resolveGameEntry("01788", undefined).game, "1788"); // leading zero tolerated
+  // a number in neither the owner list nor the bundled catalog declines
+  assert.equal(resolveGameEntry("9999", { "1234": { name: "x", price: 1 } }), null);
+  assert.equal(resolveGameEntry("", null), null);
+});
+
+test("resolveGameByBarcode: owner-first then bundled, from a full ticket code", () => {
+  const owner = { "1792": { name: "House Wild Side", price: 7, perPack: 60 } };
+  assert.equal(resolveGameByBarcode("17920011361016", owner).name, "House Wild Side");
+  // a scanned game the owner hasn't stored resolves from the bundled catalog
+  assert.equal(resolveGameByBarcode("1788-0014989-047", owner).name, SCRATCH_CATALOG["1788"].name);
+  // null owner → bundled; unknown game → null
+  assert.equal(resolveGameByBarcode("1788-0014989-047", null).price, SCRATCH_CATALOG["1788"].price);
+  assert.equal(resolveGameByBarcode("9999000111222", null), null);
 });

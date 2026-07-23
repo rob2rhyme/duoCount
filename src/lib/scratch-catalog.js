@@ -161,3 +161,20 @@ export function lookupGameNumber(gameNo, catalog = SCRATCH_CATALOG) {
   }
   return null;
 }
+
+// Owner-first, then bundled. Resolve a game by its bare NUMBER against the
+// store's own stored catalog first — so a store's custom name/price wins — and
+// fall back to the bundled PA catalog, so ANY recognized game still auto-fills
+// even when the owner hasn't stored it. `ownerCatalog` may be null/empty; the
+// bundled catalog is always the backstop. Convenience-only, like the two
+// lookups it composes: it never supplies an audited ticket number.
+export function resolveGameEntry(gameNo, ownerCatalog) {
+  return lookupGameNumber(gameNo, ownerCatalog || undefined) || lookupGameNumber(gameNo);
+}
+
+// Owner-first, then bundled — the barcode-parsing sibling of resolveGameEntry,
+// for a scanned/typed pack or a full ticket (it reads the game # out of the
+// code). Same contract: owner entry wins, bundled catalog is the backstop.
+export function resolveGameByBarcode(raw, ownerCatalog) {
+  return resolveCatalogGame(raw, ownerCatalog || undefined) || resolveCatalogGame(raw);
+}
