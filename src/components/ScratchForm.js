@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { addEntry, fetchEntriesInRange } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts } from "@/lib/scratch-barcode";
-import { resolveCatalogGame, lookupGameNumber } from "@/lib/scratch-catalog";
+import { resolveGameByBarcode, resolveGameEntry } from "@/lib/scratch-catalog";
 import { isDuplicateScan, scanDedupKey, replacesSettledToday } from "@/lib/scratch-scan-guard";
 import { paletteAccent, paletteInk } from "@/lib/branding";
 import { buildPackFlow } from "@/lib/scratch-report";
@@ -138,7 +138,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
       onSaved?.(t("toast.game_recognized"));
       return;
     }
-    const cat = resolveCatalogGame(pack, catalog || undefined) || lookupGameNumber(f.gameNo, catalog || undefined);
+    const cat = resolveGameByBarcode(pack, catalog) || resolveGameEntry(f.gameNo, catalog);
     if (cat) {
       setF((p) => ({ ...p, game: cat.name, price: String(cat.price) }));
       onSaved?.(t("toast.game_catalog"));
@@ -159,7 +159,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
     const prev = entries.find((e) => e.kind === "scratch"
       && ((e.pack || "") === pack || (e.pack || "") === book) && Number(e.perPack) > 0);
     if (prev) return Number(prev.perPack);
-    const cat = resolveCatalogGame(pack, catalog || undefined) || lookupGameNumber(f.gameNo, catalog || undefined);
+    const cat = resolveGameByBarcode(pack, catalog) || resolveGameEntry(f.gameNo, catalog);
     return cat?.perPack ? Number(cat.perPack) : null;
   }, [canonicalPack, f.pack, f.gameNo, entries, catalog]);
 
@@ -179,7 +179,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
   // book of the same game, then the lottery catalog. Pure lookup — no state.
   function resolvePack(packNo, ticket) {
     const here = (e) => e.kind === "scratch" && e.locationId === f.locationId;
-    const cat = resolveCatalogGame(packNo, catalog || undefined);
+    const cat = resolveGameByBarcode(packNo, catalog);
     const prev = entries.find((e) => here(e) && (e.pack || "") === packNo);
     if (prev) {
       return {
@@ -413,9 +413,11 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
     const canonical = packNo.replace(/\D/g, "") || packNo;   // game+book, matching manual entry
     const gameNo = packGameKey(canonical) || packGameKey(packNo);
     if (ticket == null) { const m = t("scratch.scan_no_ticket"); setLogStatus(m); onSaved?.(m); return; }
-    // Strict: the OWNER's catalog only (no bundled fallback) — an unknown game
-    // is refused so staff can't log a ticket the owner hasn't registered.
-    const g = lookupGameNumber(gameNo, catalog || {});
+    // Resolve name + price the way the shelf walk does — the store's own catalog
+    // first, then the bundled PA catalog — so any recognized game auto-fills.
+    // Only a game in NEITHER is refused (staff can't log a ticket the app can't
+    // even name), which keeps the guard against a truly unknown code.
+    const g = resolveGameEntry(gameNo, catalog);
     if (!g) { const m = t("scratch.scan_not_stored", { n: gameNo || "?" }); setLogStatus(m); onSaved?.(m); return; }
     if (!f.locationId) { const m = t("scratch.scanlog_need_ctx"); setLogStatus(m); onSaved?.(m); return; }
     // Refuse an accidental re-scan of the SAME game+pack+ticket THIS shift —

@@ -49,6 +49,8 @@ A 📷 button beside the Pack/book field. Scan → the raw barcode text fills `p
 
 **The compounding win — last-count prefill:** whenever the pack field matches an earlier scratch entry at the same location (scanned *or* typed), the form prefills from the most recent one: same game name, same ticket price, and **start # = that entry's end #** — because yesterday's closing ticket number is today's opening number. The counter scans the pack and types exactly one number (today's end #). All prefilled values stay editable.
 
+**Owner-first, then the bundled catalog.** Every scratch surface — the manual prefill, the Shelf walk, **Scan to log**, and the Admin → Scratch games entry — resolves a game's name/price/pack-size the same way: the store's own stored games first (their custom prices win), then the bundled PA catalog as the backstop, via `resolveGameEntry` / `resolveGameByBarcode` (`src/lib/scratch-catalog.js`). So any recognized game auto-fills even before the owner stores it, and the Admin card fills the name + price when the owner scans/pastes a ticket. **Scan to log** logs the reading once a game resolves in either list and refuses only a game in **neither** (an unrecognized code), instead of the old owner-catalog-only refusal.
+
 ### 3.3 Scan to log — sign each ticket on the spot
 
 A second scratch surface (`ScratchForm.js` "Scan to log", `scratch.scanlog_*`) is built for the everyday open/close: scan or type a ticket and it logs one signed reading immediately, chained from the pack's last count. It is the one deliberate exception to "a scan only fills a field" — here each scan *is* a signed entry — so it carries its own guards (`src/lib/scratch-scan-guard.js`, pure + `tests/scratch-scan-guard.test.mjs`):

@@ -79,7 +79,9 @@ Open **Admin** and add the pieces your team will pick from when they count:
 
 > **Enter your scratch games (optional).** In **Admin → Scratch games**, an owner
 > can type each game the store sells — **game number**, **game name**, **ticket
-> price**, and optionally **tickets per pack**. After that, a scan or a typed pack
+> price**, and optionally **tickets per pack** — or **scan/paste a ticket** and a
+> recognized game's number, name, and price fill in for you (edit anything, then
+> **Add game**). After that, a scan or a typed pack
 > fills the game name and price on its own, so logging is quicker and the data
 > matches every time. DuoCount already ships with the current state game list, so
 > you only need this for a game it doesn't know yet (or a different state's games).

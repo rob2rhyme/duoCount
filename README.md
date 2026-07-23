@@ -279,7 +279,11 @@ is the state lottery's job; see `docs/lottery-pack-lifecycle-spec.md` for the
 history). Scanning a ticket fills the pack **and the ticket # it's at** (the
 end reading), and a pack the store has counted before carries its game, price,
 and start # forward from the last close (`src/lib/scratch-barcode.js`, pure +
-unit-tested). Across shifts, `src/lib/scratch-audit.js` chains each pack's
+unit-tested). A game with no prior count still fills its name and price from the
+owner's stored games, then the bundled PA catalog as a backstop — one resolver
+(`resolveGameEntry` / `resolveGameByBarcode`) shared by the scan-to-log,
+shelf-walk, manual, and Admin games surfaces, so any recognized game auto-fills
+(and scan-to-log refuses only a code in neither list). Across shifts, `src/lib/scratch-audit.js` chains each pack's
 counts: a count that opens above the previous close means tickets went
 unaccounted between two signed counts — the Dashboard **Pack audit** card
 names both signers at every break, lists packs that quietly stopped being
