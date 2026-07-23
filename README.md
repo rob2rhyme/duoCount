@@ -286,6 +286,15 @@ names both signers at every break, lists packs that quietly stopped being
 counted, and the entry-based **pack-gap** pattern alert carries the same
 signal into the digest.
 
+The **Scan to log** surface signs one reading per ticket on the spot and is
+guarded by `src/lib/scratch-scan-guard.js` (pure + unit-tested): an accidental
+re-scan of the same game+pack+ticket is refused within a shift — Opening and
+Closing stay separate, and the block survives a reload or a second clerk's
+device. Staff can mark a pack **sold out** straight from the scan list (a
+signed `soldOut` final count, not the retired settlement), and the replacement
+book of the same game # then opens fresh as a **New** book at #0 until the next
+day.
+
 ## Interface: counting, theming & navigation
 
 Three usability upgrades (see `docs/ui-enhancements-spec.md`), all pure client

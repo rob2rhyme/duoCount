@@ -4,6 +4,7 @@ import { addEntry, fetchEntriesInRange } from "@/lib/data";
 import { money, ticketsSold } from "@/lib/utils";
 import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts } from "@/lib/scratch-barcode";
 import { resolveCatalogGame, lookupGameNumber } from "@/lib/scratch-catalog";
+import { isDuplicateScan, scanDedupKey, replacesSettledToday } from "@/lib/scratch-scan-guard";
 import { paletteAccent, paletteInk } from "@/lib/branding";
 import { buildPackFlow } from "@/lib/scratch-report";
 import { validateScratch } from "@/lib/count-validation";
@@ -49,7 +50,8 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
   const [logScanOpen, setLogScanOpen] = useState(false);
   const [logSession, setLogSession] = useState([]); // [{ key, game, book, ticket, sold, at }]
   const [logStatus, setLogStatus] = useState("");
-  const scannedRef = useRef(new Set());              // barcodes logged this session (dedup)
+  const scannedRef = useRef(new Set());              // dedup keys logged this session
+  const settledTodayRef = useRef(new Set());         // "<date>|<loc>|<game#>" settled this session
   // ---- Printable pack-flow report over an on-demand range (manager) ----
   const [rptOpen, setRptOpen] = useState(false);
   const rptPanelRef = useModalA11y(() => setRptOpen(false), rptOpen);
@@ -416,10 +418,26 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
     const g = lookupGameNumber(gameNo, catalog || {});
     if (!g) { const m = t("scratch.scan_not_stored", { n: gameNo || "?" }); setLogStatus(m); onSaved?.(m); return; }
     if (!f.locationId) { const m = t("scratch.scanlog_need_ctx"); setLogStatus(m); onSaved?.(m); return; }
-    const key = `${canonical}:${ticket}`;
-    if (scannedRef.current.has(key)) { const m = t("scratch.scan_dup"); setLogStatus(m); onSaved?.(m); return; }
+    // Refuse an accidental re-scan of the SAME game+pack+ticket THIS shift —
+    // Opening and Closing are separate buckets, so the pack still reads at both.
+    // Guards in memory (instant) and against saved entries (reload / 2nd device).
+    const reading = { date: f.date, shift: f.shift, locationId: f.locationId, pack: canonical, ticket: Number(ticket) };
+    if (isDuplicateScan(reading, entries, scannedRef.current)) {
+      const parts = packDisplayParts(canonical);
+      const shiftLabel = t(f.shift === "open" ? "common.opening" : "common.closing");
+      const m = t("scratch.scan_dup_shift", { game: gameNo || "?", pack: parts.bookNo, ticket, shift: shiftLabel });
+      setLogStatus(m); onSaved?.(m); return;
+    }
     const prev = entries.find((e) => e.kind === "scratch" && e.locationId === f.locationId && (e.pack || "") === canonical);
-    const startno = prev && prev.endno != null ? Number(prev.endno) : Number(ticket);
+    // A no-history book whose game was settled (sold out) — today via the swap,
+    // or within 14 days like the shelf walk — is a FRESH replacement: it starts
+    // at #0 so its first sales count, not at "wherever it is now". settledTodayRef
+    // covers the moment before Firestore echoes a just-tapped Settle back.
+    const swapKey = `${f.date}|${f.locationId}|${gameNo}`;
+    const replacedToday = settledTodayRef.current.has(swapKey)
+      || replacesSettledToday(entries, { date: f.date, locationId: f.locationId, gameNo, pack: canonical });
+    const fresh = !prev && (replacedToday || freshBookLikely(canonical, f.locationId));
+    const startno = prev && prev.endno != null ? Number(prev.endno) : (fresh ? 0 : Number(ticket));
     const endno = Number(ticket);
     const rowSold = ticketsSold(startno, endno);
     try {
@@ -432,15 +450,52 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
         soldOut: false, ...(Number(g.perPack) > 0 ? { perPack: Number(g.perPack) } : {}),
         by: profile.name, byId: profile.id, byRole: profile.role,
       });
-      scannedRef.current.add(key);
+      scannedRef.current.add(scanDedupKey(reading));
       saveContext(vendor.id, profile.id, { locationId: f.locationId });
       const parts = packDisplayParts(canonical);
       setLogSession((s) => [{
-        key: key + Date.now(), game: g.name, price: Number(g.price) || 0,
-        gameNo: parts.gameNo || gameNo, book: parts.bookNo, ticket: Number(ticket),
-        sold: rowSold, shift: f.shift, at: new Date(),
+        key: scanDedupKey(reading) + ":" + Date.now(), game: g.name, price: Number(g.price) || 0,
+        gameNo: parts.gameNo || gameNo, book: parts.bookNo,
+        pack: canonical, perPack: Number(g.perPack) > 0 ? Number(g.perPack) : null,
+        date: f.date, locationId: f.locationId, ticket: Number(ticket),
+        sold: rowSold, shift: f.shift, fresh: !prev && replacedToday, settled: false, at: new Date(),
       }, ...s].slice(0, 50));
       const m = t("scratch.scan_logged", { game: g.name, n: ticket });
+      setLogStatus(m); onSaved?.(m);
+    } catch {
+      const m = t("scratch.scanlog_save_err");
+      setLogStatus(m); onSaved?.(m);
+    }
+  }
+
+  // Mark a just-logged pack SETTLED (sold out) straight from the scan list:
+  // write a final count for it (soldOut, end # snapped to the pack size when
+  // known, so the remaining tickets book as sold — full pack recognized, no
+  // hidden skim) and remember its game # as settled today, so the swapped-in
+  // replacement book of the same game # reads as fresh even before Firestore
+  // echoes this write back into `entries`.
+  async function settlePack(row) {
+    if (!row || row.settled) return;
+    const canonical = row.pack;
+    const size = Number(row.perPack) > 0 ? Number(row.perPack) : null;
+    const prev = entries.find((e) => e.kind === "scratch"
+      && e.locationId === row.locationId && (e.pack || "") === canonical);
+    const startno = prev && prev.endno != null ? Number(prev.endno) : (Number(row.ticket) || 0);
+    const endno = size != null ? size : (Number(row.ticket) || 0);
+    const rowSold = ticketsSold(startno, endno);
+    try {
+      await addEntry(vendor.id, {
+        kind: "scratch", date: row.date, shift: row.shift,
+        locationId: row.locationId, locationName: locName(row.locationId),
+        game: row.game || "Game", pack: canonical,
+        price: Number(row.price) || 0, startno, endno,
+        sold: rowSold, dollars: rowSold * (Number(row.price) || 0),
+        soldOut: true, ...(size != null ? { perPack: size } : {}),
+        by: profile.name, byId: profile.id, byRole: profile.role,
+      });
+      settledTodayRef.current.add(`${row.date}|${row.locationId}|${row.gameNo}`);
+      setLogSession((s) => s.map((r) => (r.key === row.key ? { ...r, settled: true } : r)));
+      const m = t("scratch.scan_settled", { game: row.gameNo, pack: row.book });
       setLogStatus(m); onSaved?.(m);
     } catch {
       const m = t("scratch.scanlog_save_err");
@@ -506,9 +561,16 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
                 <div className="divide-y divide-line-soft max-h-56 overflow-y-auto">
                   {logSession.map((r) => (
                     <div key={r.key} className="px-3 py-2 flex items-center gap-2.5 text-[12px]">
-                      <span className="flex-1 min-w-0 font-medium truncate">
-                        {r.game}{r.price > 0 ? <span className="text-muted"> {money(r.price)}</span> : null}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
+                          {r.game}{r.price > 0 ? <span className="text-muted"> {money(r.price)}</span> : null}
+                          {r.fresh && <span className="ml-1.5 text-[9px] uppercase tracking-wide font-bold text-gold border border-brass/50 rounded px-1 py-px align-middle">{t("scratch.walk_new")}</span>}
+                        </div>
+                        <button type="button" onClick={() => settlePack(r)} disabled={r.settled} title={t("scratch.soldout_label")}
+                          className={`mt-0.5 text-[9px] uppercase tracking-wide font-bold rounded px-1.5 py-0.5 border transition ${r.settled ? "border-neg text-neg bg-neg/10" : "border-line text-muted hover:text-fg"}`}>
+                          {r.settled ? "✓ " : ""}{t("scratch.walk_final")}
+                        </button>
+                      </div>
                       <span className="font-mono text-[11px] text-muted flex-shrink-0">{r.gameNo}-{r.book}</span>
                       <span className="font-mono text-[13px] font-semibold flex-shrink-0 w-10 text-right tabular-nums">{String(r.ticket).padStart(3, "0")}</span>
                     </div>

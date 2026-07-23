@@ -319,6 +319,13 @@ Type the **store code** your manager gave you and **your own PIN**, then
    in the drawer.
 3. **Save.**
 
+> **No double-counting, no lost swaps.** Scan the same pack twice in one shift
+> and the app blocks the repeat with a note — opening and closing count
+> separately, so you still scan each pack at both. When a pack sells out, tap
+> **Final — sold out** on its row; the next book of that same game then opens as
+> a fresh **New** book at **#0**, so its first sales are counted, until the next
+> day.
+
 ### Log an inventory count
 
 1. Tap **Inventory**, pick the **item**.
