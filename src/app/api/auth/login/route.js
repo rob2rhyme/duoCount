@@ -53,6 +53,12 @@ export async function POST(req) {
       await recordFail();
       return NextResponse.json({ error: "This store is suspended. Contact DuoCount support.", code: "store_suspended" }, { status: 403 });
     }
+    // A soft-deleted store (via /api/dev) is likewise closed to sign-in until a
+    // developer restores it. Distinct code so the message can differ from suspend.
+    if (vendor.status === "deleted") {
+      await recordFail();
+      return NextResponse.json({ error: "This store has been removed. Contact DuoCount support.", code: "store_deleted" }, { status: 403 });
+    }
 
     // Small staff lists per store, so verifying against each active user's
     // salted hash is fine (salted hashes can't be queried directly).

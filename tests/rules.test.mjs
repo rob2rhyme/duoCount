@@ -488,6 +488,17 @@ test("only the owner edits settings, and only whitelisted keys", async () => {
   await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { slug: "stolen-code" }));
 });
 
+test("a store cannot soft-delete (or un-suspend) itself from a client — status/deletedAt are server-only", async () => {
+  // The dev console's soft-delete writes vendors/{v}.status="deleted" + deletedAt
+  // via the Admin SDK (which bypasses rules). Those keys are NOT on the owner
+  // settings whitelist, so from a client even the owner is refused — a store
+  // can't delete, restore, or un-suspend itself; only the trusted /api/dev can.
+  await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { status: "deleted" }));
+  await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { deletedAt: new Date(), deletedBy: "x" }));
+  await assertFails(updateDoc(doc(db("owner"), `vendors/${V}`), { status: "active" }));
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}`), { status: "deleted" }));
+});
+
 /* ---------- support tickets (top-level, trusted-route only) ---------- */
 
 test("supportTickets: an owner reads only their store's tickets; nobody writes from a client", async () => {

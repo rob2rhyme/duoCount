@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, signOut, signInWithCustomToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { apiDev, apiDevLogin } from "@/lib/data";
@@ -291,9 +291,27 @@ function Stores({ t, lang }) {
   const [q, setQ] = useState("");
   const [editBill, setEditBill] = useState(null); // vendorId whose billing editor is open
   const [bill, setBill] = useState(DEFAULT_BILLING);
+  const [toast, setToast] = useState(null);        // { msg, fn } — undo pill after a delete
+  const toastTimer = useRef(null);
 
   const load = () => apiDev({ action: "listStores" }).then((r) => setStores(r.stores)).catch((e) => setError(e?.message || "load failed"));
   useEffect(() => { load(); }, []);
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
+
+  // The /dev page is outside AppShell, so it has no `ping` — this is a local
+  // clone of that 8-second undo toast, shown after a soft-delete so a mis-click
+  // is one tap away from reversal (the store is also restorable from its row).
+  const showUndo = (msg, fn) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ msg, fn });
+    toastTimer.current = setTimeout(() => setToast(null), 8000);
+  };
+  const runUndo = async () => {
+    const fn = toast?.fn;
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(null);
+    if (fn) await fn();
+  };
 
   const summary = useMemo(() => buildBillingSummary(stores || []), [stores]);
   const openBilling = (s) => { setBill({ ...DEFAULT_BILLING, ...(s.billing || {}), price: String(s.billing?.price ?? "") }); setEditBill(s.id); };
@@ -305,6 +323,19 @@ function Stores({ t, lang }) {
     setBusy(vendorId); setError("");
     try { await apiDev({ action: "storeAction", vendorId, ...payload }); await load(); }
     catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
+    setBusy("");
+  }
+  // Soft-delete a store, then offer an immediate 8s undo. The confirm stays
+  // (a whole store is a big object to remove); the undo and the row's Restore
+  // button make it fully reversible either way — nothing is actually erased.
+  async function deleteStore(s) {
+    if (!window.confirm(t("dev.confirm_delete", { name: s.name }))) return;
+    setBusy(s.id); setError("");
+    try {
+      await apiDev({ action: "storeAction", vendorId: s.id, op: "delete" });
+      await load();
+      showUndo(t("dev.deleted_toast", { name: s.name }), () => op(s.id, { op: "restore" }));
+    } catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
     setBusy("");
   }
   const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleDateString(lang === "es" ? "es" : "en") : ""; };
@@ -336,16 +367,18 @@ function Stores({ t, lang }) {
 
       <p className="text-[12px] text-muted">{t("dev.store_count", { n: stores.length })}</p>
       {storePage.visible.map((s) => (
-        <div key={s.id} className={`card p-3.5 space-y-2 ${s.status === "suspended" ? "border-neg/40" : ""}`}>
+        <div key={s.id} className={`card p-3.5 space-y-2 ${s.status === "suspended" || s.status === "deleted" ? "border-neg/40" : ""}`}>
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="font-semibold text-[14px] flex items-center gap-2 flex-wrap">
-                <span className="truncate">{s.name}</span>
+                <span className={`truncate ${s.status === "deleted" ? "line-through text-muted" : ""}`}>{s.name}</span>
                 {s.status === "suspended" && <span className="text-[10px] uppercase tracking-wide font-bold text-neg border border-neg/50 rounded px-1.5 py-0.5">{t("dev.suspended")}</span>}
+                {s.status === "deleted" && <span className="text-[10px] uppercase tracking-wide font-bold text-neg border border-neg/50 rounded px-1.5 py-0.5">{t("dev.deleted")}</span>}
                 {s.openTickets > 0 && <span className="text-[10px] uppercase tracking-wide font-bold text-gold border border-brass/50 rounded px-1.5 py-0.5">{t("dev.open_tix", { n: s.openTickets })}</span>}
               </div>
               <div className="text-[12px] text-muted font-mono">/{s.slug}</div>
               <div className="text-[12px] text-muted">{t("dev.owner")}: {s.ownerName || "—"}{s.ownerEmail ? ` · ${s.ownerEmail}` : ""} · {t("dev.staff_n", { n: s.staffCount })} · {fmt(s.createdAt)}</div>
+              {s.status === "deleted" && <div className="text-[12px] text-neg mt-0.5">{t("dev.deleted_at", { date: fmt(s.deletedAt) || "—", by: s.deletedBy || "—" })}</div>}
               <div className="text-[12px] mt-1">
                 <span className="text-muted">{t("dev.billing")}: </span>
                 {s.billing ? <span className="text-fg font-medium">{billLine(s.billing)}</span> : <span className="text-muted italic">{t("dev.no_billing")}</span>}
@@ -354,19 +387,27 @@ function Stores({ t, lang }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            {s.status === "suspended" ? (
-              <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "activate" })}>{t("dev.reactivate")}</button>
+            {s.status === "deleted" ? (
+              <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "restore" })}>{t("dev.restore")}</button>
             ) : (
-              <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "suspend" }, t("dev.confirm_suspend", { name: s.name }))}>{t("dev.suspend")}</button>
+              <>
+                {s.status === "suspended" ? (
+                  <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "activate" })}>{t("dev.reactivate")}</button>
+                ) : (
+                  <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "suspend" }, t("dev.confirm_suspend", { name: s.name }))}>{t("dev.suspend")}</button>
+                )}
+                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => (editBill === s.id ? setEditBill(null) : openBilling(s))}>{t("dev.edit_billing")}</button>
+                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}>{t("dev.rename")}</button>
+                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}>{t("dev.note")}</button>
+                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => { const pin = window.prompt(t("dev.pin_prompt")); if (pin != null && pin.trim()) op(s.id, { op: "resetOwnerPin", pin: pin.trim() }, t("dev.confirm_pin", { name: s.name })); }}>{t("dev.reset_pin")}</button>
+                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto text-neg" disabled={busy === s.id}
+                  onClick={() => deleteStore(s)}>{t("dev.delete")}</button>
+              </>
             )}
-            <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-              onClick={() => (editBill === s.id ? setEditBill(null) : openBilling(s))}>{t("dev.edit_billing")}</button>
-            <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-              onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}>{t("dev.rename")}</button>
-            <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-              onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}>{t("dev.note")}</button>
-            <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-              onClick={() => { const pin = window.prompt(t("dev.pin_prompt")); if (pin != null && pin.trim()) op(s.id, { op: "resetOwnerPin", pin: pin.trim() }, t("dev.confirm_pin", { name: s.name })); }}>{t("dev.reset_pin")}</button>
           </div>
 
           {editBill === s.id && (
@@ -400,6 +441,13 @@ function Stores({ t, lang }) {
         </div>
       ))}
       <ShowMore hasMore={storePage.hasMore} nextStep={storePage.nextStep} onMore={storePage.showMore} />
+
+      {toast && (
+        <div className="fixed left-1/2 -translate-x-1/2 bottom-4 z-50 flex items-center gap-3 bg-ink text-paper rounded-full px-4 py-2.5 shadow-lg text-[13px]" role="status">
+          <span>{toast.msg}</span>
+          <button className="font-bold uppercase tracking-wide text-gold" onClick={runUndo}>{t("common.undo")}</button>
+        </div>
+      )}
     </div>
   );
 }
