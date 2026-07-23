@@ -693,5 +693,13 @@ service cloud.firestore {
         && resource.data.vendorId == request.auth.token.vendorId;
       allow create, update, delete: if false;
     }
+
+    // ---- Admin-action audit log (top-level, server-only) ----
+    // Append-only record of platform-admin store actions, written ONLY by the
+    // Admin SDK via /api/dev. No client — not even an owner — reads or writes it
+    // (the platform admin reads it through the trusted route, never as a client).
+    match /adminAudit/{id} {
+      allow read, write: if false;
+    }
   }
 }
