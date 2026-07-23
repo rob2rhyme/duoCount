@@ -6,7 +6,7 @@ import { apiDev, apiDevLogin } from "@/lib/data";
 import { downscaleImage } from "@/lib/image-downscale";
 import { compareTickets, toMs, ATTACH_MAX_PER_MSG } from "@/lib/support";
 import { BILLING_PLANS, BILLING_STATUSES, BILLING_CYCLES, buildBillingSummary, DEFAULT_BILLING } from "@/lib/billing";
-import { money } from "@/lib/utils";
+import { money, csvCell, downloadCSV } from "@/lib/utils";
 import Link from "next/link";
 import { useLang } from "@/components/LangProvider";
 import ShowMore, { usePaged } from "@/components/ShowMore";
@@ -293,6 +293,7 @@ function Stores({ t, lang }) {
   const [bill, setBill] = useState(DEFAULT_BILLING);
   const [toast, setToast] = useState(null);        // { msg, fn } — undo pill after a delete
   const toastTimer = useRef(null);
+  const [fStatus, setFStatus] = useState("all");   // store lifecycle filter: all | active | suspended | deleted
 
   const load = () => apiDev({ action: "listStores" }).then((r) => setStores(r.stores)).catch((e) => setError(e?.message || "load failed"));
   useEffect(() => { load(); }, []);
@@ -339,13 +340,34 @@ function Stores({ t, lang }) {
     setBusy("");
   }
   const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleDateString(lang === "es" ? "es" : "en") : ""; };
+  const statusOf = (s) => s.status || "active";
+
+  // Store-lifecycle counts for the filter chips (a store with no status is active).
+  const counts = useMemo(() => {
+    const c = { all: 0, active: 0, suspended: 0, deleted: 0 };
+    for (const s of stores || []) { c.all += 1; c[statusOf(s)] = (c[statusOf(s)] || 0) + 1; }
+    return c;
+  }, [stores]);
 
   const shown = useMemo(() => {
     if (!stores) return [];
     const needle = q.trim().toLowerCase();
-    return needle ? stores.filter((s) => `${s.name} ${s.slug} ${s.ownerName}`.toLowerCase().includes(needle)) : stores;
-  }, [stores, q]);
-  const storePage = usePaged(shown, { resetKey: q }); // reveal 20 at a time
+    return stores.filter((s) =>
+      (fStatus === "all" || statusOf(s) === fStatus) &&
+      (!needle || `${s.name} ${s.slug} ${s.ownerName}`.toLowerCase().includes(needle)));
+  }, [stores, q, fStatus]);
+  const storePage = usePaged(shown, { resetKey: `${q}|${fStatus}` }); // reveal 20 at a time
+
+  // Export the (filtered) store roster — a plain admin record. csvCell guards
+  // against CSV-injection; downloadCSV does the Blob + anchor download.
+  const exportStores = () => {
+    const rows = [["Store", "Code", "Status", "Owner", "Email", "Staff", "Created", "Plan", "Billing status", "Price", "Note"]];
+    for (const s of shown) rows.push([
+      s.name, s.slug, statusOf(s), s.ownerName || "", s.ownerEmail || "", s.staffCount ?? 0, fmt(s.createdAt),
+      s.billing?.plan || "", s.billing?.status || "", s.billing?.price != null ? Number(s.billing.price).toFixed(2) : "", s.note || "",
+    ]);
+    downloadCSV(rows.map((r) => r.map(csvCell).join(",")).join("\n"), "duocount-stores.csv");
+  };
 
   if (stores === null) return <p className="text-muted text-sm">{t("common.loading")}</p>;
 
@@ -365,7 +387,17 @@ function Stores({ t, lang }) {
         </div>
       </div>
 
-      <p className="text-[12px] text-muted">{t("dev.store_count", { n: stores.length })}</p>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {[["all", t("dev.f_all"), counts.all], ["active", t("dev.bs_active"), counts.active], ["suspended", t("dev.suspended"), counts.suspended], ["deleted", t("dev.deleted"), counts.deleted]].map(([val, label, n]) => (
+          <button key={val} type="button" onClick={() => setFStatus(val)}
+            className={`text-[12px] px-2.5 py-1 rounded-lg border transition ${fStatus === val ? "bg-fg text-surface border-fg" : "border-line text-muted hover:text-fg"}`}>
+            {label} <span className="tabular-nums opacity-70">{n}</span>
+          </button>
+        ))}
+        <button type="button" className="btn-ghost text-[13px] px-3 py-1.5 w-auto ml-auto" disabled={!shown.length} onClick={exportStores}>⬇ {t("dev.export_stores")}</button>
+      </div>
+
+      <p className="text-[12px] text-muted">{t("dev.store_count", { n: shown.length })}</p>
       {storePage.visible.map((s) => (
         <div key={s.id} className={`card p-3.5 space-y-2 ${s.status === "suspended" || s.status === "deleted" ? "border-neg/40" : ""}`}>
           <div className="flex items-start justify-between gap-2">

@@ -5,6 +5,7 @@ import { money, downloadCSV } from "@/lib/utils";
 import { buildScratchAnalytics, buildScratchReportCSV } from "@/lib/scratch-analytics";
 import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
 import { fetchEntriesInRange } from "@/lib/data";
+import { buildPackAudit } from "@/lib/scratch-audit";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
 import { useLang } from "./LangProvider";
@@ -74,6 +75,10 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
   const gameData = useMemo(() => a.byGame.slice(0, 8).map((g) => ({ name: g.game, dollars: g.dollars, tickets: g.tickets })), [a.byGame]);
   const staffData = useMemo(() => a.byStaff.slice(0, 8).map((s) => ({ name: s.by, dollars: s.dollars, tickets: s.tickets })), [a.byStaff]);
   const gapRows = useMemo(() => a.packFlow.rows.filter((r) => r.gapTickets > 0), [a.packFlow]);
+  // Pack audit "missing" = books with history that stopped being counted (the
+  // detail the Dashboard card used to show); wide window so the fetched period
+  // isn't truncated by the rolling default.
+  const audit = useMemo(() => buildPackAudit(rows || [], { days: 3650 }), [rows]);
   const gamePage = usePaged(a.byGame, { resetKey: `${from}|${to}|${locId}` });
   const staffPage = usePaged(a.byStaff, { resetKey: `${from}|${to}|${locId}g` });
 
@@ -293,6 +298,21 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
                 <div key={r.pack} className="px-4 py-2 border-t border-line-soft flex items-center justify-between gap-3 text-[13px]">
                   <span className="min-w-0 truncate">{r.game} <span className="text-muted font-mono text-[11px]">#{r.pack}</span></span>
                   <span className="font-mono tabular-nums text-neg flex-shrink-0">{t("srep.gap_n", { n: r.gapTickets })} · {money(r.gapDollars)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {audit.missing.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-4 py-3 border-b border-line">
+                <h3 className="font-semibold text-[15px]">{t("srep.missing_title")}</h3>
+                <p className="text-[12px] text-muted mt-0.5">{t("srep.missing_sub")}</p>
+              </div>
+              {audit.missing.slice(0, 20).map((m) => (
+                <div key={m.key} className="px-4 py-2 border-t border-line-soft text-[13px]">
+                  <div className="truncate">{m.game} <span className="text-muted font-mono text-[11px]">#{m.pack}</span></div>
+                  <div className="text-[12px] text-muted">{t("srep.missing_line", { date: m.lastDate, by: m.lastBy, days: m.missedDays })}</div>
                 </div>
               ))}
             </div>

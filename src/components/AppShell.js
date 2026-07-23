@@ -413,7 +413,8 @@ export default function AppShell() {
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
             items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves} collections={gamingCollections}
             onOpenLog={featureEnabled(vendor, "log") ? () => setTab("log") : undefined}
-            onRecord={featureEnabled(vendor, "cash") ? () => setTab("cash") : undefined} onToast={ping}
+            onRecord={featureEnabled(vendor, "cash") ? () => setTab("cash") : undefined}
+            onOpenScratchReport={isOwner && featureEnabled(vendor, "scratch") ? () => setTab("scratchreport") : undefined} onToast={ping}
             locPicker={showLocFilter ? (
               <select className="input" value={viewLoc} onChange={(e) => setViewLoc(e.target.value)}>
                 <option value="all">{t("common.all_locations")}</option>

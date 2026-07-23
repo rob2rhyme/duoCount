@@ -9,8 +9,6 @@ import { useModalA11y } from "@/lib/use-modal-a11y";
 import { detectPatterns, resolvePatternRules } from "@/lib/patterns";
 import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
 import { renderPattern } from "@/lib/pattern-format";
-import { buildPackAudit } from "@/lib/scratch-audit";
-import { packDisplayParts } from "@/lib/scratch-barcode";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockMoveAudit } from "@/lib/stockmove-audit";
 import { featureEnabled } from "@/lib/features";
@@ -43,20 +41,11 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "‚Äî", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], collections = [], onOpenLog, onRecord, onToast, locPicker = null }) {
+export default function Dashboard({ entries, locations = [], locName = () => "‚Äî", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], collections = [], onOpenLog, onRecord, onOpenScratchReport, onToast, locPicker = null }) {
   const { isManager, vendor, profile } = useSession();
   const profileName = profile?.name || "";
   const { theme } = useTheme();
   const { t, lang } = useLang();
-  // en + es both pluralize the pack-audit prose on the 1-vs-not-1 boundary.
-  const plur = (n) => (Number(n) === 1 ? "_one" : "_other");
-  // Show a pack the way the shelf/ticket labels it ‚Äî "Game 1792 ¬∑ Pack 0011361"
-  // ‚Äî so a manager chasing a flagged gap can find the exact book. A bare/legacy
-  // id with no game prefix stays "#<id>".
-  const packIdent = (pack) => {
-    const { gameNo, bookNo } = packDisplayParts(pack);
-    return gameNo ? t("dash.pack_ident", { game: gameNo, pack: bookNo }) : `#${bookNo}`;
-  };
   const ch = { ...(CHART[theme] || CHART.light), bar: chartBar(vendor, theme) };
   const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 13 };
   const [reportOpen, setReportOpen] = useState(false);
@@ -74,7 +63,6 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
   // turned scratch/inventory/cash off should never see its stats, charts, or
   // table columns. Grids/tables below drop the cell or column so the layout
   // reflows cleanly rather than leaving a hole.
-  const scratchOn = featureEnabled(vendor, "scratch");
   const inventoryOn = featureEnabled(vendor, "inventory");
   const cashOn = featureEnabled(vendor, "cash");
   const rewardAudit = useMemo(
@@ -96,12 +84,6 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
   const liability = useMemo(
     () => outstandingLiability(customers, vendor?.rewards),
     [customers, vendor?.rewards]);
-  // Pack audit: shift-boundary ticket #s checked against each other (gaps +
-  // packs that stopped being counted). The pack-gap pattern above is the
-  // signal; this card is the who/when detail behind it. Manager-only.
-  const packAudit = useMemo(
-    () => (isManager ? buildPackAudit(entries) : { gaps: [], missing: [], packsSeen: 0 }),
-    [entries, isManager]);
   // Stock attention: expiring-soon + need-order lists from the items' synced
   // quantity/expiry fields (pos-inventory-sync-spec.md Phase 1). Manager-only,
   // thresholds owner-tuned in Admin ‚Üí Stock alerts.
@@ -110,13 +92,11 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
     [items, isManager, vendor?.stockAlerts]);
   const a = useMemo(() => {
     const cash = entries.filter((e) => e.kind === "cash");
-    const scratch = entries.filter((e) => e.kind === "scratch");
     const inv = entries.filter((e) => e.kind === "inventory");
 
     const netDiff = cash.reduce((s, e) => s + (e.diff || 0), 0);
     const shorts = cash.filter((e) => e.diff < -0.005).length;
     const overs = cash.filter((e) => e.diff > 0.005).length;
-    const scratchDollars = scratch.reduce((s, e) => s + (e.dollars || 0), 0);
     const cashSales = cash.reduce((s, e) => s + (e.sales || 0), 0);
     const missingUnits = inv.reduce((s, e) => s + (e.diff < 0 ? -e.diff : 0), 0);
 
@@ -156,13 +136,12 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
     // by employee
     const byEmp = {};
     entries.forEach((e) => {
-      byEmp[e.by] = byEmp[e.by] || { name: e.by, entries: 0, diff: 0, shorts: 0, scratch: 0 };
+      byEmp[e.by] = byEmp[e.by] || { name: e.by, entries: 0, diff: 0, shorts: 0 };
       byEmp[e.by].entries++;
       if (e.kind === "cash") { byEmp[e.by].diff += e.diff || 0; if (e.diff < -0.005) byEmp[e.by].shorts++; }
-      if (e.kind === "scratch") byEmp[e.by].scratch += e.dollars || 0;
     });
     const empRows = Object.values(byEmp)
-      .map((r) => ({ ...r, diff: Math.round(r.diff * 100) / 100, scratch: Math.round(r.scratch * 100) / 100 }))
+      .map((r) => ({ ...r, diff: Math.round(r.diff * 100) / 100 }))
       .sort((x, y) => x.diff - y.diff);
 
     // by item (inventory)
@@ -191,13 +170,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
       .map((r) => ({ ...r, diff: Math.round(r.diff * 100) / 100, cash: Math.round(r.cash * 100) / 100 }))
       .sort((x, y) => y.entries - x.entries);
 
-    // top scratch games
-    const byGame = {};
-    scratch.forEach((e) => { byGame[e.game] = (byGame[e.game] || 0) + (e.dollars || 0); });
-    const gameRows = Object.entries(byGame).map(([name, v]) => ({ name, dollars: Math.round(v * 100) / 100 }))
-      .sort((x, y) => y.dollars - x.dollars).slice(0, 6);
-
-    return { count: entries.length, netDiff, shorts, overs, scratchDollars, cashSales, verifyRate, missingUnits, invCount: inv.length, openVariances, openDisputes, unverified, attention, dayRows, empRows, gameRows, drawerRows, itemRows };
+    return { count: entries.length, netDiff, shorts, overs, cashSales, verifyRate, missingUnits, invCount: inv.length, openVariances, openDisputes, unverified, attention, dayRows, empRows, drawerRows, itemRows };
   }, [entries]);
 
   // On-demand AI narrative over the pattern alerts (ai-pattern-narrative-spec.md).
@@ -301,6 +274,11 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
       {isManager && (
         <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={() => setReportOpen(true)}>
           <span aria-hidden="true">üìÑ</span> {t("dash.reports_export")}
+        </button>
+      )}
+      {onOpenScratchReport && (
+        <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={onOpenScratchReport}>
+          <span aria-hidden="true">üéüÔ∏è</span> {t("dash.scratch_report_btn")}
         </button>
       )}
     </div>
@@ -428,68 +406,6 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
         </div>
       )}
 
-      {/* Pack audit ‚Äî the who/when detail behind the pack-gap signal: every
-          discontinuity between consecutive counts of a pack, and packs that
-          stopped being counted. Settlement math is the lottery's job. */}
-      {isManager && featureEnabled(vendor, "scratch") && (packAudit.gaps.length > 0 || packAudit.missing.length > 0) && (
-        <div className="card overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-line">
-            <h3 className="font-semibold text-[15px]">{t("dash.pack_audit_title")}</h3>
-            <p className="text-[12px] text-muted mt-0.5">{t("dash.pack_audit_sub", { days: 14 })}</p>
-          </div>
-          {packAudit.gaps.slice(0, 8).map((g) => (
-            <div key={g.key} className="px-4 py-2.5 border-b border-line last:border-0 flex items-start gap-3">
-              <span className={`pill flex-shrink-0 mt-0.5 ${g.totalMissing > 0 ? "bg-red-100 text-red-700" : "bg-subtle text-muted"}`}>
-                {g.totalMissing > 0 ? t("dash.pack_pill_missing", { n: g.totalMissing }) : t("dash.pack_pill_recount")}
-              </span>
-              <div className="min-w-0">
-                <div className="font-medium text-sm">
-                  {g.game} ¬∑ {packIdent(g.pack)}
-                  {g.totalMissing > 0 && <span className="text-neg font-semibold"> ¬∑ ‚âà{money(g.missingDollars)}</span>}
-                  {g.locationName && <span className="text-muted font-normal"> ¬∑ {g.locationName}</span>}
-                </div>
-                {g.events.map((ev, i) => {
-                  const lead = ev.missing > 0
-                    ? t(`dash.pack_event_unaccounted${plur(ev.missing)}`, { n: ev.missing })
-                    : t("dash.pack_event_reopened", { n: -ev.missing });
-                  const when = (ts) => ts
-                    ? ` (${ts.toLocaleDateString(lang)} ${ts.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })})`
-                    : "";
-                  return (
-                    <div key={i} className="text-[12px] text-muted">
-                      {t("dash.pack_event_line", {
-                        lead, prevEnd: ev.prevEnd, prevBy: ev.prevBy, prevWhen: when(ev.prevTs),
-                        nextStart: ev.nextStart, nextBy: ev.nextBy, nextWhen: when(ev.nextTs),
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-          {packAudit.gaps.length > 8 && (
-            <div className="px-4 py-2 text-[12px] text-muted border-b border-line">{t("dash.pack_more_gaps", { n: packAudit.gaps.length - 8 })}</div>
-          )}
-          {packAudit.missing.length > 0 && (
-            <div className="px-4 py-3 bg-panel">
-              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("dash.pack_missing_title")}</div>
-              {packAudit.missing.slice(0, 8).map((m) => (
-                <div key={m.key} className="text-[12px] text-muted">
-                  {t(`dash.pack_missing_line${plur(m.missedDays)}`, {
-                    game: m.game, ident: packIdent(m.pack), lastDate: m.lastDate, lastBy: m.lastBy,
-                    lastAt: m.lastEnd != null ? t("dash.pack_missing_at_ticket", { n: m.lastEnd }) : "",
-                    n: m.missedDays,
-                    loc: m.locationName ? t("dash.pack_at_location", { loc: m.locationName }) : "",
-                  })}
-                </div>
-              ))}
-              {packAudit.missing.length > 8 && (
-                <div className="text-[12px] text-muted mt-1">{t("dash.pack_more", { n: packAudit.missing.length - 8 })}</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Stock attention ‚Äî the synced catalog's two actionable lists: items
           expiring inside the owner's window, and items below the reorder
@@ -571,7 +487,6 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
       )}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {cashOn && <Stat label={t("dash.stat_cash_sales")} value={money(a.cashSales)} />}
-        {scratchOn && <Stat label={t("dash.stat_scratch_sales")} value={money(a.scratchDollars)} />}
         {cashOn && <Stat label={t("dash.stat_overs")} value={a.overs} tone={a.overs ? "pos" : null} />}
         <Stat label={t("dash.stat_staff")} value={a.empRows.length} />
       </div>
@@ -612,21 +527,6 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
           </LineChart>
         </ResponsiveContainer>
       </div>
-      )}
-
-      {scratchOn && a.gameRows.length > 0 && (
-        <div className="card p-4">
-          <h3 className="font-semibold text-[15px] mb-3">{t("dash.chart_top_games")}</h3>
-          <ResponsiveContainer width="100%" height={Math.max(160, a.gameRows.length * 42)}>
-            <BarChart layout="vertical" data={a.gameRows} margin={{ left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
-              <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 12, fill: ch.axis }} stroke={ch.axis} />
-              <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
-              <Bar dataKey="dollars" fill={ch.bar} radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       )}
 
       {cashOn && (
@@ -690,7 +590,6 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_entries")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_net")}</th>
               <th className="px-4 py-2 font-semibold text-right">{t("dash.col_shorts")}</th>
-              {scratchOn && <th className="px-4 py-2 font-semibold text-right">{t("dash.col_scratch")}</th>}
             </tr></thead>
             <tbody>
               {a.empRows.map((r) => (
@@ -699,7 +598,6 @@ export default function Dashboard({ entries, locations = [], locName = () => "‚Ä
                   <td className="px-4 py-2.5 text-right font-mono">{r.entries}</td>
                   <td className={`px-4 py-2.5 text-right font-mono font-semibold ${r.diff < -0.005 ? "text-neg" : r.diff > 0.005 ? "text-pos" : ""}`}>{r.diff >= 0 ? "+" : ""}{money(r.diff)}</td>
                   <td className={`px-4 py-2.5 text-right font-mono ${r.shorts ? "text-neg" : ""}`}>{r.shorts}</td>
-                  {scratchOn && <td className="px-4 py-2.5 text-right font-mono">{money(r.scratch)}</td>}
                 </tr>
               ))}
             </tbody>

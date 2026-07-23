@@ -310,6 +310,9 @@ export const CATALOG = {
     "srep.gaps_title": "Unaccounted tickets",
     "srep.gaps_sub": "Packs where the next open sits above the previous close.",
     "srep.gap_n": "{n} tickets",
+    "srep.missing_title": "Packs that stopped being counted",
+    "srep.missing_sub": "Books with history but no recent count.",
+    "srep.missing_line": "Last counted {date} by {by} · {days} counting days ago",
     "scratch.scan_hint": "The scan fills the pack — nothing saves until you save & sign the count.",
 
     // inventory count
@@ -926,6 +929,7 @@ export const CATALOG = {
 
     // dashboard — report button + empty state
     "dash.reports_export": "Reports & export",
+    "dash.scratch_report_btn": "Scratch report",
     "dash.empty_title": "No activity yet",
     "dash.empty_sub": "Once counts are logged, your variance, sales, and attention analytics appear here — with an end-of-day report.",
     "dash.record_count": "Record a count",
@@ -1780,6 +1784,8 @@ export const CATALOG = {
     "dev.confirm_delete": "Delete {name}? Everyone at the store is signed out and can't sign in until it's restored. Nothing is erased — you can undo this or restore it later.",
     "dev.deleted_toast": "{name} deleted",
     "dev.deleted_at": "Deleted {date} by {by}",
+    "dev.f_all": "All",
+    "dev.export_stores": "Export CSV",
     "dev.subs_total": "Stores",
     "dev.mrr": "MRR",
     "dev.billing": "Billing",
@@ -2429,6 +2435,9 @@ export const CATALOG = {
     "srep.gaps_title": "Boletos sin justificar",
     "srep.gaps_sub": "Paquetes donde la próxima apertura está por encima del cierre anterior.",
     "srep.gap_n": "{n} boletos",
+    "srep.missing_title": "Paquetes que dejaron de contarse",
+    "srep.missing_sub": "Libros con historial pero sin conteo reciente.",
+    "srep.missing_line": "Contado por última vez el {date} por {by} · hace {days} días de conteo",
     "scratch.scan_hint": "El escaneo llena el paquete — nada se guarda hasta que guardes y firmes el conteo.",
 
     "inventory.title": "Conteo de existencias del almacén",
@@ -3014,6 +3023,7 @@ export const CATALOG = {
     "dash.stat_missing_units": "Unidades faltantes",
 
     "dash.reports_export": "Reportes y exportar",
+    "dash.scratch_report_btn": "Reporte de raspaditos",
     "dash.empty_title": "Aún no hay actividad",
     "dash.empty_sub": "Cuando se registren conteos, tus análisis de variación, ventas y atención aparecen aquí — con un reporte de fin de día.",
     "dash.record_count": "Registrar un conteo",
@@ -3847,6 +3857,8 @@ export const CATALOG = {
     "dev.confirm_delete": "¿Eliminar {name}? Todos en la tienda cierran sesión y no podrán iniciar sesión hasta restaurarla. No se borra nada — puedes deshacerlo o restaurarla después.",
     "dev.deleted_toast": "{name} eliminada",
     "dev.deleted_at": "Eliminada el {date} por {by}",
+    "dev.f_all": "Todas",
+    "dev.export_stores": "Exportar CSV",
     "dev.subs_total": "Tiendas",
     "dev.mrr": "MRR",
     "dev.billing": "Facturación",
