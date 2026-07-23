@@ -38,6 +38,7 @@ const PortfolioView = dynamic(() => import("./PortfolioView"), { ssr: false, loa
 const AdminPanel = dynamic(() => import("./AdminPanel"), { ssr: false, loading: LazyFallback });
 const BackroomStock = dynamic(() => import("./BackroomStock"), { ssr: false, loading: LazyFallback });
 const GamingTab = dynamic(() => import("./GamingTab"), { ssr: false, loading: LazyFallback });
+const ScratchReport = dynamic(() => import("./ScratchReport"), { ssr: false, loading: LazyFallback });
 
 // Labels resolve through the i18n catalog (t(labelKey)); the icon (TabIcon,
 // keyed by tab id) is the language-neutral recognition anchor a clerk learns,
@@ -53,6 +54,7 @@ const TABS = [
   { id: "notes", labelKey: "nav.notes", featureKey: "notes" },
   { id: "incidents", labelKey: "nav.incidents", featureKey: "incidents" },
   { id: "time", labelKey: "nav.time", featureKey: "time" },
+  { id: "scratchreport", labelKey: "nav.scratchreport", ownerOnly: true, featureKey: "scratch" },
   { id: "portfolio", labelKey: "nav.portfolio", ownerOnly: true, featureKey: "portfolio" },
   { id: "admin", labelKey: "nav.admin", ownerOnly: true },
 ];
@@ -418,6 +420,9 @@ export default function AppShell() {
                 {activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             ) : null} />
+        )}
+        {tab === "scratchreport" && isOwner && (
+          <ScratchReport locations={activeLocations} locName={locName} />
         )}
         {tab === "portfolio" && isOwner && (
           <PortfolioView locations={activeLocations} locName={locName} incidents={incidents} onGoAdmin={goAdmin} onToast={ping} />

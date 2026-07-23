@@ -82,6 +82,13 @@ const PATHS = {
       <path d="M9.8 20.2v-5.4h4.4v5.4" />
     </>
   ),
+  // framed bar chart — the scratch-off report
+  scratchreport: (
+    <>
+      <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.4" />
+      <path d="M7.5 16.5v-3M12 16.5v-6M16.5 16.5v-4.5" />
+    </>
+  ),
   // gear — admin (the BottomNav admin gear, shared shape)
   admin: (
     <>

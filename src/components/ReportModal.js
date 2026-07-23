@@ -51,7 +51,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   // Which modules to report on — a disabled module shows no section, chart, KPI,
   // or download; turning it back on in Admin → Modules brings it back.
   const cashOn = featureEnabled(vendor, "cash");
-  const scratchOn = featureEnabled(vendor, "scratch");
   const inventoryOn = featureEnabled(vendor, "inventory");
   const gamingOn = featureEnabled(vendor, "gaming");
   const ch = { ...(CHART[theme] || CHART.light), bar: chartBar(vendor, theme) };
@@ -126,10 +125,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     () => (range && gamingOn ? buildGamingSummary(collections, { from: startISO, to: endISO }) : null),
     [collections, startISO, endISO, gamingOn, range],
   );
-  // Chart rows: top scratch games by dollars, and the biggest inventory shrink.
-  const gameRows = useMemo(
-    () => (report ? [...report.scratch.byGame].sort((a, b) => b.dollars - a.dollars).slice(0, 6) : []),
-    [report]);
+  // Chart rows: the biggest inventory shrink.
   const shrinkRows = useMemo(
     () => (report ? report.inventory.byItem.map((r) => ({ name: r.itemName, missing: -r.netShrink }))
       .filter((r) => r.missing > 0).sort((a, b) => b.missing - a.missing).slice(0, 6) : []),
@@ -140,9 +136,8 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
   // localized so the legend + tooltip match the section headings.
   const revenueMix = useMemo(() => (report ? [
     cashOn ? { label: t("report.cash"), value: report.cash.sales, fill: "#2f7d5b" } : null,
-    scratchOn ? { label: t("report.scratch"), value: report.scratch.dollars, fill: "#b08d2f" } : null,
     gamingOn && gaming ? { label: t("report.gaming"), value: gaming.totals.storeShare, fill: "#4c6ef5" } : null,
-  ].filter((r) => r && r.value > 0) : []), [report, gaming, cashOn, scratchOn, gamingOn, t]);
+  ].filter((r) => r && r.value > 0) : []), [report, gaming, cashOn, gamingOn, t]);
   const revenueTotal = revenueMix.reduce((s, r) => s + r.value, 0);
 
   const locLabel = locId === "all" ? t("report.all_locations") : locName(locId);
@@ -151,7 +146,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
 
   // An empty period is a valid record too — it exports a header-only CSV.
   function downloadCsv() {
-    downloadCSV(entriesToCSV(rows), `${fileBase}.csv`);
+    downloadCSV(entriesToCSV(rows.filter((e) => e.kind !== "scratch")), `${fileBase}.csv`);
   }
 
   // Gaming collections aren't part of the entries CSV (separate ledger), so the
@@ -369,7 +364,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
             <View style={s.kpis}>
               <View style={s.kpi}><Text style={s.kpiV}>{sgn(r.cash.netDiff, money)}</Text><Text style={s.kpiL}>{t("report.net_over_short")}</Text></View>
               <View style={s.kpi}><Text style={s.kpiV}>{money(r.cash.sales)}</Text><Text style={s.kpiL}>{t("report.cash_sales")}</Text></View>
-              <View style={s.kpi}><Text style={s.kpiV}>{money(r.scratch.dollars)}</Text><Text style={s.kpiL}>{t("report.th_scratch_dollars")}</Text></View>
               <View style={[s.kpi, { marginRight: 0 }]}><Text style={s.kpiV}>{Math.round(r.integrity.verificationRate * 100)}%</Text><Text style={s.kpiL}>{t("report.th_verified")}</Text></View>
             </View>
 
@@ -387,11 +381,11 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
 
             {comparison && (<>
               <Text style={s.section}>{t("report.by_location")}</Text>
-              <View style={s.head}><C w="28%">{t("report.th_location")}</C><C w="12%">{t("report.counts")}</C><C w="16%">{t("report.th_over_short")}</C><C w="16%">{t("report.th_scratch_dollars")}</C><C w="12%">{t("report.th_shrink")}</C><C w="16%">{t("report.th_verified")}</C></View>
+              <View style={s.head}><C w="30%">{t("report.th_location")}</C><C w="14%">{t("report.counts")}</C><C w="20%">{t("report.th_over_short")}</C><C w="16%">{t("report.th_shrink")}</C><C w="20%">{t("report.th_verified")}</C></View>
               {comparison.locations.map((l, i) => (
-                <View key={i} style={s.row}><C w="28%">{l.locName}</C><C w="12%">{l.total}</C><C w="16%" style={tone(l.cashNet)}>{sgn(l.cashNet, money)}</C><C w="16%">{money(l.scratchDollars)}</C><C w="12%" style={l.invShrink < 0 ? s.neg : null}>{l.invShrink}</C><C w="16%">{l.total ? `${Math.round(l.verificationRate * 100)}%` : "—"}</C></View>
+                <View key={i} style={s.row}><C w="30%">{l.locName}</C><C w="14%">{l.total}</C><C w="20%" style={tone(l.cashNet)}>{sgn(l.cashNet, money)}</C><C w="16%" style={l.invShrink < 0 ? s.neg : null}>{l.invShrink}</C><C w="20%">{l.total ? `${Math.round(l.verificationRate * 100)}%` : "—"}</C></View>
               ))}
-              <View style={s.totals}><C w="28%">{t("report.all")}</C><C w="12%">{comparison.total.total}</C><C w="16%" style={tone(comparison.total.cashNet)}>{sgn(comparison.total.cashNet, money)}</C><C w="16%">{money(comparison.total.scratchDollars)}</C><C w="12%" style={comparison.total.invShrink < 0 ? s.neg : null}>{comparison.total.invShrink}</C><C w="16%">{comparison.total.total ? `${Math.round(comparison.total.verificationRate * 100)}%` : "—"}</C></View>
+              <View style={s.totals}><C w="30%">{t("report.all")}</C><C w="14%">{comparison.total.total}</C><C w="20%" style={tone(comparison.total.cashNet)}>{sgn(comparison.total.cashNet, money)}</C><C w="16%" style={comparison.total.invShrink < 0 ? s.neg : null}>{comparison.total.invShrink}</C><C w="20%">{comparison.total.total ? `${Math.round(comparison.total.verificationRate * 100)}%` : "—"}</C></View>
             </>)}
 
             {r.cash.byLocation.length > 0 && (<>
@@ -409,15 +403,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
               {r.cash.byDrawer.map((d, i) => (
                 <View key={i} style={s.row}><C w="34%">{d.drawerName || "—"}</C><C w="30%">{d.locationName || "—"}</C><C w="12%">{d.count}</C><C w="24%" style={tone(d.netDiff)}>{sgn(d.netDiff, money)}</C></View>
               ))}
-            </>)}
-
-            {r.scratch.byGame.length > 0 && (<>
-              <Text style={s.section}>{t("report.pdf_scratch_by_game")}</Text>
-              <View style={s.head}><C w="46%">{t("report.th_game")}</C><C w="14%">{t("report.counts")}</C><C w="18%">{t("report.th_tickets")}</C><C w="22%">{t("report.th_dollars")}</C></View>
-              {r.scratch.byGame.map((g, i) => (
-                <View key={i} style={s.row}><C w="46%">{g.game}</C><C w="14%">{g.count}</C><C w="18%">{g.tickets}</C><C w="22%">{money(g.dollars)}</C></View>
-              ))}
-              <View style={s.totals}><C w="46%">{t("report.total")}</C><C w="14%">{r.scratch.count}</C><C w="18%">{r.scratch.tickets}</C><C w="22%">{money(r.scratch.dollars)}</C></View>
             </>)}
 
             {r.inventory.byItem.length > 0 && (<>
@@ -472,17 +457,15 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
     if (!range || !report) return; // an empty period still prints, with a "no activity" line
     const esc = (x) => String(x ?? "").replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
     const cash = rows.filter((e) => e.kind === "cash");
-    const scratch = rows.filter((e) => e.kind === "scratch");
     const inv = rows.filter((e) => e.kind === "inventory");
     const w = window.open("", "_blank", "width=800,height=900");
     if (!w) return onToast?.(t("report.toast_popups"));
     const cashRows = cash.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.drawerName)}</td><td>${esc(e.by)}</td><td>${money(e.sales)}</td><td>${money(e.paidout)}</td><td>${money(e.expected)}</td><td>${money(e.counted)}</td><td>${e.diff >= 0 ? "+" : ""}${money(e.diff)}</td><td>${esc(e.verifiedBy || "")}</td></tr>`).join("");
-    const scratchRows = scratch.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.game)}</td><td>${esc(e.pack)}</td><td>${money(e.price)}</td><td>${esc(e.sold)}</td><td>${money(e.dollars)}</td><td>${esc(e.by)}</td></tr>`).join("");
     const invRows = inv.map((e) => `<tr><td>${esc(e.date)}</td><td>${esc(e.itemName)}</td><td>${esc(e.startQty ?? "")}</td><td>${esc(e.counted)}</td><td>${e.diff >= 0 ? "+" : ""}${esc(e.diff)}</td></tr>`).join("");
     const pct = (l) => (l.total ? `${Math.round(l.verificationRate * 100)}%` : "—");
-    const cmpRow = (name, l, cell = "td") => `<tr><${cell}>${esc(name)}</${cell}><${cell}>${l.total}</${cell}><${cell}>${l.cashNet >= 0 ? "+" : ""}${money(l.cashNet)}</${cell}><${cell}>${money(l.scratchDollars)}</${cell}><${cell}>${l.invShrink}</${cell}><${cell}>${pct(l)}</${cell}></tr>`;
+    const cmpRow = (name, l, cell = "td") => `<tr><${cell}>${esc(name)}</${cell}><${cell}>${l.total}</${cell}><${cell}>${l.cashNet >= 0 ? "+" : ""}${money(l.cashNet)}</${cell}><${cell}>${l.invShrink}</${cell}><${cell}>${pct(l)}</${cell}></tr>`;
     const cmpTable = comparison
-      ? `<h2>${esc(t("report.by_location"))}</h2><table><tr><th>${esc(t("report.th_location"))}</th><th>${esc(t("report.counts"))}</th><th>${esc(t("report.th_over_short"))}</th><th>${esc(t("report.th_scratch_dollars"))}</th><th>${esc(t("report.th_shrink"))}</th><th>${esc(t("report.th_verified"))}</th></tr>${comparison.locations.map((l) => cmpRow(l.locName, l)).join("")}${cmpRow(t("report.all"), comparison.total, "th")}</table>`
+      ? `<h2>${esc(t("report.by_location"))}</h2><table><tr><th>${esc(t("report.th_location"))}</th><th>${esc(t("report.counts"))}</th><th>${esc(t("report.th_over_short"))}</th><th>${esc(t("report.th_shrink"))}</th><th>${esc(t("report.th_verified"))}</th></tr>${comparison.locations.map((l) => cmpRow(l.locName, l)).join("")}${cmpRow(t("report.all"), comparison.total, "th")}</table>`
       : "";
     const accent = paletteAccent(vendor);
     w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(fileBase)}</title>
@@ -497,7 +480,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       ${rows.length === 0 ? `<p><i>${esc(t("report.print_no_activity"))}</i></p>` : ""}
       ${cmpTable}
       ${cash.length ? `<h2>${esc(t("report.h_cash_drawers"))}</h2><table><tr><th>${esc(t("report.th_date"))}</th><th>${esc(t("report.th_drawer"))}</th><th>${esc(t("report.th_by"))}</th><th>${esc(t("report.th_sales"))}</th><th>${esc(t("report.th_paid_out"))}</th><th>${esc(t("report.th_expected"))}</th><th>${esc(t("report.th_counted"))}</th><th>${esc(t("report.th_over_short"))}</th><th>${esc(t("report.th_verified"))}</th></tr>${cashRows}<tr><th colspan="3">${esc(t("report.totals"))}</th><th>${money(report.cash.sales)}</th><th>${money(report.cash.paidout)}</th><th></th><th>${money(report.cash.counted)}</th><th>${report.cash.netDiff >= 0 ? "+" : ""}${money(report.cash.netDiff)}</th><th></th></tr></table>` : ""}
-      ${scratch.length ? `<h2>${esc(t("report.h_scratch"))}</h2><table><tr><th>${esc(t("report.th_date"))}</th><th>${esc(t("report.th_game"))}</th><th>${esc(t("report.th_pack"))}</th><th>${esc(t("report.th_price"))}</th><th>${esc(t("report.th_sold"))}</th><th>${esc(t("report.th_dollars"))}</th><th>${esc(t("report.th_by"))}</th></tr>${scratchRows}<tr><th colspan="4">${esc(t("report.total"))}</th><th>${report.scratch.tickets}</th><th>${money(report.scratch.dollars)}</th><th></th></tr></table>` : ""}
       ${inv.length ? `<h2>${esc(t("report.h_inventory"))}</h2><table><tr><th>${esc(t("report.th_date"))}</th><th>${esc(t("report.th_item"))}</th><th>${esc(t("report.th_start"))}</th><th>${esc(t("report.th_counted"))}</th><th>${esc(t("report.th_diff"))}</th></tr>${invRows}<tr><th colspan="4">${esc(t("report.net_shrink_units"))}</th><th>${report.inventory.netShrink}</th></tr></table>` : ""}
       <h2>${esc(t("report.h_verification"))}</h2><p>${esc(t("report.print_verification_line", { v: report.integrity.verified, total: report.integrity.total, pct: Math.round(report.integrity.verificationRate * 100) }))}</p>
       <div class="sig"><div>${esc(t("report.sig_prepared"))}</div><div>${esc(t("report.sig_reviewed"))}</div></div>`);
@@ -628,32 +610,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                   </section>
                 )}
 
-                {/* ---- Scratch-off ---- */}
-                {scratchOn && (
-                  <section className="bg-panel border border-line rounded-xl p-3.5">
-                    <h3 className="font-semibold text-[14px] mb-2">{t("report.scratch")}</h3>
-                    <div className="grid grid-cols-3 gap-2 mb-3">
-                      <Kpi label={t("report.tickets_sold")} value={report.scratch.tickets} />
-                      <Kpi label={t("report.scratch_sales")} value={money(report.scratch.dollars)} />
-                      <Kpi label={t("report.games")} value={report.scratch.byGame.length} />
-                    </div>
-                    {gameRows.length > 0 && (
-                      <>
-                        <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("report.top_games")}</div>
-                        <ResponsiveContainer width="100%" height={Math.max(120, gameRows.length * 34)}>
-                          <BarChart layout="vertical" data={gameRows} margin={{ left: 8 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke={ch.grid} horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: ch.axis }} stroke={ch.axis} />
-                            <YAxis type="category" dataKey="game" width={96} tick={{ fontSize: 11, fill: ch.axis }} stroke={ch.axis} />
-                            <Tooltip formatter={(v) => money(v)} contentStyle={tip} labelStyle={{ color: ch.tipText }} itemStyle={{ color: ch.tipText }} />
-                            <Bar dataKey="dollars" fill={ch.bar} radius={[0, 3, 3, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </>
-                    )}
-                  </section>
-                )}
-
                 {/* ---- Inventory ---- */}
                 {inventoryOn && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
@@ -730,7 +686,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                     <tr className="text-muted text-left border-b border-line">
                       <th className="py-1 pr-2 font-medium">{t("report.th_location")}</th>
                       <th className="py-1 px-1 font-medium text-right">{t("report.th_over_short")}</th>
-                      <th className="py-1 px-1 font-medium text-right">{t("report.th_scratch_dollars")}</th>
                       <th className="py-1 px-1 font-medium text-right">{t("report.th_shrink")}</th>
                       <th className="py-1 pl-1 font-medium text-right">{t("report.th_verified")}</th>
                     </tr>
@@ -740,7 +695,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                       <tr key={l.locId} className="border-b border-line">
                         <td className="py-1 pr-2 truncate max-w-[120px]">{l.locName}</td>
                         <td className={`py-1 px-1 text-right tabular-nums ${l.cashNet < 0 ? "text-neg" : l.cashNet > 0 ? "text-pos" : ""}`}>{l.cashNet >= 0 ? "+" : ""}{money(l.cashNet)}</td>
-                        <td className="py-1 px-1 text-right tabular-nums">{money(l.scratchDollars)}</td>
                         <td className={`py-1 px-1 text-right tabular-nums ${l.invShrink < 0 ? "text-neg" : ""}`}>{l.invShrink}</td>
                         <td className="py-1 pl-1 text-right tabular-nums">{l.total ? Math.round(l.verificationRate * 100) : "—"}{l.total ? "%" : ""}</td>
                       </tr>
@@ -748,7 +702,6 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                     <tr className="font-semibold">
                       <td className="py-1 pr-2">{t("report.all")}</td>
                       <td className={`py-1 px-1 text-right tabular-nums ${comparison.total.cashNet < 0 ? "text-neg" : comparison.total.cashNet > 0 ? "text-pos" : ""}`}>{comparison.total.cashNet >= 0 ? "+" : ""}{money(comparison.total.cashNet)}</td>
-                      <td className="py-1 px-1 text-right tabular-nums">{money(comparison.total.scratchDollars)}</td>
                       <td className={`py-1 px-1 text-right tabular-nums ${comparison.total.invShrink < 0 ? "text-neg" : ""}`}>{comparison.total.invShrink}</td>
                       <td className="py-1 pl-1 text-right tabular-nums">{comparison.total.total ? Math.round(comparison.total.verificationRate * 100) + "%" : "—"}</td>
                     </tr>
