@@ -33,7 +33,9 @@ export default function DevConsole() {
   const { t, lang } = useLang();
   const [gate, setGate] = useState("loading"); // loading | signin | denied | ok
   const [uid, setUid] = useState("");          // the caller's platform-admin id, for the denied screen
+  const [me, setMe] = useState({ role: null, scopes: [] }); // this operator's RBAC role + scopes
   const [tab, setTab] = useState("inbox");
+  const can = (scope) => (me.scopes || []).includes(scope);
 
   useEffect(() => {
     // Wait for Firebase to restore the persisted session before whoami — on a
@@ -41,7 +43,7 @@ export default function DevConsole() {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) { setGate("signin"); return; }
       apiDev({ action: "whoami" })
-        .then((r) => { setUid(r.uid || ""); setGate(r.platformAdmin ? "ok" : "denied"); })
+        .then((r) => { setUid(r.uid || ""); setMe({ role: r.role || null, scopes: r.scopes || [] }); setGate(r.platformAdmin ? "ok" : "denied"); })
         .catch((e) => setGate(e?.status === 401 ? "signin" : "denied"));
     });
     return unsub;
@@ -59,14 +61,22 @@ export default function DevConsole() {
   return (
     <Shell onSignOut={doSignOut} signOutLabel={signOutLabel}>
       <div className="flex gap-1.5 bg-surface border border-line rounded-xl p-1.5 mb-4">
-        {[["inbox", "dev.tab_inbox"], ["stores", "dev.tab_stores"], ["audit", "dev.tab_audit"]].map(([id, key]) => (
+        {[
+          can("tickets") && ["inbox", "dev.tab_inbox"],
+          ["stores", "dev.tab_stores"],
+          ["audit", "dev.tab_audit"],
+          can("operators") && ["operators", "dev.tab_operators"],
+        ].filter(Boolean).map(([id, key]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`flex-1 px-3 py-2 rounded-lg font-semibold text-sm transition ${tab === id ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>
             {t(key)}
           </button>
         ))}
       </div>
-      {tab === "inbox" ? <Inbox t={t} lang={lang} /> : tab === "audit" ? <Audit t={t} lang={lang} /> : <Stores t={t} lang={lang} />}
+      {tab === "inbox" && can("tickets") ? <Inbox t={t} lang={lang} />
+        : tab === "audit" ? <Audit t={t} lang={lang} />
+        : tab === "operators" && can("operators") ? <Operators t={t} lang={lang} myId={uid} />
+        : <Stores t={t} lang={lang} me={me} />}
     </Shell>
   );
 }
@@ -318,8 +328,89 @@ function Audit({ t, lang }) {
   );
 }
 
+/* ------------------------------ Operators (RBAC) ------------------------------ */
+// Grant / revoke platform-admin access + role — superadmin only (gated by the
+// "operators" scope on both the tab and the server). Operators still sign in as
+// their normal store user; this only sets their platform role in the server-only
+// platformAdmins registry. The env dev login + PLATFORM_ADMIN_UIDS stay as
+// break-glass superadmins, so the console can't be locked out from here.
+const OP_ROLES = ["superadmin", "support", "finance", "readonly"];
+function Operators({ t, lang, myId }) {
+  const [admins, setAdmins] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+  const [form, setForm] = useState({ uid: "", name: "", email: "", role: "support" });
+
+  const load = () => apiDev({ action: "listAdmins" }).then((r) => setAdmins(r.admins)).catch((e) => setError(e?.message || "load failed"));
+  useEffect(() => { load(); }, []);
+
+  async function act(payload, confirmMsg) {
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    setBusy(payload.uid || "add"); setError("");
+    try { await apiDev({ action: "adminAction", ...payload }); await load(); }
+    catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
+    setBusy("");
+  }
+  const add = async () => {
+    const uid = form.uid.trim();
+    if (!uid) return;
+    await act({ op: "upsert", uid, name: form.name.trim(), email: form.email.trim(), role: form.role, active: true });
+    setForm({ uid: "", name: "", email: "", role: "support" });
+  };
+
+  if (admins === null && !error) return <p className="text-muted text-sm">{t("common.loading")}</p>;
+  return (
+    <div className="space-y-3">
+      <p className="text-[12px] text-muted">{t("dev.ops_sub")}</p>
+      {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
+
+      <div className="card p-3.5 space-y-2.5">
+        <div className="text-[13px] font-semibold">{t("dev.ops_add")}</div>
+        <input className="input font-mono" value={form.uid} onChange={(e) => setForm((f) => ({ ...f, uid: e.target.value }))} placeholder={t("dev.ops_uid_ph")} />
+        <div className="grid grid-cols-2 gap-2.5">
+          <input className="input" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t("dev.ops_name_ph")} />
+          <select className="input" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
+            {OP_ROLES.map((r) => <option key={r} value={r}>{t(`dev.role_${r}`)}</option>)}
+          </select>
+        </div>
+        <input className="input" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder={t("dev.ops_email_ph")} />
+        <button type="button" className="btn-primary" disabled={!form.uid.trim() || busy === "add"} onClick={add}>{t("dev.ops_grant")}</button>
+        <p className="text-[11px] text-muted leading-relaxed">{t("dev.ops_hint")}</p>
+      </div>
+
+      {admins && admins.length === 0 ? (
+        <div className="card p-6 text-center text-[13px] text-muted">{t("dev.ops_empty")}</div>
+      ) : (
+        <div className="card overflow-hidden divide-y divide-line-soft">
+          {(admins || []).map((a) => (
+            <div key={a.id} className="px-4 py-2.5 flex items-center gap-3 text-[13px]">
+              <div className="min-w-0 flex-1">
+                <div className="font-medium truncate">{a.name || a.id}{a.active === false ? <span className="text-muted font-normal"> · {t("dev.ops_inactive")}</span> : null}</div>
+                <div className="text-[11px] text-muted font-mono truncate">{a.id}{a.email ? ` · ${a.email}` : ""}</div>
+              </div>
+              {a.id === myId ? (
+                <span className="pill bg-subtle text-muted flex-shrink-0">{t(`dev.role_${a.role}`)} · {t("dev.ops_you")}</span>
+              ) : (
+                <div className="flex gap-1.5 flex-shrink-0 items-center">
+                  <select className="input w-auto text-[12px] py-1" value={a.role} disabled={busy === a.id}
+                    onChange={(e) => act({ op: "upsert", uid: a.id, role: e.target.value, name: a.name, email: a.email, active: a.active !== false })}>
+                    {OP_ROLES.map((r) => <option key={r} value={r}>{t(`dev.role_${r}`)}</option>)}
+                  </select>
+                  <button type="button" className="btn-ghost text-[13px] px-2.5 py-1 w-auto text-neg" disabled={busy === a.id}
+                    onClick={() => act({ op: "remove", uid: a.id }, t("dev.ops_confirm_remove", { name: a.name || a.id }))}>{t("dev.ops_remove")}</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------ Store manager ------------------------------ */
-function Stores({ t, lang }) {
+function Stores({ t, lang, me }) {
+  const can = (scope) => (me?.scopes || []).includes(scope);
   const [stores, setStores] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -455,24 +546,24 @@ function Stores({ t, lang }) {
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             {s.status === "deleted" ? (
-              <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "restore" })}>{t("dev.restore")}</button>
+              can("lifecycle") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "restore" })}>{t("dev.restore")}</button>
             ) : (
               <>
-                {s.status === "suspended" ? (
+                {can("lifecycle") && (s.status === "suspended" ? (
                   <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "activate" })}>{t("dev.reactivate")}</button>
                 ) : (
                   <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "suspend" }, t("dev.confirm_suspend", { name: s.name }))}>{t("dev.suspend")}</button>
-                )}
-                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => (editBill === s.id ? setEditBill(null) : openBilling(s))}>{t("dev.edit_billing")}</button>
-                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}>{t("dev.rename")}</button>
-                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}>{t("dev.note")}</button>
-                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => { const pin = window.prompt(t("dev.pin_prompt")); if (pin != null && pin.trim()) op(s.id, { op: "resetOwnerPin", pin: pin.trim() }, t("dev.confirm_pin", { name: s.name })); }}>{t("dev.reset_pin")}</button>
-                <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto text-neg" disabled={busy === s.id}
-                  onClick={() => deleteStore(s)}>{t("dev.delete")}</button>
+                ))}
+                {can("billing") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => (editBill === s.id ? setEditBill(null) : openBilling(s))}>{t("dev.edit_billing")}</button>}
+                {can("stores") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}>{t("dev.rename")}</button>}
+                {can("stores") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}>{t("dev.note")}</button>}
+                {can("pin") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
+                  onClick={() => { const pin = window.prompt(t("dev.pin_prompt")); if (pin != null && pin.trim()) op(s.id, { op: "resetOwnerPin", pin: pin.trim() }, t("dev.confirm_pin", { name: s.name })); }}>{t("dev.reset_pin")}</button>}
+                {can("lifecycle") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto text-neg" disabled={busy === s.id}
+                  onClick={() => deleteStore(s)}>{t("dev.delete")}</button>}
               </>
             )}
           </div>

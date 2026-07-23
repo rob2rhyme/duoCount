@@ -1,4 +1,5 @@
 import { getAdmin } from "@/lib/firebase-admin";
+import { hasScope, resolveOperator } from "@/lib/platform-admins";
 
 // Verify a request's Bearer ID token, with checkRevoked=true so a token whose
 // refresh tokens were revoked — which the staff route does on deactivate/demote —
@@ -63,14 +64,56 @@ export function platformAdminUids() {
   return String(process.env.PLATFORM_ADMIN_UIDS || "")
     .split(",").map((s) => s.trim()).filter(Boolean);
 }
-export function isPlatformAdminClaims(claims) {
-  if (claims?.platformAdmin === true) return true;
-  if (!claims?.vendorId || !claims?.userId) return false;
-  return platformAdminUids().includes(`${claims.vendorId}_${claims.userId}`);
+
+// Resolve the platform OPERATOR behind a verified token, with their RBAC role.
+// Order (fail-closed):
+//   1. Break-glass — the dedicated env dev login (a `platformAdmin` token with no
+//      vendorId; also covers already-issued legacy tokens) → superadmin. This
+//      path is env-only and can never be locked out, so the console always has a
+//      way back in even if the registry is empty or a Firestore read fails.
+//   2. A store account whose registry doc platformAdmins/{vendorId_userId} is
+//      active → the role stored there. The registry is the primary grant path
+//      (it replaces hand-editing the PLATFORM_ADMIN_UIDS env var).
+//   3. Legacy env allowlist PLATFORM_ADMIN_UIDS → superadmin (back-compat).
+// The registry doc is RE-READ on every call, so a deactivation or role change
+// takes effect immediately — no stale-token privilege. Returns null for anyone
+// else; a normal store user is NOT a platform admin. Custom claims are only ever
+// set server-side (the store login never sets `platformAdmin`), so none of this
+// can be forged from a client.
+export async function resolvePlatformAdmin(claims, adminDb) {
+  // The env break-glass path needs no registry read.
+  if (!claims?.vendorId || !claims?.userId)
+    return resolveOperator({ claims, registryDoc: null, envUids: [] });
+  const uid = `${claims.vendorId}_${claims.userId}`;
+  let registryDoc = null;
+  try {
+    const snap = await adminDb.collection("platformAdmins").doc(uid).get();
+    if (snap.exists) registryDoc = snap.data();
+  } catch {
+    // Registry read failed (Firestore outage). We deliberately fall through to
+    // the env allowlist so the deployment-configured break-glass superadmins
+    // keep access during an outage — availability over a convenience-revocation.
+    // A store account NOT in PLATFORM_ADMIN_UIDS still resolves to null here, so
+    // an outage never GRANTS access to a non-env account; it only preserves the
+    // env break-glass. True revocation of an env-listed uid is removing it from
+    // PLATFORM_ADMIN_UIDS (the authoritative grant), not just the registry.
+  }
+  return resolveOperator({ claims, registryDoc, envUids: platformAdminUids() });
 }
+
+// Gate a /api/dev call: verify the token and resolve the operator (+ role).
+// Returns the operator { id, name, role, source }; throws 403 for a non-operator.
 export async function requirePlatformAdmin(req) {
   const claims = await verifyBearer(req);
-  if (!isPlatformAdminClaims(claims))
+  const { adminDb } = await getAdmin();
+  const op = await resolvePlatformAdmin(claims, adminDb);
+  if (!op)
     throw Object.assign(new Error("Developer access only."), { status: 403, code: "not_platform_admin" });
-  return claims;
+  return op;
+}
+
+// Enforce a scope on an already-resolved operator; throws 403 if they lack it.
+export function assertScope(op, scope) {
+  if (scope && !hasScope(op?.role, scope))
+    throw Object.assign(new Error("You don't have permission for that action."), { status: 403, code: "forbidden_scope" });
 }

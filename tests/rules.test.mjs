@@ -527,14 +527,26 @@ test("adminAudit: no client — not even an owner — can read or write the admi
   await assertFails(updateDoc(doc(db("owner"), "adminAudit/e1"), { action: "restore" }));
 });
 
+test("platformAdmins: no client can read or write the operator registry (no self-grant)", async () => {
+  await env.withSecurityRulesDisabled(async (c) => {
+    const f = c.firestore();
+    await setDoc(doc(f, "platformAdmins/v1_u1"), { name: "X", role: "superadmin", active: true });
+  });
+  await assertFails(getDoc(doc(db("owner"), "platformAdmins/v1_u1")));
+  // an owner must not be able to grant THEMSELVES platform access or any role
+  await assertFails(setDoc(doc(db("owner"), `platformAdmins/${V}_owner`), { role: "superadmin", active: true }));
+  await assertFails(updateDoc(doc(db("owner"), "platformAdmins/v1_u1"), { role: "readonly" }));
+});
+
 /* ---------- subscriber billing (dev-only, closed to every client) ---------- */
 
 test("billing: no client — not even an owner — can read or write a billing record", async () => {
   await env.withSecurityRulesDisabled(async (c) => {
     await setDoc(doc(c.firestore(), `billing/${V}`), { plan: "pro", status: "active", cycle: "monthly", price: 49 });
   });
-  // Top-level, no rules match → default deny for every store account. Only the
-  // Admin SDK (the /dev console) ever touches it, so the price stays dev-only.
+  // Top-level, explicit `allow read, write: if false` (belt-and-braces on top of
+  // the default deny) for every store account. Only the Admin SDK (the /dev
+  // console) ever touches it, so the price stays dev-only.
   await assertFails(getDoc(doc(db("owner"), `billing/${V}`)));
   await assertFails(getDoc(doc(db("mgr"), `billing/${V}`)));
   await assertFails(getDoc(doc(db("empA"), `billing/${V}`)));
