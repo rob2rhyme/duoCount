@@ -22,6 +22,7 @@
     "test:scratch-barcode": "node --test tests/scratch-barcode.test.mjs",
     "test:scratch-catalog": "node --test tests/scratch-catalog.test.mjs",
     "test:scratch-chain": "node --test tests/scratch-theft-chain.test.mjs",
+    "test:scratch-scan": "node --test tests/scratch-scan-guard.test.mjs",
     "test:vendor-settings": "node --test tests/vendor-settings.test.mjs",
     "test:stock-alerts": "node --test tests/stock-alerts.test.mjs",
     "test:rewards": "node --test tests/rewards.test.mjs",
