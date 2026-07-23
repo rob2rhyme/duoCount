@@ -353,6 +353,13 @@ registres.
    los dólares que deberían estar en la caja.
 3. **Guarda.**
 
+> **Sin doble conteo, sin cambios perdidos.** Si escaneas el mismo paquete dos
+> veces en un mismo turno, la app bloquea la repetición con un aviso — la
+> apertura y el cierre cuentan por separado, así que igual escaneas cada paquete
+> en ambos. Cuando un paquete se agota, toca **Final — agotado** en su fila; el
+> siguiente libro de ese mismo juego abre como un libro **Nuevo** en **#0**, para
+> que sus primeras ventas se cuenten, hasta el día siguiente.
+
 ### Registrar un conteo de inventario
 
 1. Toca **Inventario** y elige el **artículo**.

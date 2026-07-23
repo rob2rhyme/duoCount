@@ -23,6 +23,16 @@ pure per-pack continuity-gap + missing-log detection, surfaced as the Dashboard
 in `src/lib/patterns.js`). Keep new work inside that "opening→closing ticket
 count" framing.
 
+The scan surface (`ScratchForm.js` "Scan to log") is guarded by
+`src/lib/scratch-scan-guard.js` (pure, `tests/scratch-scan-guard.test.mjs`)
+without leaving that scope: an accidental re-scan of the same game+pack+ticket
+is refused **within a shift** (Opening and Closing are separate buckets;
+survives a reload or a second device); staff can mark a pack **sold out** from
+the scan list — a signed `soldOut` final count, the existing terminal state,
+**not** the retired settlement banned above; and the replacement book of the
+same game # auto-reads as a fresh "New" book starting at #0 until the next day,
+derived from that same-day `soldOut` marker (nothing new is persisted).
+
 ## Product direction — inventory & rewards
 
 - **Inventory / stock sync:** whole-store per-shift counting is rejected as
