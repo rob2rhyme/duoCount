@@ -6,7 +6,7 @@
 // can be a sticky drawer as easily as a hand in the till, which is why the
 // drawer hot-spot detector exists alongside the person detector.
 
-import { buildPackAudit } from "./scratch-audit.js";
+import { buildPackAudit, clusterPackJumps } from "./scratch-audit.js";
 import { renderPattern } from "./pattern-format.js";
 
 // Every alert carries a stable `code` (== kind) + a `params` bag; the prose
@@ -227,12 +227,27 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
   //    lottery's job; the shift boundary is ours). Every gapped pack alerts —
   //    a gap is a conversation between the two signers — and dollars decide
   //    severity. The full who/when detail lives in the Dashboard pack audit.
-  for (const g of buildPackAudit(entries, { days: R.windowDays, now }).gaps) {
+  const packAudit = buildPackAudit(entries, { days: R.windowDays, now });
+  for (const g of packAudit.gaps) {
     if (g.totalMissing <= 0) continue; // pure rollbacks show in the audit card, not as alerts
     alerts.push(alert({
       id: `pack-gap:${g.key}`, kind: "pack-gap",
       severity: g.missingDollars >= R.highShortDollars ? "high" : "medium",
       params: { game: g.game, pack: g.pack, tickets: g.totalMissing, dollars: money(g.missingDollars), boundaries: g.events.length, windowDays: R.windowDays },
+    }));
+  }
+
+  // 9. Mass pack jump: several packs advanced within ONE shared time window — the
+  //    fingerprint of a single (often after-hours) session touching a batch of
+  //    books at once, e.g. an insider with state-portal credentials. Rolled up
+  //    into one alert per cluster so the mass event isn't buried under a flood of
+  //    per-pack gap alerts. The server-pinned ts makes the window trustworthy.
+  const when = (d) => d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  for (const c of clusterPackJumps(packAudit.gaps)) {
+    alerts.push(alert({
+      id: `pack-mass-jump:${c.windowStart.getTime()}:${c.count}`, kind: "pack-mass-jump",
+      severity: c.totalDollars >= R.highShortDollars || c.count >= 5 ? "high" : "medium",
+      params: { count: c.count, tickets: c.totalMissing, dollars: money(c.totalDollars), from: when(c.windowStart), to: when(c.windowEnd) },
     }));
   }
 

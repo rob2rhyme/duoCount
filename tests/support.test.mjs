@@ -3,11 +3,27 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildTicket, buildMessage, sanitizeAttachments, validateAttachment, dataUriBytes,
-  canTransition, ownerUnread, compareTickets, ATTACH_MAX_BYTES,
+  canTransition, ownerUnread, compareTickets, toMs, ATTACH_MAX_BYTES,
 } from "../src/lib/support.js";
 
 // A tiny valid png data-uri (shape only — the helpers check the prefix + size).
 const okPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA=";
+
+test("toMs: parses every timestamp shape the app receives — incl. serialized Admin Timestamps", () => {
+  const ms = Date.UTC(2026, 6, 23, 14, 30, 0); // 2026-07-23T14:30:00Z
+  const secs = ms / 1000;
+  assert.equal(toMs(null), null);
+  assert.equal(toMs(undefined), null);
+  assert.equal(toMs(ms), ms);                                   // already millis
+  assert.equal(toMs(new Date(ms)), ms);                          // JS Date
+  assert.equal(toMs("2026-07-23T14:30:00.000Z"), ms);            // ISO string
+  assert.equal(toMs({ toDate: () => new Date(ms) }), ms);        // live client-SDK Timestamp
+  // The regression: an Admin-SDK Timestamp serialized over JSON (the /api/dev shape).
+  assert.equal(toMs({ _seconds: secs, _nanoseconds: 0 }), ms);
+  assert.equal(toMs({ seconds: secs, nanoseconds: 0 }), ms);     // alt field names
+  assert.equal(toMs({ _seconds: secs, _nanoseconds: 500_000_000 }), ms + 500); // sub-second
+  assert.equal(toMs({ nope: 1 }), null);                          // unrecognized object
+});
 
 test("dataUriBytes: decodes base64 length without decoding", () => {
   assert.equal(dataUriBytes("data:image/png;base64,QUJD"), 3); // "ABC"

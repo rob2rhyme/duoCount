@@ -159,6 +159,12 @@ service cloud.firestore {
           && request.resource.data.byId == request.auth.token.userId
           && request.resource.data.byRole == request.auth.token.role
           && request.resource.data.kind in ['cash', 'scratch', 'inventory']
+          // The audit timestamp is server-pinned (serverTimestamp() in addEntry),
+          // so a count's `ts` is the tamper-proof server clock, not a spoofable
+          // browser time — same guarantee the timeclock/payroll writes enforce.
+          // The client business `date`/`shift` labels stay free (a late-keyed
+          // count is legitimate); only ts must be the real moment of signing.
+          && request.resource.data.ts == request.time
           && request.resource.data.verifiedBy == null
           && (mgr() || request.resource.data.locationId == request.auth.token.locationId)
           && request.resource.data.get('disputeStatus', 'none') == 'none'

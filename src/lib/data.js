@@ -373,7 +373,12 @@ export async function addEntry(vendorId, entry) {
     flagged: false, varianceStatus: "none", disputeStatus: "none",
     causeCode: null, causeNote: null, blind: false,
     commentCount: 0, lastCommentAt: null,
-    ...entry, verifiedBy: null, verifiedAt: null, ts: new Date(),
+    // ts is the tamper-proof AUDIT time: serverTimestamp() so the rules can pin
+    // it to request.time (see firestore.rules entries create). A count's "when"
+    // must not be a spoofable browser clock — an after-hours theft claim rests on
+    // it. The client business `date`/`shift` labels stay as entered (a count keyed
+    // the morning after is still valid); only ts is server-authoritative.
+    ...entry, verifiedBy: null, verifiedAt: null, ts: serverTimestamp(),
   });
 }
 export async function verifyEntry(vendorId, entryId, managerName) {

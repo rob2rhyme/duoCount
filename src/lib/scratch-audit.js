@@ -135,3 +135,78 @@ export function buildPackAudit(entries = [], { days = 14, now = new Date() } = {
   missing.sort((a, b) => b.missedDays - a.missedDays || a.game.localeCompare(b.game));
   return { gaps, missing, packsSeen: byPack.size };
 }
+
+// A single after-hours session that advances MANY packs at once (an insider with
+// the state-portal credentials activating/skimming a batch of books) leaves one
+// fingerprint the per-pack gap detector can't see: several packs whose ticket
+// numbers all jumped during the SAME time window. Left as N independent pack-gap
+// alerts the mass event is buried under the flood; this rolls it into one signal.
+const MASS_JUMP_MIN_PACKS = 3; // distinct packs sharing a window => a "mass" event
+
+/**
+ * Cluster per-pack ticket-number jumps that share a common time window — the
+ * signature of one actor moving many packs in a single session. Consumes the
+ * `gaps` array from buildPackAudit, whose events carry the (now server-pinned)
+ * prevTs/nextTs. A pack's jump "could have happened" anywhere in [prevTs, nextTs]
+ * (last honest close → next honest open); a cluster is a set of packs whose
+ * windows share a common instant, so ONE moment explains all of them.
+ * @param {Array} gaps  buildPackAudit(...).gaps
+ * @param {Object} opts { minPacks }
+ * @returns {Array} clusters, worst dollars first:
+ *   { count, packs: [{ key, pack, game, price, missing }], windowStart, windowEnd,
+ *     totalMissing, totalDollars } — windowStart/End (Date) is the tightest
+ *   interval the single event must fall in (the intersection of all windows).
+ */
+export function clusterPackJumps(gaps = [], { minPacks = MASS_JUMP_MIN_PACKS } = {}) {
+  // Flatten to per-event movement windows [start, end], tagged by pack. Only
+  // forward jumps (unaccounted tickets) with both timestamps known can cluster;
+  // a transient null ts (an optimistic write before the server echo) is skipped.
+  const windows = [];
+  for (const g of gaps) {
+    for (const ev of g.events || []) {
+      if (!(ev.missing > 0)) continue;
+      const start = ev.prevTs instanceof Date ? ev.prevTs.getTime() : null;
+      const end = ev.nextTs instanceof Date ? ev.nextTs.getTime() : null;
+      if (start == null || end == null || !(end >= start)) continue;
+      windows.push({ key: g.key, pack: g.pack, game: g.game, price: Number(g.price) || 0, missing: ev.missing, start, end });
+    }
+  }
+  // Sort by start; sweep keeping a running intersection [lo, hi]. A window joins
+  // the current cluster only if it still leaves a non-empty common overlap, so
+  // every cluster genuinely shares one instant (not just pairwise-close).
+  windows.sort((a, b) => a.start - b.start || a.end - b.end);
+  const raw = [];
+  let cur = null;
+  for (const w of windows) {
+    if (cur) {
+      const lo = Math.max(cur.lo, w.start);
+      const hi = Math.min(cur.hi, w.end);
+      if (lo <= hi) { cur.items.push(w); cur.lo = lo; cur.hi = hi; continue; }
+      raw.push(cur);
+    }
+    cur = { items: [w], lo: w.start, hi: w.end };
+  }
+  if (cur) raw.push(cur);
+
+  const clusters = [];
+  for (const c of raw) {
+    // Collapse to distinct packs (one pack with several events counts once).
+    const byPack = new Map();
+    for (const w of c.items) {
+      const p = byPack.get(w.key) || { key: w.key, pack: w.pack, game: w.game, price: w.price, missing: 0 };
+      p.missing += w.missing;
+      byPack.set(w.key, p);
+    }
+    if (byPack.size < minPacks) continue;
+    const packs = [...byPack.values()].sort((a, b) => b.missing * b.price - a.missing * a.price);
+    const totalMissing = packs.reduce((s, p) => s + p.missing, 0);
+    const totalDollars = packs.reduce((s, p) => s + p.missing * p.price, 0);
+    clusters.push({
+      count: packs.length, packs,
+      windowStart: new Date(c.lo), windowEnd: new Date(c.hi),
+      totalMissing, totalDollars,
+    });
+  }
+  clusters.sort((a, b) => b.totalDollars - a.totalDollars || b.count - a.count);
+  return clusters;
+}
