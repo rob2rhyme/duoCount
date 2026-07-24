@@ -131,6 +131,10 @@ suyos. Los gerentes y dueños siempre ven todo. También puedes cambiar el
 (desactivadas por defecto — mira el paso 6) y activar las **funciones de IA**
 opcionales (todas desactivadas por defecto — mira el paso 7).
 
+> Los cambios de configuración se aplican **en vivo**: en cuanto guardas, cada
+> dispositivo con sesión iniciada los recibe — nadie necesita cerrar sesión ni
+> reiniciar la app.
+
 ### 4. Tu ritmo diario
 
 - **Mira las insignias.** Como gerente, aparecen pequeños contadores ámbar en
@@ -161,12 +165,23 @@ opcionales (todas desactivadas por defecto — mira el paso 7).
   misma caja con faltante bajo tres personas" — un arranque de conversación,
   nunca un veredicto). Si activas el análisis de IA (paso 7), un botón
   **"Explicar estas señales"** resume las alertas y dice qué mirar primero.
-- **Revisa la Auditoría de paquetes.** El Panel compara el boleto de apertura
-  de cada paquete de raspaditos contra su cierre anterior y muestra cada
-  corte — cuántos boletos quedaron sin contabilizar, quién firmó el cierre,
-  quién firmó la reapertura — además de los paquetes que dejaron de contarse
-  sin aviso. Los boletos faltantes se atrapan en el cambio de turno, no meses
-  después en un estado de cuenta.
+- **Abre el reporte de Raspaditos (dueños).** Todo lo de raspaditos vive en su
+  propia pestaña **Reporte de raspaditos**, solo para el dueño: ventas y boletos
+  por día, juego y personal (con gráficas, CSV e impresión con tu marca) — y la
+  vista antirrobo. La tabla de **Boletos sin justificar** muestra cada corte en
+  la secuencia de boletos de un paquete: en qué número **cerró** y en qué número
+  **reabrió**, *quién* firmó cada lado y *cuándo* (una hora del servidor a
+  prueba de manipulación — el reloj de un conteo no se puede retro-datar), con
+  un botón **Refrendar** para que un segundo gerente firme la lectura riesgosa.
+  Debajo, los paquetes que **dejaron de contarse** sin aviso muestran su último
+  boleto, quién lo firmó y la hora exacta; y la tarjeta de **Libros
+  disponibles** compara el censo del estante contra los conteos — un libro que
+  *desapareció*, o uno en el estante que **nunca se contó**, queda señalado. Los
+  boletos faltantes se atrapan en el cambio de turno, no meses después en un
+  estado de cuenta. Las alertas de patrones del Panel te siguen avisando —
+  incluso cuando **varios paquetes saltan juntos en una misma ventana** (la
+  firma de una sola sesión fuera de horario), un conteo registrado **sin nadie
+  fichado**, o conteos riesgosos que aún **esperan una segunda firma**.
 - **Revisa la Atención de existencias.** Si sincronizas los niveles de
   existencia desde tu POS (la importación de **Niveles de existencia**), el
   Panel lista lo que está **por caducar** (por defecto dentro de 30 días) y lo
@@ -361,6 +376,14 @@ registres.
 > en ambos. Cuando un paquete se agota, toca **Final — agotado** en su fila; el
 > siguiente libro de ese mismo juego abre como un libro **Nuevo** en **#0**, para
 > que sus primeras ventas se cuenten, hasta el día siguiente.
+
+> **Dos vistas más en la misma pestaña.** **Historial** muestra tus propios
+> números de raspaditos por turno (los gerentes ven los de todos), para revisar
+> tu día sin preguntar. **Censo** es un recorrido ocasional del estante: escanea
+> **cada libro físicamente en exhibición** — incluso los que nadie ha contado
+> todavía — y guarda una sola instantánea firmada. El reporte del dueño compara
+> los censos en el tiempo, así que un libro que desaparece entre dos recorridos
+> (aunque nunca se haya contado por boletos) queda señalado.
 
 ### Registrar un conteo de inventario
 

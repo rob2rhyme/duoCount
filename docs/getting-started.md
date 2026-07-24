@@ -118,6 +118,9 @@ on an optional **daily email digest** (off by default), turn on **customer
 rewards** (off by default — see step 6), and turn on the optional
 **AI helpers** (all off by default — see step 7).
 
+> Settings changes apply **live**: the moment you save, every signed-in device
+> picks them up — nobody needs to sign out or restart the app.
+
 ### 4. Your daily rhythm
 
 - **Watch the badges.** As a manager, small amber counts appear on the
@@ -147,11 +150,22 @@ rewards** (off by default — see step 6), and turn on the optional
   three people" — a conversation starter, never a verdict). If you turn on the AI
   insight (step 7), an **"Explain these signals"** button sums the alerts up and
   says what to look at first.
-- **Check the Pack audit.** The Dashboard compares each scratch pack's opening
-  ticket # against its previous closing # and shows every break — how many
-  tickets are unaccounted, who signed the close, who signed the reopen — plus
-  packs that quietly stopped being counted. Missing tickets get caught at the
-  shift boundary, not months later on a settlement statement.
+- **Open the Scratch report (owners).** Everything scratch-off lives in its own
+  owner-only **Scratch report** tab: sales and tickets by day, game, and staff
+  (with charts, CSV, and a branded printout) — and the theft view. The
+  **Unaccounted tickets** table shows every break in a pack's ticket sequence:
+  what number it **closed** at and what number it **re-opened** at, *who* signed
+  each side and *when* (a tamper-proof server time — a count's clock can't be
+  backdated), with a one-tap **Countersign** so a second manager signs off on
+  the risky read. Below it, packs that quietly **stopped being counted** show
+  their last ticket #, signer, and exact time; and the **Books on hand** card
+  reconciles the shelf census against the counts — a book that *walked*, or one
+  sitting on the shelf that was **never counted at all**, gets named. Missing
+  tickets get caught at the shift boundary, not months later on a settlement
+  statement. The Dashboard's pattern alerts still tip you off — including when
+  **several packs jump together in one window** (the signature of one after-hours
+  session), a count logged **while nobody was clocked in**, or risky counts still
+  **waiting on a second signature**.
 - **Check Stock attention.** If you sync stock levels from your POS (the
   **Stock levels** import), the Dashboard lists what's **expiring soon**
   (default within 30 days) and what **needs ordering** (default fewer than
@@ -327,6 +341,14 @@ Type the **store code** your manager gave you and **your own PIN**, then
 > **Final — sold out** on its row; the next book of that same game then opens as
 > a fresh **New** book at **#0**, so its first sales are counted, until the next
 > day.
+
+> **Two more views on the same tab.** **History** shows your own scratch numbers
+> by shift (managers see everyone's), so you can check your day without asking.
+> **Census** is an occasional shelf walk: scan **every book physically on the
+> display** — including ones nobody has counted yet — and save one signed
+> snapshot. The owner's report compares censuses over time, so a book that
+> disappears between two walks (even one that was never ticket-counted) gets
+> noticed.
 
 ### Log an inventory count
 

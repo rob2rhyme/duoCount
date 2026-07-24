@@ -260,7 +260,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const removeStamp = (i) =>
     setSettings((s) => ({ ...s, rewards: { ...s.rewards, stamps: (s.rewards.stamps || []).filter((_, j) => j !== i) } }));
   const [testing, setTesting] = useState(false);
+  // Saving-in-flight state: the write awaits the server ack, which on a slow
+  // connection takes visible time — without this the Save buttons stayed live
+  // and silent, reading as a dead tap (and inviting double-saves).
+  const [savingSettings, setSavingSettings] = useState(false);
   async function saveSettings() {
+    if (savingSettings) return;
     // Parse + validate digest recipients (cap 10, basic format check).
     const recipients = settings.digestRecipients.split(/[\s,;]+/).filter(Boolean);
     if (recipients.length > 10) return onToast?.(t("admin.err_max_recipients"));
@@ -319,6 +324,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       },
     };
     const prevSnap = savedSettingsRef.current;
+    setSavingSettings(true);
     try {
       await updateVendorSettings(vendor.id, patch);
       setVendor({ ...vendor, ...patch });
@@ -332,6 +338,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         },
       });
     } catch (e) { onToast?.(t("admin.err_owner_settings")); }
+    finally { setSavingSettings(false); }
   }
   // Unsaved-changes detection: the settings card is long, and its Save button
   // lives at the bottom — a sticky pill appears the moment anything differs
@@ -825,7 +832,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
             </label>
           </div>
           {isOwner
-            ? <button className="btn-primary" onClick={saveSettings}>{t("admin.save_settings")}</button>
+            ? <button className="btn-primary" disabled={savingSettings} onClick={saveSettings}>{savingSettings ? t("common.saving") : t("admin.save_settings")}</button>
             : <p className="text-[13px] text-muted italic">{t("admin.owner_only_note")}</p>}
         </div>
       </div>
@@ -1190,7 +1197,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           </div>
 
           {isOwner
-            ? <button className="btn-primary" onClick={saveSettings}>{t("admin.save_settings")}</button>
+            ? <button className="btn-primary" disabled={savingSettings} onClick={saveSettings}>{savingSettings ? t("common.saving") : t("admin.save_settings")}</button>
             : <p className="text-[13px] text-muted italic">{t("admin.owner_only_note")}</p>}
         </div>
       </div>
@@ -1440,8 +1447,8 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <div className="max-w-3xl mx-auto flex justify-end">
             <div className="pointer-events-auto flex items-center gap-3 bg-surface border border-brass rounded-full shadow-lg pl-4 pr-1.5 py-1.5">
               <span className="text-[13px] font-semibold">{t("admin.unsaved")}</span>
-              <button type="button" className="btn-primary w-auto px-4 py-2 text-[13px] rounded-full" onClick={saveSettings}>
-                {t("admin.save_settings")}
+              <button type="button" className="btn-primary w-auto px-4 py-2 text-[13px] rounded-full" disabled={savingSettings} onClick={saveSettings}>
+                {savingSettings ? t("common.saving") : t("admin.save_settings")}
               </button>
             </div>
           </div>
