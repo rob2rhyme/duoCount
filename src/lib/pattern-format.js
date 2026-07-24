@@ -39,5 +39,12 @@ export function renderPattern(alert, locale) {
       detail: t("pattern.count-off-shift.detail"),
     };
   }
+  // countersign-needed: title pluralizes on how many risky counts are unsigned.
+  if (code === "scratch-countersign-needed") {
+    return {
+      title: t(`pattern.scratch-countersign-needed.title${plural(params.count)}`),
+      detail: t("pattern.scratch-countersign-needed.detail"),
+    };
+  }
   return { title: t(`pattern.${code}.title`), detail: t(`pattern.${code}.detail`) };
 }

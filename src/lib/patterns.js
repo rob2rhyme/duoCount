@@ -7,6 +7,7 @@
 // drawer hot-spot detector exists alongside the person detector.
 
 import { buildPackAudit, clusterPackJumps, offShiftCounts } from "./scratch-audit.js";
+import { classifyHighRiskScratch } from "./scratch-countersign.js";
 import { renderPattern } from "./pattern-format.js";
 
 // Every alert carries a stable `code` (== kind) + a `params` bag; the prose
@@ -261,6 +262,22 @@ export function detectPatterns(entries, { now = new Date(), rules, punches = [] 
       id: `count-off-shift:${o.key}`, kind: "count-off-shift",
       severity: o.count >= R.minShorts ? "high" : "medium",
       params: { name: o.name, count: o.count, windowDays: R.windowDays },
+    }));
+  }
+
+  // 11. Countersign lever: the anomalous scratch reads (a gap-open above the
+  //     prior close, a sellout-short) that no second manager has countersigned —
+  //     the counts a thief would want to sign alone. One aggregate roll-up (drill
+  //     down + one-tap countersign in the owner Scratch report), so it isn't
+  //     buried under the per-pack gap alerts. Off-hours / mass-jump raise it to
+  //     high; a lone off-hours count is NOT flagged (see classifyHighRiskScratch).
+  const risky = classifyHighRiskScratch(entries, punches, { now, windowDays: R.windowDays });
+  if (risky.size > 0) {
+    const anyHigh = [...risky.values()].some((v) => v.severity === "high");
+    alerts.push(alert({
+      id: "scratch-countersign-needed", kind: "scratch-countersign-needed",
+      severity: anyHigh ? "high" : "medium",
+      params: { count: risky.size },
     }));
   }
 
