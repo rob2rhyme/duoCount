@@ -17,6 +17,7 @@
 // No Firestore, no clock reads beyond the injectable `now` — unit-testable.
 
 import { toDate } from "./utils.js";
+import { computeShifts } from "./timeclock.js";
 
 const dayOf = (e) => e.date || (toDate(e.ts)?.toISOString().slice(0, 10)) || null;
 const timeOf = (e) => toDate(e.ts)?.getTime() ?? 0;
@@ -209,4 +210,55 @@ export function clusterPackJumps(gaps = [], { minPacks = MASS_JUMP_MIN_PACKS } =
   }
   clusters.sort((a, b) => b.totalDollars - a.totalDollars || b.count - a.count);
   return clusters;
+}
+
+// A shift-boundary count is supposed to happen while the store is staffed. Now
+// that a count's ts is server-pinned (not a spoofable browser clock), a count
+// logged when NOBODY was clocked in is a real signal — the after-hours count an
+// insider would log alone. We test STORE-level presence (was anyone on shift?),
+// not per-author, so one clerk forgetting to punch never false-flags a count
+// that plenty of on-shift coworkers could vouch for.
+const OFF_SHIFT_GRACE_MS = 60 * 60 * 1000; // 60 min slop around each clock in/out
+
+/**
+ * Flag scratch counts logged while the store was UNMANNED — the count's
+ * (server-pinned) ts falls outside every worked shift in the time clock, ± a
+ * grace window. Attributed to whoever signed the count. Fail-open: if there are
+ * NO punches at all, the store isn't using the time clock and we flag nothing
+ * (silence beats a false alarm). Timezone-clean: shift and count times are both
+ * absolute ms.
+ * @param {Array} entries  count entries (scratch ones are considered)
+ * @param {Array} punches  the vendor's time-clock punches (+ corrections)
+ * @param {Object} opts     { graceMs }
+ * @returns {Array} one row per author, worst count first:
+ *   { key, name, count, sample: [{ pack, game, tsMs }] }
+ */
+export function offShiftCounts(entries = [], punches = [], { graceMs = OFF_SHIFT_GRACE_MS } = {}) {
+  const shifts = computeShifts(punches).filter((s) => s.inMs != null);
+  if (!shifts.length) return []; // no time clock in use → can't tell → flag nothing
+  // Merge everyone's worked shifts into "store staffed" intervals (± grace). An
+  // open shift (no clock-out yet) extends to now/∞ — someone is still on.
+  const open = shifts
+    .map((s) => ({ lo: s.inMs - graceMs, hi: (s.outMs == null ? Infinity : s.outMs) + graceMs }))
+    .sort((a, b) => a.lo - b.lo);
+  const staffed = [];
+  for (const iv of open) {
+    const last = staffed[staffed.length - 1];
+    if (last && iv.lo <= last.hi) last.hi = Math.max(last.hi, iv.hi);
+    else staffed.push({ ...iv });
+  }
+  const manned = (ms) => staffed.some((iv) => ms >= iv.lo && ms <= iv.hi);
+
+  const byAuthor = new Map();
+  for (const e of entries) {
+    if (e.kind !== "scratch") continue;
+    const tsMs = toDate(e.ts)?.getTime();
+    if (tsMs == null || manned(tsMs)) continue;
+    const key = e.byId || e.by || "—";
+    const a = byAuthor.get(key) || { key, name: e.by || "—", count: 0, sample: [] };
+    a.count++;
+    if (a.sample.length < 5) a.sample.push({ pack: String(e.pack || "").trim(), game: e.game || "", tsMs });
+    byAuthor.set(key, a);
+  }
+  return [...byAuthor.values()].sort((a, b) => b.count - a.count);
 }

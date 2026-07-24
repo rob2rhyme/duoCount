@@ -32,5 +32,12 @@ export function renderPattern(alert, locale) {
       detail: t(`pattern.pack-gap.detail${plural(params.boundaries)}`),
     };
   }
+  // off-shift count: title pluralizes on how many counts were logged unmanned.
+  if (code === "count-off-shift") {
+    return {
+      title: t(`pattern.count-off-shift.title${plural(params.count)}`),
+      detail: t("pattern.count-off-shift.detail"),
+    };
+  }
   return { title: t(`pattern.${code}.title`), detail: t(`pattern.${code}.detail`) };
 }

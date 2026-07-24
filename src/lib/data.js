@@ -453,12 +453,16 @@ export async function closeIncident(vendorId, id, managerName) {
 
 /* ---------- time clock (append-only in/out punches) ---------- */
 // Managers pass selfId=null to watch every punch; employees pass their own id
-// (the rules only let them read their own anyway). Newest first.
-export function watchPunches(vendorId, selfId, cb) {
+// (the rules only let them read their own anyway). Newest first. An optional
+// `since` Date bounds the read to recent punches (the Dashboard's off-shift
+// detector only needs the pattern window) — used only on the manager path
+// (selfId=null), so it stays a single-field `ts` range with no composite index.
+export function watchPunches(vendorId, selfId, cb, since = null) {
   const base = vcol(vendorId, "timeclock");
-  const q = selfId
-    ? query(base, where("userId", "==", selfId), orderBy("ts", "desc"))
-    : query(base, orderBy("ts", "desc"));
+  const clauses = [];
+  if (selfId) clauses.push(where("userId", "==", selfId));
+  if (since) clauses.push(where("ts", ">=", since));
+  const q = query(base, ...clauses, orderBy("ts", "desc"));
   return onSnapshot(q, (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
 }
 export async function addPunch(vendorId, punch) {

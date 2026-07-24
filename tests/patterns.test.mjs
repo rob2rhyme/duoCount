@@ -274,6 +274,25 @@ test("two packs jumping together do not reach the mass threshold", () => {
   assert.ok(!detectPatterns(es, { now: NOW }).some((a) => a.kind === "pack-mass-jump"));
 });
 
+// ---- 10. off-shift count (store unmanned) ----
+test("a scratch count signed while nobody was clocked in raises an off-shift alert", () => {
+  const punches = [
+    { userId: "u1", userName: "Eve", type: "in", ts: new Date("2026-07-10T09:00:00Z") },
+    { userId: "u1", userName: "Eve", type: "out", ts: new Date("2026-07-10T17:00:00Z") },
+  ];
+  // Eve signs a scratch count at 2am — hours after the store emptied.
+  const es = [scratch({ startno: 0, endno: 10, ts: new Date("2026-07-11T02:00:00Z"), date: "2026-07-11" })];
+  const off = detectPatterns(es, { now: NOW, punches }).find((x) => x.kind === "count-off-shift");
+  assert.ok(off);
+  assert.equal(off.params.name, "Eve");
+  assert.match(off.title, /nobody was clocked in/);
+});
+
+test("without punches the off-shift detector stays silent (store not using the clock)", () => {
+  const es = [scratch({ startno: 0, endno: 10, ts: new Date("2026-07-11T02:00:00Z"), date: "2026-07-11" })];
+  assert.ok(!detectPatterns(es, { now: NOW }).some((x) => x.kind === "count-off-shift"));
+});
+
 test("pack-gap ignores rollbacks, other locations' packs, and out-of-window counts", () => {
   // next start BELOW previous end — a re-count, not missing tickets
   const rollback = [

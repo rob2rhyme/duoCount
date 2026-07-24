@@ -6,7 +6,7 @@
 // can be a sticky drawer as easily as a hand in the till, which is why the
 // drawer hot-spot detector exists alongside the person detector.
 
-import { buildPackAudit, clusterPackJumps } from "./scratch-audit.js";
+import { buildPackAudit, clusterPackJumps, offShiftCounts } from "./scratch-audit.js";
 import { renderPattern } from "./pattern-format.js";
 
 // Every alert carries a stable `code` (== kind) + a `params` bag; the prose
@@ -78,7 +78,7 @@ const isoDaysAgo = (days, now) =>
  * detail }] with severity 'high' | 'medium', worst first. Windows use the
  * entry's business `date` (YYYY-MM-DD); entries without one fall back to ts.
  */
-export function detectPatterns(entries, { now = new Date(), rules } = {}) {
+export function detectPatterns(entries, { now = new Date(), rules, punches = [] } = {}) {
   const R = resolvePatternRules(rules);
   const cutoff = isoDaysAgo(R.windowDays, now);
   const dateOf = (e) => e.date || coerceDate(e.ts)?.toISOString().slice(0, 10) || "";
@@ -248,6 +248,19 @@ export function detectPatterns(entries, { now = new Date(), rules } = {}) {
       id: `pack-mass-jump:${c.windowStart.getTime()}:${c.count}`, kind: "pack-mass-jump",
       severity: c.totalDollars >= R.highShortDollars || c.count >= 5 ? "high" : "medium",
       params: { count: c.count, tickets: c.totalMissing, dollars: money(c.totalDollars), from: when(c.windowStart), to: when(c.windowEnd) },
+    }));
+  }
+
+  // 10. Off-shift scratch count: a count signed when NOBODY was clocked in — the
+  //     store was unmanned. Meaningful only because ts is now server-pinned (a
+  //     spoofable client clock made this uncheckable). Needs the time clock in
+  //     use; a store without punches produces nothing (fail-open). Attributed to
+  //     the signer so it names a person, not just a time.
+  for (const o of offShiftCounts(recent, punches)) {
+    alerts.push(alert({
+      id: `count-off-shift:${o.key}`, kind: "count-off-shift",
+      severity: o.count >= R.minShorts ? "high" : "medium",
+      params: { name: o.name, count: o.count, windowDays: R.windowDays },
     }));
   }
 
