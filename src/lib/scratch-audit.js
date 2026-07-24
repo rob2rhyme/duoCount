@@ -127,6 +127,7 @@ export function buildPackAudit(entries = [], { days = 14, now = new Date() } = {
         pack: String(last.pack).trim(), game: last.game || "(game)",
         lastDate: lastDay, lastBy: last.by || "—",
         lastEnd: Number.isFinite(Number(last.endno)) ? Number(last.endno) : null,
+        lastTs: toDate(last.ts) || null, // server-pinned moment of the last count
         missedDays,
       });
     }

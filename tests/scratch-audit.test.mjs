@@ -75,6 +75,9 @@ test("missing log: a pack absent from later counting days is flagged with missed
   assert.equal(a.missing[0].pack, "A-1");
   assert.equal(a.missing[0].missedDays, 2);
   assert.equal(a.missing[0].lastEnd, 10);
+  // the server-pinned moment of the last count rides along for the report line
+  assert.ok(a.missing[0].lastTs instanceof Date);
+  assert.equal(a.missing[0].lastTs.getTime(), daysAgo(3).getTime());
   // the still-counted pack is not flagged
   assert.ok(!a.missing.some((m) => m.pack === "B-2"));
 });

@@ -315,7 +315,7 @@ export const CATALOG = {
     "srep.seq_soldout": "#{n} sold out · {by} · {when} (pack of {size})",
     "srep.missing_title": "Packs that stopped being counted",
     "srep.missing_sub": "Books with history but no recent count.",
-    "srep.missing_line": "Last counted {date} by {by} · {days} counting days ago",
+    "srep.missing_line": "Last at #{end} · {by} · {when} · {days} counting days ago",
     "scratch.scan_hint": "The scan fills the pack — nothing saves until you save & sign the count.",
 
     // inventory count
@@ -2485,7 +2485,7 @@ export const CATALOG = {
     "srep.seq_soldout": "#{n} agotado · {by} · {when} (paquete de {size})",
     "srep.missing_title": "Paquetes que dejaron de contarse",
     "srep.missing_sub": "Libros con historial pero sin conteo reciente.",
-    "srep.missing_line": "Contado por última vez el {date} por {by} · hace {days} días de conteo",
+    "srep.missing_line": "Último en #{end} · {by} · {when} · hace {days} días de conteo",
     "scratch.scan_hint": "El escaneo llena el paquete — nada se guarda hasta que guardes y firmes el conteo.",
 
     "inventory.title": "Conteo de existencias del almacén",
