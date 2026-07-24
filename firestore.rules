@@ -255,13 +255,17 @@ service cloud.firestore {
             || request.resource.data.get('varianceStatus', 'none') == 'open';
         }
 
-        // Manager verification — never self-verified. (Existing rule, verbatim.)
+        // Manager verification — never self-verified, and the countersign time is
+        // server-pinned: verifiedAt must equal request.time (a serverTimestamp()
+        // sentinel), so a second signature's "when" can't be backdated any more
+        // than the count's own ts can (same guarantee as create + timeclock).
         function verifyOnly() {
           return mgr()
             && resource.data.byId != request.auth.token.userId
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['verifiedBy', 'verifiedAt'])
-            && request.resource.data.verifiedBy == request.auth.token.name;
+            && request.resource.data.verifiedBy == request.auth.token.name
+            && request.resource.data.verifiedAt == request.time;
         }
 
         // Managers work a flagged entry: open -> under-review -> resolved.

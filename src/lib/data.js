@@ -397,7 +397,10 @@ export async function addEntry(vendorId, entry) {
 }
 export async function verifyEntry(vendorId, entryId, managerName) {
   await updateDoc(doc(db, "vendors", vendorId, "entries", entryId), {
-    verifiedBy: managerName, verifiedAt: new Date(),
+    // verifiedAt is server-pinned (rules require it == request.time), so the
+    // countersign's "when" is as tamper-proof as the count's own ts — a second
+    // signature can't be backdated any more than a count can.
+    verifiedBy: managerName, verifiedAt: serverTimestamp(),
   });
 }
 
