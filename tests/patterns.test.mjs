@@ -293,6 +293,29 @@ test("without punches the off-shift detector stays silent (store not using the c
   assert.ok(!detectPatterns(es, { now: NOW }).some((x) => x.kind === "count-off-shift"));
 });
 
+// ---- 11. countersign-needed (anomalous unsigned scratch reads) ----
+test("unsigned anomalous scratch reads raise ONE countersign roll-up; the gap-open only; signing clears it", () => {
+  const es = [
+    scratch({ id: "e1", startno: 0, endno: 37, verifiedBy: null, date: dstr(2), ts: daysAgo(2) }),
+    scratch({ id: "e2", startno: 41, endno: 50, by: "Sam", byId: "u2", verifiedBy: null, date: dstr(1), ts: daysAgo(1) }),
+  ];
+  const cs = detectPatterns(es, { now: NOW }).filter((x) => x.kind === "scratch-countersign-needed");
+  assert.equal(cs.length, 1);
+  assert.equal(cs[0].params.count, 1);                 // only the gap-OPEN (e2), not the prior close e1
+  assert.match(cs[0].title, /needs a second signature/);
+  // Countersigning e2 clears the roll-up.
+  const signed = es.map((e) => (e.id === "e2" ? { ...e, verifiedBy: "Mgr" } : e));
+  assert.ok(!detectPatterns(signed, { now: NOW }).some((x) => x.kind === "scratch-countersign-needed"));
+});
+
+test("an already-verified anomalous read raises no countersign alert", () => {
+  const es = [
+    scratch({ id: "v1", startno: 0, endno: 37, verifiedBy: "Mia", date: dstr(2), ts: daysAgo(2) }),
+    scratch({ id: "v2", startno: 41, endno: 50, verifiedBy: "Mia", date: dstr(1), ts: daysAgo(1) }),
+  ];
+  assert.ok(!detectPatterns(es, { now: NOW }).some((x) => x.kind === "scratch-countersign-needed"));
+});
+
 test("pack-gap ignores rollbacks, other locations' packs, and out-of-window counts", () => {
   // next start BELOW previous end — a re-count, not missing tickets
   const rollback = [

@@ -4,7 +4,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { money, downloadCSV } from "@/lib/utils";
 import { buildScratchAnalytics, buildScratchReportCSV } from "@/lib/scratch-analytics";
 import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
-import { fetchEntriesInRange, fetchScratchCensus } from "@/lib/data";
+import { fetchEntriesInRange, fetchScratchCensus, verifyEntry } from "@/lib/data";
 import { buildPackAudit } from "@/lib/scratch-audit";
 import { buildCensusReconcile } from "@/lib/scratch-census";
 import { useSession } from "./SessionProvider";
@@ -51,7 +51,7 @@ function Tile({ label, value, tone }) {
 // and tables — one place for the numbers, exportable as CSV or a branded print.
 // One-shot read via fetchEntriesInRange; it never mutates the signed log.
 export default function ScratchReport({ locations = [], locName = () => "" }) {
-  const { vendor } = useSession();
+  const { vendor, profile } = useSession();
   const { theme } = useTheme();
   const { t, lang } = useLang();
   const [rangeId, setRangeId] = useState("30d");
@@ -62,6 +62,10 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
   const [rows, setRows] = useState(null);
   const [recon, setRecon] = useState(null);
   const [err, setErr] = useState("");
+  // Optimistic set of entry ids countersigned this session (the one-shot fetch
+  // won't refresh verifiedBy until the range reloads).
+  const [verifiedLocal, setVerifiedLocal] = useState(() => new Set());
+  const [verifyBusy, setVerifyBusy] = useState("");
 
   const { from, to } = rangeFor(rangeId, customFrom, customTo);
   const ch = { ...(CHART[theme] || CHART.light), bar: chartBar(vendor, theme) };
@@ -104,6 +108,22 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
   // owner can read exactly what the pack was at when one shift closed and the next
   // opened, and where tickets went missing between. Worst-dollars first.
   const seqGaps = useMemo(() => audit.gaps.filter((g) => g.totalMissing > 0), [audit]);
+  const rowsById = useMemo(() => {
+    const m = new Map();
+    (rows || []).forEach((e) => { if (e.id) m.set(e.id, e); });
+    return m;
+  }, [rows]);
+  // Countersign the anomalous read (the open above the prior close, or a
+  // sellout-short book). verifyOnly() bars self-verify server-side; we also hide
+  // the button on the owner's own counts. Optimistically flip it verified so the
+  // control clears at once despite the one-shot fetch.
+  const countersign = async (id) => {
+    if (!id || verifyBusy) return;
+    setVerifyBusy(id);
+    try { await verifyEntry(vendor.id, id, profile.name); setVerifiedLocal((s) => new Set(s).add(id)); }
+    catch (e) { setErr(e?.message || "verify failed"); }
+    setVerifyBusy("");
+  };
   const gamePage = usePaged(a.byGame, { resetKey: `${from}|${to}|${locId}` });
   const staffPage = usePaged(a.byStaff, { resetKey: `${from}|${to}|${locId}g` });
 
@@ -327,20 +347,35 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
                     <span className="font-mono tabular-nums text-neg flex-shrink-0">{t("srep.gap_n", { n: g.totalMissing })} · {money(g.missingDollars)}</span>
                   </div>
                   <div className="space-y-1">
-                    {g.events.filter((ev) => ev.missing > 0).map((ev, i) => (
-                      <div key={i} className="text-[12px] flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        {ev.selloutShort ? (
-                          <span className="text-muted">{t("srep.seq_soldout", { n: ev.prevEnd, by: ev.prevBy, when: fmtTs(ev.prevTs, lang), size: ev.nextStart })}</span>
-                        ) : (
-                          <>
-                            <span className="text-muted"><span className="text-fg font-mono tabular-nums">#{ev.prevEnd}</span> {t("srep.seq_close", { by: ev.prevBy, when: fmtTs(ev.prevTs, lang) })}</span>
-                            <span className="text-muted" aria-hidden="true">→</span>
-                            <span className="text-muted"><span className="text-fg font-mono tabular-nums">#{ev.nextStart}</span> {t("srep.seq_open", { by: ev.nextBy, when: fmtTs(ev.nextTs, lang) })}</span>
-                          </>
-                        )}
-                        <span className="text-neg font-mono tabular-nums">+{ev.missing}</span>
-                      </div>
-                    ))}
+                    {g.events.filter((ev) => ev.missing > 0).map((ev, i) => {
+                      // The accountable read to countersign: the open (next) of a
+                      // continuity gap, or the finaled book of a sellout-short.
+                      const targetId = ev.selloutShort ? ev.lastId : ev.nextId;
+                      const target = targetId ? rowsById.get(targetId) : null;
+                      const verified = target && (target.verifiedBy || verifiedLocal.has(targetId));
+                      return (
+                        <div key={i} className="text-[12px] flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          {ev.selloutShort ? (
+                            <span className="text-muted">{t("srep.seq_soldout", { n: ev.prevEnd, by: ev.prevBy, when: fmtTs(ev.prevTs, lang), size: ev.nextStart })}</span>
+                          ) : (
+                            <>
+                              <span className="text-muted"><span className="text-fg font-mono tabular-nums">#{ev.prevEnd}</span> {t("srep.seq_close", { by: ev.prevBy, when: fmtTs(ev.prevTs, lang) })}</span>
+                              <span className="text-muted" aria-hidden="true">→</span>
+                              <span className="text-muted"><span className="text-fg font-mono tabular-nums">#{ev.nextStart}</span> {t("srep.seq_open", { by: ev.nextBy, when: fmtTs(ev.nextTs, lang) })}</span>
+                            </>
+                          )}
+                          <span className="text-neg font-mono tabular-nums">+{ev.missing}</span>
+                          {target && (verified ? (
+                            <span className="text-[11px] text-pos flex-shrink-0" title={t("log.verified_by", { name: target.verifiedBy || profile.name })}>{t("srep.seq_verified", { by: target.verifiedBy || profile.name })}</span>
+                          ) : target.byId === profile.id ? (
+                            <span className="text-[11px] text-muted italic flex-shrink-0">{t("srep.seq_verify_own")}</span>
+                          ) : (
+                            <button type="button" className="text-[11px] text-brass font-semibold underline underline-offset-2 flex-shrink-0 disabled:opacity-50"
+                              disabled={verifyBusy === targetId} onClick={() => countersign(targetId)}>{t("srep.seq_verify")}</button>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

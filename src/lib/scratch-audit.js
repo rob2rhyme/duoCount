@@ -79,8 +79,8 @@ export function buildPackAudit(entries = [], { days = 14, now = new Date() } = {
       if (gap === 0) continue;
       events.push({
         missing: gap, prevEnd, nextStart,
-        prevBy: prev.by || "—", prevTs: toDate(prev.ts) || null,
-        nextBy: next.by || "—", nextTs: toDate(next.ts) || null,
+        prevBy: prev.by || "—", prevTs: toDate(prev.ts) || null, prevId: prev.id ?? null,
+        nextBy: next.by || "—", nextTs: toDate(next.ts) || null, nextId: next.id ?? null,
       });
     }
 
@@ -96,8 +96,8 @@ export function buildPackAudit(entries = [], { days = 14, now = new Date() } = {
       if (size && Number.isFinite(closeEnd) && closeEnd < size) {
         events.push({
           missing: size - closeEnd, prevEnd: closeEnd, nextStart: size,
-          prevBy: last.by || "—", prevTs: toDate(last.ts) || null,
-          nextBy: "—", nextTs: toDate(last.ts) || null, selloutShort: true,
+          prevBy: last.by || "—", prevTs: toDate(last.ts) || null, prevId: last.id ?? null,
+          nextBy: "—", nextTs: toDate(last.ts) || null, nextId: null, lastId: last.id ?? null, selloutShort: true,
         });
       }
     }
@@ -170,7 +170,7 @@ export function clusterPackJumps(gaps = [], { minPacks = MASS_JUMP_MIN_PACKS } =
       const start = ev.prevTs instanceof Date ? ev.prevTs.getTime() : null;
       const end = ev.nextTs instanceof Date ? ev.nextTs.getTime() : null;
       if (start == null || end == null || !(end >= start)) continue;
-      windows.push({ key: g.key, pack: g.pack, game: g.game, price: Number(g.price) || 0, missing: ev.missing, start, end });
+      windows.push({ key: g.key, pack: g.pack, game: g.game, price: Number(g.price) || 0, missing: ev.missing, start, end, id: ev.nextId ?? null });
     }
   }
   // Sort by start; sweep keeping a running intersection [lo, hi]. A window joins
@@ -203,8 +203,11 @@ export function clusterPackJumps(gaps = [], { minPacks = MASS_JUMP_MIN_PACKS } =
     const packs = [...byPack.values()].sort((a, b) => b.missing * b.price - a.missing * a.price);
     const totalMissing = packs.reduce((s, p) => s + p.missing, 0);
     const totalDollars = packs.reduce((s, p) => s + p.missing * p.price, 0);
+    // The specific open counts (entry ids) that jumped together — so a countersign
+    // lever can point a manager at the exact reads inside the cluster.
+    const ids = [...new Set(c.items.map((w) => w.id).filter((x) => x != null))];
     clusters.push({
-      count: packs.length, packs,
+      count: packs.length, packs, ids,
       windowStart: new Date(c.lo), windowEnd: new Date(c.hi),
       totalMissing, totalDollars,
     });
@@ -256,8 +259,9 @@ export function offShiftCounts(entries = [], punches = [], { graceMs = OFF_SHIFT
     const tsMs = toDate(e.ts)?.getTime();
     if (tsMs == null || manned(tsMs)) continue;
     const key = e.byId || e.by || "—";
-    const a = byAuthor.get(key) || { key, name: e.by || "—", count: 0, sample: [] };
+    const a = byAuthor.get(key) || { key, name: e.by || "—", count: 0, sample: [], ids: [] };
     a.count++;
+    if (e.id != null) a.ids.push(e.id); // every off-shift entry id, for the countersign classifier
     if (a.sample.length < 5) a.sample.push({ pack: String(e.pack || "").trim(), game: e.game || "", tsMs });
     byAuthor.set(key, a);
   }
