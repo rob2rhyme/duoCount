@@ -20,6 +20,10 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const daysAgoISO = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 const shortDay = (iso) => (iso || "").slice(5).replace("-", "/");
 const pad2 = (n) => String(n).padStart(2, "0");
+// A count's server-pinned ts (a Date via toDate) as a short local date+time —
+// the "when" on each side of a ticket-sequence gap. Local tz shows the store's
+// clock; null (a pending write) reads as a dash.
+const fmtTs = (d, lang) => (d ? d.toLocaleString(lang === "es" ? "es" : "en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
 
 function rangeFor(id, customFrom, customTo) {
   const to = todayISO();
@@ -48,7 +52,7 @@ function Tile({ label, value, tone }) {
 export default function ScratchReport({ locations = [], locName = () => "" }) {
   const { vendor } = useSession();
   const { theme } = useTheme();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [rangeId, setRangeId] = useState("30d");
   const [customFrom, setCustomFrom] = useState(daysAgoISO(29));
   const [customTo, setCustomTo] = useState(todayISO());
@@ -74,11 +78,15 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
   const dayData = useMemo(() => a.byDay.map((d) => ({ ...d, label: shortDay(d.date) })), [a.byDay]);
   const gameData = useMemo(() => a.byGame.slice(0, 8).map((g) => ({ name: g.game, dollars: g.dollars, tickets: g.tickets })), [a.byGame]);
   const staffData = useMemo(() => a.byStaff.slice(0, 8).map((s) => ({ name: s.by, dollars: s.dollars, tickets: s.tickets })), [a.byStaff]);
-  const gapRows = useMemo(() => a.packFlow.rows.filter((r) => r.gapTickets > 0), [a.packFlow]);
   // Pack audit "missing" = books with history that stopped being counted (the
   // detail the Dashboard card used to show); wide window so the fetched period
   // isn't truncated by the rolling default.
   const audit = useMemo(() => buildPackAudit(rows || [], { days: 3650 }), [rows]);
+  // Ticket-sequence gaps: the per-boundary events buildPackAudit already computes
+  // (prevEnd/nextStart + who + server ts on each side) — surfaced as a table so an
+  // owner can read exactly what the pack was at when one shift closed and the next
+  // opened, and where tickets went missing between. Worst-dollars first.
+  const seqGaps = useMemo(() => audit.gaps.filter((g) => g.totalMissing > 0), [audit]);
   const gamePage = usePaged(a.byGame, { resetKey: `${from}|${to}|${locId}` });
   const staffPage = usePaged(a.byStaff, { resetKey: `${from}|${to}|${locId}g` });
 
@@ -287,17 +295,36 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
             <div className="px-4 py-2"><ShowMore hasMore={staffPage.hasMore} nextStep={staffPage.nextStep} onMore={staffPage.showMore} /></div>
           </div>
 
-          {/* Theft gaps (if any) */}
-          {gapRows.length > 0 && (
+          {/* Ticket-sequence gaps — per pack, the closing→opening boundary with
+              ticket numbers, who counted, and the server time on each side. */}
+          {seqGaps.length > 0 && (
             <div className="card overflow-hidden border-neg/30">
               <div className="px-4 py-3 border-b border-line">
                 <h3 className="font-semibold text-[15px] text-neg">⚠ {t("srep.gaps_title")}</h3>
                 <p className="text-[12px] text-muted mt-0.5">{t("srep.gaps_sub")}</p>
               </div>
-              {gapRows.slice(0, 20).map((r) => (
-                <div key={r.pack} className="px-4 py-2 border-t border-line-soft flex items-center justify-between gap-3 text-[13px]">
-                  <span className="min-w-0 truncate">{r.game} <span className="text-muted font-mono text-[11px]">#{r.pack}</span></span>
-                  <span className="font-mono tabular-nums text-neg flex-shrink-0">{t("srep.gap_n", { n: r.gapTickets })} · {money(r.gapDollars)}</span>
+              {seqGaps.slice(0, 20).map((g) => (
+                <div key={g.key} className="border-t border-line-soft px-4 py-2.5">
+                  <div className="flex items-center justify-between gap-3 text-[13px] mb-1.5">
+                    <span className="min-w-0 truncate font-medium">{g.game} <span className="text-muted font-mono text-[11px]">#{g.pack}</span></span>
+                    <span className="font-mono tabular-nums text-neg flex-shrink-0">{t("srep.gap_n", { n: g.totalMissing })} · {money(g.missingDollars)}</span>
+                  </div>
+                  <div className="space-y-1">
+                    {g.events.filter((ev) => ev.missing > 0).map((ev, i) => (
+                      <div key={i} className="text-[12px] flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {ev.selloutShort ? (
+                          <span className="text-muted">{t("srep.seq_soldout", { n: ev.prevEnd, by: ev.prevBy, when: fmtTs(ev.prevTs, lang), size: ev.nextStart })}</span>
+                        ) : (
+                          <>
+                            <span className="text-muted"><span className="text-fg font-mono tabular-nums">#{ev.prevEnd}</span> {t("srep.seq_close", { by: ev.prevBy, when: fmtTs(ev.prevTs, lang) })}</span>
+                            <span className="text-muted" aria-hidden="true">→</span>
+                            <span className="text-muted"><span className="text-fg font-mono tabular-nums">#{ev.nextStart}</span> {t("srep.seq_open", { by: ev.nextBy, when: fmtTs(ev.nextTs, lang) })}</span>
+                          </>
+                        )}
+                        <span className="text-neg font-mono tabular-nums">+{ev.missing}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
