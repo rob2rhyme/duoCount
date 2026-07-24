@@ -335,19 +335,28 @@ test("a deactivated manager cannot manage; a deactivated author cannot resolve",
 
 test("manager verifies someone else's entry, exact fields only", async () => {
   await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eA`),
-    { verifiedBy: "Mia", verifiedAt: new Date() }));
+    { verifiedBy: "Mia", verifiedAt: serverTimestamp() }));
+});
+
+test("the countersign time is server-pinned — a client-chosen verifiedAt is refused", async () => {
+  // verifiedAt must equal request.time (a serverTimestamp sentinel), so a second
+  // signature's "when" can't be backdated any more than the count's own ts.
+  await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eB`),
+    { verifiedBy: "Mia", verifiedAt: new Date("2020-01-01T00:00:00Z") }));
+  await assertSucceeds(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eB`),
+    { verifiedBy: "Mia", verifiedAt: serverTimestamp() }));
 });
 
 test("self-verification and employee verification are blocked", async () => {
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eMgr`),
-    { verifiedBy: "Mia", verifiedAt: new Date() }));
+    { verifiedBy: "Mia", verifiedAt: serverTimestamp() }));
   await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/entries/eB`),
-    { verifiedBy: "Eve", verifiedAt: new Date() }));
+    { verifiedBy: "Eve", verifiedAt: serverTimestamp() }));
 });
 
 test("verification cannot smuggle other field changes", async () => {
   await assertFails(updateDoc(doc(db("mgr"), `vendors/${V}/entries/eA`),
-    { verifiedBy: "Mia", verifiedAt: new Date(), counted: 999 }));
+    { verifiedBy: "Mia", verifiedAt: serverTimestamp(), counted: 999 }));
 });
 
 /* ---------- variance investigation ---------- */
