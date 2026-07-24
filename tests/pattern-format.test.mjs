@@ -54,6 +54,15 @@ test("pack-gap pluralizes title on tickets and detail on boundaries, in both loc
   assert.match(renderPattern(many, "en").detail, /2 count boundaries /);
 });
 
+test("count-off-shift pluralizes its title on the count, in both locales", () => {
+  const one = { code: "count-off-shift", params: { name: "Sam", count: 1, windowDays: 14 } };
+  const many = { code: "count-off-shift", params: { name: "Sam", count: 4, windowDays: 14 } };
+  for (const loc of ["en", "es"])
+    assert.notEqual(renderPattern(one, loc).title, renderPattern(many, loc).title, `${loc} singular/plural differ`);
+  assert.match(renderPattern(one, "en").title, /a scratch count logged/);
+  assert.match(renderPattern(many, "en").title, /4 scratch counts logged/);
+});
+
 test("an unknown locale falls back to the English template", () => {
   const alert = { code: "person-trend", params: { name: "Eve", recent: "$15.00", earlier: "$5.00" } };
   assert.equal(renderPattern(alert, "fr").title, renderPattern(alert, "en").title);

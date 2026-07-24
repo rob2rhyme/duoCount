@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections, watchPunches } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { featureEnabled, resolveFeatures } from "@/lib/features";
 import { useModalA11y } from "@/lib/use-modal-a11y";
@@ -166,6 +166,15 @@ export default function AppShell() {
   useEffect(() => {
     if (!isManager) { setTimeOff([]); return undefined; }
     return watchTimeOff(vendor.id, null, setTimeOff);
+  }, [vendor.id, isManager]);
+  // Time-clock punches — managers only, and bounded to the pattern lookback max
+  // (90 days), purely to feed the Dashboard's off-shift-count detector (a scratch
+  // count signed while nobody was clocked in). Employees never compute patterns.
+  const [punches, setPunches] = useState([]);
+  useEffect(() => {
+    if (!isManager) { setPunches([]); return undefined; }
+    const since = new Date(Date.now() - 90 * 24 * 3600 * 1000);
+    return watchPunches(vendor.id, null, setPunches, since);
   }, [vendor.id, isManager]);
 
   const activeLocations = locations.filter((l) => l.active !== false);
@@ -411,7 +420,7 @@ export default function AppShell() {
         {tab === "time" && <TimeClock locations={activeLocations} locName={locName} onToast={ping} />}
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
-            items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves} collections={gamingCollections}
+            items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves} collections={gamingCollections} punches={punches}
             onOpenLog={featureEnabled(vendor, "log") ? () => setTab("log") : undefined}
             onRecord={featureEnabled(vendor, "cash") ? () => setTab("cash") : undefined}
             onOpenScratchReport={isOwner && featureEnabled(vendor, "scratch") ? () => setTab("scratchreport") : undefined} onToast={ping}

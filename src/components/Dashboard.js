@@ -41,7 +41,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], collections = [], onOpenLog, onRecord, onOpenScratchReport, onToast, locPicker = null }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], collections = [], punches = [], onOpenLog, onRecord, onOpenScratchReport, onToast, locPicker = null }) {
   const { isManager, vendor, profile } = useSession();
   const profileName = profile?.name || "";
   const { theme } = useTheme();
@@ -52,8 +52,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   // Recurring signals (repeat shorts, drawer hot-spots, backlog, shrink
   // streaks) — manager-facing only, so employees never see them computed.
   const basePatterns = useMemo(
-    () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules }) : []),
-    [entries, isManager, vendor?.patternRules]);
+    () => (isManager ? detectPatterns(entries, { rules: vendor?.patternRules, punches }) : []),
+    [entries, isManager, vendor?.patternRules, punches]);
   // Rewards audit (rewards-program-spec.md Phase 2): the ledger reconciled
   // against the countersigned cash sales, plus per-day skim/burst detectors.
   // Its alerts are pattern-shaped and merge into the same Patterns card and

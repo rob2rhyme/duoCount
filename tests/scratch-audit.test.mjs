@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildPackAudit, clusterPackJumps } from "../src/lib/scratch-audit.js";
+import { buildPackAudit, clusterPackJumps, offShiftCounts } from "../src/lib/scratch-audit.js";
 
 const NOW = new Date("2026-07-15T12:00:00Z");
 const daysAgo = (n, h = 12) => new Date(NOW.getTime() - n * 24 * 3600 * 1000 + (h - 12) * 3600 * 1000);
@@ -236,4 +236,65 @@ test("one pack alone never forms a mass cluster (distinct-pack floor)", () => {
     count({ pack: "solo", startno: 40, endno: 50, ts: daysAgo(1), date: dstr(daysAgo(1)) }),
   ];
   assert.equal(clusterPackJumps(buildPackAudit(entries, { now: NOW }).gaps).length, 0);
+});
+
+// ---- offShiftCounts: scratch counts logged while the store was unmanned ----
+const punch = (userId, userName, type, iso) => ({ userId, userName, type, ts: new Date(iso) });
+
+test("a count logged during a worked shift is not flagged", () => {
+  const punches = [punch("u1", "Eve", "in", "2026-07-15T09:00:00Z"), punch("u1", "Eve", "out", "2026-07-15T17:00:00Z")];
+  const entries = [count({ byId: "u1", by: "Eve", ts: new Date("2026-07-15T14:00:00Z") })];
+  assert.deepEqual(offShiftCounts(entries, punches), []);
+});
+
+test("a count when nobody was clocked in is flagged and attributed to the signer", () => {
+  const punches = [punch("u1", "Eve", "in", "2026-07-15T09:00:00Z"), punch("u1", "Eve", "out", "2026-07-15T17:00:00Z")];
+  const entries = [count({ byId: "u2", by: "Sam", ts: new Date("2026-07-16T02:00:00Z") })];
+  const off = offShiftCounts(entries, punches);
+  assert.equal(off.length, 1);
+  assert.equal(off[0].key, "u2");
+  assert.equal(off[0].name, "Sam");
+  assert.equal(off[0].count, 1);
+});
+
+test("a count while ANY coworker is on shift is fine (store-level, not per-author)", () => {
+  const punches = [punch("u1", "Eve", "in", "2026-07-15T09:00:00Z"), punch("u1", "Eve", "out", "2026-07-15T17:00:00Z")];
+  // Sam never punched, but logs a count at 2pm while Eve is on the clock.
+  const entries = [count({ byId: "u2", by: "Sam", ts: new Date("2026-07-15T14:00:00Z") })];
+  assert.deepEqual(offShiftCounts(entries, punches), []);
+});
+
+test("an open shift (no clock-out yet) keeps the store staffed — a late count is fine", () => {
+  const punches = [punch("u1", "Eve", "in", "2026-07-15T09:00:00Z")]; // still on the clock
+  const entries = [count({ byId: "u1", by: "Eve", ts: new Date("2026-07-15T23:00:00Z") })];
+  assert.deepEqual(offShiftCounts(entries, punches), []);
+});
+
+test("a count within the grace window just after clock-out is not flagged", () => {
+  const punches = [punch("u1", "Eve", "in", "2026-07-15T09:00:00Z"), punch("u1", "Eve", "out", "2026-07-15T17:00:00Z")];
+  const entries = [count({ byId: "u1", by: "Eve", ts: new Date("2026-07-15T17:30:00Z") })]; // +30m, within 60m grace
+  assert.deepEqual(offShiftCounts(entries, punches), []);
+});
+
+test("no punches at all → the store isn't using the time clock → flag nothing (fail-open)", () => {
+  const entries = [count({ byId: "u1", by: "Eve", ts: new Date("2026-07-16T02:00:00Z") })];
+  assert.deepEqual(offShiftCounts(entries, []), []);
+});
+
+test("only scratch counts are considered — an off-hours cash entry is ignored", () => {
+  const punches = [punch("u1", "Eve", "in", "2026-07-15T09:00:00Z"), punch("u1", "Eve", "out", "2026-07-15T17:00:00Z")];
+  const entries = [{ kind: "cash", byId: "u2", by: "Sam", ts: new Date("2026-07-16T02:00:00Z"), diff: -5 }];
+  assert.deepEqual(offShiftCounts(entries, punches), []);
+});
+
+test("multiple off-hours counts by one signer roll up with a count and samples", () => {
+  const punches = [punch("u1", "Eve", "in", "2026-07-15T09:00:00Z"), punch("u1", "Eve", "out", "2026-07-15T17:00:00Z")];
+  const entries = [
+    count({ byId: "u1", by: "Eve", pack: "P1", ts: new Date("2026-07-16T02:00:00Z") }),
+    count({ byId: "u1", by: "Eve", pack: "P2", ts: new Date("2026-07-16T03:00:00Z") }),
+  ];
+  const off = offShiftCounts(entries, punches);
+  assert.equal(off.length, 1);
+  assert.equal(off[0].count, 2);
+  assert.equal(off[0].sample.length, 2);
 });

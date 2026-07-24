@@ -229,6 +229,13 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   const incidentsSnap = await vendorRef
     .collection("incidents").where("status", "==", "open").get();
 
+  // Time-clock punches over the same window feed the off-shift-count detector
+  // (a scratch count signed while nobody was clocked in). Bounded by the punch's
+  // business `day` — same automatic single-field index the labor roll-up uses.
+  const punchesSnap = await vendorRef
+    .collection("timeclock").where("day", ">=", windowStart).get();
+  const punches = punchesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
   // Yesterday's activity table, but the open-item backlog (variances/disputes/
   // unverified) spans the whole lookback window — a still-open item from an
   // earlier day must show, consistent with the all-open "Open incidents" line
@@ -236,7 +243,7 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   const summary = { ...summarizeEntries(entries), ...openItemCounts(windowEntries) };
   // Pack continuity gaps come from the window's scratch entries themselves —
   // no packs collection read since the lifecycle was retired.
-  summary.patterns = detectPatterns(windowEntries, { now, rules });
+  summary.patterns = detectPatterns(windowEntries, { now, rules, punches });
   summary.windowDays = rules.windowDays;
   summary.openIncidents = incidentsSnap.size;
 
