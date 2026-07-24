@@ -402,6 +402,7 @@ export const CATALOG = {
     // shared (Phase 2)
     "common.all_locations": "All locations",
     "common.cancel": "Cancel",
+    "common.close": "Close",
     "common.managers_only": "Managers only",
     "common.clear_search": "Clear search",
     "common.search": "Search…",
@@ -2598,6 +2599,7 @@ export const CATALOG = {
 
     "common.all_locations": "Todas las ubicaciones",
     "common.cancel": "Cancelar",
+    "common.close": "Cerrar",
     "common.managers_only": "Solo gerentes",
     "common.clear_search": "Borrar búsqueda",
     "common.search": "Buscar…",

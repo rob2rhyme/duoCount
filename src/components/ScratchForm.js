@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, useId } from "react";
 import { addEntry, fetchEntriesInRange } from "@/lib/data";
-import { money, ticketsSold } from "@/lib/utils";
+import { money, ticketsSold, printCloseHtml } from "@/lib/utils";
 import { parseScratchBarcode, packGameKey, packIdFromParts, packDisplayParts } from "@/lib/scratch-barcode";
 import { resolveGameByBarcode, resolveGameEntry } from "@/lib/scratch-catalog";
 import { isDuplicateScan, scanDedupKey, replacesSettledToday } from "@/lib/scratch-scan-guard";
@@ -343,6 +343,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
       .gap{color:#b91c1c;font-weight:bold}.muted{color:#666;font-size:10px}
       .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}</style>
       </head><body>
+      ${printCloseHtml(t("common.close"))}
       <div class="brand"><div class="mark">D</div><div><h1>${esc(vendor.name)} — ${esc(t("srpt.title"))}</h1>
       <p>${esc(t("srpt.range", { from: rpt.from, to: rpt.to }))}${allLocs ? "" : ` · ${esc(locName(rpt.locationId))}`} · ${esc(t("srpt.packs", { n: totals.packs }))}</p>
       <p>${esc(t("srpt.generated", { date: new Date().toLocaleString(), name: profile.name }))}</p></div></div>

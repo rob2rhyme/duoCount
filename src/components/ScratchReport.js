@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { money, downloadCSV } from "@/lib/utils";
+import { money, downloadCSV, printCloseHtml } from "@/lib/utils";
 import { buildScratchAnalytics, buildScratchReportCSV } from "@/lib/scratch-analytics";
 import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
 import { fetchEntriesInRange, fetchScratchCensus, verifyEntry } from "@/lib/data";
@@ -151,6 +151,7 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.kpi{border:1px solid #ccc;border-radius:8px;padding:8px 12px;min-width:90px}.kpi .v{font-size:16px;font-weight:bold}.kpi .l{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
     .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center}</style>
     </head><body>
+    ${printCloseHtml(t("common.close"))}
     <div class="brand"><div class="mark">D</div><div><h1>${esc(vendor.name)} — ${esc(t("srep.title"))}</h1>
     <p>${esc(rangeLabel)}${locId ? ` · ${esc(locName(locId))}` : ` · ${esc(t("srep.all_locations"))}`}</p></div></div>
     <div class="kpis">

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line as RLine, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
-import { money, csvCell, entriesToCSV, downloadCSV } from "@/lib/utils";
+import { money, csvCell, entriesToCSV, downloadCSV, printCloseHtml } from "@/lib/utils";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
 import { useLang } from "./LangProvider";
@@ -474,6 +474,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
       th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}th{border-bottom:2px solid #1a1c2e}
       .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}
       .sig{display:flex;justify-content:space-between;margin-top:48px}.sig div{width:44%;border-top:1px solid #1a1c2e;padding-top:4px;font-size:10px;color:#666}</style>
+      ${printCloseHtml(t("common.close"))}
       <div class="brand"><span class="mark">DC</span><h1>${esc(vendor.name)} — ${esc(t("report.pdf_records_title"))}</h1></div>
       <p>${esc(t("report.store_code"))}: ${esc(vendor.slug)} · ${esc(locLabel)} · ${esc(range.label)} (${range.startISO} → ${range.endISO})</p>
       <p>${esc(t("report.print_generated_by", { name: profile.name, time: new Date().toLocaleString() }))}</p>
