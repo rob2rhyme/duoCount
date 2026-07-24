@@ -339,7 +339,7 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
               {audit.missing.slice(0, 20).map((m) => (
                 <div key={m.key} className="px-4 py-2 border-t border-line-soft text-[13px]">
                   <div className="truncate">{m.game} <span className="text-muted font-mono text-[11px]">#{m.pack}</span></div>
-                  <div className="text-[12px] text-muted">{t("srep.missing_line", { date: m.lastDate, by: m.lastBy, days: m.missedDays })}</div>
+                  <div className="text-[12px] text-muted">{t("srep.missing_line", { end: m.lastEnd ?? "—", by: m.lastBy, when: fmtTs(m.lastTs, lang), days: m.missedDays })}</div>
                 </div>
               ))}
             </div>
