@@ -12,7 +12,7 @@ import { PATTERN_RULES, resolvePatternRules } from "@/lib/patterns";
 import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
 import { FEATURES, FEATURE_KEYS, resolveFeatures, featureEnabled } from "@/lib/features";
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
-import { money, csvCell, downloadCSV } from "@/lib/utils";
+import { money, csvCell, downloadCSV, printCloseHtml } from "@/lib/utils";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import { buildStockAlerts } from "@/lib/stock-alerts";
@@ -362,6 +362,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     if (!w) return;
     w.document.write(`<!doctype html><title>${esc(vendor.name)} — rewards</title>
       <body style="font-family:Helvetica,Arial,sans-serif;color:#1a1c2e;text-align:center;padding:48px 32px">
+        ${printCloseHtml(t("common.close"))}
         <div style="font-size:38px;font-weight:800">${esc(vendor.name)}</div>
         ${block("en")}
         <hr style="margin:30px auto;width:60%;border:none;border-top:1px solid #ddd" />

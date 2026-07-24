@@ -77,6 +77,17 @@ export function entriesToCSV(entries = []) {
   return lines.join("\n");
 }
 
+// Floating ✕ close control for the print-report windows. Every printable report
+// is a script-opened tab (window.open) with no app chrome, so on a phone there's
+// no obvious way back — users cancel the print dialog and feel stranded. This
+// returns a style + button snippet each print doc drops in right after <body>:
+// fixed top-right, closes the tab (allowed for script-opened windows), and
+// hidden under @media print so paper output stays clean.
+export function printCloseHtml(label = "Close") {
+  const esc = String(label).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  return `<style>.dc-close{position:fixed;top:10px;right:10px;z-index:9;font:600 13px Helvetica,Arial,sans-serif;padding:9px 14px;border:1px solid #bbb;border-radius:9px;background:#fff;color:#1a241c;cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.15)}@media print{.dc-close{display:none}}</style><button class="dc-close" type="button" onclick="window.close()">✕ ${esc}</button>`;
+}
+
 // Trigger a browser download of text as a file (DOM side of the CSV export).
 export function downloadCSV(text, filename) {
   const blob = new Blob([text], { type: "text/csv;charset=utf-8" });

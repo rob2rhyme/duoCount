@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, CartesianGrid, Cell,
 } from "recharts";
-import { money, toDate, isUnresolved } from "@/lib/utils";
+import { money, toDate, isUnresolved, printCloseHtml } from "@/lib/utils";
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import { detectPatterns, resolvePatternRules } from "@/lib/patterns";
 import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
@@ -242,6 +242,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
       .gap{color:#b91c1c;font-weight:bold}.muted{color:#666;font-size:11px}
       .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center;font-size:13px}</style>
       </head><body>
+      ${printCloseHtml(t("common.close"))}
       <div class="brand"><div class="mark">D</div><div><h1>${esc(vendor.name)} — ${esc(t("trpt.title"))}</h1>
       <p class="muted">${esc(t("srpt.range", { from: theftRange.from, to: theftRange.to }))} · ${esc(t("srpt.generated", { date: new Date().toLocaleString(), name: profileName }))}</p></div></div>
       <p><b>${esc(t("trpt.summary", { flags: r.totals.flags, cash: money(r.cashShort), tickets: r.packGapTickets, dollars: money(r.packGapDollars), ralerts: r.totals.rewardAlerts }))}</b></p>
