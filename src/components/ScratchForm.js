@@ -18,6 +18,7 @@ import Field from "./Field";
 import TabIcon from "./TabIcon";
 import BarcodeScanner from "./BarcodeScanner";
 import ScratchHistory from "./ScratchHistory";
+import ScratchCensus from "./ScratchCensus";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -527,10 +528,14 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
             className={`px-3.5 py-1.5 rounded-lg transition ${view === "count" ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>{t("shist.tab_count")}</button>
           <button type="button" onClick={() => setView("history")}
             className={`px-3.5 py-1.5 rounded-lg transition ${view === "history" ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>{t("shist.tab_history")}</button>
+          <button type="button" onClick={() => setView("census")}
+            className={`px-3.5 py-1.5 rounded-lg transition ${view === "census" ? "bg-fg text-surface" : "text-muted hover:text-fg"}`}>{t("census.tab")}</button>
         </div>
       </div>
       {view === "history" ? (
         <div className="p-4"><ScratchHistory entries={entries} locations={locations} locName={locName} /></div>
+      ) : view === "census" ? (
+        <div className="p-4"><ScratchCensus locations={locations} locName={locName} /></div>
       ) : (
       <div className="p-4 space-y-3.5">
         <Field label={t("common.location")}>

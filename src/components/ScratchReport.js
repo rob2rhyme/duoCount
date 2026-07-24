@@ -4,8 +4,9 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { money, downloadCSV } from "@/lib/utils";
 import { buildScratchAnalytics, buildScratchReportCSV } from "@/lib/scratch-analytics";
 import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
-import { fetchEntriesInRange } from "@/lib/data";
+import { fetchEntriesInRange, fetchScratchCensus } from "@/lib/data";
 import { buildPackAudit } from "@/lib/scratch-audit";
+import { buildCensusReconcile } from "@/lib/scratch-census";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
 import { useLang } from "./LangProvider";
@@ -59,6 +60,7 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
   const [locId, setLocId] = useState("");
   const [measure, setMeasure] = useState("dollars");
   const [rows, setRows] = useState(null);
+  const [recon, setRecon] = useState(null);
   const [err, setErr] = useState("");
 
   const { from, to } = rangeFor(rangeId, customFrom, customTo);
@@ -73,6 +75,21 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
       .catch((e) => { if (alive) setErr(e?.message || "load failed"); });
     return () => { alive = false; };
   }, [vendor.id, from, to, locId]);
+
+  // Books-on-hand reconcile is a NOW-state, not a period metric — always over a
+  // fixed recent window (180d) so it sees the last two censuses and enough count
+  // history to judge "ever counted" / "sold out", independent of the range picker.
+  useEffect(() => {
+    let alive = true;
+    const rFrom = daysAgoISO(179), rTo = todayISO();
+    Promise.all([
+      fetchScratchCensus(vendor.id, rFrom, rTo),
+      fetchEntriesInRange(vendor.id, rFrom, rTo, locId || null),
+    ])
+      .then(([cen, ent]) => { if (alive) setRecon(buildCensusReconcile(cen, ent, { locationId: locId })); })
+      .catch(() => { if (alive) setRecon(null); });
+    return () => { alive = false; };
+  }, [vendor.id, locId]);
 
   const a = useMemo(() => buildScratchAnalytics(rows || [], { from, to, locationId: locId }), [rows, from, to, locId]);
   const dayData = useMemo(() => a.byDay.map((d) => ({ ...d, label: shortDay(d.date) })), [a.byDay]);
@@ -342,6 +359,41 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
                   <div className="text-[12px] text-muted">{t("srep.missing_line", { end: m.lastEnd ?? "—", by: m.lastBy, when: fmtTs(m.lastTs, lang), days: m.missedDays })}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Books-on-hand reconcile — walked books (theft) and on-hand books that
+              were never counted (the never-counted blind spot a count can't see). */}
+          {recon && (
+            <div className={`card overflow-hidden ${recon.walked.length > 0 ? "border-neg/30" : ""}`}>
+              <div className="px-4 py-3 border-b border-line">
+                <h3 className="font-semibold text-[15px]">{t("srep.recon_title")}</h3>
+                <p className="text-[12px] text-muted mt-0.5">
+                  {recon.latest
+                    ? t("srep.recon_latest", { date: recon.latest.date, by: recon.latest.by, n: recon.latest.count })
+                    : t("srep.recon_none")}
+                </p>
+              </div>
+              {recon.walked.length > 0 && (
+                <div className="border-t border-line-soft py-1">
+                  <div className="px-4 pt-1.5 pb-0.5 text-[12px] font-semibold text-neg">⚠ {t("srep.recon_walked_title", { date: recon.prior?.date || "—" })}</div>
+                  {recon.walked.slice(0, 20).map((w) => (
+                    <div key={w.pack} className="px-4 py-1.5 text-[13px] flex items-center justify-between gap-3">
+                      <span className="min-w-0 truncate">{w.game || t("srep.recon_book")} <span className="text-muted font-mono text-[11px]">#{w.pack}</span></span>
+                      <span className="text-[11px] text-muted flex-shrink-0">{w.counted ? t("srep.recon_was_counted") : t("srep.recon_never_counted")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {recon.uncounted.length > 0 && (
+                <div className="border-t border-line-soft py-1">
+                  <div className="px-4 pt-1.5 pb-0.5 text-[12px] font-semibold">{t("srep.recon_uncounted_title")}</div>
+                  <p className="px-4 pb-1 text-[11px] text-muted">{t("srep.recon_uncounted_sub")}</p>
+                  {recon.uncounted.slice(0, 20).map((u) => (
+                    <div key={u.pack} className="px-4 py-1.5 text-[13px] truncate">{u.game || t("srep.recon_book")} <span className="text-muted font-mono text-[11px]">#{u.pack}</span></div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>
