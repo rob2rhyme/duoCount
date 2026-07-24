@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildPackAudit } from "../src/lib/scratch-audit.js";
+import { buildPackAudit, clusterPackJumps } from "../src/lib/scratch-audit.js";
 
 const NOW = new Date("2026-07-15T12:00:00Z");
 const daysAgo = (n, h = 12) => new Date(NOW.getTime() - n * 24 * 3600 * 1000 + (h - 12) * 3600 * 1000);
@@ -165,4 +165,75 @@ test("sold-out-short: no perPack recorded → no sellout gap (can't compute the 
   ];
   const a = buildPackAudit(entries, { now: NOW });
   assert.equal(a.gaps.length, 0);
+});
+
+// ---- clusterPackJumps: the mass after-hours jump signature ----
+// A pack "jumps" when it closes at one number and re-opens above it later; the
+// movement window is [close ts, open ts]. Many packs sharing one window is the
+// fingerprint of a single after-hours session touching a batch of books.
+const jumped = (pack, { closeEnd = 30, openStart = 40, closeTs, openTs } = {}) => [
+  count({ pack, startno: 0, endno: closeEnd, ts: closeTs, date: dstr(closeTs) }),
+  count({ pack, startno: openStart, endno: openStart + 5, by: "Sam", ts: openTs, date: dstr(openTs) }),
+];
+
+test("no gaps => no clusters", () => {
+  assert.deepEqual(clusterPackJumps([]), []);
+});
+
+test("N packs jumping across the SAME overnight window cluster into one mass event", () => {
+  const closeTs = daysAgo(1, 22); // 10pm the night before
+  const openTs = daysAgo(0, 8);   // 8am this morning
+  const entries = [
+    ...jumped("0447-1", { closeEnd: 30, openStart: 35, closeTs, openTs }),
+    ...jumped("0447-2", { closeEnd: 50, openStart: 58, closeTs, openTs }),
+    ...jumped("0447-3", { closeEnd: 10, openStart: 13, closeTs, openTs }),
+  ];
+  const clusters = clusterPackJumps(buildPackAudit(entries, { now: NOW }).gaps);
+  assert.equal(clusters.length, 1);
+  assert.equal(clusters[0].count, 3);                         // 3 distinct packs
+  assert.equal(clusters[0].totalMissing, 5 + 8 + 3);          // 16 tickets
+  assert.equal(clusters[0].totalDollars, (5 + 8 + 3) * 5);    // $80 at $5
+  assert.equal(clusters[0].windowStart.getTime(), closeTs.getTime()); // latest close
+  assert.equal(clusters[0].windowEnd.getTime(), openTs.getTime());    // earliest open
+});
+
+test("only two packs jumping is below the mass threshold — no cluster", () => {
+  const closeTs = daysAgo(1, 22), openTs = daysAgo(0, 8);
+  const entries = [
+    ...jumped("A", { closeTs, openTs }),
+    ...jumped("B", { closeTs, openTs }),
+  ];
+  assert.equal(clusterPackJumps(buildPackAudit(entries, { now: NOW }).gaps).length, 0);
+});
+
+test("packs jumping in separate, non-overlapping windows do NOT cluster", () => {
+  const entries = [
+    ...jumped("A", { closeTs: daysAgo(6, 22), openTs: daysAgo(6, 23) }),
+    ...jumped("B", { closeTs: daysAgo(4, 22), openTs: daysAgo(4, 23) }),
+    ...jumped("C", { closeTs: daysAgo(2, 22), openTs: daysAgo(2, 23) }),
+  ];
+  assert.equal(clusterPackJumps(buildPackAudit(entries, { now: NOW }).gaps).length, 0);
+});
+
+test("cluster window is the tightest common interval across staggered jumps", () => {
+  // Closes spread over the evening, opens over the morning; they still share the
+  // deep-overnight instant. Window = [latest close, earliest open].
+  const entries = [
+    ...jumped("A", { closeTs: daysAgo(1, 20), openTs: daysAgo(0, 9) }), // 8pm -> 9am
+    ...jumped("B", { closeTs: daysAgo(1, 23), openTs: daysAgo(0, 6) }), // 11pm -> 6am (tightest)
+    ...jumped("C", { closeTs: daysAgo(1, 21), openTs: daysAgo(0, 8) }), // 9pm -> 8am
+  ];
+  const [c] = clusterPackJumps(buildPackAudit(entries, { now: NOW }).gaps);
+  assert.equal(c.count, 3);
+  assert.equal(c.windowStart.getTime(), daysAgo(1, 23).getTime()); // latest close (11pm)
+  assert.equal(c.windowEnd.getTime(), daysAgo(0, 6).getTime());    // earliest open (6am)
+});
+
+test("one pack alone never forms a mass cluster (distinct-pack floor)", () => {
+  const entries = [
+    count({ pack: "solo", startno: 0, endno: 10, ts: daysAgo(3), date: dstr(daysAgo(3)) }),
+    count({ pack: "solo", startno: 20, endno: 30, ts: daysAgo(2), date: dstr(daysAgo(2)) }),
+    count({ pack: "solo", startno: 40, endno: 50, ts: daysAgo(1), date: dstr(daysAgo(1)) }),
+  ];
+  assert.equal(clusterPackJumps(buildPackAudit(entries, { now: NOW }).gaps).length, 0);
 });

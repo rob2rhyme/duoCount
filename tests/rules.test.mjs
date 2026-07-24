@@ -31,7 +31,10 @@ const entry = (over = {}) => ({
   blind: false, flagged: false, varianceStatus: "none", disputeStatus: "none",
   causeCode: null, causeNote: null, commentCount: 0, lastCommentAt: null,
   by: "Eve", byId: "u-empA", byRole: "employee",
-  verifiedBy: null, verifiedAt: null, ts: new Date(),
+  // The entries create rule pins ts to the server clock (request.time), so a
+  // client count must write the serverTimestamp() sentinel, not a chosen Date —
+  // same as the timeclock punch helper below.
+  verifiedBy: null, verifiedAt: null, ts: serverTimestamp(),
   ...over,
 });
 
@@ -162,6 +165,18 @@ test("author identity must match the token", async () => {
     entry({ by: "Somebody Else" })));
   await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/new5`),
     entry({ byId: "u-empB" })));
+});
+
+test("the count timestamp is server-pinned — a client-chosen ts is refused", async () => {
+  // ts is the tamper-proof audit time: the rule requires it to equal request.time
+  // (the serverTimestamp() sentinel). A count carrying a chosen Date — e.g. an
+  // insider backdating an after-hours count to look like a business-hours one — is
+  // refused, so the theft-audit's "when" can't be spoofed from a device clock.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/spoofTs`),
+    entry({ ts: new Date("2020-01-01T09:00:00Z") })));
+  // The same count with the server clock goes through (entry() uses it by default).
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/goodTs`),
+    entry({ ts: serverTimestamp() })));
 });
 
 test("inventory is an accepted entry kind", async () => {

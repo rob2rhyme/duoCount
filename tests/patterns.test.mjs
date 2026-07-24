@@ -247,6 +247,33 @@ test("small-dollar gaps are medium; a clean chain never alerts", () => {
   assert.ok(!detectPatterns(clean, { now: NOW }).some((a) => a.kind === "pack-gap"));
 });
 
+// ---- 9. mass pack jump (after-hours batch signature) ----
+test("many packs jumping in one window raise a SINGLE rolled-up mass-jump alert", () => {
+  const closeTs = new Date("2026-07-10T22:00:00Z"); // night before
+  const openTs = new Date("2026-07-11T08:00:00Z");  // this morning
+  const pk = (pack, closeEnd, openStart) => [
+    scratch({ pack, startno: 0, endno: closeEnd, ts: closeTs, date: "2026-07-10" }),
+    scratch({ pack, startno: openStart, endno: openStart + 5, by: "Sam", byId: "u2", ts: openTs, date: "2026-07-11" }),
+  ];
+  const es = [...pk("0447-1", 30, 40), ...pk("0447-2", 50, 62), ...pk("0447-3", 10, 15)];
+  const mass = detectPatterns(es, { now: NOW }).filter((a) => a.kind === "pack-mass-jump");
+  assert.equal(mass.length, 1);                       // one rollup, not three
+  assert.equal(mass[0].params.count, 3);
+  assert.equal(mass[0].severity, "high");             // 27 tickets × $5 = $135 ≥ $20
+  assert.match(mass[0].title, /3 scratch packs jumped together/);
+  assert.ok(!/\{[a-z]+\}/i.test(mass[0].detail), "all params interpolated");
+});
+
+test("two packs jumping together do not reach the mass threshold", () => {
+  const closeTs = new Date("2026-07-10T22:00:00Z"), openTs = new Date("2026-07-11T08:00:00Z");
+  const pk = (pack) => [
+    scratch({ pack, startno: 0, endno: 30, ts: closeTs, date: "2026-07-10" }),
+    scratch({ pack, startno: 40, endno: 45, ts: openTs, date: "2026-07-11" }),
+  ];
+  const es = [...pk("A"), ...pk("B")];
+  assert.ok(!detectPatterns(es, { now: NOW }).some((a) => a.kind === "pack-mass-jump"));
+});
+
 test("pack-gap ignores rollbacks, other locations' packs, and out-of-window counts", () => {
   // next start BELOW previous end — a re-count, not missing tickets
   const rollback = [
