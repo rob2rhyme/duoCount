@@ -684,6 +684,27 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned', 'active']);
         allow delete: if false;
       }
+
+      // Scratch-off "books on hand" census — a signed, append-only snapshot of the
+      // pack IDs physically present, so the owner reconcile can catch a book that
+      // was present (or never even ticket-counted) and then walked. Visibility and
+      // signing mirror entries; ts is server-pinned like a count so a snapshot's
+      // "when" can't be forged; append-only (never edited or deleted).
+      match /scratchCensus/{censusId} {
+        allow read: if member() && (
+          mgr() || sharedAcrossLocations()
+          || (request.auth.token.locationId != null
+              && resource.data.locationId == request.auth.token.locationId));
+        allow create: if member() && liveActive()
+          && request.resource.data.by == request.auth.token.name
+          && request.resource.data.byId == request.auth.token.userId
+          && request.resource.data.byRole == request.auth.token.role
+          && (mgr() || request.resource.data.locationId == request.auth.token.locationId)
+          && request.resource.data.ts == request.time
+          && request.resource.data.packs is list
+          && request.resource.data.packs.size() <= 500;
+        allow update, delete: if false;
+      }
     }
 
     // ---- Support desk (top-level, cross-tenant by design) ----

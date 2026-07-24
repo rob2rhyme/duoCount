@@ -366,6 +366,20 @@ export async function fetchPunchesInRange(vendorId, startISO, endISO) {
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
+// Scratch-off "books on hand" census — a signed, append-only snapshot of the
+// pack IDs physically present. ts is the server clock (rules pin ts ==
+// request.time), so a snapshot's "when" is tamper-proof like a count's.
+export async function addScratchCensus(vendorId, census) {
+  await addDoc(vcol(vendorId, "scratchCensus"), { ...census, ts: serverTimestamp() });
+}
+// One-shot censuses in a business-date range for the owner reconcile. No location
+// filter here (buildCensusReconcile scopes by location) — rides the single-field
+// `date` index, no composite needed.
+export async function fetchScratchCensus(vendorId, startISO, endISO) {
+  const q = query(vcol(vendorId, "scratchCensus"), where("date", ">=", startISO), where("date", "<=", endISO), orderBy("date", "asc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
 export async function addEntry(vendorId, entry) {
   // Tier-one fields default to their safe values; callers (e.g. the cash form)
   // may override flagged / varianceStatus / blind before the spread.

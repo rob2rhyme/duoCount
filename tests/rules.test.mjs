@@ -71,6 +71,14 @@ const sched = (over = {}) => ({
   date: "2026-07-12", start: "09:00", end: "17:00",
   by: "Mia", byId: "u-mgr", ts: new Date(), ...over,
 });
+// a scratch "books on hand" census (signed by empA at their location). Like a
+// count, ts is a serverTimestamp() sentinel — the rules pin it to request.time.
+const census = (over = {}) => ({
+  packs: ["1792-0011361", "1792-0011362"],
+  by: "Eve", byId: "u-empA", byRole: "employee",
+  locationId: "locA", locationName: "A", date: "2026-07-10",
+  ts: serverTimestamp(), ...over,
+});
 
 before(async () => {
   const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080").split(":");
@@ -177,6 +185,24 @@ test("the count timestamp is server-pinned — a client-chosen ts is refused", a
   // The same count with the server clock goes through (entry() uses it by default).
   await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/goodTs`),
     entry({ ts: serverTimestamp() })));
+});
+
+test("scratchCensus: a member logs a signed, server-timed, append-only snapshot", async () => {
+  // A clerk records the books on hand — signed to them, at their own location.
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/scratchCensus/c1`), census()));
+  // ts must be the server clock — a spoofed client ts is refused, like a count.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/scratchCensus/c2`),
+    census({ ts: new Date("2020-01-01T00:00:00Z") })));
+  // identity is token-bound; can't sign as someone else or log for another location.
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/scratchCensus/c3`), census({ by: "Someone Else" })));
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/scratchCensus/c4`), census({ locationId: "locB", locationName: "B" })));
+  // append-only: no edits or deletes, even by the author.
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), `vendors/${V}/scratchCensus/seed`), { ...census(), ts: new Date() });
+  });
+  await assertSucceeds(getDoc(doc(db("empA"), `vendors/${V}/scratchCensus/seed`))); // own location, readable
+  await assertFails(updateDoc(doc(db("empA"), `vendors/${V}/scratchCensus/seed`), { packs: [] }));
+  await assertFails(deleteDoc(doc(db("empA"), `vendors/${V}/scratchCensus/seed`)));
 });
 
 test("inventory is an accepted entry kind", async () => {
