@@ -50,6 +50,24 @@ export default function SessionProvider({ children }) {
   const cVendorId = profile?.claims?.vendorId;
   const cUserId = profile?.claims?.userId;
   const cRole = profile?.claims?.role;
+
+  // Watch the VENDOR doc live too. It used to be a one-shot getDoc at sign-in,
+  // so a settings change (features, rewards, thresholds, appearance…) didn't
+  // reach an already-open device until a full app relaunch — re-logging in
+  // wasn't even enough on an installed PWA whose page never reloads. Every
+  // other feed in the app is a live snapshot; the settings that DRIVE those
+  // feeds should be no less live. Members may read the vendor doc (rules), so
+  // this is safe for every role, and an owner's save on one device now lands on
+  // every signed-in device within a snapshot round-trip.
+  useEffect(() => {
+    if (!cVendorId) return;
+    const unsub = onSnapshot(
+      doc(db, "vendors", cVendorId),
+      (snap) => { if (snap.exists()) setVendor({ id: snap.id, ...snap.data() }); },
+      () => {}, // transient listen errors: keep the last-known vendor
+    );
+    return () => unsub();
+  }, [cVendorId]);
   useEffect(() => {
     if (!cVendorId || !cUserId) return;
     const ref = doc(db, "vendors", cVendorId, "users", cUserId);

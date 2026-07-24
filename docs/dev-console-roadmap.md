@@ -108,10 +108,19 @@ trail; `resetOwnerPin` is a latent, unlogged impersonation path.
 > Ship the **`platformAdmins/{uid}` identity/RBAC** and the **audit log together**, or the
 > audit log over-promises. Treat them as the same Now milestone.
 
+> **✅ Shipped.** Both halves of the Now milestone are live: the append-only `adminAudit`
+> log (every store action — actor, action, store, detail, server ts — with a `/dev` Audit
+> tab), and operator identity/RBAC via the server-only `platformAdmins/{uid}` registry
+> (superadmin / support / finance / readonly → per-action scopes, enforced on every
+> `/api/dev` action and mirrored in the console; deactivation is authoritative over the
+> env allowlist, removals tombstone, a transactional guard protects the last superadmin;
+> the env dev login + `PLATFORM_ADMIN_UIDS` stay break-glass). Operators sign in as their
+> normal store account — no per-operator token minting was needed.
+
 | Feature | What | Why | Effort | Risk |
 |---|---|---|---|---|
-| **Operator identity + RBAC** | Move from the env allowlist to `platformAdmins/{uid}` with `role`/`scopes` (support / finance / superadmin); check scope per action; mint per-operator tokens carrying a real uid+name | Gives every action an attributable actor (unlocks the audit log), shrinks a compromised seat's blast radius, and fixes revocation (delete a doc vs. redeploy) | M–L | Medium — the point is least-privilege; break-glass elevation JIT + logged |
-| **Admin-action audit log** | Append-only, tamper-evident `adminAudit` (default-deny, Admin-SDK-write-only); wrap **every** `storeAction`/`ticket*`/billing handler — actor, ts, tenant, action, before/after, reason; retrofit existing handlers | The one place the product fails its own standard; the safe foundation every cross-tenant feature depends on | M | Require a free-text reason on sensitive ops; no update/delete (match the count ledger) |
+| **Operator identity + RBAC** ✅ | Move from the env allowlist to `platformAdmins/{uid}` with `role`/`scopes` (support / finance / superadmin); check scope per action; mint per-operator tokens carrying a real uid+name | Gives every action an attributable actor (unlocks the audit log), shrinks a compromised seat's blast radius, and fixes revocation (delete a doc vs. redeploy) | M–L | Medium — the point is least-privilege; break-glass elevation JIT + logged |
+| **Admin-action audit log** ✅ | Append-only, tamper-evident `adminAudit` (default-deny, Admin-SDK-write-only); wrap **every** `storeAction`/`ticket*`/billing handler — actor, ts, tenant, action, before/after, reason; retrofit existing handlers | The one place the product fails its own standard; the safe foundation every cross-tenant feature depends on | M | Require a free-text reason on sensitive ops; no update/delete (match the count ledger) |
 | **Harden operator *authentication*** | Confirm `/api/auth/dev` throttling, add MFA/second factor, and a credential-rotation story | A single shared static password = full cross-tenant compromise. **Hardening the door outranks hardening any single action** | S–M | High if omitted |
 | **Operator-writable entitlements** | An `entitlements` map on the vendor doc, resolved *under* owner `features` toggles, optionally defaulted from `billing.plan` | Plan gates nothing today; enables staged rollout + emergency kill-switch | **M–L** *(not S — it's a trust-spine refactor: touches every `featureEnabled` gate and must never drop already-signed count data)* | A kill-switch must never silently disable a theft detector without an audit entry |
 | **Harden (don't remove) `resetOwnerPin`** | Keep it (it's real lockout recovery), but **force a PIN change on next owner login, notify the owner, and audit loudly** | Removing it strands locked-out owners; the hole is that it's *unlogged/unconsented*, not that it exists | S | High if left as-is; the fix is the point |
