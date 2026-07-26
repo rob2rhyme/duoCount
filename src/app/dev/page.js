@@ -448,11 +448,13 @@ function Stores({ t, lang, me }) {
   const billLine = (b) => `${t(`dev.plan_${b.plan}`)} · ${t(`dev.bs_${b.status}`)} · ${money(b.price)}${b.cycle === "annual" ? t("dev.per_yr") : t("dev.per_mo")}`;
 
   async function op(vendorId, payload, confirmMsg) {
-    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    if (confirmMsg && !window.confirm(confirmMsg)) return false;
     setBusy(vendorId); setError("");
+    let ok = true;
     try { await apiDev({ action: "storeAction", vendorId, ...payload }); await load(); }
-    catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
+    catch (e) { ok = false; setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
     setBusy("");
+    return ok;
   }
   // Soft-delete a store, then offer an immediate 8s undo. The confirm stays
   // (a whole store is a big object to remove); the undo and the row's Restore
@@ -534,6 +536,11 @@ function Stores({ t, lang, me }) {
                 <span className={`truncate ${s.status === "deleted" ? "line-through text-muted" : ""}`}>{s.name}</span>
                 {s.status === "suspended" && <span className="text-[10px] uppercase tracking-wide font-bold text-neg border border-neg/50 rounded px-1.5 py-0.5">{t("dev.suspended")}</span>}
                 {s.status === "deleted" && <span className="text-[10px] uppercase tracking-wide font-bold text-neg border border-neg/50 rounded px-1.5 py-0.5">{t("dev.deleted")}</span>}
+                {/* The forget-me-not: a canceled billing record on a store that can
+                    still sign in. Stays red until the store is suspended (or the
+                    record leaves canceled), so a skipped suspend can't hide. */}
+                {s.billing?.status === "canceled" && (s.status || "active") === "active" &&
+                  <span className="text-[10px] uppercase tracking-wide font-bold text-neg border border-neg/50 rounded px-1.5 py-0.5">{t("dev.bill_canceled_active")}</span>}
                 {s.openTickets > 0 && <span className="text-[10px] uppercase tracking-wide font-bold text-gold border border-brass/50 rounded px-1.5 py-0.5">{t("dev.open_tix", { n: s.openTickets })}</span>}
               </div>
               <div className="text-[12px] text-muted font-mono">/{s.slug}</div>
@@ -593,7 +600,20 @@ function Stores({ t, lang, me }) {
               <p className="text-[11px] text-muted leading-relaxed">{t("dev.billing_hint")}</p>
               <div className="flex gap-2">
                 <button className="btn-primary flex-1" disabled={busy === s.id}
-                  onClick={async () => { await op(s.id, { op: "billing", billing: bill }); setEditBill(null); }}>{t("dev.save_billing")}</button>
+                  onClick={async () => {
+                    const saved = await op(s.id, { op: "billing", billing: bill });
+                    setEditBill(null);
+                    // Billing status is a RECORD; access is the suspend switch. A
+                    // canceled record on a still-active store is the gap where a
+                    // store keeps using the app free — so the moment the record
+                    // goes canceled, offer the (audited) suspend right here. No
+                    // silent auto-block: a cancellation often has a paid runway,
+                    // and cutting access stays a deliberate, visible action.
+                    if (saved && bill.status === "canceled" && statusOf(s) === "active" && can("lifecycle")
+                        && window.confirm(t("dev.bill_canceled_suspend", { name: s.name }))) {
+                      await op(s.id, { op: "suspend" });
+                    }
+                  }}>{t("dev.save_billing")}</button>
                 <button className="btn-ghost w-auto px-4" disabled={busy === s.id} onClick={() => setEditBill(null)}>{t("dev.cancel")}</button>
               </div>
             </div>
