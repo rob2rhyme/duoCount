@@ -12,10 +12,11 @@ title: Legal disclaimers
 
 DuoCount is an independent store-operations tool. It is **not affiliated with,
 sponsored by, or endorsed by** any state or national lottery, gaming commission,
-or any product manufacturer or brand. Where the app helps reconcile a
-state-lottery **settlement file**, it simply matches the file you import against
-the packs you recorded — it does not connect to, represent, or act on behalf of
-any lottery authority.
+or any product manufacturer or brand. Its scratch-off features only compare
+**your own staff's signed ticket counts** against each other at shift
+boundaries — the app never connects to, imports from, represents, or acts on
+behalf of any lottery authority, and settlement paperwork remains between you
+and your lottery.
 
 ## Sample/demo data is illustrative only
 

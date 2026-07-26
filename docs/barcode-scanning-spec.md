@@ -59,6 +59,10 @@ A second scratch surface (`ScratchForm.js` "Scan to log", `scratch.scanlog_*`) i
 - **Sold out from the list.** A per-row **Sold out** action writes a signed `soldOut` final count for that pack (end # snapped to the pack size when known, so the rest of the book books as sold). This reuses the existing terminal state — it is **not** the retired lottery settlement.
 - **Auto-new replacement.** Once a pack is sold out, the next book of the same game # is treated as a fresh **New** book starting at #0 (so its first sales count) until the next day — derived from the same-day `soldOut` marker, so it expires on its own. No new field is stored.
 
+### 3.3a Census — scan the whole shelf into one snapshot
+
+A third scratch scanning surface (`ScratchCensus.js`, the Scratch tab's **Census** view): staff scan (or type) **every book physically on the display** — deduped as they go — and save ONE signed, server-timed `scratchCensus` snapshot of the pack IDs on hand. Like Scan to log, the save writes to Firestore (the snapshot is the deliverable), but no individual scan writes anything — the list is client-side until **Save census**. The owner report reconciles consecutive censuses against the count trail to catch a book that walked, including one that was never ticket-counted at all.
+
 ### 3.4 Explicitly not in v1
 
 - Parsing state-lottery barcode structure into separate game/pack/ticket digits (varies by state; tier 2).
@@ -80,7 +84,7 @@ A second scratch surface (`ScratchForm.js` "Scan to log", `scratch.scanlog_*`) i
 
 ## 5. Acceptance criteria
 
-1. Scanning never writes to Firestore by itself — only form state changes until "Save & sign entry". The **Scan to log** surface (§3.3) is the deliberate exception: each scan is itself a signed reading logged on the spot, and its per-row **Sold out** writes a signed final count.
+1. Scanning never writes to Firestore by itself — only form state changes until "Save & sign entry". The **Scan to log** surface (§3.3) is the deliberate exception: each scan is itself a signed reading logged on the spot, and its per-row **Sold out** writes a signed final count. The **Census** view (§3.3a) follows the rule: scans only build the on-screen list, and one signed snapshot is written at **Save census**.
 2. Closing the scanner (button, backdrop, or navigating away) always releases the camera (no lingering camera-in-use light).
 3. Inventory scan matches only active items at the currently selected location.
 4. Scratch prefill fires on pack match at the same location whether the pack was scanned or typed, uses the most recent matching entry, and never overwrites a user's subsequent edits mid-entry.

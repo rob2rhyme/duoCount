@@ -16,6 +16,15 @@ If you work a shift and just need to log your counts, jump to
 
 *¿Prefieres leerla en español? → [Guía de inicio](getting-started-es.md).*
 
+> **Working your first shift? Start here.**
+> 1. [Sign in](#signing-in) with the store code + your PIN.
+> 2. [Clock in](#clock-inout-and-see-your-schedule) on the **Time** tab.
+> 3. Log your opening counts — [cash](#log-a-cash-drawer-count) and
+>    [scratch-offs](#log-a-scratch-off-count).
+> 4. At shift end, log the closing counts the same way.
+> 5. [Clock out](#clock-inout-and-see-your-schedule). Done — everything you
+>    logged is signed with your name.
+
 ---
 
 ## The 60-second picture
@@ -24,11 +33,12 @@ If you work a shift and just need to log your counts, jump to
   no email, no password.
 - The app **opens on the Dashboard** — the day's numbers first. Move around
   with the **navigation**: on a phone, a **bottom bar** groups the screens into
-  **Count** (Cash / Scratch-offs / Inventory, plus **Rewards** when the store
+  **Count** (Cash / Scratch-offs / Backroom, plus **Rewards** when the store
   turns that on), **Team** (Time / Incidents / Notes), **Insights** (Dashboard /
-  Portfolio / Log), and **Admin** (managers only) — tap a group to pick a
-  screen. On a wider screen the same screens line up as a **row of tabs**
-  across the top. (**Portfolio** appears for owners only.)
+  Scratch report / Portfolio / Log), and **Admin** (managers only) — tap a
+  group to pick a screen. On a wider screen the same screens line up as a
+  **row of tabs** across the top. (**Portfolio** and **Scratch report** appear
+  for owners only.)
 - Employees **log counts**. Managers **verify** them (a second set of eyes),
   handle anything flagged, and pull **reports**.
 - The app does the arithmetic and shows **over/short** in green (over) or red
@@ -58,7 +68,7 @@ If you work a shift and just need to log your counts, jump to
 > screen and tracks the two essentials — **a location** and **a cash drawer** —
 > plus an optional **inventory items** step. Each **Set up in Admin →** button
 > jumps you straight to the right place. Until those essentials exist, the Cash,
-> Scratch-off, and Inventory tabs show a short "here's what's missing" card
+> Scratch-off, and Backroom tabs show a short "here's what's missing" card
 > instead of an empty form, so you always know the next step. Once the two
 > essentials are in place the checklist gets out of the way (you can dismiss the
 > leftover inventory nudge if you're cash-only).
@@ -66,12 +76,13 @@ If you work a shift and just need to log your counts, jump to
 Open **Admin** and add the pieces your team will pick from when they count:
 
 - **Locations** — each physical store (skip if you have just one).
-- **Drawers** — the named cash drawers at each location: *POS Cash Drawer*,
-  *Lottery Cash Drawer*, *Safe*, and so on.
-- **Tracked items** — the high-shrink inventory you want counted (cigarette
-  cartons, vapes, etc.). Only what's on this list gets counted — keep it short.
-- **Staff** — add each employee with their **name**, **role** (employee or
-  manager), and a **PIN**. Share the store code with them.
+- **Cash drawers** — the named cash drawers at each location: *POS Cash
+  Drawer*, *Lottery Cash Drawer*, *Safe*, and so on.
+- **Backroom items** — the high-value stock you want counted and watched
+  (cigarette cartons, vapes, etc.). Only what's on this list gets counted —
+  keep it short.
+- **Staff & roles** — add each employee with their **name**, **role** (employee
+  or manager), and a **PIN**. Share the store code with them.
 
 > Scratch-off packs need no registration step: a pack exists in DuoCount the
 > first time someone counts it, and from then on its ticket numbers chain from
@@ -111,12 +122,12 @@ Open **Admin** and add the pieces your team will pick from when they count:
 
 ### 3. Choose how much each location sees (Settings)
 
-In the header **Settings** menu, the owner sets the **sharing mode**: either
+In **Admin → Business settings**, the owner sets **Data sharing**: either
 every location sees all counts, or each location sees only its own. Managers and
-owners always see everything. You can also set the business **name/logo**, turn
-on an optional **daily email digest** (off by default), turn on **customer
-rewards** (off by default — see step 6), and turn on the optional
-**AI helpers** (all off by default — see step 7).
+owners always see everything. The same card also sets the business
+**name/logo**, an optional **daily email digest** (off by default), **customer
+rewards** (off by default — see step 6), and the optional **AI helpers** (all
+off by default — see step 7).
 
 > Settings changes apply **live**: the moment you save, every signed-in device
 > picks them up — nobody needs to sign out or restart the app.
@@ -150,22 +161,22 @@ rewards** (off by default — see step 6), and turn on the optional
   three people" — a conversation starter, never a verdict). If you turn on the AI
   insight (step 7), an **"Explain these signals"** button sums the alerts up and
   says what to look at first.
-- **Open the Scratch report (owners).** Everything scratch-off lives in its own
-  owner-only **Scratch report** tab: sales and tickets by day, game, and staff
-  (with charts, CSV, and a branded printout) — and the theft view. The
-  **Unaccounted tickets** table shows every break in a pack's ticket sequence:
-  what number it **closed** at and what number it **re-opened** at, *who* signed
-  each side and *when* (a tamper-proof server time — a count's clock can't be
-  backdated), with a one-tap **Countersign** so a second manager signs off on
-  the risky read. Below it, packs that quietly **stopped being counted** show
-  their last ticket #, signer, and exact time; and the **Books on hand** card
-  reconciles the shelf census against the counts — a book that *walked*, or one
-  sitting on the shelf that was **never counted at all**, gets named. Missing
-  tickets get caught at the shift boundary, not months later on a settlement
-  statement. The Dashboard's pattern alerts still tip you off — including when
-  **several packs jump together in one window** (the signature of one after-hours
-  session), a count logged **while nobody was clocked in**, or risky counts still
-  **waiting on a second signature**.
+- **Open the Scratch report (owners).** Everything scratch-off lives in the
+  owner-only **Scratch report** tab: sales and tickets by day, game, and staff,
+  with charts, CSV, and a branded printout — plus the theft view:
+  - **Unaccounted tickets** — every break in a pack's ticket sequence: the
+    number it closed at, the number it re-opened at, who signed each side, and
+    when. The time is the server's clock, so it can't be backdated. A one-tap
+    **Countersign** lets a second manager sign off on the risky read.
+  - **Stopped being counted** — packs that fell out of the routine, with their
+    last ticket #, signer, and exact time.
+  - **Books on hand** — the shelf census reconciled against the counts. A book
+    that walked, or one never counted at all, gets named.
+
+  Missing tickets get caught at the shift boundary, not months later. The
+  Dashboard's alerts still tip you off: several packs jumping together in one
+  window (one after-hours session), a count logged while nobody was clocked
+  in, or risky counts still waiting on a second signature.
 - **Check Stock attention.** If you sync stock levels from your POS (the
   **Stock levels** import), the Dashboard lists what's **expiring soon**
   (default within 30 days) and what **needs ordering** (default fewer than
@@ -204,11 +215,13 @@ This is how you save numbers for the accountant, the franchise, or taxes.
    dates — and use the **◀ ▶** arrows to step to the one you want.
 3. Pick a **location** (or *All locations*).
 4. The **"Will include"** box previews what's in that period — cash over/short,
-   scratch dollars, inventory shrink, flags, and how much is verified.
+   inventory shrink, flags, and how much is verified. (Scratch-off detail has
+   its own home: the owner **Scratch report** tab, with its own CSV and print.
+   Lottery revenue still rides in the bookkeeper journal below.)
 5. Export it:
    - **Download PDF** — a tidy summary for the record: totals by location and
-     drawer, scratch by game, inventory shrink by item, an over/short trend, and
-     the staff-hours roll-up, with signature lines.
+     drawer, inventory shrink by item, an over/short trend, and the staff-hours
+     roll-up, with signature lines.
    - **Download CSV** — the raw rows for a spreadsheet.
    - **Print** — a line-by-line printout (or print-to-PDF from your browser).
 
@@ -300,9 +313,9 @@ off changes nothing about how DuoCount works.
 Type the **store code** your manager gave you and **your own PIN**, then
 **Sign in**. That's it — your name is attached to everything you log.
 
-> **See "ask your manager to finish setup"?** That just means your manager
-> hasn't added a location, drawer, or the items yet — there's nothing for you to
-> fix. Counting opens up as soon as they do.
+> **See "Your manager is still setting up this store"?** That just means your
+> manager hasn't added a location, drawer, or the items yet — there's nothing
+> for you to fix. Counting opens up as soon as they do.
 
 ### Log a cash-drawer count
 
@@ -325,15 +338,17 @@ Type the **store code** your manager gave you and **your own PIN**, then
 
 ### Log a scratch-off count
 
-1. Tap **Scratch-offs** and enter the **game** and **pack #** — or **scan** a
-   ticket with your phone camera. A scan fills the pack **and the ticket # the
-   pack is at** (your end reading); a pack the store has counted before also
-   fills in its game and price and carries the **start #** from the last
-   count's end #, so an everyday open or close is scan → glance → save.
+1. Tap **Scratch-offs**, then **scan** a ticket with your phone camera — or
+   type the **game** and **pack #** by hand.
 2. Check the **start** and **end** ticket numbers. Tickets sold = end − start,
    and the app multiplies by the ticket price to get the dollars that should be
    in the drawer.
 3. **Save.**
+
+> A scan does most of the typing for you: it fills the pack and the ticket #
+> it's at (your end reading), and a pack the store has counted before also
+> fills its game, price, and start # from the last count — so an everyday open
+> or close is scan → glance → save.
 
 > **No double-counting, no lost swaps.** Scan the same pack twice in one shift
 > and the app blocks the repeat with a note — opening and closing count
@@ -350,9 +365,9 @@ Type the **store code** your manager gave you and **your own PIN**, then
 > disappears between two walks (even one that was never ticket-counted) gets
 > noticed.
 
-### Log an inventory count
+### Log a backroom stock count
 
-1. Tap **Inventory**, pick the **item**.
+1. Tap **Backroom**, pick the **item**.
 2. Enter **Counted on hand** — what's actually on the shelf right now (or
    **scan** the barcode to pick the item). That's all a quick recount needs; the
    app compares it against the last count.
@@ -366,7 +381,7 @@ Type the **store code** your manager gave you and **your own PIN**, then
 
 ### Move backroom stock (pull to the front, restock)
 
-Above the count form on the **Inventory** tab is your **live backroom stock** —
+Above the count form on the **Backroom** tab is your **live backroom stock** —
 each tracked item with how many are on hand and a **−** and **+** button. Tap
 **−** when you pull one to the front (or it sells) and **+** when a delivery
 restocks it. Each tap is its own **signed movement line**, so the on-hand number
@@ -378,7 +393,7 @@ the periodic, full recount that goes on the record.
 ### Record a gaming machine collection (if your store hosts machines)
 
 If outside companies run slot, ATM, or amusement machines in your store, the
-owner registers them under **Admin → Machines**. On the day a machine is
+owner registers them under **Admin → Gaming machines**. On the day a machine is
 collected:
 
 1. Tap **Gaming**, pick the **machine**, and set the **collection date**.
@@ -408,12 +423,21 @@ like a count. Customers can check their own balance at **/rewards**.
 
 ### Clock in/out and see your schedule
 
-The **Time** tab has three parts: **Clock** (punch in and out — a mistake is
-fixed by punching again, never edited), **Schedule** (your upcoming shifts; mark
-days you can't work, grab open shifts, or offer a swap to a coworker), and
-**Time off** (ask for days off with a reason and watch for your manager's
-approve or deny — with their reason — right on the request; you can also log a
-predictable future event you'll need off for, so it's on their radar early).
+To clock in at the start of your shift:
+
+1. Tap the **Time** tab. It opens on **Time clock**.
+2. Tap **Clock in**. That's it — you're on the clock.
+3. At the end of your shift, come back and tap **Clock out**.
+
+A wrong punch is fixed by punching again (or ask a manager) — punches are never
+edited, so your hours record stays honest.
+
+The same tab has two more views. **Schedule** shows your upcoming shifts —
+mark days you can't work, grab open shifts, or offer a swap to a coworker.
+**Time off** is where you ask for days off with a reason; your manager's
+approve or deny (with their reason) appears right on the request. You can also
+log a predictable future event you'll need off for, so it's on their radar
+early.
 
 ### Leave a shift note
 
@@ -457,23 +481,20 @@ bin 4 running low." Managers can pin the important ones.
   away, so a reload drops you back where you were.
 - **¿Prefieres español?** The whole app speaks Spanish: pick **Español** from
   the language menu on the sign-in screen (next to the sun/moon) or in the
-  header **gear (Settings) → Idioma**. Every screen switches — sign-in
-  (including its error messages), the navigation, all three count forms, the
-  **Log**, **Notes**, **Incidents**, **Time**, the manager **Dashboard**
-  (including its pattern alerts and the Pack audit), **Admin** (including the
-  CSV importer's row-by-row preview), and every menu, toast, and confirmation;
-  each screen also leads with an icon (💵 🎟️ 📦), so the glyph carries the
-  meaning too. It's a per-device choice, like the theme — your coworker's
-  screen never changes. What's written into the permanent record (notes,
-  comments, exports) stays in the language it was written, and this guide is
-  available in Spanish too (the /guide page follows your language).
+  header **gear (Settings) → Idioma**. Every screen switches — alerts, forms,
+  menus, and confirmations included. It's a per-device choice, like the theme —
+  your coworker's screen never changes. What's written into the permanent
+  record (notes, comments, exports) stays in the language it was written, and
+  this guide is available in Spanish too (the /guide page follows your
+  language).
 - **Light or dark.** On the sign-in screen, tap the sun/moon. Once you're signed
   in, open the header **gear (Settings) → Appearance** to switch — it remembers
   your choice per device.
 - **Keyboard shortcuts** (on a computer): press **?** to see them — number keys
   jump between tabs, **⌘/Ctrl + Enter** saves the current form.
-- **Export anytime.** The **Log** tab has an **Export CSV** button for the full
-  history; the **Reports** center exports a specific period.
+- **Export anytime.** The **Log** tab's **Export CSV** covers the cash and
+  backroom count history; the owner **Scratch report** exports scratch-off
+  detail; the **Reports** center exports a specific period.
 
 ---
 
@@ -515,10 +536,16 @@ closure request.
 | --- | --- |
 | **Store code** | Your business's sign-in name (e.g. `acme-market`). |
 | **Over / short** | How far a count is above (over) or below (short) expected. |
-| **Verify** | A manager confirming a count — never their own. |
+| **Verify / countersign** | A manager confirming a count with a second signature — never their own. |
 | **Flag** | An automatic "please explain" on a count that's too far off. |
+| **Variance** | The difference a flag is about — the gap between counted and expected. |
+| **Threshold** | How big a variance has to be before it's flagged (the store sets it). |
 | **Dispute** | An employee formally disagreeing, on the record. |
 | **Blind count** | Counting without seeing the expected number first. |
+| **Pack / book** | Two words for the same thing: one bundle of scratch-off tickets, one game. |
+| **Census** | A shelf walk that records every scratch-off book physically on hand. |
+| **Paid-out** | Cash paid out of the drawer during a shift (lottery winners, vendor payments). |
+| **Shrink** | Stock that's gone without a sale — the inventory version of a short. |
 | **Period** | The date range a report covers (a day, month, quarter, etc.). |
 | **Qualifying sale** | The part of a sale that earns rewards points — everything except tobacco, vape, alcohol, lottery, gift cards, and fuel. |
 

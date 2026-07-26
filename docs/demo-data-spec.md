@@ -43,9 +43,10 @@ untouched.
     over/short, open flags, several resolved-with-cause, a live dispute thread,
     and many manager-verified) — spanning **both locations** so per-drawer and
     per-location breakdowns have data.
-  - 6 scratch packs across the whole lifecycle — received, active, and several
-    **settled** over time (e.g. $3 × 44 = $132 recorded) so the settlement-
-    reconciliation tool has figures to match an uploaded CSV against.
+  - Scratch packs exist only as the pack #s on the seeded scratch count
+    entries (the lifecycle/settlement registry is retired): a multi-day
+    chained count walk per pack, so the pack audit, the Scratch report's
+    ticket-sequence table, and the theft-gap detectors all have real figures.
   - 7 shift notes (some pinned) and 5 incidents (open / acknowledged / closed).
   - **Time clock:** ~3 weeks of in/out punches for two staff (with one no-show
     that mirrors the incident), plus one person currently on the clock.

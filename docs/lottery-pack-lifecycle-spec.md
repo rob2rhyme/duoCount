@@ -5,13 +5,18 @@
 active-pack picker were removed from the app: settlement paperwork is the
 lottery's job, and the registry duplicated what the counts already prove. The
 theft control that replaced it is the **shift boundary**: each scratch count
-records the pack's start and end ticket #s, the form chains a pack's start #
-from its previous count's end #, and the **pack audit**
-(`src/lib/scratch-audit.js`, surfaced on the Dashboard with a `pack-gap`
-pattern alert) flags every discontinuity — tickets unaccounted between two
-signed counts, naming both signers — plus packs that stopped being counted.
-Legacy `packs` documents are left in place (rules unchanged); the demo-data
-Clear still sweeps seeded ones. The spec below is kept for history.
+records the pack's start and end ticket #s (with a server-pinned timestamp),
+the form chains a pack's start # from its previous count's end #, and the
+**pack audit** (`src/lib/scratch-audit.js`) flags every discontinuity —
+tickets unaccounted between two signed counts, naming both signers — plus
+packs that stopped being counted. It surfaces in the owner **Scratch report**
+tab as the Opening#→Closing# ticket-sequence table (who/when on each side, a
+one-tap manager **Countersign** on the anomalous read) alongside the
+**books-on-hand census reconcile** (walked / never-counted books), and as
+pattern alerts (`pack-gap`, `pack-mass-jump`, `count-off-shift`,
+`scratch-countersign-needed`). Legacy `packs` documents are left in place
+(rules unchanged); the demo-data Clear still sweeps seeded ones. The spec
+below is kept for history.
 
 **Goal.** Track each scratch-off pack from the safe to the last ticket. Counts (tier zero) prove what sold *per shift*; the lifecycle proves what happened to the *whole pack* — the unit the state lottery bills you for, and the unit that walks away in the classic theft pattern (a pack activated off-book, tickets pocketed). This is the last column of the LottoShield comparison in the positioning one-pager.
 

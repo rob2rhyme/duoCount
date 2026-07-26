@@ -146,15 +146,25 @@ thresholds below.
 | **Open-variance backlog** | all | ≥ 5 entries flagged `open` and older than 48 h | `medium` (already flagged — nobody's closing them) |
 | **Inventory shrink streak** | 14 days | ≥ 3 short counts of the same item | `medium`, with total units missing |
 | **Escalating short trend — person** | 14 days | a person short in **both** halves of the window, with the recent half ≥ 2× the earlier half (≥ 2 recent shorts) | `high` if recent-half short ≥ $20, else `medium` |
-| **Scratch settle-shortfall streak** | 14 days | ≥ 3 packs of the same game settled with tickets unaccounted (`shortAtSettle`) | `high` if unaccounted ≥ $20, else `medium` |
+| **Pack continuity gap** (`pack-gap`) | 14 days | a scratch pack whose next count opens **above** the previous close (tickets unaccounted between two consecutive counts), incl. a sold-out-short finaled book | `high` if unaccounted ≥ $20, else `medium`; one alert per pack |
+| **Mass pack jump** (`pack-mass-jump`) | 14 days | ≥ 3 packs whose jumps share one common time window — the fingerprint of a single (often after-hours) session moving a batch of books | `high` if dollars ≥ $20 or ≥ 5 packs; ONE rolled-up alert per cluster |
+| **Off-shift count** (`count-off-shift`) | 14 days | a scratch count signed while **nobody was clocked in** (store-level presence from the time clock, ± 60 min grace; silent when the store doesn't punch) | `high` at ≥ the repeat-count knob, else `medium`; per signer |
+| **Countersign needed** (`scratch-countersign-needed`) | 14 days | anomalous scratch reads (a gap-open, a sellout-short) that no second manager has countersigned; off-shift / mass-jump only *escalate* — a lone off-hours count never flags | `high` if any escalated read, else `medium`; one aggregate roll-up |
 
-Detectors 7–8 extend the original six. The trend detector uses module constants
-(`TREND_FACTOR`, `TREND_MIN_RECENT`) rather than new Admin knobs, so the tunable
-surface stays at the documented five; it reuses the vendor's `windowDays` and
-`highShortDollars`. The shortfall detector takes an optional `packs` argument
-(default `[]`, so callers that pass none are unaffected) and windows them by
-`settledAt`; the Dashboard passes the packs it already subscribes to, the digest
-route fetches settled packs with a single-field query.
+Detectors 7–8 extend the original six; 9–11 are the scratch theft-detection
+suite. The trend detector uses module constants (`TREND_FACTOR`,
+`TREND_MIN_RECENT`) rather than new Admin knobs, so the tunable surface stays at
+the documented five; it reuses the vendor's `windowDays` and `highShortDollars`.
+Detector 8 replaced the retired settlement-based shortfall detector: it is pure
+entry math (`buildPackAudit` over the scratch counts — no packs collection, no
+settlement data). Detectors 10–11 take an optional `punches` argument (the time
+clock feed; default `[]`, so callers that pass none get no off-shift signal);
+the Dashboard passes its manager-only punches subscription, the digest route
+fetches the window's punches by business day. All four scratch detectors lean
+on the **server-pinned count timestamp** (`ts == request.time` in the entries
+create rule — same guarantee as the time clock), so the "when" they reason
+about can't be spoofed by a device clock; the countersign detector likewise
+relies on `verifiedAt == request.time` in `verifyOnly()`.
 
 ### 2.1a Per-vendor thresholds (tier-3)
 
@@ -401,15 +411,18 @@ Rules-emulator additions (`npm run test:rules`):
   (§2.1 / §2.1a): five tunable thresholds in Admin, plus the repeat-overs and
   open-variance-backlog detectors. ~~Still deferred: escalating variance *trends*
   and scratch settle-shortfall patterns.~~ **Also done** (§2.1, detectors 7–8):
-  a person **escalating-short-trend** detector (shorts materially worse in the
-  recent half of the window than the earlier half) and a **scratch
-  settle-shortfall** detector (a game that repeatedly settles with tickets
-  unaccounted). Both pure and unit-tested; the shortfall detector runs on the
-  settled packs the Dashboard already subscribes to and the digest now fetches.
+  a person **escalating-short-trend** detector and the **pack continuity-gap**
+  detector (which replaced the settlement-based shortfall when the pack
+  lifecycle was retired — pure entry math over consecutive counts). Detectors
+  9–11 (mass pack jump, off-shift count, countersign-needed) followed as the
+  scratch theft-detection suite. All pure and unit-tested.
 - ~~**Per-user login lockout + 6-digit PIN default**~~ — **done** (§3): 6-digit
   PIN policy on all new/changed pins, plus a per-store failure limiter alongside
   the per-IP one. ("Per-user" is realized as per-store, since the login can't
   identify the user until the PIN matches.)
 - **Server-computed blind counts** (tier-one README limitation).
-- ~~**State-lottery settlement-file reconciliation**~~ — **done** (flexible CSV
-  import; `lottery-pack-lifecycle-spec.md` §6). A live-API integration remains out.
+- ~~**State-lottery settlement-file reconciliation**~~ — **retired**, not built
+  further: settlement is the lottery's job (`CLAUDE.md`, PR #125). Scratch theft
+  protection is the shift-boundary count suite instead — pack continuity gaps,
+  the Opening#→Closing# sequence table, the books-on-hand census reconcile, and
+  the manager countersign lever (`lottery-pack-lifecycle-spec.md` header).

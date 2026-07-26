@@ -3,9 +3,9 @@
 // the rendered doc. Server component — the only interactivity is a native
 // <details> and in-page anchor links, so no client JS ships.
 
-function TocList({ toc }) {
+function TocList({ toc, label }) {
   return (
-    <nav aria-label="On this page">
+    <nav aria-label={label}>
       <ul className="space-y-1">
         {toc.map((h) => (
           <li key={h.id}>
@@ -24,7 +24,9 @@ function TocList({ toc }) {
   );
 }
 
-export default function DocLayout({ header, title, html, toc = [], footer }) {
+// `tocLabel` lets a localized caller (GuideView) label the table of contents in
+// the reader's language; the English /docs pages keep the default.
+export default function DocLayout({ header, title, html, toc = [], footer, tocLabel = "On this page" }) {
   const hasToc = toc.length > 2;
 
   return (
@@ -38,17 +40,17 @@ export default function DocLayout({ header, title, html, toc = [], footer }) {
               {/* Mobile: a collapsible "On this page" */}
               <details className="lg:hidden card px-4 py-3 mb-7">
                 <summary className="text-xs font-semibold uppercase tracking-wide text-muted cursor-pointer select-none">
-                  On this page
+                  {tocLabel}
                 </summary>
                 <div className="mt-3">
-                  <TocList toc={toc} />
+                  <TocList toc={toc} label={tocLabel} />
                 </div>
               </details>
 
               {/* Desktop: a sticky sidebar */}
               <aside className="hidden lg:block lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:border-r lg:border-line lg:pr-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">On this page</div>
-                <TocList toc={toc} />
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">{tocLabel}</div>
+                <TocList toc={toc} label={tocLabel} />
               </aside>
             </>
           )}

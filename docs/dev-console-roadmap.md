@@ -10,20 +10,24 @@
 
 ## Context
 
-Today `/dev` (`src/app/dev/page.js` + the action-dispatched `src/app/api/dev/route.js`)
-is two tabs: a cross-tenant **support Inbox** and a **Stores** manager. An operator can
-list every vendor, suspend/activate/rename, set a private dev note, reset an owner PIN,
-keep manual billing records with a live MRR roll-up, and work support tickets.
+`/dev` (`src/app/dev/page.js` + the action-dispatched `src/app/api/dev/route.js`)
+is a cross-tenant **support Inbox**, a **Stores** manager (list/filter/CSV every
+vendor, suspend/activate/soft-delete/rename, private dev notes, owner-PIN reset,
+manual billing with a live MRR roll-up), an **Audit** tab, and an **Operators**
+tab.
 
-Two facts shape everything below:
+Two facts shaped this plan *at the time of the sweep* — both have since been
+fixed (see the shipped note in Theme 2):
 
 - **`/dev` is the entire trust boundary.** Every mutation runs through the Firebase
-  Admin SDK, which *bypasses* Firestore's per-tenant isolation. So the operator plane is
-  currently **less accountable than the clerk plane it polices** — there is no audit log.
-- **There is one operator identity.** The dedicated dev login mints a `platformAdmin:true`
-  token with **no uid and no name** (`src/lib/dev-auth.js`); the billing writer already
-  falls back to the literal `"developer"` for `updatedBy`. So "who did this?" is
-  unanswerable until identity exists.
+  Admin SDK, which *bypasses* Firestore's per-tenant isolation. At the time of the
+  sweep the operator plane was **less accountable than the clerk plane it polices**
+  — there was no audit log. *(Now: the append-only `adminAudit` log records every
+  store action.)*
+- **There was one operator identity.** The dedicated dev login mints a
+  `platformAdmin:true` token with **no uid and no name** (`src/lib/dev-auth.js`),
+  so "who did this?" was unanswerable. *(Now: the `platformAdmins/{uid}` registry
+  gives each operator an identity + RBAC role; the env login remains break-glass.)*
 
 The goal: grow `/dev` from a reactive record-keeper into an **accountable, revenue-aware,
 churn-aware** operator console — without ever weakening the signed, append-only,

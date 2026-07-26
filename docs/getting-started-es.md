@@ -17,6 +17,16 @@ solo necesitas registrar tus conteos, salta a
 
 *Read this guide in English → [Getting started](getting-started.md).*
 
+> **¿Tu primer turno? Empieza aquí.**
+> 1. [Inicia sesión](#iniciar-sesin) con el código de tienda + tu PIN.
+> 2. [Marca tu entrada](#marcar-entradasalida-y-ver-tu-horario) en la pestaña
+>    **Horario**.
+> 3. Registra tus conteos de apertura — [caja](#registrar-un-conteo-de-caja) y
+>    [raspaditos](#registrar-un-conteo-de-raspaditos).
+> 4. Al final del turno, registra los conteos de cierre igual.
+> 5. [Marca tu salida](#marcar-entradasalida-y-ver-tu-horario). Listo — todo lo
+>    que registraste queda firmado con tu nombre.
+
 ---
 
 ## La foto en 60 segundos
@@ -25,12 +35,12 @@ solo necesitas registrar tus conteos, salta a
   **PIN** — sin correo, sin contraseña.
 - La app **abre en el Panel** — primero los números del día. Te mueves con la
   **navegación**: en un teléfono, una **barra inferior** agrupa las pantallas
-  en **Contar** (Caja / Raspaditos / Inventario, más **Recompensas** cuando la
+  en **Contar** (Caja / Raspaditos / Almacén, más **Recompensas** cuando la
   tienda lo activa), **Equipo** (Horario / Incidentes / Notas), **Análisis**
-  (Panel / Portafolio / Registro) y **Admin** (solo gerentes) — toca un grupo
-  para elegir una pantalla. En una pantalla más ancha, las mismas pantallas se
-  alinean como una **fila de pestañas** arriba. (**Portafolio** aparece solo
-  para dueños.)
+  (Panel / Reporte de raspaditos / Portafolio / Registro) y **Admin** (solo
+  gerentes) — toca un grupo para elegir una pantalla. En una pantalla más
+  ancha, las mismas pantallas se alinean como una **fila de pestañas** arriba.
+  (**Portafolio** y **Reporte de raspaditos** aparecen solo para dueños.)
 - Los empleados **registran conteos**. Los gerentes los **verifican** (un
   segundo par de ojos), atienden lo que quede marcado y sacan **reportes**.
 - La app hace la aritmética y muestra el **sobra/falta** en verde (sobra) o
@@ -62,7 +72,7 @@ diagramas están en inglés.)*
 > los dos esenciales — **una ubicación** y **una caja registradora** — más un
 > paso opcional de **artículos de inventario**. Cada botón **Configurar en
 > Admin →** te lleva directo al lugar correcto. Mientras falten los esenciales,
-> las pestañas de Caja, Raspaditos e Inventario muestran una tarjeta corta de
+> las pestañas de Caja, Raspaditos y Almacén muestran una tarjeta corta de
 > "esto es lo que falta" en vez de un formulario vacío, así siempre sabes el
 > siguiente paso. Cuando los dos esenciales existen, la lista se quita de en
 > medio (puedes descartar el recordatorio de inventario si solo manejas
@@ -71,13 +81,13 @@ diagramas están en inglés.)*
 Abre **Admin** y agrega las piezas que tu equipo elegirá al contar:
 
 - **Ubicaciones** — cada tienda física (sáltalo si tienes una sola).
-- **Cajas** — las cajas de efectivo con nombre en cada ubicación: *Caja del
-  POS*, *Caja de lotería*, *Caja fuerte*, etcétera.
-- **Artículos rastreados** — el inventario de alta merma que quieres contar
+- **Cajas registradoras** — las cajas de efectivo con nombre en cada ubicación:
+  *Caja del POS*, *Caja de lotería*, *Caja fuerte*, etcétera.
+- **Artículos del almacén** — el inventario de alta merma que quieres contar
   (cartones de cigarros, vapes, etc.). Solo se cuenta lo que está en esta
   lista — mantenla corta.
-- **Personal** — agrega a cada empleado con su **nombre**, **rol** (empleado o
-  gerente) y un **PIN**. Compárteles el código de tienda.
+- **Personal y roles** — agrega a cada empleado con su **nombre**, **rol**
+  (empleado o gerente) y un **PIN**. Compárteles el código de tienda.
 
 > Los paquetes de raspaditos no necesitan ningún registro previo: un paquete
 > existe en DuoCount desde la primera vez que alguien lo cuenta, y desde
@@ -123,13 +133,13 @@ Abre **Admin** y agrega las piezas que tu equipo elegirá al contar:
 
 ### 3. Decide cuánto ve cada ubicación (Configuración)
 
-En la **Configuración del negocio**, el dueño define el **modo de
-compartición**: o cada ubicación ve todos los conteos, o cada una ve solo los
-suyos. Los gerentes y dueños siempre ven todo. También puedes cambiar el
-**nombre/logo** del negocio, activar un **resumen diario por correo** opcional
-(desactivado por defecto), activar las **recompensas para clientes**
-(desactivadas por defecto — mira el paso 6) y activar las **funciones de IA**
-opcionales (todas desactivadas por defecto — mira el paso 7).
+En **Admin → Configuración del negocio**, el dueño define **Compartir datos**:
+o cada ubicación ve todos los conteos, o cada una ve solo los suyos. Los
+gerentes y dueños siempre ven todo. La misma tarjeta también controla el
+**nombre/logo** del negocio, un **resumen diario por correo** opcional
+(desactivado por defecto), las **recompensas para clientes** (desactivadas por
+defecto — mira el paso 6) y las **funciones de IA** opcionales (todas
+desactivadas por defecto — mira el paso 7).
 
 > Los cambios de configuración se aplican **en vivo**: en cuanto guardas, cada
 > dispositivo con sesión iniciada los recibe — nadie necesita cerrar sesión ni
@@ -165,23 +175,24 @@ opcionales (todas desactivadas por defecto — mira el paso 7).
   misma caja con faltante bajo tres personas" — un arranque de conversación,
   nunca un veredicto). Si activas el análisis de IA (paso 7), un botón
   **"Explicar estas señales"** resume las alertas y dice qué mirar primero.
-- **Abre el reporte de Raspaditos (dueños).** Todo lo de raspaditos vive en su
-  propia pestaña **Reporte de raspaditos**, solo para el dueño: ventas y boletos
-  por día, juego y personal (con gráficas, CSV e impresión con tu marca) — y la
-  vista antirrobo. La tabla de **Boletos sin justificar** muestra cada corte en
-  la secuencia de boletos de un paquete: en qué número **cerró** y en qué número
-  **reabrió**, *quién* firmó cada lado y *cuándo* (una hora del servidor a
-  prueba de manipulación — el reloj de un conteo no se puede retro-datar), con
-  un botón **Refrendar** para que un segundo gerente firme la lectura riesgosa.
-  Debajo, los paquetes que **dejaron de contarse** sin aviso muestran su último
-  boleto, quién lo firmó y la hora exacta; y la tarjeta de **Libros
-  disponibles** compara el censo del estante contra los conteos — un libro que
-  *desapareció*, o uno en el estante que **nunca se contó**, queda señalado. Los
-  boletos faltantes se atrapan en el cambio de turno, no meses después en un
-  estado de cuenta. Las alertas de patrones del Panel te siguen avisando —
-  incluso cuando **varios paquetes saltan juntos en una misma ventana** (la
-  firma de una sola sesión fuera de horario), un conteo registrado **sin nadie
-  fichado**, o conteos riesgosos que aún **esperan una segunda firma**.
+- **Abre el reporte de Raspaditos (dueños).** Todo lo de raspaditos vive en la
+  pestaña **Reporte de raspaditos**, solo para el dueño: ventas y boletos por
+  día, juego y personal, con gráficas, CSV e impresión con tu marca — más la
+  vista antirrobo:
+  - **Boletos sin justificar** — cada corte en la secuencia de boletos de un
+    paquete: en qué número cerró, en qué número reabrió, quién firmó cada lado
+    y cuándo. La hora es el reloj del servidor, así que no se puede antedatar.
+    Un botón **Refrendar** deja que un segundo gerente firme la lectura
+    riesgosa.
+  - **Dejaron de contarse** — paquetes que salieron de la rutina, con su último
+    boleto, quién lo firmó y la hora exacta.
+  - **Libros disponibles** — el censo del estante comparado contra los conteos.
+    Un libro que desapareció, o uno que nunca se contó, queda señalado.
+
+  Los boletos faltantes se atrapan en el cambio de turno, no meses después. Las
+  alertas del Panel te siguen avisando: varios paquetes saltando juntos en una
+  misma ventana (una sola sesión fuera de horario), un conteo registrado sin
+  nadie fichado, o conteos riesgosos que aún esperan una segunda firma.
 - **Revisa la Atención de existencias.** Si sincronizas los niveles de
   existencia desde tu POS (la importación de **Niveles de existencia**), el
   Panel lista lo que está **por caducar** (por defecto dentro de 30 días) y lo
@@ -200,7 +211,7 @@ opcionales (todas desactivadas por defecto — mira el paso 7).
   sobre la entrada; tú la resuelves. **Notas** es tu bitácora de turno para los
   relevos.
 - **Incidentes.** Levanta un reporte firmado cuando pase algo que no es un
-  número (una caja abierta, una falta). El empleado al que concierne puede
+  número (una caja abierta, una ausencia sin avisar). El empleado al que concierne puede
   reconocerlo y agregar su versión.
 - **Solicitudes de tiempo libre.** El personal pide días libres — o avisa de un
   evento futuro previsible para el que necesitará faltar (una boda, una clase) —
@@ -228,12 +239,14 @@ guardados cambia.*
    **personalizadas** — y usa las flechas **◀ ▶** para llegar al que quieres.
 3. Elige una **ubicación** (o *Todas las ubicaciones*).
 4. El cuadro **"Incluirá"** adelanta lo que hay en ese período — sobra/falta de
-   efectivo, dólares de raspaditos, merma de inventario, conteos marcados y
-   cuánto está verificado.
+   efectivo, merma de inventario, conteos marcados y cuánto está verificado.
+   (El detalle de raspaditos tiene su propia casa: la pestaña **Reporte de
+   raspaditos** del dueño, con su propio CSV e impresión. El ingreso de lotería
+   sigue viajando en el diario del contador, abajo.)
 5. Expórtalo:
    - **Descargar PDF** — un resumen ordenado para el archivo: totales por
-     ubicación y caja, raspaditos por juego, merma por artículo, la tendencia
-     de sobra/falta y el acumulado de horas del personal, con líneas de firma.
+     ubicación y caja, merma por artículo, la tendencia de sobra/falta y el
+     acumulado de horas del personal, con líneas de firma.
    - **Descargar CSV** — las filas crudas para una hoja de cálculo.
    - **Imprimir** — un listado línea por línea (o imprime a PDF desde tu
      navegador).
@@ -284,7 +297,7 @@ grandes cadenas, así que asegúrate de que tus márgenes lo aguanten.
   (nombre y saldo de puntos opcionales) y omite a quien ya esté inscrito.
   ¿Vienes de otra app de recompensas? Asigna la columna de puntos de tu
   exportación y cada cliente empieza con su saldo anterior, registrado como un
-  ajuste firmado del dueño en el libro. Esa siembra aplica a clientes nuevos y
+  ajuste firmado del dueño en el libro. Esa carga inicial aplica a clientes nuevos y
   a inscritos que aún no tengan actividad de puntos (así re-importar con
   puntos corrige una importación anterior sin ellos) — en cuanto un cliente
   tiene actividad real, una importación jamás puede cambiar sus puntos. La
@@ -316,7 +329,7 @@ envía cada una.
   sencillo y una lista de "qué vigilar mañana" al inicio del correo.
 - **Búsqueda del registro en lenguaje natural** — un botón **"Preguntar"** en el
   Registro para escribir una pregunta como *"faltantes de Eve la semana
-  pasada"* y convertirla en filtros (siempre recae en la búsqueda normal por
+  pasada"* y convertirla en filtros (siempre vuelve a la búsqueda normal por
   palabras).
 - **Análisis de IA en el Panel** — un botón **"Explicar estas señales"** en la
   tarjeta de alertas de patrones que las resume y señala qué mirar primero.
@@ -359,16 +372,17 @@ registres.
 
 ### Registrar un conteo de raspaditos
 
-1. Toca **Raspaditos** e ingresa el **juego** y el **n.º de paquete** — o
-   **escanea** un boleto con la cámara del teléfono. El escaneo llena el
-   paquete **y el n.º de boleto en el que va** (tu lectura final); un paquete
-   que la tienda ya contó también llena su juego y su precio y trae el **n.º
-   inicial** desde el final del último conteo — así una apertura o un cierre
-   de todos los días es escanear → revisar → guardar.
+1. Toca **Raspaditos** y luego **escanea** un boleto con la cámara del
+   teléfono — o escribe el **juego** y el **n.º de paquete** a mano.
 2. Revisa los números de boleto **inicial** y **final**. Boletos vendidos =
    final − inicial, y la app multiplica por el precio del boleto para obtener
    los dólares que deberían estar en la caja.
 3. **Guarda.**
+
+> El escaneo escribe casi todo por ti: llena el paquete y el n.º de boleto en
+> el que va (tu lectura final), y un paquete que la tienda ya contó también
+> llena su juego, su precio y su n.º inicial desde el último conteo — así una
+> apertura o un cierre de todos los días es escanear → revisar → guardar.
 
 > **Sin doble conteo, sin cambios perdidos.** Si escaneas el mismo paquete dos
 > veces en un mismo turno, la app bloquea la repetición con un aviso — la
@@ -385,9 +399,9 @@ registres.
 > los censos en el tiempo, así que un libro que desaparece entre dos recorridos
 > (aunque nunca se haya contado por boletos) queda señalado.
 
-### Registrar un conteo de inventario
+### Registrar un conteo de almacén
 
-1. Toca **Inventario** y elige el **artículo**.
+1. Toca **Almacén** y elige el **artículo**.
 2. Ingresa **Contado en existencia** — lo que hay en el estante ahora mismo (o
    **escanea** el código de barras para elegir el artículo). Es todo lo que
    necesita un reconteo rápido; la app lo compara contra el último conteo.
@@ -403,7 +417,7 @@ registres.
 
 ### Mover existencias de trastienda (surtir al frente, resurtir)
 
-Arriba del formulario de conteo, en la pestaña **Inventario**, está tu
+Arriba del formulario de conteo, en la pestaña **Almacén**, está tu
 **existencia de trastienda en vivo** — cada artículo rastreado con cuántos hay
 en existencia y un botón **−** y **+**. Toca **−** cuando surtas uno al frente
 (o se venda) y **+** cuando una entrega lo resurta. Cada toque es su propia
@@ -417,7 +431,7 @@ registro.
 ### Registrar una recaudación de máquina de juego (si tu tienda aloja máquinas)
 
 Si empresas externas operan máquinas tragamonedas, cajeros o de entretenimiento
-en tu tienda, el dueño las registra en **Admin → Máquinas**. El día que se
+en tu tienda, el dueño las registra en **Admin → Máquinas de juego**. El día que se
 recauda una máquina:
 
 1. Toca **Juegos**, elige la **máquina** y fija la **fecha de recaudación**.
@@ -433,7 +447,7 @@ tienda es simplemente **$0** — nunca negativa.
 > ves los totales de cualquier período (recaudación, pagos, neto, tu parte y la
 > de la empresa), desglosados por máquina y por empresa, con una gráfica de la
 > parte de la tienda y una **exportación CSV** para las fechas que elijas. Cada
-> recaudación es una línea firmada y solo-agregar, así que el registro de quién
+> recaudación es una línea firmada que solo se agrega — nunca se edita —, así que el registro de quién
 > ingresó qué se mantiene honesto.
 
 ### Recompensas en el mostrador (si tu tienda las activó)
@@ -449,13 +463,21 @@ clientes pueden consultar su propio saldo en **/rewards**.
 
 ### Marcar entrada/salida y ver tu horario
 
-La pestaña **Horario** tiene tres partes: el **Reloj checador** (marca entrada y
-salida — un error se corrige marcando de nuevo, nunca editando), el **Horario**
-(tus próximos turnos; marca los días que no puedes trabajar, reclama turnos
-abiertos u ofrece un intercambio a un compañero) y **Tiempo libre** (pide días
-libres con una razón y observa el visto bueno o el rechazo de tu gerente — con
-su razón — en la propia solicitud; también puedes registrar un evento futuro
-previsible para el que necesitarás faltar, para que esté en su radar temprano).
+Para marcar tu entrada al empezar el turno:
+
+1. Toca la pestaña **Horario**. Abre en el **Reloj checador**.
+2. Toca **Marcar entrada**. Listo — ya estás en el reloj.
+3. Al final de tu turno, vuelve y toca **Marcar salida**.
+
+Una marca equivocada se corrige marcando de nuevo (o pídeselo a un gerente) —
+las marcas nunca se editan, así tu registro de horas se mantiene honesto.
+
+La misma pestaña tiene dos vistas más. **Horario** muestra tus próximos
+turnos — marca los días que no puedes trabajar, reclama turnos abiertos u
+ofrece un intercambio a un compañero. **Permisos** es donde pides días libres
+con una razón; el visto bueno o el rechazo de tu gerente (con su razón)
+aparece en la propia solicitud. También puedes registrar un evento futuro
+previsible para el que necesitarás faltar, para que esté en su radar temprano.
 
 ### Dejar una nota de turno
 
@@ -515,9 +537,10 @@ importantes.
 - **Atajos de teclado** (en una computadora): pulsa **?** para verlos — los
   números saltan entre pestañas y **⌘/Ctrl + Enter** guarda el formulario
   actual.
-- **Exporta cuando quieras.** La pestaña **Registro** tiene un botón **Exportar
-  CSV** con el historial completo; el centro de **Reportes** exporta un período
-  específico.
+- **Exporta cuando quieras.** El **Exportar CSV** de la pestaña **Registro**
+  cubre el historial de conteos de caja y almacén; el **Reporte de raspaditos**
+  del dueño exporta el detalle de raspaditos; el centro de **Reportes** exporta
+  un período específico.
 
 ---
 
@@ -561,10 +584,16 @@ eliminan dentro de los 90 días después de la solicitud de cierre.
 | --- | --- |
 | **Código de tienda** | El nombre de inicio de sesión de tu negocio (p. ej. `acme-market`). |
 | **Sobra / falta** | Qué tan arriba (sobra) o abajo (falta) quedó un conteo respecto a lo esperado. |
-| **Verificar** | Un gerente confirmando un conteo — nunca el propio. |
+| **Verificar / refrendar** | Un gerente confirmando un conteo con una segunda firma — nunca el propio. |
 | **Marcado** | Un "explícame, por favor" automático en un conteo demasiado desviado. |
+| **Variación** | La diferencia de la que trata un marcado — la brecha entre lo contado y lo esperado. |
+| **Umbral** | Qué tan grande debe ser una variación para quedar marcada (lo define la tienda). |
 | **Disputa** | Un empleado en desacuerdo formal, que queda en el registro. |
 | **Conteo ciego** | Contar sin ver antes el número esperado. |
+| **Paquete / libro** | Dos palabras para lo mismo: un fajo de boletos de raspadito de un juego. |
+| **Censo** | Un recorrido del estante que registra cada libro de raspadito físicamente presente. |
+| **Pago de caja** | Efectivo que sale de la caja durante un turno (premios de lotería, pagos a proveedores). |
+| **Merma** | Mercancía que se fue sin venderse — la versión de inventario de un faltante. |
 | **Período** | El rango de fechas que cubre un reporte (un día, un mes, un trimestre…). |
 | **Venta que califica** | La parte de una venta que gana puntos de recompensa — todo excepto tabaco, vape, alcohol, lotería, tarjetas de regalo y gasolina. |
 
