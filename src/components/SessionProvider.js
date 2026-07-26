@@ -23,7 +23,10 @@ export default function SessionProvider({ children }) {
           getDoc(doc(db, "vendors", vendorId)),
           getDoc(doc(db, "vendors", vendorId, "users", userId)),
         ]);
-        if (!vSnap.exists() || !pSnap.exists() || pSnap.data().active === false) {
+        if (!vSnap.exists() || !pSnap.exists() || pSnap.data().active === false
+            || ["suspended", "deleted"].includes(vSnap.data().status)) {
+          // Missing docs, a deactivated user, or a developer-suspended/-deleted
+          // store: don't restore the session (mirrors the live vendor watch).
           await signOut(auth); setProfile(null); setVendor(null);
         } else {
           setVendor({ id: vSnap.id, ...vSnap.data() });
@@ -63,7 +66,17 @@ export default function SessionProvider({ children }) {
     if (!cVendorId) return;
     const unsub = onSnapshot(
       doc(db, "vendors", cVendorId),
-      (snap) => { if (snap.exists()) setVendor({ id: snap.id, ...snap.data() }); },
+      (snap) => {
+        if (!snap.exists()) return;
+        const d = snap.data();
+        // A developer suspend/delete revokes refresh tokens (API calls die) and
+        // blocks new sign-ins, but an already-open device could keep reading
+        // Firestore until its token expired. The live status flip closes that
+        // window: sign out on the spot — the login screen then explains
+        // (store_suspended / store_deleted).
+        if (d.status === "suspended" || d.status === "deleted") { signOut(auth); return; }
+        setVendor({ id: snap.id, ...d });
+      },
       () => {}, // transient listen errors: keep the last-known vendor
     );
     return () => unsub();
