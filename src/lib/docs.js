@@ -19,6 +19,18 @@ function mdFiles() {
   }
 }
 
+// Internal business/planning documents (pricing & positioning strategy, the
+// competitor sweep, distribution plans, the /dev operator-console roadmap).
+// They stay renderable at their direct /docs/<slug> URL — other docs link into
+// them and existing bookmarks keep working — but they are NOT listed on the
+// /docs index or included in the search index: the audience for the docs site
+// is store owners and staff, not the company's own playbook.
+const INTERNAL = new Set([
+  "positioning-one-pager", "competitive-gap-analysis",
+  "distribution-analysis", "dev-console-roadmap",
+]);
+const publicSlugs = () => docSlugs().filter((s) => !INTERNAL.has(s));
+
 export function docSlugs() {
   return mdFiles().map((f) => f.replace(/\.md$/, ""));
 }
@@ -107,13 +119,17 @@ function blurbOf(body) {
       .replace(/\s+/g, " ")
       .trim();
     if (plain.length < 4) continue;
+    // Spec docs open with an engineering "Status: built — …" line; a card blurb
+    // should say what the doc IS, not its build state — skip to the next
+    // paragraph instead of front-loading project-management prose.
+    if (/^status\b/i.test(plain)) continue;
     return plain.length > 140 ? plain.slice(0, 137).trimEnd() + "…" : plain;
   }
   return "";
 }
 
 export function listDocs() {
-  return docSlugs()
+  return publicSlugs()
     .map((slug) => {
       const { meta, body } = stripFrontMatter(fs.readFileSync(path.join(DOCS_DIR, `${slug}.md`), "utf8"));
       return { slug, title: titleOf(meta, body, slug), blurb: blurbOf(body) };
@@ -134,7 +150,7 @@ function htmlToText(html) {
 // box: one entry per doc with its title, heading anchors, and plain body text.
 // Pure ranking over this index lives in ./doc-search.js.
 export function searchIndex() {
-  return docSlugs()
+  return publicSlugs()
     .map((slug) => {
       const doc = getDoc(slug);
       if (!doc) return null;

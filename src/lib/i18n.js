@@ -988,8 +988,6 @@ export const CATALOG = {
     "dash.ai_failed": "Couldn't generate a summary",
 
     // dashboard — pack audit card
-    "dash.pack_audit_title": "Pack audit",
-    "dash.pack_audit_sub": "Each pack's opening ticket # checked against its previous closing #, last {days} days. A break names the two signers — a question, not a verdict.",
     "dash.pack_pill_missing": "{n} missing",
     "dash.pack_pill_recount": "re-count",
     "dash.pack_event_unaccounted_one": "{n} ticket unaccounted",
@@ -1015,7 +1013,6 @@ export const CATALOG = {
     // dashboard — charts + tables
     "dash.chart_daily": "Daily over / short",
     "dash.chart_cash_trend": "Cash sales trend",
-    "dash.chart_top_games": "Top scratch-off games",
     "dash.by_drawer": "By drawer",
     "dash.by_item": "By item",
     "dash.by_employee": "By employee",
@@ -1464,7 +1461,7 @@ export const CATALOG = {
     "admin.data_sharing": "Data sharing",
     "admin.sharing_all": "Shared — every location sees all logs",
     "admin.sharing_per": "Per location — employees see only their location",
-    "admin.sharing_hint": "Managers and owners always see every location. Staff already signed in will pick up a sharing change the next time they sign in.",
+    "admin.sharing_hint": "Managers and owners always see every location. A sharing change applies to every signed-in device right away.",
     "admin.blind_title": "Blind counts",
     "admin.blind_hint": "Counters can't see the expected total until after they commit the count. Applies to everyone, managers included.",
     "admin.variance_label": "Variance threshold ($)",
@@ -2048,6 +2045,7 @@ export const CATALOG = {
 
     // /guide page chrome (the doc body itself comes from docs/getting-started*.md)
     "guide.title": "User Guide",
+    "guide.toc": "On this page",
     "guide.search_ph": "Search all guides and docs…",
     "guide.all_docs": "All documentation",
     "guide.back_app": "Back to the app",
@@ -3156,9 +3154,6 @@ export const CATALOG = {
     "dash.ai_watch": "Qué vigilar:",
     "dash.ai_none": "No hay resumen disponible por ahora",
     "dash.ai_failed": "No se pudo generar un resumen",
-
-    "dash.pack_audit_title": "Auditoría de paquetes",
-    "dash.pack_audit_sub": "El boleto de apertura de cada paquete comparado con su cierre anterior, últimos {days} días. Un corte nombra a los dos firmantes — una pregunta, no un veredicto.",
     "dash.pack_pill_missing": "{n} faltantes",
     "dash.pack_pill_recount": "reconteo",
     "dash.pack_event_unaccounted_one": "{n} boleto sin contabilizar",
@@ -3182,7 +3177,6 @@ export const CATALOG = {
 
     "dash.chart_daily": "Sobra / falta diario",
     "dash.chart_cash_trend": "Tendencia de ventas en efectivo",
-    "dash.chart_top_games": "Juegos de raspaditos principales",
     "dash.by_drawer": "Por caja",
     "dash.by_item": "Por artículo",
     "dash.by_employee": "Por empleado",
@@ -3622,7 +3616,7 @@ export const CATALOG = {
     "admin.data_sharing": "Compartir datos",
     "admin.sharing_all": "Compartido — cada ubicación ve todos los registros",
     "admin.sharing_per": "Por ubicación — los empleados ven solo la suya",
-    "admin.sharing_hint": "Los gerentes y dueños siempre ven todas las ubicaciones. El personal ya conectado adoptará un cambio de compartición la próxima vez que inicie sesión.",
+    "admin.sharing_hint": "Los gerentes y dueños siempre ven todas las ubicaciones. Un cambio en compartir datos se aplica de inmediato en todos los dispositivos con sesión iniciada.",
     "admin.blind_title": "Conteos ciegos",
     "admin.blind_hint": "Quienes cuentan no pueden ver el total esperado hasta después de registrar el conteo. Aplica a todos, gerentes incluidos.",
     "admin.variance_label": "Umbral de variación ($)",
@@ -4194,6 +4188,7 @@ export const CATALOG = {
     "admin.rw_print_sign": "🖨 Imprimir letrero de mostrador",
 
     "guide.title": "Guía de uso",
+    "guide.toc": "En esta página",
     "guide.search_ph": "Buscar en todas las guías y documentos…",
     "guide.all_docs": "Toda la documentación",
     "guide.back_app": "Volver a la app",

@@ -470,7 +470,12 @@ export default function AppShell() {
             </button>
           </div>
 
-          <p className="text-center text-[11px] text-faint mt-5">{t("shell.built_for")}</p>
+          <p className="text-center text-[12px] text-muted mt-5">
+            <a href="/guide" target="_blank" rel="noopener" className="underline underline-offset-2 hover:text-fg">
+              📖 {t("login.user_guide")}
+            </a>
+          </p>
+          <p className="text-center text-[11px] text-faint mt-3">{t("shell.built_for")}</p>
           <p className="hidden sm:block text-center text-[11px] text-faint mt-1.5">
             {t("shell.press_help_pre")} <Kbd>?</Kbd> {t("shell.press_help_post")}
           </p>

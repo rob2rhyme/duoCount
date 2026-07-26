@@ -187,6 +187,15 @@ export default function PreferencesMenu({ onSignOut }) {
             </button>
           )}
 
+          {/* Help at the moment of confusion: the guide was only linked on the
+              sign-in screen, unreachable once installed + logged in. New tab so
+              the clerk's in-progress count is never navigated away from. */}
+          <a href="/guide" target="_blank" rel="noopener"
+            onClick={() => setOpen(false)}
+            className="w-full flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-semibold hover:bg-subtle transition">
+            <span aria-hidden="true">📖</span> {t("login.user_guide")}
+          </a>
+
           {onSignOut && (
             <div className="pt-2.5 border-t border-line">
               <button type="button" onClick={() => { setOpen(false); onSignOut(); }}

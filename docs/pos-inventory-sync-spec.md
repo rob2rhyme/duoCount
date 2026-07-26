@@ -122,7 +122,7 @@ independent convenience stores, best-first for integration:
 
 - A **Stock attention** card on the Dashboard: two lists — “Expiring soon
   (≤ N days)” with days-left, and “Need order (< M left)” with quantities.
-  Manager-visible, same visual language as the Pack-audit card.
+  Manager-visible, same visual language as the other Dashboard attention cards.
 - A section in the **daily digest email** (the cron already aggregates per
   vendor) and, when it lands, the Tier-2 **in-app notification center** — these
   alerts are its first two concrete feed types.

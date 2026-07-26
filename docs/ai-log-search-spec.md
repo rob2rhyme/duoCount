@@ -45,9 +45,12 @@ records themselves. Different surface, different privacy posture, its own spec
 ## Goal
 
 Let an owner or manager type a plain-English question into the **Log** search box —
-*"Eve's shorts last week"*, *"unverified cash over $20"*, *"disputed scratch-offs
+*"Eve's shorts last week"*, *"unverified cash over $20"*, *"backroom counts
 this month"* — and have it resolve to the **same filters the Log tab already
-exposes**, applied to the entries already loaded in the browser. The AI's only job
+exposes**, applied to the entries already loaded in the browser. (Since PR #220
+the Log is a cash/backroom ledger — scratch entries don't appear there, so a
+`scratch` kind filter matches nothing; scratch questions belong to the Scratch
+report.) The AI's only job
 is to turn words into a filter; the app does the filtering, locally and
 deterministically.
 

@@ -10,9 +10,10 @@ export const metadata = {
   description: "Guides and product specs for DuoCount.",
 };
 
-// getting-started is the hero (its own /guide route); these read as overviews.
-const HERO = "getting-started";
-const OVERVIEW = ["app-summary-spec", "positioning-one-pager", "roadmap"];
+// getting-started is the hero (its own /guide route) and its Spanish twin rides
+// beside it — never in the technical buckets below. These read as overviews.
+const HERO = ["getting-started", "getting-started-es"];
+const OVERVIEW = ["app-summary-spec", "roadmap"];
 const LEGAL = ["terms-of-use", "privacy-and-data", "legal-disclaimers"];
 
 function DocCard({ doc }) {
@@ -50,7 +51,7 @@ export default function DocsIndex() {
   const bySlug = Object.fromEntries(all.map((d) => [d.slug, d]));
 
   const legalSet = new Set(LEGAL);
-  const overviewSet = new Set([HERO, ...OVERVIEW]);
+  const overviewSet = new Set([...HERO, ...OVERVIEW]);
   const overview = OVERVIEW.map((s) => bySlug[s]).filter(Boolean);
   const legal = LEGAL.map((s) => bySlug[s]).filter(Boolean);
   const specs = all.filter((d) => !overviewSet.has(d.slug) && d.slug.endsWith("-spec"));
@@ -74,12 +75,27 @@ export default function DocsIndex() {
 
         <Link
           href="/guide"
-          className="flex items-start gap-3 bg-highlight border border-brass/40 rounded-xl px-4 py-3.5 mb-8 hover:border-brass transition"
+          className="flex items-start gap-3 bg-highlight border border-brass/40 rounded-xl px-4 py-3.5 mb-2.5 hover:border-brass transition"
         >
           <span className="text-xl leading-none mt-0.5" aria-hidden>📖</span>
           <span>
             <span className="block font-semibold text-sm">New here? Read the User Guide</span>
             <span className="block text-[12.5px] text-muted mt-0.5">A plain-language walkthrough for owners, managers, and staff — set up your store, log counts, and pull reports.</span>
+          </span>
+          <span className="ml-auto text-muted self-center" aria-hidden>→</span>
+        </Link>
+        {/* The Spanish guide rides right under the hero — a Spanish-first clerk
+            should never have to dig it out of a technical section. Links to the
+            es doc directly so it reads in Spanish regardless of device setting. */}
+        <Link
+          href="/docs/getting-started-es"
+          className="flex items-start gap-3 bg-highlight border border-brass/40 rounded-xl px-4 py-3.5 mb-8 hover:border-brass transition"
+          lang="es"
+        >
+          <span className="text-xl leading-none mt-0.5" aria-hidden>📖</span>
+          <span>
+            <span className="block font-semibold text-sm">¿Prefieres español? Lee la Guía de uso</span>
+            <span className="block text-[12.5px] text-muted mt-0.5">La misma guía completa, en español — configura tu tienda, registra conteos y saca reportes.</span>
           </span>
           <span className="ml-auto text-muted self-center" aria-hidden>→</span>
         </Link>

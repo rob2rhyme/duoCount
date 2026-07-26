@@ -29,10 +29,18 @@ DuoCount only stores what the business and its staff enter to run shift counts:
   is **never stored in plain text**; only a salted hash is kept, and sign-in
   compares against the hash. (`src/lib/hash.js`, `private/creds` subdocument.)
 - **Operational records** — cash counts (sales, paid-outs, expected vs. counted,
-  over/short), scratch-off pack activity, inventory counts, variance flags and
-  their cause codes, disputes, shift notes, incident write-ups, and time-clock
-  punches. These are an **append-only** log: entries are signed by the signed-in
-  user and are not client-deletable, by design, so the record stays trustworthy.
+  over/short), scratch-off pack activity (counts and the occasional books-on-hand
+  census snapshot — a signed list of the pack numbers physically on the shelf),
+  inventory counts, variance flags and their cause codes, disputes, shift notes,
+  incident write-ups, and time-clock punches. These are an **append-only** log:
+  entries are signed by the signed-in user and are not client-deletable, by
+  design, so the record stays trustworthy.
+- **Service-operation records** — when DuoCount's own support operators act on
+  a store through the operator console (e.g. a suspend, a rename, an owner-PIN
+  reset at the owner's request), the action is written to an append-only
+  operator audit log (who acted, what, on which store, when). The operator
+  roster itself (name, role) is likewise a server-only record. Neither contains
+  store count data.
 - **Device preferences** — your light/dark theme choice and a scroll-to-top
   toggle are stored **locally in your browser** (localStorage), not on a server.
 - **Rewards customers (only if the owner turns rewards on)** — a customer's

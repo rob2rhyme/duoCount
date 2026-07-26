@@ -48,5 +48,5 @@ export default function GuideView({ docs, index, tagline }) {
     </p>
   );
 
-  return <DocLayout header={header} title={t("guide.title")} html={doc.html} toc={doc.toc} footer={footer} />;
+  return <DocLayout header={header} title={t("guide.title")} html={doc.html} toc={doc.toc} footer={footer} tocLabel={t("guide.toc")} />;
 }

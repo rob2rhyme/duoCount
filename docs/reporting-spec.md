@@ -6,9 +6,11 @@ title: Reports & records export
 
 **Status:** shipped (phases 1–4). Period + aggregation libs, bounded date-range
 fetch, and the Report center — period picker + live preview, CSV export, a
-period-native summary **PDF** (by location / drawer / game / item, integrity,
-labor roll-up, incident tally, and an over/short sparkline), plus a line-by-line
-**Print**. Future niceties are listed under "Out of scope" below.
+period-native summary **PDF** (by location / drawer / item, integrity, labor
+roll-up, incident tally, and an over/short sparkline), plus a line-by-line
+**Print**. Scratch-off detail moved OUT of these surfaces to the owner
+**Scratch report** tab (PR #220) — lottery revenue still rides in the
+accounting journal. Future niceties are listed under "Out of scope" below.
 
 **Goal.** Let an owner/manager generate and **download a report for any period** —
 daily, weekly, monthly, quarterly, semi-annual, annual, or a custom date range —
@@ -23,8 +25,10 @@ append-only log).
 
 Presets: **daily · weekly · monthly · quarterly · semi-annual (H1/H2) · annual ·
 custom dates.** A downloadable file to keep on record. Reports should cover
-everything the period contains — cash over/short, sales, scratch settlement,
-inventory shrink, flags/disputes, verification rate, staff hours, incidents.
+everything the period contains — cash over/short, sales, inventory shrink,
+flags/disputes, verification rate, staff hours, incidents. (Scratch-off detail
+lives in the owner Scratch report; lottery revenue stays in the accounting
+journal. Settlement was retired — it's the state lottery's job.)
 
 ## Design
 
@@ -59,7 +63,10 @@ Generalized the original single-day EOD rollup into `buildPeriodReport` — a ra
   filters by `date` in range (and `locId`), then returns:
   - **Cash**: sales, paid-out, counted, **net over/short**, count; broken down
     **by drawer** and **by location**.
-  - **Scratch**: tickets sold, gross dollars; by game.
+  - **Scratch**: tickets sold, gross dollars; by game. *(Still computed — it
+    feeds the accounting journal and the digest — but since PR #220 the Report
+    center's preview, PDF, CSV, and print no longer render a scratch section;
+    the owner Scratch report is the scratch surface.)*
   - **Inventory**: units counted, **net shrink** (Σ negative diff); by item.
   - **Integrity**: flagged, disputed, resolved-with-cause, **verification rate**.
     "Flagged" and "disputed" both mean **unresolved** (`status in ['open', 'under-review']`) — the shared `UNRESOLVED` definition (`lib/utils.js`) the dashboard tiles and digest also use, so the report agrees with the live views (M3).

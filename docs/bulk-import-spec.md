@@ -442,8 +442,10 @@ is usable on its own.
   diffs into the append-only log the digest and theft detectors trust — exactly
   what the create rules forbid. Baselines (clean, `diff: 0`, inventory-only) are
   the *only* entries the importer writes. Historical books stay where they are.
-- **Importing scratch-off packs or settlement history** — the pack lifecycle is
-  forward-only and terminal-frozen in rules; it's set up in Admin, not imported.
+- **Importing scratch-off packs or settlement history** — packs need no
+  registration at all (a pack exists the first time someone counts it), and
+  scratch counts and census snapshots are signed, append-only records — never
+  imported. Settlement is retired; it's the lottery's job.
 - **Two-way sync / round-trip export-then-reimport.** Reports already export;
   ongoing sync with an external system is a separate, much larger feature.
 - **Direct POS / accounting connectors** (Square, Clover, QuickBooks). CSV is the
