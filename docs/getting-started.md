@@ -132,6 +132,16 @@ off by default — see step 7).
 > Settings changes apply **live**: the moment you save, every signed-in device
 > picks them up — nobody needs to sign out or restart the app.
 
+> **What employees see.** Right below Data sharing is **What employees see**:
+> **their own counts only** (the default) or **everyone's counts** — the older
+> shared-log style, if your store runs the log as a board the whole team reads.
+> Managers and owners always see the whole team either way. On the default, an
+> employee's Dashboard totals, Log, Backroom history, and Scratch history cover
+> only the counts they signed; a coworker's name is replaced with "another staff
+> member." Nothing about the *math* changes — a coworker's closing count still
+> carries the pack and the drawer forward into the next shift, it just isn't
+> shown to them.
+
 > **How often you count scratch packs.** The same card has **Scratch-off
 > counting**: at **opening and closing** (the default, and the tightest check —
 > it bounds every shift on both sides), or at **opening only** / **closing
@@ -171,11 +181,12 @@ off by default — see step 7).
 - **Open the Scratch report (owners).** Everything scratch-off lives in the
   owner-only **Scratch report** tab: sales and tickets by day, game, and staff,
   with charts, CSV, and a branded printout — plus the log and the theft view:
-  - **Shift log** — the plain record, one line per pack per day: the ticket
-    number it stood at when the shift **opened** and when it **closed**, the
-    time each scan happened and who signed it, and the tickets sold between
-    (closing − opening). This is the sheet to read when you want to know what a
-    pack did on a given day.
+  - **Shift log** — the plain record, one line per pack per day under a single
+    heading for that day: the ticket number it stood at when the shift
+    **opened** and when it **closed**, the time each scan happened and who
+    signed it, and the tickets sold between (closing − opening), with a running
+    day total. This is the sheet to read when you want to know what a pack did
+    on a given day.
   - **Unaccounted tickets** — every break in a pack's ticket sequence: the
     number it closed at, the number it re-opened at, who signed each side, and
     when. The time is the server's clock, so it can't be backdated. A one-tap
@@ -184,6 +195,13 @@ off by default — see step 7).
     last ticket #, signer, and exact time.
   - **Books on hand** — the shelf census reconciled against the counts. A book
     that walked, or one never counted at all, gets named.
+
+  **Print only what you need.** The printout opens with an **Include** strip
+  along the top: untick **Summary**, **By game**, or **By staff** and they drop
+  off the page — a store that prints this as a shift-handoff record can keep
+  just the **Shift log**. (By game lists every game you sell, so it can run a
+  full page of $0.00 rows.) Your choice is remembered on that device, and the
+  strip itself never prints.
 
   Missing tickets get caught at the shift boundary, not months later. The
   Dashboard's alerts still tip you off: several packs jumping together in one
@@ -372,8 +390,11 @@ Type the **store code** your manager gave you and **your own PIN**, then
 > **Two more views on the same tab.** **History** shows your own scratch numbers
 > by shift (managers see everyone's), so you can check your day without asking —
 > including a **Shift log** of the packs you counted: what each one was at when
-> you scanned it, the time, and who took the other reading. Pick 7 / 30 / 90 days
-> at the top.
+> you scanned it and the time, grouped under one heading per day. Pick 7 / 30 /
+> 90 days at the top. If somebody else took the other reading of a shift you
+> signed, you'll see the time but not their name — that's a manager's view
+> (owners can switch the store back to a shared log in **Business settings →
+> What employees see**).
 > **Census** is an occasional shelf walk: scan **every book physically on the
 > display** — including ones nobody has counted yet — and save one signed
 > snapshot. The owner's report compares censuses over time, so a book that
@@ -508,8 +529,9 @@ bin 4 running low." Managers can pin the important ones.
 - **Keyboard shortcuts** (on a computer): press **?** to see them — number keys
   jump between tabs, **⌘/Ctrl + Enter** saves the current form.
 - **Export anytime.** The **Log** tab's **Export CSV** covers the cash and
-  backroom count history; the owner **Scratch report** exports scratch-off
-  detail; the **Reports** center exports a specific period.
+  backroom count history you can see — your own counts if you're an employee,
+  the whole store if you're a manager; the owner **Scratch report** exports
+  scratch-off detail; the **Reports** center exports a specific period.
 
 ---
 

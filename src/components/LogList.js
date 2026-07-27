@@ -6,6 +6,7 @@ import {
 import { money, toDate, exportCSV } from "@/lib/utils";
 import { searchTerms } from "@/lib/text-match";
 import { applyLogFilter, buildVocabulary } from "@/lib/log-filter";
+import { scopeEntries, seesEveryone } from "@/lib/staff-scope";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { CATALOG } from "@/lib/i18n";
@@ -204,7 +205,15 @@ export default function LogList({ entries: rawEntries, onToast, locName, showLoc
   // History view + the owner Scratch report), so it's filtered out of the
   // general log here — this stays a cash/inventory ledger. Everything downstream
   // (filters, CSV export, search vocabulary) reads this scratch-free list.
-  const entries = useMemo(() => (rawEntries || []).filter((e) => e.kind !== "scratch"), [rawEntries]);
+  // ...and narrowed to what this viewer may see: a manager reads the whole
+  // team's ledger, a clerk reads their own counts unless the owner has set the
+  // store back to the shared-log mode. Scoping happens HERE, at the render, not
+  // where counts are loaded — the count form still needs a coworker's last
+  // reading to carry a pack or drawer forward.
+  const entries = useMemo(
+    () => scopeEntries((rawEntries || []).filter((e) => e.kind !== "scratch"),
+      { vendor, isManager, viewerId: profile?.id }),
+    [rawEntries, vendor, isManager, profile?.id]);
   // Localized cause label for display; a legacy/unknown code falls back to the
   // English causeLabel rather than leaking a raw catalog key.
   const tCause = (c) => (CATALOG.en[`cause.${c}`] ? t(`cause.${c}`) : causeLabel(c));
@@ -351,7 +360,7 @@ export default function LogList({ entries: rawEntries, onToast, locName, showLoc
         {rows.length === 0 ? (
           entries.length === 0 ? (
             <EmptyState icon={<IconReceipt />} title={t("log.empty_title")}
-              subtitle={t("log.empty_sub")} />
+              subtitle={t(seesEveryone(vendor, isManager) ? "log.empty_sub" : "log.empty_sub_own")} />
           ) : (
             <EmptyState icon={<IconReceipt />} title={t("log.no_match_title")}
               subtitle={t("log.no_match_sub")}

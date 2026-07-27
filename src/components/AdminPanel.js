@@ -14,6 +14,7 @@ import { FEATURES, FEATURE_KEYS, resolveFeatures, featureEnabled } from "@/lib/f
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV, printCloseHtml } from "@/lib/utils";
 import { SCRATCH_SHIFT_MODES, resolveScratchShifts } from "@/lib/scratch-settings";
+import { STAFF_SCOPES, resolveStaffScope } from "@/lib/staff-scope";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import { buildStockAlerts } from "@/lib/stock-alerts";
@@ -50,6 +51,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const [staff, setStaff] = useState([]);
   const barcodeFieldId = useId();
   const sharingId = useId();
+  const staffScopeId = useId();
   const varianceId = useId();
   const scratchShiftId = useId();
   const invVarianceId = useId();
@@ -181,6 +183,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   /* ---- settings ---- */
   const [settings, setSettings] = useState({
     name: vendor.name, logoUrl: vendor.logoUrl || "", sharingMode: vendor.sharingMode,
+    staffScope: resolveStaffScope(vendor),
     blindCounts: vendor.blindCounts === true,
     varianceThreshold: vendor.varianceThreshold ?? 5,
     invVarianceThreshold: vendor.invVarianceThreshold ?? "",
@@ -291,6 +294,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     const patch = {
       name: settings.name, logoUrl: settings.logoUrl.trim() || null,
       sharingMode: settings.sharingMode,
+      staffScope: resolveStaffScope(settings),
       blindCounts: settings.blindCounts,
       varianceThreshold: threshold,
       invVarianceThreshold: invThreshold,
@@ -312,6 +316,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     const prevVendor = vendor;
     const prevPatch = {
       name: vendor.name, logoUrl: vendor.logoUrl || null, sharingMode: vendor.sharingMode,
+      staffScope: resolveStaffScope(vendor),
       blindCounts: vendor.blindCounts === true,
       varianceThreshold: vendor.varianceThreshold ?? 5,
       invVarianceThreshold: vendor.invVarianceThreshold ?? null,
@@ -874,6 +879,21 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               <option value="per-location">{t("admin.sharing_per")}</option>
             </select>
             <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("admin.sharing_hint")}</p>
+          </div>
+
+          {/* What a CLERK sees of the team's counts. Managers and owners always
+              see everyone — this only narrows the employee view. It's a display
+              rule: coworkers' counts still feed pack chaining and drawer
+              baselines, they're just not shown or named. */}
+          <div>
+            <label htmlFor={staffScopeId} className="label">{t("admin.staff_scope")}</label>
+            <select id={staffScopeId} className="input" value={settings.staffScope}
+              onChange={(e) => setSettings({ ...settings, staffScope: e.target.value })} disabled={!isOwner}>
+              {STAFF_SCOPES.map((s) => (
+                <option key={s} value={s}>{t(`admin.staff_scope_${s}`)}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("admin.staff_scope_hint")}</p>
           </div>
 
           <div className="flex items-start gap-3">

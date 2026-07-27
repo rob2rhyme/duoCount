@@ -5,6 +5,7 @@ import { money, downloadCSV } from "@/lib/utils";
 import { buildScratchAnalytics, buildScratchStaffCSV } from "@/lib/scratch-analytics";
 import { buildShiftLog, groupShiftLogByDate } from "@/lib/scratch-shift-log";
 import { resolveScratchShifts } from "@/lib/scratch-settings";
+import { seesEveryone, displaySigner } from "@/lib/staff-scope";
 import { chartBar } from "@/lib/branding";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -56,7 +57,10 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
   const ch = { ...(CHART[theme] || CHART.light), bar: chartBar(vendor, theme) };
   const tip = { borderRadius: 10, border: `1px solid ${ch.tipBorder}`, background: ch.tipBg, color: ch.tipText, fontSize: 12 };
   const from = daysAgoISO(days - 1);
-  const staffId = isManager ? "" : (profile?.id || "");
+  // Blank = every signer. A clerk is pinned to their own id unless the owner
+  // runs the store in shared-log mode (staffScope).
+  const teamView = seesEveryone(vendor, isManager);
+  const staffId = teamView ? "" : (profile?.id || "");
 
   const scoped = useMemo(
     () => (shift === "all" ? entries : entries.filter((e) => (e.shift === "close" ? "close" : "open") === shift)),
@@ -73,16 +77,23 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
 
   // The shift log is built from the UNFILTERED entries on purpose: an opening and
   // a closing must pair into one row, and the shift chips above deliberately keep
-  // only one side. `staffId` then filters whole ROWS, so a clerk sees the shifts
-  // they signed with the coworker on the other side still named.
+  // only one side. `staffId` then filters whole ROWS, so a clerk sees only shifts
+  // they signed — and `who()` below hides WHO was on the other side, since naming
+  // a coworker's counts is a manager view.
   const policy = resolveScratchShifts(vendor);
   const shiftLog = useMemo(() => buildShiftLog(entries, {
     from, to: todayISO(), locationId: isManager ? locId : "", staffId, policy,
   }), [entries, from, locId, isManager, staffId, policy]);
   const logPage = usePaged(shiftLog.rows, { initial: 25, step: 25, resetKey: `${days}|${locId}|log` });
   const logBands = useMemo(() => groupShiftLogByDate(logPage.visible), [logPage.visible]);
+  // Manager sees every signer by name; a clerk sees their own name and a neutral
+  // label for whoever held the other side of the shift.
+  const who = (name, id) =>
+    displaySigner(name, id, { vendor, isManager, viewerId: profile?.id, otherLabel: t("common.other_staff") });
 
-  const exportCsv = () => downloadCSV(buildScratchStaffCSV(a, { rangeLabel, shiftLog }), `scratch-staff-${from}_${todayISO()}.csv`);
+  // The export carries the same masking as the screen — a clerk's CSV must not
+  // name the coworker their shift log hides.
+  const exportCsv = () => downloadCSV(buildScratchStaffCSV(a, { rangeLabel, shiftLog, signer: who }), `scratch-staff-${from}_${todayISO()}.csv`);
   const fmt = (v) => (measure === "dollars" ? money(v) : v);
   const hasData = a.totals.counts > 0;
 
@@ -96,7 +107,7 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
   return (
     <div className="space-y-3.5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-[12px] text-muted">{isManager ? t("shist.sub_manager") : t("shist.sub_staff")}</p>
+        <p className="text-[12px] text-muted">{teamView ? t("shist.sub_manager") : t("shist.sub_staff")}</p>
         <button type="button" className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={!hasData} onClick={exportCsv}>
           ⬇ {t("shist.export")}
         </button>
@@ -173,7 +184,7 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
             <div className="card overflow-hidden">
               <div className="px-4 py-3 border-b border-line">
                 <h3 className="font-semibold text-[14px]">{t("srep.log_title")}</h3>
-                <p className="text-[12px] text-muted mt-0.5">{isManager ? t("srep.log_sub") : t("shist.log_sub_staff")}</p>
+                <p className="text-[12px] text-muted mt-0.5">{teamView ? t("srep.log_sub") : t("shist.log_sub_staff")}</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
@@ -208,13 +219,13 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
                       <td className="px-2 py-2 text-right">
                         <div className="font-mono tabular-nums">{r.openTicket != null ? `#${r.openTicket}` : "—"}</div>
                         <div className="text-[11px] text-muted">{r.openTicket != null
-                          ? `${fmtTime(r.openTs)} · ${r.openBy}` : t("srep.log_no_open")}</div>
+                          ? `${fmtTime(r.openTs)} · ${who(r.openBy, r.openById)}` : t("srep.log_no_open")}</div>
                       </td>
                       <td className="px-2 py-2 text-right">
                         <div className="font-mono tabular-nums">{r.closeTicket != null ? `#${r.closeTicket}` : "—"}
                           {r.soldOut && <span className="ml-1 text-[10px] uppercase font-bold text-neg">{t("srep.log_soldout")}</span>}</div>
                         <div className="text-[11px] text-muted">{r.closeTicket != null
-                          ? `${fmtTime(r.closeTs)} · ${r.closeBy}` : t("srep.log_no_close")}</div>
+                          ? `${fmtTime(r.closeTs)} · ${who(r.closeBy, r.closeById)}` : t("srep.log_no_close")}</div>
                       </td>
                       <td className="px-2 py-2 text-right font-mono tabular-nums">
                         {r.sold != null ? r.sold : <span className="text-neg" title={t("srep.log_rollback")}>⚠</span>}

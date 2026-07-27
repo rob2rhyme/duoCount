@@ -103,6 +103,16 @@ actually use in your published notice.
 - Deactivating or demoting a staff member revokes their session so access ends
   promptly (see the security notes in `roadmap.md`).
 - Records are append-only and signed, so history can't be quietly altered.
+- **Staff see their own work by default.** Managers and owners read the whole
+  store; an employee's Dashboard, Log, Backroom history, and Scratch history show
+  only the counts they signed, and a coworker who appears at the other end of a
+  shift is shown as "another staff member" rather than by name. An owner can turn
+  the shared-log view back on (**Business settings → What employees see**). Note
+  this is a *display* rule enforced in the app, not in security rules: counts stay
+  readable store-wide because the arithmetic depends on it (a pack's opening
+  number chains off whoever took the previous reading). Treat it as a courtesy
+  boundary between coworkers, not as a security control against a determined
+  employee.
 
 ## Who owns rewards-customer data
 

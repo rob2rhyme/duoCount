@@ -12,6 +12,7 @@ import { renderPattern } from "@/lib/pattern-format";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockMoveAudit } from "@/lib/stockmove-audit";
 import { featureEnabled } from "@/lib/features";
+import { scopeEntries, seesEveryone } from "@/lib/staff-scope";
 import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
 import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange } from "@/lib/data";
 import { buildTheftReport } from "@/lib/theft-report";
@@ -90,9 +91,22 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
   const stock = useMemo(
     () => (isManager ? buildStockAlerts(items, { rules: vendor?.stockAlerts }) : { expiring: [], lowStock: [], rules: {} }),
     [items, isManager, vendor?.stockAlerts]);
+  // WHOSE numbers this dashboard shows. A manager/owner is accountable for the
+  // whole store, so they see everyone. An EMPLOYEE sees their own work only:
+  // the store-wide totals and the needs-attention queue used to name coworkers
+  // and their counts, which is a manager's job to review â€” a clerk doesn't need
+  // (and shouldn't get) a performance read on the person beside them. The
+  // Scratch history view has always scoped this way; this brings the dashboard
+  // in line. Reads are unchanged â€” this is what the screen shows, not what the
+  // rules allow (a clerk still needs a coworker's last ticket # to chain a count).
+  // An owner who runs the log as a shared board can opt back in (staffScope).
+  const own = useMemo(
+    () => scopeEntries(entries, { vendor, isManager, viewerId: profile?.id }),
+    [entries, vendor, isManager, profile?.id]);
+  const teamView = seesEveryone(vendor, isManager);
   const a = useMemo(() => {
-    const cash = entries.filter((e) => e.kind === "cash");
-    const inv = entries.filter((e) => e.kind === "inventory");
+    const cash = own.filter((e) => e.kind === "cash");
+    const inv = own.filter((e) => e.kind === "inventory");
 
     const netDiff = cash.reduce((s, e) => s + (e.diff || 0), 0);
     const shorts = cash.filter((e) => e.diff < -0.005).length;
@@ -103,14 +117,14 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     // tier one: attention counters + top-10 needs-attention list. "Open" here
     // means unresolved (open OR under-review) â€” the same definition the digest
     // and period report use, so the surfaces can't disagree (M3).
-    const openVariances = entries.filter((e) => isUnresolved(e.varianceStatus)).length;
-    const openDisputes = entries.filter((e) => isUnresolved(e.disputeStatus)).length;
-    const unverified = entries.filter((e) => !e.verifiedBy).length;
+    const openVariances = own.filter((e) => isUnresolved(e.varianceStatus)).length;
+    const openDisputes = own.filter((e) => isUnresolved(e.disputeStatus)).length;
+    const unverified = own.filter((e) => !e.verifiedBy).length;
     const dayMs = 24 * 60 * 60 * 1000;
     // `why` is a stable code (variance | dispute | unverified) plus the raw
     // status; the pill text + style resolve from the code so localization can't
     // break the styling check (Phase 2c).
-    const attention = entries
+    const attention = own
       .map((e) => {
         if (isUnresolved(e.varianceStatus)) return { e, why: "variance", status: e.varianceStatus };
         if (isUnresolved(e.disputeStatus)) return { e, why: "dispute", status: e.disputeStatus };
@@ -119,8 +133,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
       })
       .filter(Boolean)
       .slice(0, 10);
-    const verified = entries.filter((e) => e.verifiedBy).length;
-    const verifyRate = entries.length ? Math.round((verified / entries.length) * 100) : 0;
+    const verified = own.filter((e) => e.verifiedBy).length;
+    const verifyRate = own.length ? Math.round((verified / own.length) * 100) : 0;
 
     // by day (last 14 with data)
     const byDay = {};
@@ -135,7 +149,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
 
     // by employee
     const byEmp = {};
-    entries.forEach((e) => {
+    own.forEach((e) => {
       byEmp[e.by] = byEmp[e.by] || { name: e.by, entries: 0, diff: 0, shorts: 0 };
       byEmp[e.by].entries++;
       if (e.kind === "cash") { byEmp[e.by].diff += e.diff || 0; if (e.diff < -0.005) byEmp[e.by].shorts++; }
@@ -158,7 +172,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     // by drawer (cash only â€” a drawer is a cash concept; scratch is a pack count
     // tied to a location/shift, and inventory has no drawer)
     const byDrawer = {};
-    entries.forEach((e) => {
+    own.forEach((e) => {
       if (e.kind !== "cash") return;
       const key = e.drawerName || "(no drawer)";
       byDrawer[key] = byDrawer[key] || { name: key, entries: 0, diff: 0, cash: 0 };
@@ -170,8 +184,8 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
       .map((r) => ({ ...r, diff: Math.round(r.diff * 100) / 100, cash: Math.round(r.cash * 100) / 100 }))
       .sort((x, y) => y.entries - x.entries);
 
-    return { count: entries.length, netDiff, shorts, overs, cashSales, verifyRate, missingUnits, invCount: inv.length, openVariances, openDisputes, unverified, attention, dayRows, empRows, drawerRows, itemRows };
-  }, [entries]);
+    return { count: own.length, netDiff, shorts, overs, cashSales, verifyRate, missingUnits, invCount: inv.length, openVariances, openDisputes, unverified, attention, dayRows, empRows, drawerRows, itemRows };
+  }, [own]);
 
   // On-demand AI narrative over the pattern alerts (ai-pattern-narrative-spec.md).
   // Opt-in per vendor; the server route re-checks the flag + key. Cached per
@@ -320,7 +334,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
     </div>
   );
 
-  if (!entries.length) {
+  // `own`, not `entries`: a clerk whose store is busy but who hasn't counted yet
+  // should get the "record your first count" nudge, not a wall of zeros.
+  if (!own.length) {
     return (
       <div className="space-y-4">
         {reportButton}
@@ -337,6 +353,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
 
   return (
     <div className="space-y-4">
+      {/* Say whose numbers these are, so a clerk doesn't read their own tally as
+          the store's (or wonder where the rest of the store went). */}
+      {!teamView && <p className="text-[12px] text-muted">{t("dash.scope_own")}</p>}
       {reportButton}
       {reportModal}
       {theftModal}
@@ -582,6 +601,9 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
         </div>
       )}
 
+      {/* Staff-vs-staff comparison is a manager view by definition; scoped to a
+          clerk it is one row of their own name, which teaches nothing. */}
+      {teamView && (
       <div className="card overflow-hidden">
         <div className="px-4 py-3.5 border-b border-line"><h3 className="font-semibold text-[15px]">{t("dash.by_employee")}</h3></div>
         <div className="overflow-auto max-h-[26rem]">
@@ -605,6 +627,7 @@ export default function Dashboard({ entries, locations = [], locName = () => "â€
           </table>
         </div>
       </div>
+      )}
     </div>
   );
 }
