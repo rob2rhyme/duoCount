@@ -12,6 +12,7 @@ import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/co
 import { allowedShifts, coerceShift, resolveScratchShifts } from "@/lib/scratch-settings";
 import { useSaveState } from "@/lib/use-save-state";
 import { useModalA11y } from "@/lib/use-modal-a11y";
+import { seesEveryone } from "@/lib/staff-scope";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import SaveError from "./SaveError";
@@ -670,7 +671,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
                   <button key={e.pack} type="button" className="w-full text-left px-3 py-2 hover:bg-subtle transition"
                     onClick={() => addMissingPack(e)}>
                     <span className="block text-[13px] font-medium truncate">{e.game || t("scratch.walk_unknown_game")}</span>
-                    <span className="block text-[11px] text-muted font-mono">#{packDisplayParts(e.pack).bookNo} · {t("scratch.walk_missing_last", { n: e.endno ?? "—", by: e.by || "—" })}</span>
+                    <span className="block text-[11px] text-muted font-mono">#{packDisplayParts(e.pack).bookNo} · {t(seesEveryone(vendor, isManager) ? "scratch.walk_missing_last" : "scratch.walk_missing_last_anon", { n: e.endno ?? "—", by: e.by || "—" })}</span>
                   </button>
                 ))}
                 <p className="px-3 py-2 text-[11px] text-muted bg-panel">{t("scratch.walk_add_missing_hint")}</p>

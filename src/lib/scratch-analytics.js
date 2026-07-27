@@ -124,7 +124,7 @@ const hhmm = (d) => (d instanceof Date && !Number.isNaN(d.getTime())
 const row = (cells) => cells.map(csvCell).join(",");
 
 // Staff history export: one row per staff × shift.
-export function buildScratchStaffCSV(analytics, { rangeLabel = "", shiftLog = null } = {}) {
+export function buildScratchStaffCSV(analytics, { rangeLabel = "", shiftLog = null, signer = null } = {}) {
   const lines = [];
   if (rangeLabel) lines.push(row([`Scratch-off staff report — ${rangeLabel}`]));
   lines.push(row(["Staff", "Role", "Shift", "Counts", "Tickets sold", "Sales $", "Packs", "Sold out"]));
@@ -133,23 +133,26 @@ export function buildScratchStaffCSV(analytics, { rangeLabel = "", shiftLog = nu
   lines.push(row(["Total", "", "", analytics.totals.counts, analytics.totals.tickets, analytics.totals.dollars.toFixed(2), analytics.totals.packs, analytics.totals.soldOut]));
   // The same per-shift ticket log the owner report carries, scoped to whoever is
   // reading it (a clerk gets the shifts they signed; a manager gets everyone's).
-  appendShiftLogCSV(lines, shiftLog);
+  // `signer` masks the coworker on the other side of a paired shift so the file
+  // can't say what the screen won't (staff-scope.js).
+  appendShiftLogCSV(lines, shiftLog, signer);
   return lines.join("\n");
 }
 
 // The shift log as its own CSV section — one line per pack per day with both
 // readings, the scan times and the signers. Shared by the owner and staff
 // exports so the two files never drift.
-function appendShiftLogCSV(lines, log) {
+function appendShiftLogCSV(lines, log, signer = null) {
   if (!log || !log.rows.length) return;
+  const who = typeof signer === "function" ? signer : (name) => name || "";
   lines.push("");
   lines.push(row(["Shift log", "Location", "Game", "Game #", "Book #", "Pack id",
     "Opening #", "Opened at", "Opened by", "Closing #", "Closed at", "Closed by",
     "Carried in", "Sold this shift", "Price", "Sales $", "Sold out", "Status"]));
   for (const r of log.rows) {
     lines.push(row([r.date, r.locationName || "", r.game, r.gameNo || "", r.bookNo || "", r.pack,
-      r.openTicket ?? "", hhmm(r.openTs), r.openBy || "",
-      r.closeTicket ?? "", hhmm(r.closeTs), r.closeBy || "",
+      r.openTicket ?? "", hhmm(r.openTs), r.openTicket != null ? who(r.openBy, r.openById) : "",
+      r.closeTicket ?? "", hhmm(r.closeTs), r.closeTicket != null ? who(r.closeBy, r.closeById) : "",
       r.carriedIn ?? "", r.sold ?? "", Number(r.price || 0).toFixed(2),
       r.dollars != null ? r.dollars.toFixed(2) : "", r.soldOut ? "yes" : "",
       r.incomplete ? `${r.status} (incomplete)` : r.status]));

@@ -145,6 +145,17 @@ desactivadas por defecto — mira el paso 7).
 > dispositivo con sesión iniciada los recibe — nadie necesita cerrar sesión ni
 > reiniciar la app.
 
+> **Lo que ve el personal.** Justo debajo de Compartir datos está **Lo que ve el
+> personal**: **solo sus propios conteos** (lo predeterminado) o **los conteos de
+> todos** — el estilo de registro compartido de antes, si tu tienda usa el
+> registro como un tablero que lee todo el equipo. Los gerentes y dueños siempre
+> ven a todo el equipo en cualquiera de los dos casos. Con lo predeterminado, los
+> totales del Panel, el Registro, el historial de Trastienda y el historial de
+> Raspaditos de un empleado cubren solo los conteos que él firmó; el nombre de un
+> compañero se reemplaza por «otro miembro del personal». Nada cambia en los
+> *cálculos*: el conteo de cierre de un compañero sigue continuando el paquete y
+> la caja hacia el siguiente turno, simplemente no se le muestra.
+
 > **Con qué frecuencia cuentas los paquetes de rasca.** La misma tarjeta tiene
 > **Conteo de raspaditos**: en **apertura y cierre** (lo predeterminado y el
 > control más estricto — acota cada turno por los dos lados), o solo en
@@ -187,11 +198,12 @@ desactivadas por defecto — mira el paso 7).
   pestaña **Reporte de raspaditos**, solo para el dueño: ventas y boletos por
   día, juego y personal, con gráficas, CSV e impresión con tu marca — más el
   registro y la vista antirrobo:
-  - **Registro de turnos** — el registro llano, una línea por paquete por día:
-    en qué número de boleto estaba al **abrir** el turno y al **cerrarlo**, la
-    hora de cada escaneo y quién lo firmó, y los boletos vendidos entre ambos
-    (cierre − apertura). Esta es la hoja que se lee para saber qué hizo un
-    paquete en un día concreto.
+  - **Registro de turnos** — el registro llano, una línea por paquete por día
+    bajo un solo encabezado para ese día: en qué número de boleto estaba al
+    **abrir** el turno y al **cerrarlo**, la hora de cada escaneo y quién lo
+    firmó, y los boletos vendidos entre ambos (cierre − apertura), con el total
+    del día. Esta es la hoja que se lee para saber qué hizo un paquete en un día
+    concreto.
   - **Boletos sin justificar** — cada corte en la secuencia de boletos de un
     paquete: en qué número cerró, en qué número reabrió, quién firmó cada lado
     y cuándo. La hora es el reloj del servidor, así que no se puede antedatar.
@@ -407,8 +419,11 @@ registres.
 > **Dos vistas más en la misma pestaña.** **Historial** muestra tus propios
 > números de raspaditos por turno (los gerentes ven los de todos), para revisar
 > tu día sin preguntar — incluye un **Registro de turnos** de los paquetes que
-> contaste: en qué número estaba cada uno cuando lo escaneaste, la hora y quién
-> tomó la otra lectura. Elige 7 / 30 / 90 días arriba. **Censo** es un recorrido ocasional del estante: escanea
+> contaste: en qué número estaba cada uno cuando lo escaneaste y la hora,
+> agrupados bajo un solo encabezado por día. Elige 7 / 30 / 90 días arriba. Si
+> otra persona tomó la otra lectura de un turno que firmaste, verás la hora pero
+> no su nombre — esa es una vista de gerente (el dueño puede volver al registro
+> compartido en **Configuración del negocio → Lo que ve el personal**). **Censo** es un recorrido ocasional del estante: escanea
 > **cada libro físicamente en exhibición** — incluso los que nadie ha contado
 > todavía — y guarda una sola instantánea firmada. El reporte del dueño compara
 > los censos en el tiempo, así que un libro que desaparece entre dos recorridos
@@ -553,9 +568,10 @@ importantes.
   números saltan entre pestañas y **⌘/Ctrl + Enter** guarda el formulario
   actual.
 - **Exporta cuando quieras.** El **Exportar CSV** de la pestaña **Registro**
-  cubre el historial de conteos de caja y almacén; el **Reporte de raspaditos**
-  del dueño exporta el detalle de raspaditos; el centro de **Reportes** exporta
-  un período específico.
+  cubre el historial de conteos de caja y almacén que puedes ver — tus propios
+  conteos si eres empleado, toda la tienda si eres gerente; el **Reporte de
+  raspaditos** del dueño exporta el detalle de raspaditos; el centro de
+  **Reportes** exporta un período específico.
 
 ---
 

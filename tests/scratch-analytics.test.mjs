@@ -97,6 +97,24 @@ test("CSV builders emit headers + rows", () => {
   assert.match(rptCsv, /"Opening #","Opened at","Opened by"/);
 });
 
+test("the staff CSV masks the coworker on the other side of a paired shift", () => {
+  // A clerk's export must not name whoever a clerk's SCREEN hides (staff-scope).
+  const paired = [
+    e({ byId: "u1", by: "Ada", shift: "open", date: "2026-07-22", pack: "17920011361", endno: 20 }),
+    e({ byId: "u2", by: "Bo", shift: "close", date: "2026-07-22", pack: "17920011361", endno: 40 }),
+  ];
+  const a = buildScratchAnalytics(paired, { staffId: "u1" });
+  const mask = (name, id) => (id === "u1" ? name : "another staff member");
+  const masked = buildScratchStaffCSV(a, { rangeLabel: "Jul 2026", shiftLog: a.shiftLog, signer: mask });
+  assert.match(masked, /"Ada"/, "the reader still sees their own name");
+  assert.doesNotMatch(masked, /"Bo"/, "the coworker's name never reaches the file");
+  assert.match(masked, /"another staff member"/);
+
+  // No signer (the manager path) is unchanged — every signer is named.
+  const open = buildScratchStaffCSV(a, { rangeLabel: "Jul 2026", shiftLog: a.shiftLog });
+  assert.match(open, /"Bo"/);
+});
+
 test("the bundle carries the per-shift ticket log", () => {
   const a = buildScratchAnalytics(DATA);
   assert.ok(a.shiftLog, "shiftLog present on the analytics bundle");

@@ -12,6 +12,7 @@ export const VENDOR_SETTING_KEYS = [
   "name",
   "logoUrl",
   "sharingMode",
+  "staffScope",
   "invVarianceThreshold",
   "blindCounts",
   "varianceThreshold",

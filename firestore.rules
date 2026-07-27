@@ -42,7 +42,7 @@ service cloud.firestore {
       allow read: if member();
       allow update: if owner() && liveActive()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['name', 'logoUrl', 'sharingMode', 'invVarianceThreshold',
+             .hasOnly(['name', 'logoUrl', 'sharingMode', 'staffScope', 'invVarianceThreshold',
                        'blindCounts', 'varianceThreshold', 'digest', 'patternRules',
                        'fiscalStartMonth', 'aiSearch', 'aiInsights', 'stockAlerts',
                        'rewards', 'features', 'scratch', 'themePalette', 'fontFamily', 'fontScale']);

@@ -7,6 +7,7 @@ import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockFlow, flowShare } from "@/lib/stock-flow";
 import { chartBar } from "@/lib/branding";
+import { displaySigner } from "@/lib/staff-scope";
 import { useSession } from "./SessionProvider";
 import { useLang } from "./LangProvider";
 import { useTheme } from "./ThemeProvider";
@@ -260,7 +261,10 @@ export default function BackroomStock({ onToast, items = [], locations = [], mov
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="block font-medium truncate text-[13px]">{m.itemName}</span>
-                        <span className="block text-[11px] text-muted">{t("br.hist_by", { name: m.by || "—" })}</span>
+                        {/* Every pull stays visible — a clerk has to know what left
+                            the backroom to count the floor. Only the coworker's
+                            NAME is masked (staffScope); managers see the signer. */}
+                        <span className="block text-[11px] text-muted">{t("br.hist_by", { name: displaySigner(m.by, m.byId, { vendor, isManager, viewerId: profile?.id, otherLabel: t("common.other_staff") }) })}</span>
                       </div>
                       <div className={`flex-shrink-0 font-mono font-bold ${out ? "text-neg" : "text-pos"}`}>
                         {out ? m.delta : `+${m.delta}`} <span className="text-muted font-normal">→ {m.newQty}</span>
