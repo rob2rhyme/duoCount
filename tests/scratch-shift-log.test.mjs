@@ -1,7 +1,7 @@
 // buildShiftLog is pure — no emulator. Run: npm run test:scratch-shift-log
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildShiftLog } from "../src/lib/scratch-shift-log.js";
+import { buildShiftLog, groupShiftLogByDate } from "../src/lib/scratch-shift-log.js";
 
 // A scratch count. `ts` is the server-pinned scan time; `startno` is the
 // CHAINED baseline from the pack's previous count, `endno` the reading taken now.
@@ -195,4 +195,33 @@ test("empty input is a clean empty result", () => {
   assert.deepEqual(rows, []);
   assert.equal(totals.rows, 0);
   assert.equal(totals.sold, 0);
+});
+
+// ---- date bands: one heading per day instead of a repeated date column ----
+test("groupShiftLogByDate bands consecutive rows and totals each day", () => {
+  const rows = buildShiftLog([
+    e({ pack: "A", date: "2026-07-27", shift: "open", startno: 0, endno: 10, ts: new Date("2026-07-27T11:00:00Z") }),
+    e({ pack: "A", date: "2026-07-27", shift: "close", startno: 10, endno: 30, ts: new Date("2026-07-27T19:00:00Z") }),
+    e({ pack: "B", date: "2026-07-27", shift: "close", startno: 0, endno: 5, ts: new Date("2026-07-27T19:00:00Z") }),
+    e({ pack: "A", date: "2026-07-26", shift: "close", startno: 0, endno: 4, ts: new Date("2026-07-26T19:00:00Z") }),
+  ]).rows;
+  const groups = groupShiftLogByDate(rows);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].date, "2026-07-27");   // newest band first, like the rows
+  assert.equal(groups[0].packs, 2);
+  assert.equal(groups[0].sold, 25);             // 20 + 5
+  assert.equal(groups[0].dollars, 500);
+  assert.equal(groups[1].date, "2026-07-26");
+  assert.equal(groups[1].packs, 1);
+  // every row survives the banding, in order
+  assert.deepEqual(groups.flatMap((g) => g.rows).map((r) => r.key), rows.map((r) => r.key));
+});
+
+test("banding a paged slice groups exactly what renders, and empty stays empty", () => {
+  const rows = buildShiftLog([
+    e({ pack: "A", date: "2026-07-27", shift: "close", startno: 0, endno: 4 }),
+    e({ pack: "B", date: "2026-07-26", shift: "close", startno: 0, endno: 4 }),
+  ]).rows;
+  assert.equal(groupShiftLogByDate(rows.slice(0, 1)).length, 1);
+  assert.deepEqual(groupShiftLogByDate([]), []);
 });
