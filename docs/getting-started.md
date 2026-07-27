@@ -132,6 +132,13 @@ off by default — see step 7).
 > Settings changes apply **live**: the moment you save, every signed-in device
 > picks them up — nobody needs to sign out or restart the app.
 
+> **How often you count scratch packs.** The same card has **Scratch-off
+> counting**: at **opening and closing** (the default, and the tightest check —
+> it bounds every shift on both sides), or at **opening only** / **closing
+> only** if that's all your staffing allows. The count form then offers just the
+> shifts you log, and the Shift log treats a single daily count as complete
+> instead of asking for the one you never intended to take.
+
 ### 4. Your daily rhythm
 
 - **Watch the badges.** As a manager, small amber counts appear on the
@@ -163,7 +170,12 @@ off by default — see step 7).
   says what to look at first.
 - **Open the Scratch report (owners).** Everything scratch-off lives in the
   owner-only **Scratch report** tab: sales and tickets by day, game, and staff,
-  with charts, CSV, and a branded printout — plus the theft view:
+  with charts, CSV, and a branded printout — plus the log and the theft view:
+  - **Shift log** — the plain record, one line per pack per day: the ticket
+    number it stood at when the shift **opened** and when it **closed**, the
+    time each scan happened and who signed it, and the tickets sold between
+    (closing − opening). This is the sheet to read when you want to know what a
+    pack did on a given day.
   - **Unaccounted tickets** — every break in a pack's ticket sequence: the
     number it closed at, the number it re-opened at, who signed each side, and
     when. The time is the server's clock, so it can't be backdated. A one-tap
@@ -358,7 +370,10 @@ Type the **store code** your manager gave you and **your own PIN**, then
 > day.
 
 > **Two more views on the same tab.** **History** shows your own scratch numbers
-> by shift (managers see everyone's), so you can check your day without asking.
+> by shift (managers see everyone's), so you can check your day without asking —
+> including a **Shift log** of the packs you counted: what each one was at when
+> you scanned it, the time, and who took the other reading. Pick 7 / 30 / 90 days
+> at the top.
 > **Census** is an occasional shelf walk: scan **every book physically on the
 > display** — including ones nobody has counted yet — and save one signed
 > snapshot. The owner's report compares censuses over time, so a book that

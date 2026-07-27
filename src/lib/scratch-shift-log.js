@@ -30,6 +30,7 @@
 
 import { toDate } from "./utils.js";
 import { packDisplayParts } from "./scratch-barcode.js";
+import { shiftRequired } from "./scratch-settings.js";
 
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const numOrNull = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
@@ -45,14 +46,20 @@ const shiftOf = (e) => (e.shift === "close" ? "close" : "open");
 /**
  * Build the per-shift ticket log.
  * @param {Array} entries  count entries (scratch ones with a pack are used)
- * @param {Object} opts    { from, to, locationId } — inclusive ISO date bounds
+ * @param {Object} opts    { from, to, locationId, staffId, policy }
+ *   `staffId` filters ROWS, not entries — a pack opened by Ana and closed by
+ *   Luis must still PAIR before either of them can see their own shift; filtering
+ *   the entries first would split it into two half-rows and hide the coworker's
+ *   side of the same book.
+ *   `policy` is the store's scratch-shift mode ("both" | "open" | "close"): it
+ *   decides whether a one-sided row is INCOMPLETE or simply how this store counts.
  * @returns {{ rows: Array, totals: Object }} rows newest date first, then game, then pack.
  *   row: { key, date, locationId, locationName, game, gameNo, bookNo, pack, price,
- *          openTicket, openTs, openBy, closeTicket, closeTs, closeBy,
- *          carriedIn, sold, dollars, soldOut, soldOutTo, counts, status }
+ *          openTicket, openTs, openBy, openById, closeTicket, closeTs, closeBy, closeById,
+ *          carriedIn, sold, dollars, soldOut, soldOutTo, counts, status, incomplete }
  *   status: "complete" | "open_only" | "close_only" | "rollback"
  */
-export function buildShiftLog(entries = [], { from = "", to = "", locationId = "" } = {}) {
+export function buildShiftLog(entries = [], { from = "", to = "", locationId = "", staffId = "", policy = "both" } = {}) {
   const buckets = new Map();
   for (const e of entries) {
     if (!e || e.kind !== "scratch") continue;
@@ -96,17 +103,21 @@ export function buildShiftLog(entries = [], { from = "", to = "", locationId = "
       sold = closeTicket - openTicket;
       if (sold < 0) { sold = null; status = "rollback"; }
     } else if (closeTicket != null) {
-      // Only a closing count — the common shape for a store that counts once a
+      // Only a closing count — the normal shape for a store that counts once a
       // day (the manual form's Start/End are that day's own span, and that
       // entry's signed `sold` is already in the KPI tiles). Use the entry's own
       // span rather than printing a dash beside a number the tiles do count.
       status = "close_only";
       const st = numOrNull(closeEntry.startno);
       if (st != null) { sold = closeTicket - st; if (sold < 0) { sold = null; status = "rollback"; } }
-    } else {
-      // Opened but not yet closed. Its own span is the OVERNIGHT leg, not this
-      // shift's sales, so there is no honest "sold" to print yet.
+    } else if (openTicket != null) {
+      // Only an opening count. For an opening-only store that IS the day's
+      // count, and its own span (chained from the pack's previous count) is the
+      // movement since then. For a both-shifts store it means the shift hasn't
+      // been closed yet — same number, but `incomplete` marks it below.
       status = "open_only";
+      const st = numOrNull(openEntry.startno);
+      if (st != null) { sold = openTicket - st; if (sold < 0) { sold = null; status = "rollback"; } }
     }
 
     const price = Number(last.price) || 0;
@@ -125,9 +136,15 @@ export function buildShiftLog(entries = [], { from = "", to = "", locationId = "
       openTicket,
       openTs: openEntry ? toDate(openEntry.ts) || null : null,
       openBy: openEntry ? openEntry.by || "—" : null,
+      openById: openEntry ? openEntry.byId || "" : "",
       closeTicket,
       closeTs: closeEntry ? toDate(closeEntry.ts) || null : null,
       closeBy: closeEntry ? closeEntry.by || "—" : null,
+      closeById: closeEntry ? closeEntry.byId || "" : "",
+      // Missing a reading the store's own policy says it takes. A closing-only
+      // store is never "missing" an opening — that's just how it counts.
+      incomplete: (shiftRequired(policy, "open") && openTicket == null)
+        || (shiftRequired(policy, "close") && closeTicket == null),
       carriedIn,
       sold,
       dollars: sold == null ? null : round2(sold * price),
@@ -138,21 +155,29 @@ export function buildShiftLog(entries = [], { from = "", to = "", locationId = "
     });
   }
 
-  rows.sort((a, b) =>
+  // A clerk sees the shifts they signed — either side. The pairing above already
+  // happened across everyone, so their row still shows the coworker who took the
+  // other reading, which is the whole point of a shift-boundary record.
+  const mine = staffId
+    ? rows.filter((r) => r.openById === staffId || r.closeById === staffId)
+    : rows;
+
+  mine.sort((a, b) =>
     b.date.localeCompare(a.date) || a.game.localeCompare(b.game) || a.pack.localeCompare(b.pack));
 
   const packs = new Set();
-  let sold = 0, dollars = 0, openOnly = 0, closeOnly = 0, rollback = 0, counts = 0;
-  for (const r of rows) {
+  let sold = 0, dollars = 0, openOnly = 0, closeOnly = 0, rollback = 0, counts = 0, incomplete = 0;
+  for (const r of mine) {
     packs.add(`${r.locationId}|${r.pack}`);
     counts += r.counts;
     if (r.sold != null) { sold += r.sold; dollars += r.dollars || 0; }
     if (r.status === "open_only") openOnly += 1;
     if (r.status === "close_only") closeOnly += 1;
     if (r.status === "rollback") rollback += 1;
+    if (r.incomplete) incomplete += 1;
   }
   return {
-    rows,
-    totals: { rows: rows.length, packs: packs.size, counts, sold, dollars: round2(dollars), openOnly, closeOnly, rollback },
+    rows: mine,
+    totals: { rows: mine.length, packs: packs.size, counts, sold, dollars: round2(dollars), openOnly, closeOnly, rollback, incomplete },
   };
 }

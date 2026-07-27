@@ -104,7 +104,10 @@ export function buildScratchAnalytics(entries = [], opts = {}) {
   // a pack opened by one clerk and closed by another must still pair into one
   // row. (Only the owner report renders it — the staff History view passes a
   // shift-filtered array, which would make every row one-sided.)
-  const shiftLog = buildShiftLog(flowRows, { from: opts.from || "", to: opts.to || "", locationId: opts.locationId || "" });
+  const shiftLog = buildShiftLog(flowRows, {
+    from: opts.from || "", to: opts.to || "", locationId: opts.locationId || "",
+    staffId: opts.staffId || "", policy: opts.shiftPolicy || "both",
+  });
 
   return {
     totals: { ...totals, gapTickets: packFlow.totals.gapTickets, gapDollars: packFlow.totals.gapDollars },
@@ -121,14 +124,38 @@ const hhmm = (d) => (d instanceof Date && !Number.isNaN(d.getTime())
 const row = (cells) => cells.map(csvCell).join(",");
 
 // Staff history export: one row per staff × shift.
-export function buildScratchStaffCSV(analytics, { rangeLabel = "" } = {}) {
+export function buildScratchStaffCSV(analytics, { rangeLabel = "", shiftLog = null } = {}) {
   const lines = [];
   if (rangeLabel) lines.push(row([`Scratch-off staff report — ${rangeLabel}`]));
   lines.push(row(["Staff", "Role", "Shift", "Counts", "Tickets sold", "Sales $", "Packs", "Sold out"]));
   for (const s of analytics.byStaffShift)
     lines.push(row([s.by, s.byRole || "", s.shift === "close" ? "Closing" : "Opening", s.counts, s.tickets, s.dollars.toFixed(2), s.packs, s.soldOut]));
   lines.push(row(["Total", "", "", analytics.totals.counts, analytics.totals.tickets, analytics.totals.dollars.toFixed(2), analytics.totals.packs, analytics.totals.soldOut]));
+  // The same per-shift ticket log the owner report carries, scoped to whoever is
+  // reading it (a clerk gets the shifts they signed; a manager gets everyone's).
+  appendShiftLogCSV(lines, shiftLog);
   return lines.join("\n");
+}
+
+// The shift log as its own CSV section — one line per pack per day with both
+// readings, the scan times and the signers. Shared by the owner and staff
+// exports so the two files never drift.
+function appendShiftLogCSV(lines, log) {
+  if (!log || !log.rows.length) return;
+  lines.push("");
+  lines.push(row(["Shift log", "Location", "Game", "Game #", "Book #", "Pack id",
+    "Opening #", "Opened at", "Opened by", "Closing #", "Closed at", "Closed by",
+    "Carried in", "Sold this shift", "Price", "Sales $", "Sold out", "Status"]));
+  for (const r of log.rows) {
+    lines.push(row([r.date, r.locationName || "", r.game, r.gameNo || "", r.bookNo || "", r.pack,
+      r.openTicket ?? "", hhmm(r.openTs), r.openBy || "",
+      r.closeTicket ?? "", hhmm(r.closeTs), r.closeBy || "",
+      r.carriedIn ?? "", r.sold ?? "", Number(r.price || 0).toFixed(2),
+      r.dollars != null ? r.dollars.toFixed(2) : "", r.soldOut ? "yes" : "",
+      r.incomplete ? `${r.status} (incomplete)` : r.status]));
+  }
+  lines.push(row(["Total", "", "", "", "", "", "", "", "", "", "", "", "",
+    log.totals.sold, "", log.totals.dollars.toFixed(2), "", ""]));
 }
 
 // Owner combined export: a summary line, then by-day, by-game and by-staff
@@ -152,21 +179,6 @@ export function buildScratchReportCSV(analytics, { rangeLabel = "" } = {}) {
   // The shift log — one line per pack per day, the opening and closing ticket
   // numbers with the scan times and signers. The raw ledger the sections above
   // aggregate; a spreadsheet can re-derive every figure from it.
-  const log = analytics.shiftLog;
-  if (log && log.rows.length) {
-    lines.push("");
-    lines.push(row(["Shift log", "Location", "Game", "Game #", "Book #", "Pack id",
-      "Opening #", "Opened at", "Opened by", "Closing #", "Closed at", "Closed by",
-      "Carried in", "Sold this shift", "Price", "Sales $", "Sold out", "Status"]));
-    for (const r of log.rows) {
-      lines.push(row([r.date, r.locationName || "", r.game, r.gameNo || "", r.bookNo || "", r.pack,
-        r.openTicket ?? "", hhmm(r.openTs), r.openBy || "",
-        r.closeTicket ?? "", hhmm(r.closeTs), r.closeBy || "",
-        r.carriedIn ?? "", r.sold ?? "", Number(r.price || 0).toFixed(2),
-        r.dollars != null ? r.dollars.toFixed(2) : "", r.soldOut ? "yes" : "", r.status]));
-    }
-    lines.push(row(["Total", "", "", "", "", "", "", "", "", "", "", "", "",
-      log.totals.sold, "", log.totals.dollars.toFixed(2), "", ""]));
-  }
+  appendShiftLogCSV(lines, analytics.shiftLog);
   return lines.join("\n");
 }

@@ -23,6 +23,7 @@ export const VENDOR_SETTING_KEYS = [
   "stockAlerts",
   "rewards",
   "features",
+  "scratch",
   "themePalette",
   "fontFamily",
   "fontScale",

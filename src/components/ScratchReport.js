@@ -7,6 +7,7 @@ import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
 import { fetchEntriesInRange, fetchScratchCensus, verifyEntry } from "@/lib/data";
 import { buildPackAudit } from "@/lib/scratch-audit";
 import { buildCensusReconcile } from "@/lib/scratch-census";
+import { resolveScratchShifts } from "@/lib/scratch-settings";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
 import { useLang } from "./LangProvider";
@@ -101,7 +102,8 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     return () => { alive = false; };
   }, [vendor.id, locId]);
 
-  const a = useMemo(() => buildScratchAnalytics(rows || [], { from, to, locationId: locId }), [rows, from, to, locId]);
+  const shiftPolicy = resolveScratchShifts(vendor);
+  const a = useMemo(() => buildScratchAnalytics(rows || [], { from, to, locationId: locId, shiftPolicy }), [rows, from, to, locId, shiftPolicy]);
   const dayData = useMemo(() => a.byDay.map((d) => ({ ...d, label: shortDay(d.date) })), [a.byDay]);
   const gameData = useMemo(() => a.byGame.slice(0, 8).map((g) => ({ name: g.game, dollars: g.dollars, tickets: g.tickets })), [a.byGame]);
   const staffData = useMemo(() => a.byStaff.slice(0, 8).map((s) => ({ name: s.by, dollars: s.dollars, tickets: s.tickets })), [a.byStaff]);

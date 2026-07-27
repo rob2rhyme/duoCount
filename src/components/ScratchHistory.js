@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { money, downloadCSV } from "@/lib/utils";
 import { buildScratchAnalytics, buildScratchStaffCSV } from "@/lib/scratch-analytics";
+import { buildShiftLog } from "@/lib/scratch-shift-log";
+import { resolveScratchShifts } from "@/lib/scratch-settings";
 import { chartBar } from "@/lib/branding";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -18,6 +20,8 @@ const CHART = {
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const daysAgoISO = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 const shortDay = (iso) => (iso || "").slice(5).replace("-", "/"); // MM/DD
+// A scan's clock time — the shift bound. The row carries its own date column.
+const fmtTime = (d) => (d ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—");
 
 function Tile({ label, value, tone }) {
   const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : "text-fg";
@@ -60,7 +64,17 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
   // staffId scoping already limits a clerk to their own rows; managers see all.
   const page = usePaged(a.byStaffShift, { resetKey: `${days}|${shift}|${locId}` });
 
-  const exportCsv = () => downloadCSV(buildScratchStaffCSV(a, { rangeLabel }), `scratch-staff-${from}_${todayISO()}.csv`);
+  // The shift log is built from the UNFILTERED entries on purpose: an opening and
+  // a closing must pair into one row, and the shift chips above deliberately keep
+  // only one side. `staffId` then filters whole ROWS, so a clerk sees the shifts
+  // they signed with the coworker on the other side still named.
+  const policy = resolveScratchShifts(vendor);
+  const shiftLog = useMemo(() => buildShiftLog(entries, {
+    from, to: todayISO(), locationId: isManager ? locId : "", staffId, policy,
+  }), [entries, from, locId, isManager, staffId, policy]);
+  const logPage = usePaged(shiftLog.rows, { initial: 25, step: 25, resetKey: `${days}|${locId}|log` });
+
+  const exportCsv = () => downloadCSV(buildScratchStaffCSV(a, { rangeLabel, shiftLog }), `scratch-staff-${from}_${todayISO()}.csv`);
   const fmt = (v) => (measure === "dollars" ? money(v) : v);
   const hasData = a.totals.counts > 0;
 
@@ -144,6 +158,56 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
               <div className="text-[11px] text-muted">{t("shist.n_tickets", { n: a.byShift.close.tickets })}</div>
             </div>
           </div>
+
+          {/* Shift log — the readings themselves: what each pack stood at when
+              the shift opened and when it closed. A clerk sees their own shifts. */}
+          {shiftLog.rows.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-4 py-3 border-b border-line">
+                <h3 className="font-semibold text-[14px]">{t("srep.log_title")}</h3>
+                <p className="text-[12px] text-muted mt-0.5">{isManager ? t("srep.log_sub") : t("shist.log_sub_staff")}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead><tr className="text-[10px] uppercase tracking-wide text-muted">
+                    <th className="text-left font-semibold px-4 py-2">{t("common.date")}</th>
+                    <th className="text-left font-semibold px-2 py-2">{t("srep.th_game")}</th>
+                    <th className="text-left font-semibold px-2 py-2">{t("srep.th_book")}</th>
+                    <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_open")}</th>
+                    <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_close")}</th>
+                    <th className="text-right font-semibold px-2 py-2">{t("srep.th_sold_shift")}</th>
+                    <th className="text-right font-semibold px-4 py-2">{t("srep.th_sales")}</th>
+                  </tr></thead>
+                  <tbody>{logPage.visible.map((r) => (
+                    <tr key={r.key} className="border-t border-line-soft align-top">
+                      <td className="px-4 py-2 whitespace-nowrap">{r.date}</td>
+                      <td className="px-2 py-2">
+                        <div className="truncate">{r.game}</div>
+                        {r.gameNo && <div className="text-[11px] text-muted font-mono">#{r.gameNo}</div>}
+                      </td>
+                      <td className="px-2 py-2 font-mono text-[12px]">{r.bookNo}</td>
+                      <td className="px-2 py-2 text-right">
+                        <div className="font-mono tabular-nums">{r.openTicket != null ? `#${r.openTicket}` : "—"}</div>
+                        <div className="text-[11px] text-muted">{r.openTicket != null
+                          ? `${fmtTime(r.openTs)} · ${r.openBy}` : t("srep.log_no_open")}</div>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <div className="font-mono tabular-nums">{r.closeTicket != null ? `#${r.closeTicket}` : "—"}
+                          {r.soldOut && <span className="ml-1 text-[10px] uppercase font-bold text-neg">{t("srep.log_soldout")}</span>}</div>
+                        <div className="text-[11px] text-muted">{r.closeTicket != null
+                          ? `${fmtTime(r.closeTs)} · ${r.closeBy}` : t("srep.log_no_close")}</div>
+                      </td>
+                      <td className="px-2 py-2 text-right font-mono tabular-nums">
+                        {r.sold != null ? r.sold : <span className="text-neg" title={t("srep.log_rollback")}>⚠</span>}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{r.dollars != null ? money(r.dollars) : "—"}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2"><ShowMore hasMore={logPage.hasMore} nextStep={logPage.nextStep} onMore={logPage.showMore} /></div>
+            </div>
+          )}
 
           {/* Per staff × shift table (the report's data view) */}
           <div className="card overflow-hidden">

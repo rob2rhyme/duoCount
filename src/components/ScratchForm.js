@@ -9,6 +9,7 @@ import { paletteAccent, paletteInk } from "@/lib/branding";
 import { buildPackFlow } from "@/lib/scratch-report";
 import { validateScratch } from "@/lib/count-validation";
 import { defaultShift, pickRemembered, loadContext, saveContext } from "@/lib/count-context";
+import { allowedShifts, coerceShift, resolveScratchShifts } from "@/lib/scratch-settings";
 import { useSaveState } from "@/lib/use-save-state";
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import { useSession } from "./SessionProvider";
@@ -27,13 +28,17 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
   const { t } = useLang();
   const lockedLoc = !isManager && profile.locationId ? profile.locationId : null;
   const [f, setF] = useState({
-    date: today(), shift: defaultShift(new Date().getHours()), locationId: "",
+    date: today(), shift: coerceShift(resolveScratchShifts(vendor), defaultShift(new Date().getHours())), locationId: "",
     game: "", gameNo: "", pack: "", price: "", startno: "", endno: "", soldOut: false,
   });
   // Canonical pack identity = game # + book #, matching what a scan produces, so
   // a hand-typed count and a scanned count of the SAME physical pack chain in the
   // theft audit. Blank game # → the book # exactly as typed (unchanged behavior).
   const canonicalPack = packIdFromParts(f.gameNo, f.pack);
+  // The store logs at opening, at closing, or both (Admin → Business settings).
+  // The picker offers only what the store actually records, so a closing-only
+  // store can't strand a count on a shift its reports never expect.
+  const shiftOptions = allowedShifts(resolveScratchShifts(vendor));
   const { busy, error, run } = useSaveState();
   const [scanOpen, setScanOpen] = useState(false);
   const packId = useId();
@@ -547,7 +552,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
           <Field label={t("common.date")}><input type="date" className="input" value={f.date} onChange={set("date")} /></Field>
           <Field label={t("common.shift")}>
             <select className="input" value={f.shift} onChange={set("shift")}>
-              <option value="open">🌅 {t("common.opening")}</option><option value="close">🌇 {t("common.closing")}</option>
+              {shiftOptions.map((sv) => <option key={sv} value={sv}>{sv === "open" ? `🌅 ${t("common.opening")}` : `🌇 ${t("common.closing")}`}</option>)}
             </select></Field>
         </div>
 
