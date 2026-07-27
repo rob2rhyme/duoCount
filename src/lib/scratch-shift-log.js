@@ -181,3 +181,28 @@ export function buildShiftLog(entries = [], { from = "", to = "", locationId = "
     totals: { rows: mine.length, packs: packs.size, counts, sold, dollars: round2(dollars), openOnly, closeOnly, rollback, incomplete },
   };
 }
+
+/**
+ * Collapse the log's repeating date column into date BANDS — one heading per
+ * day, then that day's packs. A shift log is read a day at a time, and on a
+ * phone the repeated date was the widest column on screen while saying the same
+ * thing on every line. Each band carries the day's own totals, which the flat
+ * table had nowhere to put.
+ *
+ * `rows` must already be date-sorted (buildShiftLog returns them newest-first);
+ * grouping is a single pass over consecutive rows, so it also works on a PAGED
+ * slice — the visible rows group exactly as they render.
+ * @returns {Array<{ date, rows, sold, dollars, packs }>}
+ */
+export function groupShiftLogByDate(rows = []) {
+  const groups = [];
+  let cur = null;
+  for (const r of rows) {
+    if (!cur || cur.date !== r.date) { cur = { date: r.date, rows: [], sold: 0, dollars: 0, packs: 0 }; groups.push(cur); }
+    cur.rows.push(r);
+    cur.packs += 1;
+    if (r.sold != null) { cur.sold += r.sold; cur.dollars += r.dollars || 0; }
+  }
+  for (const g of groups) g.dollars = round2(g.dollars);
+  return groups;
+}

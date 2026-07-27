@@ -7,6 +7,7 @@ import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
 import { fetchEntriesInRange, fetchScratchCensus, verifyEntry } from "@/lib/data";
 import { buildPackAudit } from "@/lib/scratch-audit";
 import { buildCensusReconcile } from "@/lib/scratch-census";
+import { groupShiftLogByDate } from "@/lib/scratch-shift-log";
 import { resolveScratchShifts } from "@/lib/scratch-settings";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -32,6 +33,14 @@ const fmtTime = (d, lang) => (d ? d.toLocaleTimeString(lang === "es" ? "es" : "e
 // A printed log is a working sheet, not an archive: cap it and say what was cut
 // rather than silently truncating (the CSV export carries every row).
 const LOG_PRINT_MAX = 300;
+// A business-date string as a readable day heading. Built from the date PARTS so
+// it can't shift a day across timezones the way Date.parse("2026-07-27") can.
+const fmtDay = (iso, lang) => {
+  const [y, m, d] = String(iso || "").split("-").map(Number);
+  if (!y || !m || !d) return iso || "";
+  return new Date(y, m - 1, d).toLocaleDateString(lang === "es" ? "es" : "en",
+    { weekday: "short", month: "short", day: "numeric" });
+};
 
 function rangeFor(id, customFrom, customTo) {
   const to = todayISO();
@@ -140,6 +149,10 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
   // A Location column only earns its width when the store HAS several and the
   // view isn't already scoped to one.
   const showLoc = locations.length > 1 && !locId;
+  // One date heading per day instead of the same date on every row — it was the
+  // widest column on a phone and said nothing new after the first line.
+  const logBands = useMemo(() => groupShiftLogByDate(logPage.visible), [logPage.visible]);
+  const logCols = showLoc ? 7 : 6;
 
   const rangeLabel = `${from} → ${to}`;
   const hasData = a.totals.counts > 0;
@@ -170,13 +183,16 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     <h2>${esc(t("srep.log_title"))}</h2>
     <p class="muted">${esc(t("srep.log_sub"))}</p>
     <table class="log"><thead><tr>
-      <th>${esc(t("common.date"))}</th>${showLoc ? `<th>${esc(t("common.location"))}</th>` : ""}
+      ${showLoc ? `<th>${esc(t("common.location"))}</th>` : ""}
       <th>${esc(t("srep.th_game"))}</th><th>${esc(t("srep.th_book"))}</th>
       <th class="num">${esc(t("srep.th_at_open"))}</th><th class="num">${esc(t("srep.th_at_close"))}</th>
       <th class="num">${esc(t("srep.th_sold_shift"))}</th><th class="num">${esc(t("srep.th_sales"))}</th>
     </tr></thead><tbody>
-    ${logRows.map((r) => `<tr>
-      <td>${esc(r.date)}</td>${showLoc ? `<td>${esc(r.locationName || "—")}</td>` : ""}
+    ${groupShiftLogByDate(logRows).map((g) => `
+    <tr class="dband"><td colspan="${logCols}">${esc(fmtDay(g.date, lang))}
+      <span class="muted">${esc(t("srep.log_day_total", { n: g.sold, money: money(g.dollars) }))}</span></td></tr>
+    ${g.rows.map((r) => `<tr>
+      ${showLoc ? `<td>${esc(r.locationName || "—")}</td>` : ""}
       <td>${esc(r.game)}${r.gameNo ? `<div class="muted">#${esc(r.gameNo)}</div>` : ""}</td>
       <td>${esc(r.bookNo)}</td>
       <td class="num">${side(r.openTicket, fmtTime(r.openTs, lang), r.openBy, t("srep.log_no_open"))}</td>
@@ -184,9 +200,9 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
         r.soldOut ? ` <span class="gap">${esc(t("srep.log_soldout"))}</span>` : "")}</td>
       <td class="num">${r.sold != null ? esc(r.sold) : `<span class="gap">⚠</span>`}</td>
       <td class="num">${r.dollars != null ? esc(money(r.dollars)) : "—"}</td>
-    </tr>`).join("")}
-    <tr class="tot"><td colspan="${showLoc ? 5 : 4}">${esc(t("srep.log_total"))}</td>
-      <td class="num"></td><td class="num">${esc(a.shiftLog.totals.sold)}</td>
+    </tr>`).join("")}`).join("")}
+    <tr class="tot"><td colspan="${logCols - 2}">${esc(t("srep.log_total"))}</td>
+      <td class="num">${esc(a.shiftLog.totals.sold)}</td>
       <td class="num">${esc(money(a.shiftLog.totals.dollars))}</td></tr>
     </tbody></table>
     ${a.shiftLog.rows.length > LOG_PRINT_MAX
@@ -195,6 +211,7 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a241c}h1{font-size:18px;margin:0}h2{font-size:13px;margin:22px 0 6px}p{color:#666;margin:2px 0}
     table{border-collapse:collapse;width:100%;margin-top:6px;font-size:11px}th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}th{border-bottom:2px solid ${ink}}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
     table.log td{vertical-align:top}table.log tr{page-break-inside:avoid}tr.tot td{border-top:2px solid ${ink};font-weight:bold}
+    tr.dband td{background:#f2f2f0;font-weight:bold;border-top:1.5px solid ${ink};padding-top:5px}tr.dband .muted{font-weight:normal;margin-left:8px}
     .muted{color:#666;font-size:9.5px}.gap{color:#b91c1c;font-weight:bold}
     .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.kpi{border:1px solid #ccc;border-radius:8px;padding:8px 12px;min-width:90px}.kpi .v{font-size:16px;font-weight:bold}.kpi .l{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
     .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center}</style>
@@ -345,20 +362,32 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                   <thead><tr className="text-[10px] uppercase tracking-wide text-muted">
-                    <th className="text-left font-semibold px-4 py-2">{t("common.date")}</th>
-                    {showLoc && <th className="text-left font-semibold px-2 py-2">{t("common.location")}</th>}
-                    <th className="text-left font-semibold px-2 py-2">{t("srep.th_game")}</th>
+                    {showLoc && <th className="text-left font-semibold px-4 py-2">{t("common.location")}</th>}
+                    <th className={`text-left font-semibold ${showLoc ? "px-2" : "px-4"} py-2`}>{t("srep.th_game")}</th>
                     <th className="text-left font-semibold px-2 py-2">{t("srep.th_book")}</th>
                     <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_open")}</th>
                     <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_close")}</th>
                     <th className="text-right font-semibold px-2 py-2">{t("srep.th_sold_shift")}</th>
                     <th className="text-right font-semibold px-4 py-2">{t("srep.th_sales")}</th>
                   </tr></thead>
-                  <tbody>{logPage.visible.map((r) => (
+                  {logBands.map((g) => (
+                  <tbody key={g.date}>
+                    {/* One heading per day — the date was the widest column on a
+                        phone and repeated itself down the whole table. */}
+                    <tr className="border-t border-line bg-subtle">
+                      <td colSpan={logCols} className="px-4 py-1.5">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-[12px] font-semibold">{fmtDay(g.date, lang)}</span>
+                          <span className="text-[11px] text-muted font-mono tabular-nums">
+                            {t("srep.log_day_total", { n: g.sold, money: money(g.dollars) })}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {g.rows.map((r) => (
                     <tr key={r.key} className="border-t border-line-soft align-top">
-                      <td className="px-4 py-2 whitespace-nowrap">{r.date}</td>
-                      {showLoc && <td className="px-2 py-2 truncate">{r.locationName || "—"}</td>}
-                      <td className="px-2 py-2">
+                      {showLoc && <td className="px-4 py-2 truncate">{r.locationName || "—"}</td>}
+                      <td className={`${showLoc ? "px-2" : "px-4"} py-2`}>
                         <div className="truncate">{r.game}</div>
                         {r.gameNo && <div className="text-[11px] text-muted font-mono">#{r.gameNo}</div>}
                       </td>
@@ -380,7 +409,9 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
                       </td>
                       <td className="px-4 py-2 text-right font-mono tabular-nums">{r.dollars != null ? money(r.dollars) : "—"}</td>
                     </tr>
-                  ))}</tbody>
+                    ))}
+                  </tbody>
+                  ))}
                 </table>
               </div>
               <div className="px-4 py-2"><ShowMore hasMore={logPage.hasMore} nextStep={logPage.nextStep} onMore={logPage.showMore} /></div>

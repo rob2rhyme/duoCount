@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { money, downloadCSV } from "@/lib/utils";
 import { buildScratchAnalytics, buildScratchStaffCSV } from "@/lib/scratch-analytics";
-import { buildShiftLog } from "@/lib/scratch-shift-log";
+import { buildShiftLog, groupShiftLogByDate } from "@/lib/scratch-shift-log";
 import { resolveScratchShifts } from "@/lib/scratch-settings";
 import { chartBar } from "@/lib/branding";
 import { useSession } from "./SessionProvider";
@@ -22,6 +22,13 @@ const daysAgoISO = (n) => new Date(Date.now() - n * 86400000).toISOString().slic
 const shortDay = (iso) => (iso || "").slice(5).replace("-", "/"); // MM/DD
 // A scan's clock time — the shift bound. The row carries its own date column.
 const fmtTime = (d) => (d ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "—");
+// A business-date string as a day heading, built from the PARTS so it can't
+// shift a day across timezones.
+const fmtDay = (iso) => {
+  const [y, m, d] = String(iso || "").split("-").map(Number);
+  if (!y || !m || !d) return iso || "";
+  return new Date(y, m - 1, d).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+};
 
 function Tile({ label, value, tone }) {
   const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : "text-fg";
@@ -73,6 +80,7 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
     from, to: todayISO(), locationId: isManager ? locId : "", staffId, policy,
   }), [entries, from, locId, isManager, staffId, policy]);
   const logPage = usePaged(shiftLog.rows, { initial: 25, step: 25, resetKey: `${days}|${locId}|log` });
+  const logBands = useMemo(() => groupShiftLogByDate(logPage.visible), [logPage.visible]);
 
   const exportCsv = () => downloadCSV(buildScratchStaffCSV(a, { rangeLabel, shiftLog }), `scratch-staff-${from}_${todayISO()}.csv`);
   const fmt = (v) => (measure === "dollars" ? money(v) : v);
@@ -170,18 +178,29 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                   <thead><tr className="text-[10px] uppercase tracking-wide text-muted">
-                    <th className="text-left font-semibold px-4 py-2">{t("common.date")}</th>
-                    <th className="text-left font-semibold px-2 py-2">{t("srep.th_game")}</th>
+                    <th className="text-left font-semibold px-4 py-2">{t("srep.th_game")}</th>
                     <th className="text-left font-semibold px-2 py-2">{t("srep.th_book")}</th>
                     <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_open")}</th>
                     <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_close")}</th>
                     <th className="text-right font-semibold px-2 py-2">{t("srep.th_sold_shift")}</th>
                     <th className="text-right font-semibold px-4 py-2">{t("srep.th_sales")}</th>
                   </tr></thead>
-                  <tbody>{logPage.visible.map((r) => (
+                  {logBands.map((g) => (
+                  <tbody key={g.date}>
+                    {/* One heading per day instead of the date on every line. */}
+                    <tr className="border-t border-line bg-subtle">
+                      <td colSpan={6} className="px-4 py-1.5">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-[12px] font-semibold">{fmtDay(g.date)}</span>
+                          <span className="text-[11px] text-muted font-mono tabular-nums">
+                            {t("srep.log_day_total", { n: g.sold, money: money(g.dollars) })}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {g.rows.map((r) => (
                     <tr key={r.key} className="border-t border-line-soft align-top">
-                      <td className="px-4 py-2 whitespace-nowrap">{r.date}</td>
-                      <td className="px-2 py-2">
+                      <td className="px-4 py-2">
                         <div className="truncate">{r.game}</div>
                         {r.gameNo && <div className="text-[11px] text-muted font-mono">#{r.gameNo}</div>}
                       </td>
@@ -202,7 +221,9 @@ export default function ScratchHistory({ entries = [], locations = [], locName =
                       </td>
                       <td className="px-4 py-2 text-right font-mono tabular-nums">{r.dollars != null ? money(r.dollars) : "—"}</td>
                     </tr>
-                  ))}</tbody>
+                    ))}
+                  </tbody>
+                  ))}
                 </table>
               </div>
               <div className="px-4 py-2"><ShowMore hasMore={logPage.hasMore} nextStep={logPage.nextStep} onMore={logPage.showMore} /></div>
