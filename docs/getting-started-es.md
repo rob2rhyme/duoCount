@@ -214,6 +214,14 @@ desactivadas por defecto — mira el paso 7).
   - **Libros disponibles** — el censo del estante comparado contra los conteos.
     Un libro que desapareció, o uno que nunca se contó, queda señalado.
 
+  **Imprime solo lo que necesitas.** La impresión abre con una franja
+  **Incluir** arriba: desmarca **Resumen**, **Por juego** o **Por personal** y
+  desaparecen de la página — una tienda que imprime esto como registro de
+  entrega de turno puede quedarse solo con el **Registro de turnos**. (Por juego
+  lista cada juego que vendes, así que puede ocupar una página entera de filas
+  en $0.00.) Tu elección se recuerda en ese dispositivo, y la franja nunca se
+  imprime.
+
   Los boletos faltantes se atrapan en el cambio de turno, no meses después. Las
   alertas del Panel te siguen avisando: varios paquetes saltando juntos en una
   misma ventana (una sola sesión fuera de horario), un conteo registrado sin

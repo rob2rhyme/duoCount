@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { money, downloadCSV, printCloseHtml } from "@/lib/utils";
+import { readPrintSections, printSection, printSectionsToolbarHtml } from "@/lib/print-sections";
 import { buildScratchAnalytics, buildScratchReportCSV } from "@/lib/scratch-analytics";
 import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
 import { fetchEntriesInRange, fetchScratchCensus, verifyEntry } from "@/lib/data";
@@ -207,6 +208,31 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     </tbody></table>
     ${a.shiftLog.rows.length > LOG_PRINT_MAX
       ? `<p class="muted">${esc(t("srep.log_capped", { shown: LOG_PRINT_MAX, total: a.shiftLog.rows.length }))}</p>` : ""}`;
+
+    // Not everyone prints the whole sheet — a store using it as a shift-handoff
+    // record wants the Shift log alone, and By game can run a page of $0.00 rows
+    // for every game the state sells. The chooser rides IN the preview (that's
+    // where you notice), remembers itself per device, and never prints itself.
+    const secs = [
+      { id: "summary", label: t("srep.sec_summary"), present: true },
+      { id: "game", label: t("srep.by_game"), present: a.byGame.length > 0 },
+      { id: "staff", label: t("srep.by_staff"), present: a.byStaff.length > 0 },
+      { id: "log", label: t("srep.sec_log"), present: logRows.length > 0 },
+    ];
+    const on = readPrintSections(typeof window !== "undefined" ? window.localStorage : null, secs.map((x) => x.id));
+    const gameHtml = `
+    <h2>${esc(t("srep.by_game"))}</h2>
+    <table><thead><tr><th>${esc(t("srep.th_game"))}</th><th class="num">${esc(t("srep.th_tickets"))}</th><th class="num">${esc(t("srep.th_sales"))}</th></tr></thead>
+    <tbody>${tRows(a.byGame, [{ get: (r) => r.game }, { get: (r) => r.tickets, num: 1 }, { get: (r) => money(r.dollars), num: 1 }])}</tbody></table>`;
+    const staffHtml = `
+    <h2>${esc(t("srep.by_staff"))}</h2>
+    <table><thead><tr><th>${esc(t("srep.th_staff"))}</th><th class="num">${esc(t("srep.th_tickets"))}</th><th class="num">${esc(t("srep.th_sales"))}</th></tr></thead>
+    <tbody>${tRows(a.byStaff, [{ get: (r) => r.by }, { get: (r) => r.tickets, num: 1 }, { get: (r) => money(r.dollars), num: 1 }])}</tbody></table>`;
+    const summaryHtml = `
+    <div class="kpis">
+      ${kpi(t("srep.tickets"), a.totals.tickets)}${kpi(t("srep.sales"), money(a.totals.dollars))}
+      ${kpi(t("srep.packs"), a.totals.packs)}${kpi(t("srep.soldout"), a.totals.soldOut)}${kpi(t("srep.gap"), money(a.totals.gapDollars))}
+    </div>`;
     win.document.write(`<!doctype html><html><head><title>${esc(vendor.name)} — ${esc(t("srep.title"))}</title>
     <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a241c}h1{font-size:18px;margin:0}h2{font-size:13px;margin:22px 0 6px}p{color:#666;margin:2px 0}
     table{border-collapse:collapse;width:100%;margin-top:6px;font-size:11px}th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}th{border-bottom:2px solid ${ink}}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
@@ -219,17 +245,11 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     ${printCloseHtml(t("common.close"))}
     <div class="brand"><div class="mark">D</div><div><h1>${esc(vendor.name)} — ${esc(t("srep.title"))}</h1>
     <p>${esc(rangeLabel)}${locId ? ` · ${esc(locName(locId))}` : ` · ${esc(t("srep.all_locations"))}`}</p></div></div>
-    <div class="kpis">
-      ${kpi(t("srep.tickets"), a.totals.tickets)}${kpi(t("srep.sales"), money(a.totals.dollars))}
-      ${kpi(t("srep.packs"), a.totals.packs)}${kpi(t("srep.soldout"), a.totals.soldOut)}${kpi(t("srep.gap"), money(a.totals.gapDollars))}
-    </div>
-    <h2>${esc(t("srep.by_game"))}</h2>
-    <table><thead><tr><th>${esc(t("srep.th_game"))}</th><th class="num">${esc(t("srep.th_tickets"))}</th><th class="num">${esc(t("srep.th_sales"))}</th></tr></thead>
-    <tbody>${tRows(a.byGame, [{ get: (r) => r.game }, { get: (r) => r.tickets, num: 1 }, { get: (r) => money(r.dollars), num: 1 }])}</tbody></table>
-    <h2>${esc(t("srep.by_staff"))}</h2>
-    <table><thead><tr><th>${esc(t("srep.th_staff"))}</th><th class="num">${esc(t("srep.th_tickets"))}</th><th class="num">${esc(t("srep.th_sales"))}</th></tr></thead>
-    <tbody>${tRows(a.byStaff, [{ get: (r) => r.by }, { get: (r) => r.tickets, num: 1 }, { get: (r) => money(r.dollars), num: 1 }])}</tbody></table>
-    ${logHtml}
+    ${printSectionsToolbarHtml(secs, { state: on, label: t("srep.print_include"), printLabel: `🖨 ${t("srep.print")}` })}
+    ${printSection("summary", summaryHtml, on.summary)}
+    ${printSection("game", a.byGame.length ? gameHtml : "", on.game)}
+    ${printSection("staff", a.byStaff.length ? staffHtml : "", on.staff)}
+    ${printSection("log", logHtml, on.log)}
     </body></html>`);
     win.document.close(); win.focus();
     setTimeout(() => { try { win.print(); } catch { /* user prints manually */ } }, 250);

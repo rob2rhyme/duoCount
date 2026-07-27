@@ -28,6 +28,7 @@
     "test:scratch-scan": "node --test tests/scratch-scan-guard.test.mjs",
     "test:vendor-settings": "node --test tests/vendor-settings.test.mjs",
     "test:staff-scope": "node --test tests/staff-scope.test.mjs",
+    "test:print-sections": "node --test tests/print-sections.test.mjs",
     "test:stock-alerts": "node --test tests/stock-alerts.test.mjs",
     "test:rewards": "node --test tests/rewards.test.mjs",
     "test:reward-audit": "node --test tests/reward-audit.test.mjs",

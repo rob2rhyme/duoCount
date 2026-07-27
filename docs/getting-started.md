@@ -196,6 +196,13 @@ off by default — see step 7).
   - **Books on hand** — the shelf census reconciled against the counts. A book
     that walked, or one never counted at all, gets named.
 
+  **Print only what you need.** The printout opens with an **Include** strip
+  along the top: untick **Summary**, **By game**, or **By staff** and they drop
+  off the page — a store that prints this as a shift-handoff record can keep
+  just the **Shift log**. (By game lists every game you sell, so it can run a
+  full page of $0.00 rows.) Your choice is remembered on that device, and the
+  strip itself never prints.
+
   Missing tickets get caught at the shift boundary, not months later. The
   Dashboard's alerts still tip you off: several packs jumping together in one
   window (one after-hours session), a count logged while nobody was clocked
