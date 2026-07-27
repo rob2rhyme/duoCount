@@ -73,13 +73,47 @@ test("a sold-out final count IS the closing reading (matches the pack-flow print
   assert.equal(r.sold, 200);        // 500 − 300
 });
 
-test("opened but not yet closed → open_only, no fabricated sold", () => {
+test("opened but not yet closed → open_only, flagged incomplete for a both-shifts store", () => {
   const [r] = buildShiftLog([e({ shift: "open", startno: 30, endno: 37 })]).rows;
   assert.equal(r.status, "open_only");
   assert.equal(r.openTicket, 37);
   assert.equal(r.closeTicket, null);
-  assert.equal(r.sold, null);
-  assert.equal(r.dollars, null);
+  assert.equal(r.sold, 7);            // real movement since the pack's last count
+  assert.equal(r.incomplete, true);   // this store counts at both ends
+});
+
+test("the store's shift policy decides what counts as incomplete", () => {
+  const openOnly = [e({ shift: "open", startno: 30, endno: 37 })];
+  const closeOnly = [e({ shift: "close", startno: 30, endno: 37 })];
+  // A store that only counts at opening is NOT missing a closing count.
+  assert.equal(buildShiftLog(openOnly, { policy: "open" }).rows[0].incomplete, false);
+  assert.equal(buildShiftLog(openOnly, { policy: "close" }).rows[0].incomplete, true);
+  // ...and the mirror image for a closing-only store.
+  assert.equal(buildShiftLog(closeOnly, { policy: "close" }).rows[0].incomplete, false);
+  assert.equal(buildShiftLog(closeOnly, { policy: "both" }).rows[0].incomplete, true);
+  // Both readings present is complete under every policy.
+  const both = [
+    e({ shift: "open", startno: 30, endno: 32, ts: new Date("2026-07-26T11:00:00Z") }),
+    e({ shift: "close", startno: 32, endno: 50, ts: new Date("2026-07-26T19:00:00Z") }),
+  ];
+  for (const p of ["both", "open", "close"])
+    assert.equal(buildShiftLog(both, { policy: p }).rows[0].incomplete, false, `policy ${p}`);
+});
+
+test("a clerk sees the shifts they signed — either side — with the coworker still named", () => {
+  const entries = [
+    e({ pack: "A", shift: "open", byId: "ana", by: "Ana", startno: 0, endno: 10, ts: new Date("2026-07-26T11:00:00Z") }),
+    e({ pack: "A", shift: "close", byId: "luis", by: "Luis", startno: 10, endno: 30, ts: new Date("2026-07-26T19:00:00Z") }),
+    e({ pack: "B", shift: "close", byId: "luis", by: "Luis", startno: 0, endno: 5, ts: new Date("2026-07-26T19:00:00Z") }),
+  ];
+  const ana = buildShiftLog(entries, { staffId: "ana" }).rows;
+  assert.equal(ana.length, 1);            // only the pack Ana touched
+  assert.equal(ana[0].pack, "A");
+  assert.equal(ana[0].openBy, "Ana");
+  assert.equal(ana[0].closeBy, "Luis");   // the pairing survives the staff filter
+  assert.equal(ana[0].sold, 20);          // and so does the real shift math
+  assert.equal(buildShiftLog(entries, { staffId: "luis" }).rows.length, 2);
+  assert.equal(buildShiftLog(entries).rows.length, 2); // a manager sees everything
 });
 
 test("a store that counts once a day (close only) still gets its shift span", () => {
@@ -149,10 +183,11 @@ test("totals roll up only rows with a real span, and count the incomplete ones",
   ]);
   assert.equal(totals.rows, 3);
   assert.equal(totals.packs, 3);
-  assert.equal(totals.sold, 20);        // only the complete row contributes
-  assert.equal(totals.dollars, 400);
+  assert.equal(totals.sold, 25);        // 20 from the paired row + 5 real movement on B
+  assert.equal(totals.dollars, 500);
   assert.equal(totals.openOnly, 1);
-  assert.equal(totals.rollback, 1);
+  assert.equal(totals.rollback, 1);     // C's span is negative — contributes nothing
+  assert.equal(totals.incomplete, 2);   // B has no close, C has no open
 });
 
 test("empty input is a clean empty result", () => {

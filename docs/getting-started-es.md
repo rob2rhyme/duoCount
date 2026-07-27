@@ -145,6 +145,14 @@ desactivadas por defecto — mira el paso 7).
 > dispositivo con sesión iniciada los recibe — nadie necesita cerrar sesión ni
 > reiniciar la app.
 
+> **Con qué frecuencia cuentas los paquetes de rasca.** La misma tarjeta tiene
+> **Conteo de raspaditos**: en **apertura y cierre** (lo predeterminado y el
+> control más estricto — acota cada turno por los dos lados), o solo en
+> **apertura** / solo en **cierre** si el personal no da para más. El formulario
+> de conteo ofrecerá entonces solo los turnos que registras, y el Registro de
+> turnos tratará un único conteo diario como completo en vez de pedir el que
+> nunca pensabas tomar.
+
 ### 4. Tu ritmo diario
 
 - **Mira las insignias.** Como gerente, aparecen pequeños contadores ámbar en
@@ -177,8 +185,13 @@ desactivadas por defecto — mira el paso 7).
   **"Explicar estas señales"** resume las alertas y dice qué mirar primero.
 - **Abre el reporte de Raspaditos (dueños).** Todo lo de raspaditos vive en la
   pestaña **Reporte de raspaditos**, solo para el dueño: ventas y boletos por
-  día, juego y personal, con gráficas, CSV e impresión con tu marca — más la
-  vista antirrobo:
+  día, juego y personal, con gráficas, CSV e impresión con tu marca — más el
+  registro y la vista antirrobo:
+  - **Registro de turnos** — el registro llano, una línea por paquete por día:
+    en qué número de boleto estaba al **abrir** el turno y al **cerrarlo**, la
+    hora de cada escaneo y quién lo firmó, y los boletos vendidos entre ambos
+    (cierre − apertura). Esta es la hoja que se lee para saber qué hizo un
+    paquete en un día concreto.
   - **Boletos sin justificar** — cada corte en la secuencia de boletos de un
     paquete: en qué número cerró, en qué número reabrió, quién firmó cada lado
     y cuándo. La hora es el reloj del servidor, así que no se puede antedatar.
@@ -393,7 +406,9 @@ registres.
 
 > **Dos vistas más en la misma pestaña.** **Historial** muestra tus propios
 > números de raspaditos por turno (los gerentes ven los de todos), para revisar
-> tu día sin preguntar. **Censo** es un recorrido ocasional del estante: escanea
+> tu día sin preguntar — incluye un **Registro de turnos** de los paquetes que
+> contaste: en qué número estaba cada uno cuando lo escaneaste, la hora y quién
+> tomó la otra lectura. Elige 7 / 30 / 90 días arriba. **Censo** es un recorrido ocasional del estante: escanea
 > **cada libro físicamente en exhibición** — incluso los que nadie ha contado
 > todavía — y guarda una sola instantánea firmada. El reporte del dueño compara
 > los censos en el tiempo, así que un libro que desaparece entre dos recorridos
