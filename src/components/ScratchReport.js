@@ -25,6 +25,12 @@ const pad2 = (n) => String(n).padStart(2, "0");
 // the "when" on each side of a ticket-sequence gap. Local tz shows the store's
 // clock; null (a pending write) reads as a dash.
 const fmtTs = (d, lang) => (d ? d.toLocaleString(lang === "es" ? "es" : "en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—");
+// The shift log's own row already carries its date, so its scan cells show just
+// the clock time — the shift bound the owner reads across the row.
+const fmtTime = (d, lang) => (d ? d.toLocaleTimeString(lang === "es" ? "es" : "en", { hour: "numeric", minute: "2-digit" }) : "—");
+// A printed log is a working sheet, not an archive: cap it and say what was cut
+// rather than silently truncating (the CSV export carries every row).
+const LOG_PRINT_MAX = 300;
 
 function rangeFor(id, customFrom, customTo) {
   const to = todayISO();
@@ -126,6 +132,12 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
   };
   const gamePage = usePaged(a.byGame, { resetKey: `${from}|${to}|${locId}` });
   const staffPage = usePaged(a.byStaff, { resetKey: `${from}|${to}|${locId}g` });
+  // The log is packs × days — far longer than the by-game/by-staff lists, so it
+  // reveals in bigger bites than the 20/10 default.
+  const logPage = usePaged(a.shiftLog.rows, { initial: 50, step: 50, resetKey: `${from}|${to}|${locId}L` });
+  // A Location column only earns its width when the store HAS several and the
+  // view isn't already scoped to one.
+  const showLoc = locations.length > 1 && !locId;
 
   const rangeLabel = `${from} → ${to}`;
   const hasData = a.totals.counts > 0;
@@ -145,9 +157,43 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     const accent = paletteAccent(vendor), ink = paletteInk(vendor);
     const kpi = (label, val) => `<div class="kpi"><div class="v">${esc(val)}</div><div class="l">${esc(label)}</div></div>`;
     const tRows = (list, cols) => list.map((r) => `<tr>${cols.map((c) => `<td class="${c.num ? "num" : ""}">${esc(c.get(r))}</td>`).join("")}</tr>`).join("");
+    // The shift log's cells stack a reading over a muted "time · signer" line, so
+    // they're built here rather than through tRows (which esc()s whole cells and
+    // would print the markup literally). Every interpolated value is esc()'d.
+    const logRows = a.shiftLog.rows.slice(0, LOG_PRINT_MAX);
+    const side = (num, when, who, missing, badge = "") => (num != null
+      ? `#${esc(num)}${badge}<div class="muted">${esc(when)} · ${esc(who)}</div>`
+      : `—<div class="muted">${esc(missing)}</div>`);
+    const logHtml = !logRows.length ? "" : `
+    <h2>${esc(t("srep.log_title"))}</h2>
+    <p class="muted">${esc(t("srep.log_sub"))}</p>
+    <table class="log"><thead><tr>
+      <th>${esc(t("common.date"))}</th>${showLoc ? `<th>${esc(t("common.location"))}</th>` : ""}
+      <th>${esc(t("srep.th_game"))}</th><th>${esc(t("srep.th_book"))}</th>
+      <th class="num">${esc(t("srep.th_at_open"))}</th><th class="num">${esc(t("srep.th_at_close"))}</th>
+      <th class="num">${esc(t("srep.th_sold_shift"))}</th><th class="num">${esc(t("srep.th_sales"))}</th>
+    </tr></thead><tbody>
+    ${logRows.map((r) => `<tr>
+      <td>${esc(r.date)}</td>${showLoc ? `<td>${esc(r.locationName || "—")}</td>` : ""}
+      <td>${esc(r.game)}${r.gameNo ? `<div class="muted">#${esc(r.gameNo)}</div>` : ""}</td>
+      <td>${esc(r.bookNo)}</td>
+      <td class="num">${side(r.openTicket, fmtTime(r.openTs, lang), r.openBy, t("srep.log_no_open"))}</td>
+      <td class="num">${side(r.closeTicket, fmtTime(r.closeTs, lang), r.closeBy, t("srep.log_no_close"),
+        r.soldOut ? ` <span class="gap">${esc(t("srep.log_soldout"))}</span>` : "")}</td>
+      <td class="num">${r.sold != null ? esc(r.sold) : `<span class="gap">⚠</span>`}</td>
+      <td class="num">${r.dollars != null ? esc(money(r.dollars)) : "—"}</td>
+    </tr>`).join("")}
+    <tr class="tot"><td colspan="${showLoc ? 5 : 4}">${esc(t("srep.log_total"))}</td>
+      <td class="num"></td><td class="num">${esc(a.shiftLog.totals.sold)}</td>
+      <td class="num">${esc(money(a.shiftLog.totals.dollars))}</td></tr>
+    </tbody></table>
+    ${a.shiftLog.rows.length > LOG_PRINT_MAX
+      ? `<p class="muted">${esc(t("srep.log_capped", { shown: LOG_PRINT_MAX, total: a.shiftLog.rows.length }))}</p>` : ""}`;
     win.document.write(`<!doctype html><html><head><title>${esc(vendor.name)} — ${esc(t("srep.title"))}</title>
     <style>body{font:12px Helvetica,Arial;margin:32px;color:#1a241c}h1{font-size:18px;margin:0}h2{font-size:13px;margin:22px 0 6px}p{color:#666;margin:2px 0}
     table{border-collapse:collapse;width:100%;margin-top:6px;font-size:11px}th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ccc}th{border-bottom:2px solid ${ink}}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+    table.log td{vertical-align:top}table.log tr{page-break-inside:avoid}tr.tot td{border-top:2px solid ${ink};font-weight:bold}
+    .muted{color:#666;font-size:9.5px}.gap{color:#b91c1c;font-weight:bold}
     .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.kpi{border:1px solid #ccc;border-radius:8px;padding:8px 12px;min-width:90px}.kpi .v{font-size:16px;font-weight:bold}.kpi .l{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
     .brand{display:flex;align-items:center;gap:8px}.mark{width:26px;height:26px;border-radius:5px;background:${accent};color:#fff;font-weight:bold;display:flex;align-items:center;justify-content:center}</style>
     </head><body>
@@ -164,6 +210,7 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
     <h2>${esc(t("srep.by_staff"))}</h2>
     <table><thead><tr><th>${esc(t("srep.th_staff"))}</th><th class="num">${esc(t("srep.th_tickets"))}</th><th class="num">${esc(t("srep.th_sales"))}</th></tr></thead>
     <tbody>${tRows(a.byStaff, [{ get: (r) => r.by }, { get: (r) => r.tickets, num: 1 }, { get: (r) => money(r.dollars), num: 1 }])}</tbody></table>
+    ${logHtml}
     </body></html>`);
     win.document.close(); win.focus();
     setTimeout(() => { try { win.print(); } catch { /* user prints manually */ } }, 250);
@@ -284,6 +331,59 @@ export default function ScratchReport({ locations = [], locName = () => "" }) {
               <div className="text-[12px] text-muted">{t("srep.n_tickets", { n: a.byShift.close.tickets })}</div>
             </div>
           </div>
+
+          {/* Shift log — the raw ledger: what each pack was at when the shift
+              opened and when it closed, with the scan times and who signed. */}
+          {a.shiftLog.rows.length > 0 && (
+            <div className="card overflow-hidden">
+              <div className="px-4 py-3 border-b border-line">
+                <h3 className="font-semibold text-[15px]">{t("srep.log_title")}</h3>
+                <p className="text-[12px] text-muted mt-0.5">{t("srep.log_sub")}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead><tr className="text-[10px] uppercase tracking-wide text-muted">
+                    <th className="text-left font-semibold px-4 py-2">{t("common.date")}</th>
+                    {showLoc && <th className="text-left font-semibold px-2 py-2">{t("common.location")}</th>}
+                    <th className="text-left font-semibold px-2 py-2">{t("srep.th_game")}</th>
+                    <th className="text-left font-semibold px-2 py-2">{t("srep.th_book")}</th>
+                    <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_open")}</th>
+                    <th className="text-right font-semibold px-2 py-2">{t("srep.th_at_close")}</th>
+                    <th className="text-right font-semibold px-2 py-2">{t("srep.th_sold_shift")}</th>
+                    <th className="text-right font-semibold px-4 py-2">{t("srep.th_sales")}</th>
+                  </tr></thead>
+                  <tbody>{logPage.visible.map((r) => (
+                    <tr key={r.key} className="border-t border-line-soft align-top">
+                      <td className="px-4 py-2 whitespace-nowrap">{r.date}</td>
+                      {showLoc && <td className="px-2 py-2 truncate">{r.locationName || "—"}</td>}
+                      <td className="px-2 py-2">
+                        <div className="truncate">{r.game}</div>
+                        {r.gameNo && <div className="text-[11px] text-muted font-mono">#{r.gameNo}</div>}
+                      </td>
+                      <td className="px-2 py-2 font-mono text-[12px]">{r.bookNo}</td>
+                      <td className="px-2 py-2 text-right">
+                        <div className="font-mono tabular-nums">{r.openTicket != null ? `#${r.openTicket}` : "—"}</div>
+                        <div className="text-[11px] text-muted">{r.openTicket != null
+                          ? `${fmtTime(r.openTs, lang)} · ${r.openBy}` : t("srep.log_no_open")}</div>
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <div className="font-mono tabular-nums">{r.closeTicket != null ? `#${r.closeTicket}` : "—"}
+                          {r.soldOut && <span className="ml-1 text-[10px] uppercase font-bold text-neg">{t("srep.log_soldout")}</span>}</div>
+                        <div className="text-[11px] text-muted">{r.closeTicket != null
+                          ? `${fmtTime(r.closeTs, lang)} · ${r.closeBy}` : t("srep.log_no_close")}</div>
+                      </td>
+                      <td className="px-2 py-2 text-right font-mono tabular-nums">
+                        {r.sold != null ? r.sold
+                          : <span className="text-neg" title={t("srep.log_rollback")}>⚠</span>}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums">{r.dollars != null ? money(r.dollars) : "—"}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <div className="px-4 py-2"><ShowMore hasMore={logPage.hasMore} nextStep={logPage.nextStep} onMore={logPage.showMore} /></div>
+            </div>
+          )}
 
           {/* By-game table */}
           <div className="card overflow-hidden">

@@ -92,4 +92,18 @@ test("CSV builders emit headers + rows", () => {
   assert.match(rptCsv, /"By game"/);
   assert.match(rptCsv, /"Wild Side"/);
   assert.match(rptCsv, /"By staff"/);
+  // The shift log rides along as its own section — the raw per-pack ledger.
+  assert.match(rptCsv, /"Shift log","Location","Game"/);
+  assert.match(rptCsv, /"Opening #","Opened at","Opened by"/);
+});
+
+test("the bundle carries the per-shift ticket log", () => {
+  const a = buildScratchAnalytics(DATA);
+  assert.ok(a.shiftLog, "shiftLog present on the analytics bundle");
+  assert.ok(Array.isArray(a.shiftLog.rows));
+  assert.ok(a.shiftLog.rows.length > 0);
+  for (const r of a.shiftLog.rows) {
+    assert.ok(r.date && r.game && r.pack, "each row names its date, game and pack");
+    assert.ok("openTicket" in r && "closeTicket" in r, "and carries both readings");
+  }
 });
