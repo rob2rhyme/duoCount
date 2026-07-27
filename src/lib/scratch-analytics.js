@@ -7,6 +7,7 @@
 
 import { csvCell } from "./utils.js";
 import { buildPackFlow } from "./scratch-report.js";
+import { buildShiftLog } from "./scratch-shift-log.js";
 
 const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -99,12 +100,22 @@ export function buildScratchAnalytics(entries = [], opts = {}) {
     ? filterScratch(entries, { from: opts.from, to: opts.to, locationId: opts.locationId })
     : rows;
   const packFlow = buildPackFlow(flowRows, { from: opts.from || "", to: opts.to || "", locationId: opts.locationId || "" });
+  // The per-shift ticket log rides on the SAME un-staff-scoped set as packFlow:
+  // a pack opened by one clerk and closed by another must still pair into one
+  // row. (Only the owner report renders it — the staff History view passes a
+  // shift-filtered array, which would make every row one-sided.)
+  const shiftLog = buildShiftLog(flowRows, { from: opts.from || "", to: opts.to || "", locationId: opts.locationId || "" });
 
   return {
     totals: { ...totals, gapTickets: packFlow.totals.gapTickets, gapDollars: packFlow.totals.gapDollars },
-    byStaff, byShift, byDay, byGame, byStaffShift, packFlow,
+    byStaff, byShift, byDay, byGame, byStaffShift, packFlow, shiftLog,
   };
 }
+
+// Local wall-clock HH:MM of a scan — the shift-boundary time an owner reads on
+// the sheet. Null-safe (an un-echoed optimistic write has no ts yet).
+const hhmm = (d) => (d instanceof Date && !Number.isNaN(d.getTime())
+  ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` : "");
 
 // ---- CSV exports (English headers, matching entriesToCSV / the journal CSV) ----
 const row = (cells) => cells.map(csvCell).join(",");
@@ -137,5 +148,25 @@ export function buildScratchReportCSV(analytics, { rangeLabel = "" } = {}) {
   lines.push("");
   lines.push(row(["By staff", "Role", "Counts", "Tickets", "Sales $", "Sold out"]));
   for (const s of analytics.byStaff) lines.push(row([s.by, s.byRole || "", s.counts, s.tickets, s.dollars.toFixed(2), s.soldOut]));
+
+  // The shift log — one line per pack per day, the opening and closing ticket
+  // numbers with the scan times and signers. The raw ledger the sections above
+  // aggregate; a spreadsheet can re-derive every figure from it.
+  const log = analytics.shiftLog;
+  if (log && log.rows.length) {
+    lines.push("");
+    lines.push(row(["Shift log", "Location", "Game", "Game #", "Book #", "Pack id",
+      "Opening #", "Opened at", "Opened by", "Closing #", "Closed at", "Closed by",
+      "Carried in", "Sold this shift", "Price", "Sales $", "Sold out", "Status"]));
+    for (const r of log.rows) {
+      lines.push(row([r.date, r.locationName || "", r.game, r.gameNo || "", r.bookNo || "", r.pack,
+        r.openTicket ?? "", hhmm(r.openTs), r.openBy || "",
+        r.closeTicket ?? "", hhmm(r.closeTs), r.closeBy || "",
+        r.carriedIn ?? "", r.sold ?? "", Number(r.price || 0).toFixed(2),
+        r.dollars != null ? r.dollars.toFixed(2) : "", r.soldOut ? "yes" : "", r.status]));
+    }
+    lines.push(row(["Total", "", "", "", "", "", "", "", "", "", "", "", "",
+      log.totals.sold, "", log.totals.dollars.toFixed(2), "", ""]));
+  }
   return lines.join("\n");
 }
