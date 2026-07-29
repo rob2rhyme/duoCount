@@ -13,7 +13,7 @@ export const metadata = {
 // getting-started is the hero (its own /guide route) and its Spanish twin rides
 // beside it — never in the technical buckets below. These read as overviews.
 const HERO = ["getting-started", "getting-started-es"];
-const OVERVIEW = ["app-summary-spec", "roadmap"];
+const OVERVIEW = ["faq", "app-summary-spec", "roadmap"];
 const LEGAL = ["terms-of-use", "privacy-and-data", "legal-disclaimers"];
 
 function DocCard({ doc }) {

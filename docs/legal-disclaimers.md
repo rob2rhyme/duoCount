@@ -43,6 +43,30 @@ thresholds you set. It reduces opportunities for undetected error, but it cannot
 guarantee that any individual count is accurate or that variances are always
 caught. It is a control aid, not a guarantee.
 
+## Not an employment decision-maker
+
+DuoCount records who counted what and when, and computes alerts that can name an
+individual employee. **Those alerts are prompts for a human to look, not
+findings of fact and not accusations of theft.** A variance has ordinary
+explanations far more often than dishonest ones — miscounts, a jammed register,
+a training gap, a pack swapped mid-shift.
+
+The software takes no action about any person. It does not discipline, pay,
+schedule, promote, or terminate anyone, and it makes no automated decision. Any
+employment decision is made by you, must be based on a person's review of the
+underlying records, and is governed by the employment law where you operate.
+Presenting a DuoCount alert as proof of misconduct is a misuse of it.
+
+## Amusement and gaming machines
+
+Where a store tracks amusement or gaming machines, DuoCount records **collection
+readings a person enters** — nothing more. It does not connect to any machine,
+meter, or operator network; it does not verify, certify, or reconcile what a
+machine reports; and it takes no position on whether a machine is lawful where
+you operate. Machine licensing, revenue-sharing agreements, tax treatment, and
+reporting to any authority are entirely your responsibility. DuoCount is not
+gambling software and provides no gaming functionality.
+
 ## Regulated goods
 
 If your store sells age-restricted or otherwise regulated goods (tobacco,

@@ -31,18 +31,80 @@ DuoCount only stores what the business and its staff enter to run shift counts:
 - **Operational records** — cash counts (sales, paid-outs, expected vs. counted,
   over/short), scratch-off pack activity (counts and the occasional books-on-hand
   census snapshot — a signed list of the pack numbers physically on the shelf),
-  inventory counts, variance flags and their cause codes, disputes, shift notes,
-  incident write-ups, and time-clock punches. These are an **append-only** log:
-  entries are signed by the signed-in user and are not client-deletable, by
-  design, so the record stays trustworthy.
+  inventory counts and backroom stock movements, amusement/gaming machine
+  collection readings (if the store tracks machines), variance flags and their
+  cause codes, disputes and their comment threads, and shift notes. These are an
+  **append-only** log: entries are signed by the signed-in user and are not
+  client-deletable, by design, so the record stays trustworthy.
+- **Employment records** — these deserve naming separately, because they are
+  about people rather than about stock:
+  - **Time-clock punches** — in/out times, signed and server-timestamped.
+  - **Schedules and availability** — assigned shifts, the days a staff member
+    says they can't work, published rosters, and shift-swap offers and claims.
+  - **Time-off requests** — the request type (**vacation, sick, personal,
+    appointment, other**), the dates, and a **free-text reason of up to 500
+    characters** written by the staff member, plus the manager's decision and
+    their own reason. **A "sick" request, or anything a staff member writes in
+    the reason box, may amount to health information.** Treat this field as
+    sensitive: tell staff they need not disclose a diagnosis, restrict who
+    approves requests, and check your local rules — under GDPR/UK GDPR health
+    data is a special category needing its own lawful basis, and several US
+    states regulate it too.
+  - **Payroll** — hours are rolled up per employee, days can be locked once run,
+    and a payroll CSV can be exported. That export contains hours worked and is
+    a compensation record.
+  - **Incident write-ups** — a signed, append-only record that **names the staff
+    member it concerns** and can carry a severity, a category, a narrative, and
+    the subject's acknowledgement. These are **disciplinary/personnel records**.
+    Many jurisdictions give employees a right to see their own personnel file;
+    plan for that rather than being surprised by it.
+- **Pattern alerts (automated flagging)** — the app computes signals such as
+  repeat shorts, drawer hot-spots, off-shift counts, and scratch-pack gaps, and
+  some of them **name an individual employee**. These are advisory prompts for a
+  human to review, never automatic decisions: nothing in DuoCount disciplines,
+  pays, schedules, or terminates anyone on its own. If you use them as an input
+  to an employment decision, that decision is yours and must be made by a person
+  who has looked at the underlying records. (Where GDPR applies, this matters:
+  Art. 22 restricts decisions based solely on automated processing.)
+- **Support requests (only if someone contacts support)** — a ticket carries the
+  subject and body your staff write, the category and priority, **any screenshot
+  attached**, the store name, and the name of the person who wrote it. Tickets
+  are readable by the operator of this deployment — that is the point of a
+  support channel — so tell staff not to paste anything into a ticket they would
+  not want the operator to read, and remember a screenshot may capture whatever
+  else was on screen.
+- **Billing records (only where the deployment charges for the service)** — the
+  store's plan, subscription status (trial / active / past due / canceled),
+  billing cycle, and price. No card numbers, bank details, or payment
+  credentials are stored in DuoCount; if a deployment takes payment, that runs
+  through a separate payment provider under its own terms.
+- **Imported data (only if an owner runs an import)** — the owner-only CSV import
+  can bring in tracked items, a staff roster (names, roles, locations, optional
+  emails), opening shelf counts, POS stock levels, or rewards customers. Imported
+  data becomes the same kind of record as anything typed in by hand, and you are
+  responsible for having the right to import it — a customer list exported from
+  another system carries whatever consent it was collected under.
 - **Service-operation records** — when DuoCount's own support operators act on
   a store through the operator console (e.g. a suspend, a rename, an owner-PIN
   reset at the owner's request), the action is written to an append-only
   operator audit log (who acted, what, on which store, when). The operator
   roster itself (name, role) is likewise a server-only record. Neither contains
   store count data.
-- **Device preferences** — your light/dark theme choice and a scroll-to-top
-  toggle are stored **locally in your browser** (localStorage), not on a server.
+- **Device preferences** — a handful of small settings are stored **locally in
+  your browser** (localStorage) and never sent to a server: your light/dark
+  theme (`duocount-theme`), the scroll-to-top toggle (`duocount-fab`), your
+  language choice (`duocount-lang`), the tab you were last on
+  (`duocount-tab`), and which sections you print (`duocount-print-sections`).
+  None identifies you; clearing your browser data removes them. DuoCount sets no
+  advertising or analytics cookies. Signing in does store a Firebase
+  authentication session on the device so you stay signed in — signing out
+  clears it.
+- **Camera (only while you are scanning)** — the barcode scanner asks your
+  browser for camera access when you open it. The video is decoded **on your
+  device, in the browser**; DuoCount does **not** record, store, upload, or
+  transmit any image or video, and the camera stops when you close the scanner.
+  You can decline the permission and type numbers by hand instead — every
+  scan-driven screen has a manual path.
 - **Rewards customers (only if the owner turns rewards on)** — a customer's
   phone number, an optional first name, and their points ledger (earn/redeem
   lines signed by the staff member who recorded them). The phone number is used
@@ -94,6 +156,14 @@ app.
 
 Each of these is a third-party processor with its own terms; list the ones you
 actually use in your published notice.
+
+**Where in the world.** Firebase, Resend, Anthropic, and most hosting providers
+are US-based, and a Firebase project is pinned to a region you choose when you
+create it. If your staff or customers are in the UK, EU, or another region with
+transfer rules, that is an **international transfer** and you need a lawful basis
+for it (for the EU/UK today that generally means Standard Contractual Clauses,
+which each of these providers offers). Pick your Firebase region deliberately —
+it cannot be changed later without migrating the data.
 
 ## How data is protected
 
@@ -172,12 +242,82 @@ the signed points ledger keeps its history, as a financial record, without the
 live profile). If the store closes its account, its customer list is deleted
 with the rest of the store's data within 90 days (see the Terms of Use).
 
+If the owner turns on **points expiry**, points lapse after the number of months
+of inactivity they set, written as a signed `expire` line in the ledger rather
+than by erasing history. Expiry rules are regulated in some US states and
+provinces — check yours before enabling it, and tell customers the rule in your
+program terms.
+
+For **employment records** (punches, schedules, time-off, payroll exports,
+incidents), retention is usually set by employment and tax law, not by
+preference — several years is common, and some jurisdictions set a minimum.
+Decide your retention period deliberately, write it down, and note that the
+append-only design means shortening it is an action taken on the underlying
+Firebase data by the owner or operator, not something staff can do in the app.
+
+**Deleting a person.** Deactivating a staff member ends their access but does
+**not** erase the counts they signed — that is the whole point of a tamper-evident
+ledger, and it is normally the right answer for a financial and employment
+record. Where an erasure right applies (e.g. GDPR Art. 17), it is not absolute:
+records kept for legal obligations, or to establish or defend legal claims, can
+usually be retained. Take advice before erasing signed history, and prefer
+restricting access over destroying an audit trail.
+
 ## Staff rights & requests
 
 Staff data is controlled by the store. A staff member who wants to see, correct,
 or ask about their data should contact the **store owner/operator**, who
-administers the Firebase project. Fill in a real contact point here before you
-publish this notice.
+administers the Firebase project.
+
+> **Fill this in before you publish.** Name a real person or role and a real
+> contact route — e.g. *"Email privacy@[yourstore].com or ask [name] in person.
+> We will respond within 30 days."* A privacy notice with no working contact
+> point fails the one thing it exists to do. If you operate in the EU/UK,
+> consider whether you need a representative or a DPO; if you operate in
+> California, publish the request routes the CCPA requires.
+
+## Tell your staff before you switch it on
+
+Most of what DuoCount records about staff is ordinary employment record-keeping,
+but three things are worth an explicit conversation rather than a discovery:
+
+1. **Every count carries your name and a server time**, and it cannot be edited
+   or deleted afterwards. That protects staff as much as it protects the owner —
+   it is why "I counted that correctly" stops being one person's word — but
+   nobody should learn it from a variance flag.
+2. **The app computes patterns that can name an individual.** Say plainly that
+   these are prompts for a conversation, that a manager reads the underlying
+   counts before acting, and that the software decides nothing by itself.
+3. **Time-off reasons are stored.** Tell staff they do not need to write a
+   diagnosis, and say who can read the field.
+
+Notice-and-consent duties for employee monitoring vary widely — some US states
+require written notice, some require it before monitoring begins, and EU/UK
+employers generally need a lawful basis plus a proportionality assessment. This
+is the store owner's obligation as employer, not the software's.
+
+## If something goes wrong
+
+DuoCount has no breach-notification machinery built in, so this is a procedure
+you need rather than a feature you get. Decide in advance:
+
+- **Who to tell and how fast.** Most US states set a deadline once a breach
+  affecting residents is confirmed; GDPR/UK GDPR set 72 hours to the regulator
+  for qualifying breaches. Know your clock before you need it.
+- **What you would actually do.** Rotate the Firebase service-account key and
+  `CRON_SECRET`, force PIN resets, review the Firebase Auth sign-in logs and the
+  operator audit log, and export the affected records before anything changes.
+- **Who is on the hook.** If you run your own deployment you are the controller
+  and the one who notifies. If you use a hosted deployment, your operator should
+  tell you promptly — put that expectation in writing with them.
+
+## Children
+
+DuoCount is a workplace tool and is not directed to children. Do not enroll a
+minor in the rewards program without the consent their local law requires — US
+COPPA covers under-13s, and several state laws and the GDPR set their own ages
+for a child's data. If your store employs minors, their employment records are
+subject to the same child-employment rules as everything else you keep.
 
 ## Changes
 
