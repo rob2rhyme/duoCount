@@ -27,6 +27,7 @@ const PATHS = {
   layers: <><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></>,
   upload: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>,
   download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>,
+  "help-circle": <><circle cx="12" cy="12" r="10" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></>,
   globe: <><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></>,
 };
 
@@ -55,8 +56,14 @@ const SLUG_ICON = {
   "bulk-import-spec": "upload",
   "accountant-export-spec": "download",
   "localization-spec": "globe",
+  faq: "help-circle",
+  "faq-es": "help-circle",
   "privacy-and-data": "shield",
+  "privacy-and-data-es": "shield",
+  "terms-of-use": "file-text",
+  "terms-of-use-es": "file-text",
   "legal-disclaimers": "file-text",
+  "legal-disclaimers-es": "file-text",
 };
 
 export default function DocIcon({ slug, size = 20, className = "" }) {

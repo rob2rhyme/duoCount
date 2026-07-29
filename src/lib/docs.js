@@ -27,7 +27,8 @@ function mdFiles() {
 // is store owners and staff, not the company's own playbook.
 const INTERNAL = new Set([
   "positioning-one-pager", "competitive-gap-analysis",
-  "distribution-analysis", "dev-console-roadmap",
+  "distribution-analysis", "distribution-decision-2026",
+  "monetization-paths-2026", "dev-console-roadmap",
 ]);
 const publicSlugs = () => docSlugs().filter((s) => !INTERNAL.has(s));
 

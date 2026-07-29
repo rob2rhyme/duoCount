@@ -2082,6 +2082,7 @@ export const CATALOG = {
     // /guide page chrome (the doc body itself comes from docs/getting-started*.md)
     "guide.title": "User Guide",
     "guide.toc": "On this page",
+    "guide.top": "Back to top",
     "guide.search_ph": "Search all guides and docs…",
     "guide.all_docs": "All documentation",
     "guide.back_app": "Back to the app",
@@ -4261,6 +4262,7 @@ export const CATALOG = {
 
     "guide.title": "Guía de uso",
     "guide.toc": "En esta página",
+    "guide.top": "Volver arriba",
     "guide.search_ph": "Buscar en todas las guías y documentos…",
     "guide.all_docs": "Toda la documentación",
     "guide.back_app": "Volver a la app",

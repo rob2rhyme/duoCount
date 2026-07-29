@@ -158,6 +158,14 @@ input[type="search"]::-webkit-search-results-decoration { -webkit-appearance: no
    page. Body text and inputs stay selectable (so store codes and amounts can be
    copied); only interactive chrome opts out of selection + the long-press callout. */
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* Horizontal jump-nav on doc pages: scrollable without a visible scrollbar
+   eating 8px of a phone's width. Keyboard and touch scrolling still work. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+/* The sticky doc jump-nav overlaps an anchored heading, so headings clear it. */
+@media (max-width: 1023px) {
+  .doc-content :is(h2, h3) { scroll-margin-top: 4.25rem; }
+}
 html, body { overscroll-behavior: none; }
 body { -webkit-tap-highlight-color: transparent; }
 button, a, [role="button"], .btn, select { touch-action: manipulation; }

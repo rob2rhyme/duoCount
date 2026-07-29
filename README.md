@@ -56,9 +56,17 @@ security rules keyed on server-issued auth claims.
     both themes, with the failures found and the token fixes shipped
   - `roadmap.md` — what's shipped, what's next, and what's deferred
   - `positioning-one-pager.md` — market positioning, competitors, pricing
+  - `faq.md` — plain-language answers for owners, managers, and staff
+    (also the short-form of the privacy/terms answers)
   - `privacy-and-data.md` — how DuoCount handles data, as a template to adapt
     (not legal advice; review before publishing)
-  - `legal-disclaimers.md` — non-affiliation, not-advice, and warranty notices
+  - `terms-of-use.md` — store ↔ operator agreement template, including fees,
+    suspension, staff-notice duties, and the optional AI features
+  - `legal-disclaimers.md` — non-affiliation, not-an-employment-decision,
+    gaming-machine, not-advice, and warranty notices
+  - each of the four above has a Spanish twin (`*-es.md`) rendered at its own
+    `/docs` URL and cross-linked from the English page — a monitoring notice a
+    Spanish-first clerk can only read in English isn't notice
 - `LICENSE` — proprietary "all rights reserved" by default; swap for MIT/Apache
   if you intend a self-host/open-source template (see `distribution-analysis.md`)
 - Paper backup logs (cash drawer + scratch-off) are generated on demand from
