@@ -9,6 +9,8 @@ title: Terms of Use
 > advice**; have a professional adapt it (especially the governing-law section)
 > before offering the service commercially.
 
+*¿Prefieres leerlo en español? → [Términos de uso](/docs/terms-of-use-es).*
+
 _Last updated: July 2026_
 
 These terms are an agreement between the business that creates a DuoCount store

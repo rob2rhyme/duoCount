@@ -13,8 +13,14 @@ export const metadata = {
 // getting-started is the hero (its own /guide route) and its Spanish twin rides
 // beside it — never in the technical buckets below. These read as overviews.
 const HERO = ["getting-started", "getting-started-es"];
-const OVERVIEW = ["faq", "app-summary-spec", "roadmap"];
-const LEGAL = ["terms-of-use", "privacy-and-data", "legal-disclaimers"];
+const OVERVIEW = ["faq", "faq-es", "app-summary-spec", "roadmap"];
+// Each legal doc sits beside its Spanish twin — a Spanish-first clerk should
+// never have to read a monitoring notice in a second language.
+const LEGAL = [
+  "terms-of-use", "terms-of-use-es",
+  "privacy-and-data", "privacy-and-data-es",
+  "legal-disclaimers", "legal-disclaimers-es",
+];
 
 function DocCard({ doc }) {
   return (

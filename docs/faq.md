@@ -11,6 +11,8 @@ answers below, see [Privacy & Data Handling](/docs/privacy-and-data),
 [Terms of Use](/docs/terms-of-use), and
 [Legal Disclaimers](/docs/legal-disclaimers).
 
+*¿Prefieres leerlo en español? → [Preguntas frecuentes](/docs/faq-es).*
+
 ---
 
 ## The basics

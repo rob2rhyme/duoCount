@@ -8,6 +8,8 @@ title: Legal disclaimers
 > disclaimers to adapt for your deployment. They are **not legal advice**; have a
 > professional review the final wording for your jurisdiction and business.
 
+*¿Prefieres leerlo en español? → [Avisos legales](/docs/legal-disclaimers-es).*
+
 ## Not affiliated with any lottery, brand, or agency
 
 DuoCount is an independent store-operations tool. It is **not affiliated with,

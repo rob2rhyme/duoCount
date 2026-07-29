@@ -10,6 +10,8 @@ title: Privacy & data handling
 > where you and your staff are located (e.g. US state laws, GDPR/UK GDPR, PIPEDA)
 > and how you deploy the app — have a professional review your final policy.
 
+*¿Prefieres leerlo en español? → [Privacidad y manejo de datos](/docs/privacy-and-data-es).*
+
 ## Who this is for
 
 DuoCount is a store operations tool a business runs for its **own** staff. The
@@ -127,8 +129,8 @@ app.
 - **Resend** — used **only if** you enable the emailed daily digest or schedule
   notifications, to deliver those emails to the recipients you configure. If you
   don't configure email, no data goes to Resend.
-- **Anthropic (Claude API)** — used **only if** an owner turns on one of two
-  optional AI settings (both off by default and independent). In both cases the
+- **Anthropic (Claude API)** — used **only if** an owner turns on one of three
+  optional AI settings (all off by default and independent). In every case the
   AI output is advisory only — it never changes your logged counts — and with the
   setting off, or with no AI key configured on the server, nothing is sent to
   Anthropic. Use a processor with a data-retention posture that matches your

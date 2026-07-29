@@ -64,6 +64,9 @@ security rules keyed on server-issued auth claims.
     suspension, staff-notice duties, and the optional AI features
   - `legal-disclaimers.md` — non-affiliation, not-an-employment-decision,
     gaming-machine, not-advice, and warranty notices
+  - each of the four above has a Spanish twin (`*-es.md`) rendered at its own
+    `/docs` URL and cross-linked from the English page — a monitoring notice a
+    Spanish-first clerk can only read in English isn't notice
 - `LICENSE` — proprietary "all rights reserved" by default; swap for MIT/Apache
   if you intend a self-host/open-source template (see `distribution-analysis.md`)
 - Paper backup logs (cash drawer + scratch-off) are generated on demand from

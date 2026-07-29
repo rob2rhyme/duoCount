@@ -57,8 +57,13 @@ const SLUG_ICON = {
   "accountant-export-spec": "download",
   "localization-spec": "globe",
   faq: "help-circle",
+  "faq-es": "help-circle",
   "privacy-and-data": "shield",
+  "privacy-and-data-es": "shield",
+  "terms-of-use": "file-text",
+  "terms-of-use-es": "file-text",
   "legal-disclaimers": "file-text",
+  "legal-disclaimers-es": "file-text",
 };
 
 export default function DocIcon({ slug, size = 20, className = "" }) {
