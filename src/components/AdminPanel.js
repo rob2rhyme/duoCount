@@ -297,6 +297,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
         narrative: settings.digestNarrative, // opt-in AI summary; off by default
         lastSentDate: vendor.digest?.lastSentDate ?? null, // preserved; cron owns it
+        lastResult: vendor.digest?.lastResult ?? null, // preserved; cron owns it
       },
     };
     // The prior vendor state, captured before the write, arms the Undo.
@@ -316,6 +317,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         enabled: vendor.digest?.enabled === true, recipients: vendor.digest?.recipients || [],
         tz: vendor.digest?.tz || "America/New_York", narrative: vendor.digest?.narrative === true,
         lastSentDate: vendor.digest?.lastSentDate ?? null,
+        lastResult: vendor.digest?.lastResult ?? null,
       },
     };
     const prevSnap = savedSettingsRef.current;
@@ -1153,9 +1155,16 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               </label>
             </div>
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <span className="text-xs text-muted">
-                {t("admin.last_sent")} <b className="font-mono">{vendor.digest?.lastSentDate || t("admin.never")}</b>
-              </span>
+              <div className="text-xs text-muted space-y-0.5">
+                <div>{t("admin.last_sent")} <b className="font-mono">{vendor.digest?.lastSentDate || t("admin.never")}</b></div>
+                {vendor.digest?.lastResult && (
+                  <div>
+                    {t("admin.last_attempt")}{" "}
+                    <b>{t(`admin.digest_result_${vendor.digest.lastResult.status === "sent" ? "sent" : vendor.digest.lastResult.status === "skipped" ? "no_recipients" : "failed"}`)}</b>
+                    {vendor.digest.lastResult.at ? ` (${String(vendor.digest.lastResult.at).slice(0, 10)})` : ""}
+                  </div>
+                )}
+              </div>
               {isOwner && (
                 <button className="btn-ghost text-[13px] px-3 py-1.5" disabled={testing} onClick={sendTestDigest}>
                   {testing ? t("admin.sending") : t("admin.send_test")}

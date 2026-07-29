@@ -197,6 +197,19 @@ export async function sendEmail({ to, subject, text, html }) {
   return res.json();
 }
 
+/** Persist the last AUTOMATED (non-force) send outcome on the vendor doc so the
+ *  owner can see in Admin whether the digest actually went out — a failed or
+ *  skipped send otherwise fails silently while "last sent" shows a stale date.
+ *  Dot-path update so it merges into the digest map without touching other
+ *  fields; best-effort — a status-write failure must never block or fail a send. */
+async function recordDigestResult(vendorSnap, status, reason, now) {
+  try {
+    await vendorSnap.ref.update({
+      "digest.lastResult": { status, reason: reason || null, at: now.toISOString() },
+    });
+  } catch { /* never let a status write interfere with the real send */ }
+}
+
 /**
  * Compose + send one vendor's digest. Returns "sent" | "skipped:<reason>".
  * `force` (the owner test button) ignores the lastSentDate guard and does NOT
@@ -207,7 +220,10 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
   const digest = vendor.digest || {};
   if (!force && digest.enabled !== true) return "skipped:disabled";
   const recipients = (digest.recipients || []).filter(Boolean).slice(0, 10);
-  if (!recipients.length) return "skipped:no-recipients";
+  if (!recipients.length) {
+    if (!force) await recordDigestResult(vendorSnap, "skipped", "no-recipients", now);
+    return "skipped:no-recipients";
+  }
 
   const tz = digest.tz || "America/New_York";
   const today = dateInTz(tz, now);
@@ -290,9 +306,17 @@ export async function sendDigestForVendor(adminDb, vendorSnap, { force = false, 
 
   const appUrl = process.env.APP_URL || "";
   const { subject, text, html } = composeEmail(vendor, yesterday, summary, appUrl, narrative);
-  await sendEmail({ to: recipients, subject, text, html });
+  try {
+    await sendEmail({ to: recipients, subject, text, html });
+  } catch (err) {
+    // Record the failure so Admin shows it, then re-throw so the cron still
+    // counts it and logs (behavior unchanged for the caller).
+    if (!force) await recordDigestResult(vendorSnap, "failed", String(err?.message || err).slice(0, 140), now);
+    throw err;
+  }
 
   if (!force) {
+    await recordDigestResult(vendorSnap, "sent", null, now);
     await vendorSnap.ref.update({ "digest.lastSentDate": today });
   }
   return "sent";
