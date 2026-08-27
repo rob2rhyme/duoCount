@@ -321,6 +321,8 @@ export const CATALOG = {
     "admin.scratch_shifts_open": "At opening only",
     "admin.scratch_shifts_close": "At closing only",
     "admin.scratch_shifts_hint": "How often staff scan the packs. Counting at both ends bounds every shift on both sides — the tightest theft check. Pick one end if that's all the staffing allows; the shift log then treats a single count as complete instead of asking for the missing one.",
+    "admin.scratch_reorder_label": "Reorder reminder (tickets left)",
+    "admin.scratch_reorder_hint": "Remind managers to order a fresh book once an active pack is within this many tickets of empty. A manager who already has a spare in back stock can set the reminder aside. Set to 0 to turn the reminder off.",
     "shist.log_sub_staff": "The shifts you signed: what each pack stood at when you counted it, and when the other reading was taken.",
     "srep.log_title": "Shift log — opening & closing ticket numbers",
     "srep.log_sub": "Every pack counted, by day: the ticket number it stood at when the shift opened and when it closed, with the scan time and who signed each. Sold = closing − opening.",
@@ -1578,6 +1580,18 @@ export const CATALOG = {
     "dash.stock_left_other": "{n} {unit} left",
     "dash.stock_more": "+{n} more",
 
+    // dashboard — scratch reorder reminder ("order a fresh book")
+    "dash.reorder_title": "Order scratch books",
+    "dash.reorder_sub": "Active books within their last {n} tickets. Have a spare in back stock? Set it aside.",
+    "dash.reorder_row": "Game {game} · Book {book}",
+    "dash.reorder_left_one": "{n} ticket left",
+    "dash.reorder_left_other": "{n} tickets left",
+    "dash.reorder_have_spare": "Have a spare",
+    "dash.reorder_more": "+{n} more",
+    "dash.reorder_set_aside": "{n} set aside:",
+    "dash.reorder_undo": "remind me",
+    "dash.reorder_error": "Couldn't update the reminder. Try again.",
+
     // app shell — header + footer + shortcuts help
     "shell.code": "code: {slug}",
     "shell.role_owner": "Own",
@@ -2558,6 +2572,8 @@ export const CATALOG = {
     "admin.scratch_shifts_open": "Solo en apertura",
     "admin.scratch_shifts_close": "Solo en cierre",
     "admin.scratch_shifts_hint": "Con qué frecuencia el personal escanea los paquetes. Contar en ambos extremos acota cada turno por los dos lados — el control antirrobo más estricto. Elige un solo extremo si el personal no da para más; el registro de turnos tratará entonces un solo conteo como completo en vez de pedir el que falta.",
+    "admin.scratch_reorder_label": "Recordatorio de pedido (boletos restantes)",
+    "admin.scratch_reorder_hint": "Recuerda a los gerentes pedir un libro nuevo cuando a un paquete activo le queden estos boletos o menos. Un gerente que ya tenga uno de repuesto en el almacén puede apartar el recordatorio. Ponlo en 0 para desactivarlo.",
     "shist.log_sub_staff": "Los turnos que firmaste: en qué número estaba cada paquete cuando lo contaste, y cuándo se tomó la otra lectura.",
     "srep.log_title": "Registro de turnos — boletos de apertura y cierre",
     "srep.log_sub": "Cada paquete contado, por día: en qué número de boleto estaba al abrir el turno y al cerrarlo, con la hora del escaneo y quién firmó cada lado. Vendidos = cierre − apertura.",
@@ -3765,6 +3781,18 @@ export const CATALOG = {
     "dash.stock_left_one": "queda {n} {unit}",
     "dash.stock_left_other": "quedan {n} {unit}",
     "dash.stock_more": "+{n} más",
+
+    // panel — recordatorio de pedido de rascas ("pedir un libro nuevo")
+    "dash.reorder_title": "Pedir libros de rascas",
+    "dash.reorder_sub": "Libros activos a {n} boletos o menos del final. ¿Tienes uno de repuesto en el almacén? Apártalo.",
+    "dash.reorder_row": "Juego {game} · Libro {book}",
+    "dash.reorder_left_one": "queda {n} boleto",
+    "dash.reorder_left_other": "quedan {n} boletos",
+    "dash.reorder_have_spare": "Tengo uno de repuesto",
+    "dash.reorder_more": "+{n} más",
+    "dash.reorder_set_aside": "{n} apartado(s):",
+    "dash.reorder_undo": "recuérdamelo",
+    "dash.reorder_error": "No se pudo actualizar el recordatorio. Inténtalo de nuevo.",
 
     "shell.code": "código: {slug}",
     "shell.role_owner": "Dño",

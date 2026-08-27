@@ -5,7 +5,7 @@ import { dayISO } from "./timeclock";
 import { VENDOR_SETTING_KEYS } from "./vendor-settings";
 import { newRequestId } from "./idempotency";
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, writeBatch,
+  collection, doc, addDoc, setDoc, updateDoc, deleteDoc, writeBatch,
   query, where, orderBy, onSnapshot, getDoc, getDocs, serverTimestamp, increment,
 } from "firebase/firestore";
 
@@ -661,4 +661,22 @@ export async function addNote(vendorId, note) {
 }
 export async function updateNote(vendorId, id, patch) {
   await updateDoc(doc(db, "vendors", vendorId, "notes", id), patch);
+}
+
+/* ---------- scratch reorder dismissals ----------
+ * A manager parks the "order a fresh book" reminder for a near-empty pack when a
+ * spare is already in back stock. Doc id == the pack id, so a replacement book
+ * (a new pack id) re-arms the reminder on its own and un-dismissing is a delete. */
+export function watchReorderDismissals(vendorId, cb) {
+  return onSnapshot(vcol(vendorId, "scratchReorderDismissals"),
+    (s) => cb(s.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    () => cb([])); // a transient listen error just shows every reminder
+}
+export async function dismissReorder(vendorId, packId, { game = "", by = "", byId = "" } = {}) {
+  await setDoc(doc(db, "vendors", vendorId, "scratchReorderDismissals", packId), {
+    packId, game, by, byId, at: serverTimestamp(),
+  });
+}
+export async function undismissReorder(vendorId, packId) {
+  await deleteDoc(doc(db, "vendors", vendorId, "scratchReorderDismissals", packId));
 }

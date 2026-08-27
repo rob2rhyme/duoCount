@@ -956,6 +956,22 @@ test("templates: managers manage them; employees can neither read nor write", as
   await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/templates/t1`)));
 });
 
+/* ---------- scratch reorder dismissals ---------- */
+
+test("scratchReorderDismissals: managers park/undo a reminder; employees and outsiders can't", async () => {
+  const dis = { packId: "1792-0011361", game: "Wild Side", by: "Mia", byId: "u-mgr", at: new Date() };
+  await assertSucceeds(setDoc(doc(db("mgr"), `vendors/${V}/scratchReorderDismissals/1792-0011361`), dis));
+  await assertSucceeds(getDoc(doc(db("mgr"), `vendors/${V}/scratchReorderDismissals/1792-0011361`)));
+  // employees are locked out (silencing a reorder alert is a manager judgement call)
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/scratchReorderDismissals/1792-0000002`), dis));
+  await assertFails(getDoc(doc(db("empA"), `vendors/${V}/scratchReorderDismissals/1792-0011361`)));
+  // another tenant can neither read nor write this store's dismissals
+  await assertFails(getDoc(doc(db("outsider"), `vendors/${V}/scratchReorderDismissals/1792-0011361`)));
+  await assertFails(setDoc(doc(db("outsider"), `vendors/${V}/scratchReorderDismissals/1792-0000003`), dis));
+  // un-dismissing (a spare ran out / mis-tap) is a plain manager delete
+  await assertSucceeds(deleteDoc(doc(db("mgr"), `vendors/${V}/scratchReorderDismissals/1792-0011361`)));
+});
+
 /* ---------- stock alerts + rewards (owner-only vendor keys) ---------- */
 
 test("stockAlerts and rewards settings: owner may set them; a manager may not", async () => {

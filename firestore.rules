@@ -709,6 +709,17 @@ service cloud.firestore {
           && request.resource.data.packs.size() <= 500;
         allow update, delete: if false;
       }
+
+      // Scratch-off reorder dismissals — a manager parks the "order a fresh book"
+      // reminder for a near-empty pack when a spare is already in back stock. Doc
+      // id == the pack id, so a replacement book (a new pack id) re-arms the
+      // reminder on its own and un-dismissing is a plain delete. Carries no money
+      // and no theft signal (it only silences a derived alert), so it's a manager
+      // client-write, not an Admin-SDK ledger route.
+      match /scratchReorderDismissals/{packId} {
+        allow read: if mgr();
+        allow write: if mgr() && liveActive();
+      }
     }
 
     // ---- Support desk (top-level, cross-tenant by design) ----

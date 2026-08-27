@@ -12,7 +12,11 @@
 // Pure + clock-free so both the form and the report can share one rule.
 
 export const SCRATCH_SHIFT_MODES = ["both", "open", "close"];
-export const DEFAULT_SCRATCH = { shifts: "both" };
+// Remind to order a fresh book when an active pack is within this many tickets of
+// empty (owner-tunable; 0 turns the reorder reminder off entirely).
+export const REORDER_DEFAULT = 5;
+export const REORDER_BOUNDS = [0, 999];
+export const DEFAULT_SCRATCH = { shifts: "both", reorderTickets: REORDER_DEFAULT };
 
 /** The store's mode, from the vendor doc. Anything unknown → "both". */
 export function resolveScratchShifts(vendorOrSettings) {
@@ -20,9 +24,21 @@ export function resolveScratchShifts(vendorOrSettings) {
   return SCRATCH_SHIFT_MODES.includes(raw) ? raw : "both";
 }
 
+/** Owner "remind me within N tickets of empty" threshold. NaN/blank/non-numeric
+ *  → the default; otherwise clamped to a whole number in REORDER_BOUNDS (0 = off).
+ *  Mirrors resolveStockAlerts' coerce-then-clamp idiom. Accepts a vendor doc, a
+ *  settings object, or a raw value. */
+export function resolveReorderTickets(vendorOrSettings) {
+  const raw = vendorOrSettings?.scratch?.reorderTickets ?? vendorOrSettings?.reorderTickets ?? vendorOrSettings;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return REORDER_DEFAULT;
+  const [lo, hi] = REORDER_BOUNDS;
+  return Math.round(Math.min(hi, Math.max(lo, n)));
+}
+
 /** Normalize the whole settings object for the vendor-doc write. */
 export function resolveScratchSettings(raw = {}) {
-  return { shifts: resolveScratchShifts(raw) };
+  return { shifts: resolveScratchShifts(raw), reorderTickets: resolveReorderTickets(raw) };
 }
 
 /** Which shift values the count form should offer, in display order. */

@@ -13,7 +13,7 @@ import { STOCK_ALERTS, resolveStockAlerts } from "@/lib/stock-alerts";
 import { FEATURES, FEATURE_KEYS, resolveFeatures, featureEnabled } from "@/lib/features";
 import { REWARDS, MAX_TIERS, MAX_VIP_TIERS, MAX_STAMP_CARDS, TIER_TYPES, resolveRewards, effectivePercent, maskPhone } from "@/lib/rewards";
 import { money, csvCell, downloadCSV, printCloseHtml } from "@/lib/utils";
-import { SCRATCH_SHIFT_MODES, resolveScratchShifts } from "@/lib/scratch-settings";
+import { SCRATCH_SHIFT_MODES, resolveScratchShifts, resolveScratchSettings, resolveReorderTickets } from "@/lib/scratch-settings";
 import { STAFF_SCOPES, resolveStaffScope } from "@/lib/staff-scope";
 import { searchTerms, matchesTerms } from "@/lib/text-match";
 import { useModalA11y } from "@/lib/use-modal-a11y";
@@ -54,6 +54,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
   const staffScopeId = useId();
   const varianceId = useId();
   const scratchShiftId = useId();
+  const scratchReorderId = useId();
   const invVarianceId = useId();
   const fiscalId = useId();
 
@@ -199,6 +200,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
     rewards: { ...REWARDS, ...(vendor.rewards || {}) },
     features: { ...FEATURES, ...(vendor.features || {}) },
     scratchShifts: resolveScratchShifts(vendor),
+    scratchReorder: resolveReorderTickets(vendor),
   });
   const setFeature = (k) => (e) =>
     setSettings((s) => ({ ...s, features: { ...s.features, [k]: e.target.checked } }));
@@ -305,7 +307,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       stockAlerts: resolveStockAlerts(settings.stockAlerts),
       rewards: resolveRewards(settings.rewards),
       features: resolveFeatures(settings),
-      scratch: { shifts: resolveScratchShifts(settings.scratchShifts) },
+      scratch: resolveScratchSettings({ shifts: settings.scratchShifts, reorderTickets: settings.scratchReorder }),
       digest: {
         enabled: settings.digestEnabled, recipients, tz: settings.digestTz,
         narrative: settings.digestNarrative, // opt-in AI summary; off by default
@@ -327,7 +329,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       stockAlerts: resolveStockAlerts(vendor.stockAlerts || {}),
       rewards: resolveRewards(vendor.rewards || {}),
       features: resolveFeatures(vendor),
-      scratch: { shifts: resolveScratchShifts(vendor) },
+      scratch: resolveScratchSettings(vendor),
       digest: {
         enabled: vendor.digest?.enabled === true, recipients: vendor.digest?.recipients || [],
         tz: vendor.digest?.tz || "America/New_York", narrative: vendor.digest?.narrative === true,
@@ -918,6 +920,17 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
               {SCRATCH_SHIFT_MODES.map((m) => <option key={m} value={m}>{t(`admin.scratch_shifts_${m}`)}</option>)}
             </select>
             <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("admin.scratch_shifts_hint")}</p>
+          </div>
+
+          {/* Remind to order a fresh book when an active pack is within this many
+              tickets of empty. 0 turns the reminder off. Feeds the Dashboard
+              "Order scratch books" card. */}
+          <div>
+            <label htmlFor={scratchReorderId} className="label">{t("admin.scratch_reorder_label")}</label>
+            <input id={scratchReorderId} type="number" inputMode="numeric" min="0" step="1" className="input"
+              value={settings.scratchReorder} disabled={!isOwner}
+              onChange={(e) => setSettings({ ...settings, scratchReorder: e.target.value })} />
+            <p className="text-xs text-muted mt-1.5 leading-relaxed">{t("admin.scratch_reorder_hint")}</p>
           </div>
 
           <div>
