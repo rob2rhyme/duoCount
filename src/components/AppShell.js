@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections, watchPunches } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections, watchPunches, watchReorderDismissals } from "@/lib/data";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { featureEnabled, resolveFeatures } from "@/lib/features";
 import { useModalA11y } from "@/lib/use-modal-a11y";
@@ -146,6 +146,15 @@ export default function AppShell() {
     const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
     return watchStockMoves(vendor.id, since, setStockMoves);
   }, [vendor.id]);
+  // Scratch reorder dismissals — a manager's "spare's in back stock, hush this
+  // book" list, feeding the Dashboard reorder card. Manager-only (the rules gate
+  // reads to mgr()) and only while the scratch module is on.
+  const scratchOn = featureEnabled(vendor, "scratch");
+  const [reorderDismissals, setReorderDismissals] = useState([]);
+  useEffect(() => {
+    if (!isManager || !scratchOn) { setReorderDismissals([]); return undefined; }
+    return watchReorderDismissals(vendor.id, setReorderDismissals);
+  }, [vendor.id, isManager, scratchOn]);
   // Gaming/amusement-machine module. The registry is member-readable (the entry
   // form needs the machine names); the collection ledger is OWNER-ONLY, so only
   // the owner's oversight view subscribes. Both only while the module is on.
@@ -421,6 +430,7 @@ export default function AppShell() {
         {tab === "dashboard" && (
           <Dashboard entries={visibleEntries} locations={activeLocations} locName={locName} incidents={incidents}
             items={items} rewardEvents={rewardEvents} customers={customers} stockMoves={stockMoves} collections={gamingCollections} punches={punches}
+            reorderDismissals={reorderDismissals}
             onOpenLog={featureEnabled(vendor, "log") ? () => setTab("log") : undefined}
             onRecord={featureEnabled(vendor, "cash") ? () => setTab("cash") : undefined}
             onOpenScratchReport={isOwner && featureEnabled(vendor, "scratch") ? () => setTab("scratchreport") : undefined} onToast={ping}

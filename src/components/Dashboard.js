@@ -11,10 +11,12 @@ import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
 import { renderPattern } from "@/lib/pattern-format";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { buildStockMoveAudit } from "@/lib/stockmove-audit";
+import { buildReorderAlerts } from "@/lib/scratch-reorder";
+import { resolveReorderTickets } from "@/lib/scratch-settings";
 import { featureEnabled } from "@/lib/features";
 import { scopeEntries, seesEveryone } from "@/lib/staff-scope";
 import { chartBar, paletteAccent, paletteInk } from "@/lib/branding";
-import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange } from "@/lib/data";
+import { apiPatternNarrative, fetchEntriesInRange, fetchRewardEventsInRange, dismissReorder, undismissReorder } from "@/lib/data";
 import { buildTheftReport } from "@/lib/theft-report";
 import { useSession } from "./SessionProvider";
 import { useTheme } from "./ThemeProvider";
@@ -42,7 +44,7 @@ function Stat({ label, value, tone }) {
   );
 }
 
-export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], collections = [], punches = [], onOpenLog, onRecord, onOpenScratchReport, onToast, locPicker = null }) {
+export default function Dashboard({ entries, locations = [], locName = () => "—", incidents = [], items = [], rewardEvents = [], customers = [], stockMoves = [], collections = [], punches = [], reorderDismissals = [], onOpenLog, onRecord, onOpenScratchReport, onToast, locPicker = null }) {
   const { isManager, vendor, profile } = useSession();
   const profileName = profile?.name || "";
   const { theme } = useTheme();
@@ -91,6 +93,35 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
   const stock = useMemo(
     () => (isManager ? buildStockAlerts(items, { rules: vendor?.stockAlerts }) : { expiring: [], lowStock: [], rules: {} }),
     [items, isManager, vendor?.stockAlerts]);
+  // Reorder reminders: active scratch books within the owner's "last N tickets"
+  // window (default 5). Manager-only; a spare-on-hand dismissal parks the row
+  // (scratchReorderDismissals), and a replacement book — a new pack id — re-arms
+  // on its own. Threshold 0 turns the whole reminder off (builder returns []).
+  const scratchOn = featureEnabled(vendor, "scratch");
+  const dismissedPacks = useMemo(
+    () => reorderDismissals.map((d) => d.packId || d.id).filter(Boolean),
+    [reorderDismissals]);
+  const reorder = useMemo(
+    () => (isManager && scratchOn
+      ? buildReorderAlerts(entries, {
+          threshold: resolveReorderTickets(vendor?.scratch),
+          dismissed: dismissedPacks,
+        })
+      : []),
+    [entries, isManager, scratchOn, vendor?.scratch, dismissedPacks]);
+  const dismissedRows = useMemo(
+    () => reorderDismissals.filter((d) => d.packId || d.id),
+    [reorderDismissals]);
+  const parkReorder = async (row) => {
+    try {
+      await dismissReorder(vendor.id, row.pack, { game: row.game, by: profileName, byId: profile?.id || "" });
+    } catch { onToast?.(t("dash.reorder_error")); }
+  };
+  const unparkReorder = async (packId) => {
+    try {
+      await undismissReorder(vendor.id, packId);
+    } catch { onToast?.(t("dash.reorder_error")); }
+  };
   // WHOSE numbers this dashboard shows. A manager/owner is accountable for the
   // whole store, so they see everyone. An EMPLOYEE sees their own work only:
   // the store-wide totals and the needs-attention queue used to name coworkers
@@ -474,6 +505,51 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
               {stock.lowStock.length > 8 && (
                 <div className="text-[12px] text-muted mt-1">{t("dash.stock_more", { n: stock.lowStock.length - 8 })}</div>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Order scratch books — active books within the owner's "last N tickets"
+          window. A manager who already has a spare in back stock parks the row;
+          the replacement book (a new pack id) re-arms the reminder on its own. */}
+      {isManager && scratchOn && (reorder.length > 0 || dismissedRows.length > 0) && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-line">
+            <h3 className="font-semibold text-[15px]">{t("dash.reorder_title")}</h3>
+            <p className="text-[12px] text-muted mt-0.5">{t("dash.reorder_sub", { n: resolveReorderTickets(vendor?.scratch) })}</p>
+          </div>
+          {reorder.slice(0, 8).map((r) => (
+            <div key={`${r.locationId}|${r.pack}`} className="px-4 py-2.5 border-b border-line last:border-0 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">
+                  {r.game}
+                  {r.locationId && locations.length > 1 && <span className="text-muted font-normal text-[12px]"> · {locName(r.locationId)}</span>}
+                </div>
+                <div className="text-[12px] text-muted font-mono truncate">
+                  {t("dash.reorder_row", { game: r.gameNo, book: r.bookNo })}
+                  {" · "}
+                  <span className={r.remaining <= 1 ? "text-neg font-semibold" : ""}>
+                    {t(`dash.reorder_left_${r.remaining === 1 ? "one" : "other"}`, { n: r.remaining })}
+                  </span>
+                </div>
+              </div>
+              <button className="btn-ghost text-[13px] px-3 py-1.5 flex-shrink-0" onClick={() => parkReorder(r)}>
+                {t("dash.reorder_have_spare")}
+              </button>
+            </div>
+          ))}
+          {reorder.length > 8 && (
+            <div className="px-4 py-2 text-[12px] text-muted">{t("dash.reorder_more", { n: reorder.length - 8 })}</div>
+          )}
+          {dismissedRows.length > 0 && (
+            <div className="px-4 py-2.5 border-t border-line bg-panel/50 text-[12px] text-muted">
+              <span>{t("dash.reorder_set_aside", { n: dismissedRows.length })}</span>
+              {dismissedRows.slice(0, 8).map((d) => (
+                <button key={d.packId || d.id} className="ml-2 underline hover:text-fg" onClick={() => unparkReorder(d.packId || d.id)}>
+                  {(d.game && `${d.game} · `) || ""}{t("dash.reorder_undo")}
+                </button>
+              ))}
             </div>
           )}
         </div>
