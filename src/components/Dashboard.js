@@ -307,25 +307,27 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
     setTheftBusy(false);
   }
 
-  // One row: the location picker (when the shell passes it) beside the
-  // Reports button, instead of stacking on two rows.
+  // The report actions + optional location picker. On a phone the picker takes
+  // its own full-width row and the buttons sit in an even 2-up grid (so no label
+  // clips and the group never wraps lopsidedly); from `sm` up it collapses to the
+  // original compact right-aligned single row.
   const reportButton = (isManager || locPicker) && (
-    <div className="flex items-center justify-end gap-3 flex-wrap">
-      {locPicker && <div className="flex-1 min-w-0">{locPicker}</div>}
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+      {locPicker && <div className="w-full sm:flex-1 sm:min-w-0">{locPicker}</div>}
       {isManager && (
-        <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={() => { setTheftErr(""); setTheftOpen(true); }}>
-          <span aria-hidden="true">🚨</span> {t("dash.theft_btn")}
-        </button>
-      )}
-      {isManager && (
-        <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={() => setReportOpen(true)}>
-          <span aria-hidden="true">📄</span> {t("dash.reports_export")}
-        </button>
-      )}
-      {onOpenScratchReport && (
-        <button className="btn-ghost min-h-[44px] px-4 text-sm font-semibold gap-2 flex-shrink-0" onClick={onOpenScratchReport}>
-          <span aria-hidden="true">🎟️</span> {t("dash.scratch_report_btn")}
-        </button>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end sm:gap-3">
+          <button className="btn-ghost min-h-[44px] px-3 text-sm font-semibold leading-tight w-full sm:w-auto" onClick={() => { setTheftErr(""); setTheftOpen(true); }}>
+            <span aria-hidden="true">🚨</span> {t("dash.theft_btn")}
+          </button>
+          <button className="btn-ghost min-h-[44px] px-3 text-sm font-semibold leading-tight w-full sm:w-auto" onClick={() => setReportOpen(true)}>
+            <span aria-hidden="true">📄</span> {t("dash.reports_export")}
+          </button>
+          {onOpenScratchReport && (
+            <button className="btn-ghost min-h-[44px] px-3 text-sm font-semibold leading-tight w-full sm:w-auto col-span-2 sm:col-span-1" onClick={onOpenScratchReport}>
+              <span aria-hidden="true">🎟️</span> {t("dash.scratch_report_btn")}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -527,11 +529,11 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
                   {r.locationId && locations.length > 1 && <span className="text-muted font-normal text-[12px]"> · {locName(r.locationId)}</span>}
                 </div>
                 <div className="text-[12px] text-muted font-mono truncate">
-                  {t("dash.reorder_row", { game: r.gameNo, book: r.bookNo })}
-                  {" · "}
-                  <span className={r.remaining <= 1 ? "text-neg font-semibold" : ""}>
+                  <span className={r.remaining <= 1 ? "text-neg font-semibold" : "text-fg font-semibold"}>
                     {t(`dash.reorder_left_${r.remaining === 1 ? "one" : "other"}`, { n: r.remaining })}
                   </span>
+                  {" · "}
+                  {t("dash.reorder_row", { game: r.gameNo, book: r.bookNo })}
                 </div>
               </div>
               <button className="btn-ghost text-[13px] px-3 py-1.5 flex-shrink-0" onClick={() => parkReorder(r)}>

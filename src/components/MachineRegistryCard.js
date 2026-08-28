@@ -74,7 +74,7 @@ export default function MachineRegistryCard({ machines = [], onToast }) {
             <input className="input" value={form.company} onChange={set("company")} placeholder={t("mach.ph_company")} />
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label={t("mach.f_type")}>
             <select className="input" value={form.type} onChange={set("type")}>
               {MACHINE_TYPES.map((ty) => <option key={ty} value={ty}>{t(`mach.type_${ty}`)}</option>)}

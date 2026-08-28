@@ -307,6 +307,17 @@ signed `soldOut` final count, not the retired settlement), and the replacement
 book of the same game # then opens fresh as a **New** book at #0 until the next
 day.
 
+**Reorder reminder.** When an active book's latest count lands within its last
+few tickets (`remaining = perPack − endno`; owner threshold `vendor.scratch.reorderTickets`,
+default 5, `0` = off), the Dashboard **Order scratch books** card names each game
+and book still selling and how many tickets are left — a pure derived alert over
+the signed counts (`src/lib/scratch-reorder.js`, `buildReorderAlerts`, unit-tested),
+in the same visual language as the Stock attention card. A manager who already has
+a spare in back stock taps **Have a spare** to park it (a manager-writable
+`scratchReorderDismissals/{packId}` doc); un-parking is a plain delete, and a
+replacement book — a new pack id — re-arms the reminder on its own. No lifecycle
+or settlement state is introduced.
+
 ## Interface: counting, theming & navigation
 
 Three usability upgrades (see `docs/ui-enhancements-spec.md`), all pure client

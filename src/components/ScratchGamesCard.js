@@ -209,9 +209,9 @@ export default function ScratchGamesCard({ scratchCatalog = null, onToast }) {
                     <span className="font-mono">#{r.game}</span> · {money(r.price)}{r.perPack ? ` · ${t("games.n_tickets", { n: r.perPack })}` : ""}
                   </span>
                 </div>
-                <button type="button" className="btn-ghost text-[13px] px-2.5 py-1 flex-shrink-0" disabled={busy}
+                <button type="button" className="btn-ghost text-[13px] px-3 min-h-[40px] flex-shrink-0" disabled={busy}
                   onClick={() => startEdit(r)}>{t("games.edit")}</button>
-                <button type="button" className="btn-ghost text-[13px] px-2.5 py-1 text-neg flex-shrink-0" disabled={busy}
+                <button type="button" className="btn-ghost text-[13px] px-3 min-h-[40px] text-neg flex-shrink-0 ml-1" disabled={busy}
                   onClick={() => remove(r)}>{t("games.remove")}</button>
               </div>
             ))}

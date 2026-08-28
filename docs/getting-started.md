@@ -148,6 +148,11 @@ off by default — see step 7).
 > only** if that's all your staffing allows. The count form then offers just the
 > shifts you log, and the Shift log treats a single daily count as complete
 > instead of asking for the one you never intended to take.
+>
+> The same card also sets **Reorder reminder (tickets left)** — when an active
+> book gets within this many tickets of empty (default **5**), the Dashboard
+> reminds a manager to order a fresh book of that game. Set it to **0** to turn
+> the reminder off.
 
 ### 4. Your daily rhythm
 
@@ -207,6 +212,14 @@ off by default — see step 7).
   Dashboard's alerts still tip you off: several packs jumping together in one
   window (one after-hours session), a count logged while nobody was clocked
   in, or risky counts still waiting on a second signature.
+- **Order scratch books before they run out.** When an active book's latest
+  count lands within its last few tickets (default **5**, set in **Business
+  settings → Scratch-off counting**), an **Order scratch books** card appears on
+  the Dashboard listing each game and book with how many tickets are left. If you
+  already have a spare of that game in the back, tap **Have a spare** to set the
+  reminder aside — it stays parked until that book is gone, and the next book you
+  start (a new book number) brings the reminder back on its own. Parked reminders
+  show a small **set aside** line with an undo, so a mis-tap is easy to reverse.
 - **Check Stock attention.** If you sync stock levels from your POS (the
   **Stock levels** import), the Dashboard lists what's **expiring soon**
   (default within 30 days) and what **needs ordering** (default fewer than
@@ -385,7 +398,8 @@ Type the **store code** your manager gave you and **your own PIN**, then
 > separately, so you still scan each pack at both. When a pack sells out, tap
 > **Final — sold out** on its row; the next book of that same game then opens as
 > a fresh **New** book at **#0**, so its first sales are counted, until the next
-> day.
+> day. And as a book nears empty, managers get an **Order scratch books**
+> reminder on the Dashboard so a fresh book is on the shelf before it runs out.
 
 > **Two more views on the same tab.** **History** shows your own scratch numbers
 > by shift (managers see everyone's), so you can check your day without asking —

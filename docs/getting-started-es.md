@@ -163,6 +163,11 @@ desactivadas por defecto — mira el paso 7).
 > de conteo ofrecerá entonces solo los turnos que registras, y el Registro de
 > turnos tratará un único conteo diario como completo en vez de pedir el que
 > nunca pensabas tomar.
+>
+> La misma tarjeta también ajusta el **Recordatorio de pedido (boletos
+> restantes)** — cuando a un libro activo le quedan estos boletos o menos (por
+> defecto **5**), el Panel recuerda a un gerente que pida un libro nuevo de ese
+> juego. Ponlo en **0** para desactivar el recordatorio.
 
 ### 4. Tu ritmo diario
 
@@ -226,6 +231,16 @@ desactivadas por defecto — mira el paso 7).
   alertas del Panel te siguen avisando: varios paquetes saltando juntos en una
   misma ventana (una sola sesión fuera de horario), un conteo registrado sin
   nadie fichado, o conteos riesgosos que aún esperan una segunda firma.
+- **Pide libros de rascas antes de que se agoten.** Cuando el último conteo de un
+  libro activo cae dentro de sus últimos boletos (por defecto **5**, ajustable en
+  **Configuración del negocio → Conteo de raspaditos**), aparece en el Panel una
+  tarjeta **Pedir libros de rascas** que lista cada juego y libro con cuántos
+  boletos quedan. Si ya tienes uno de repuesto en el almacén, toca **Tengo uno de
+  repuesto** para apartar el recordatorio — queda apartado hasta que ese libro se
+  acabe, y el próximo libro que empieces (un nuevo número de libro) trae el
+  recordatorio de vuelta por sí solo. Los recordatorios apartados muestran una
+  pequeña línea de **apartado** con deshacer, así que un toque por error es fácil
+  de revertir.
 - **Revisa la Atención de existencias.** Si sincronizas los niveles de
   existencia desde tu POS (la importación de **Niveles de existencia**), el
   Panel lista lo que está **por caducar** (por defecto dentro de 30 días) y lo
@@ -422,7 +437,10 @@ registres.
 > apertura y el cierre cuentan por separado, así que igual escaneas cada paquete
 > en ambos. Cuando un paquete se agota, toca **Final — agotado** en su fila; el
 > siguiente libro de ese mismo juego abre como un libro **Nuevo** en **#0**, para
-> que sus primeras ventas se cuenten, hasta el día siguiente.
+> que sus primeras ventas se cuenten, hasta el día siguiente. Y a medida que un
+> libro se acerca al final, los gerentes reciben un recordatorio **Pedir libros
+> de rascas** en el Panel para que haya un libro nuevo en el estante antes de que
+> se agote.
 
 > **Dos vistas más en la misma pestaña.** **Historial** muestra tus propios
 > números de raspaditos por turno (los gerentes ven los de todos), para revisar

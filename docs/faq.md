@@ -97,6 +97,13 @@ routine short enough that staff actually do it.
 Tap **Final — sold out** on its row. The next book of the same game then opens as
 a fresh book at #0 so its first sales are counted, until the next day.
 
+**How do I know when to order a new book?**
+When an active book gets within its last few tickets (default 5, set in Business
+settings → Scratch-off counting), an **Order scratch books** card appears on the
+Dashboard for managers, listing each game and book and how many tickets are left.
+If you already have a spare of that game in the back, tap **Have a spare** to set
+the reminder aside — it comes back on its own once you start the next book.
+
 ---
 
 ## Privacy — staff

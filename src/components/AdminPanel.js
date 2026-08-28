@@ -1413,7 +1413,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
           <div ref={editPanelRef} tabIndex={-1} role="dialog" aria-modal="true" className="bg-surface rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b border-line flex items-center justify-between gap-2">
               <h2 className="font-semibold text-[15px] min-w-0 truncate">{t("admin.edit_item_title", { name: editModal.name || "—" })}</h2>
-              <button className="btn-ghost text-[13px] px-2.5 py-1 flex-shrink-0" onClick={() => setEditModal(null)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
+              <button className="btn-ghost text-[13px] min-h-[40px] min-w-[40px] px-2 flex-shrink-0" onClick={() => setEditModal(null)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
             </div>
             <div className="p-4 space-y-3">
               <Field label={t("admin.f_item_name")}>
@@ -1475,7 +1475,7 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
                   ? t("admin.prompt_reset_pin", { name: staffModal.user.name, n: PIN_LENGTH })
                   : t("admin.modal_email_title", { name: staffModal.user.name })}
               </h2>
-              <button className="btn-ghost text-[13px] px-2.5 py-1 flex-shrink-0" onClick={() => setStaffModal(null)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
+              <button className="btn-ghost text-[13px] min-h-[40px] min-w-[40px] px-2 flex-shrink-0" onClick={() => setStaffModal(null)} aria-label={t("shell.close")}><span aria-hidden="true">✕</span></button>
             </div>
             <div className="p-4 space-y-3">
               {staffModal.kind === "pin" ? (

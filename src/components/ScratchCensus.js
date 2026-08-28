@@ -83,9 +83,9 @@ export default function ScratchCensus({ locations = [], locName = () => "" }) {
         ) : (
           <ul className="divide-y divide-line-soft max-h-72 overflow-y-auto">
             {packs.map((id, i) => (
-              <li key={`${id}-${i}`} className="px-4 py-2 flex items-center justify-between gap-3 text-[13px]">
-                <span className="font-mono tabular-nums truncate">{packLabel(id)}</span>
-                <button type="button" className="text-neg text-[12px] flex-shrink-0" onClick={() => removeAt(i)}>{t("census.remove")}</button>
+              <li key={`${id}-${i}`} className="px-4 py-1 flex items-center justify-between gap-3 text-[13px]">
+                <span className="font-mono tabular-nums break-all min-w-0">{packLabel(id)}</span>
+                <button type="button" className="btn-ghost text-neg text-[12px] px-3 min-h-[40px] flex-shrink-0" onClick={() => removeAt(i)}>{t("census.remove")}</button>
               </li>
             ))}
           </ul>

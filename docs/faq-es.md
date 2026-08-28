@@ -102,6 +102,14 @@ Pulsa **Final — agotado** en su fila. El siguiente libro del mismo juego se ab
 entonces como un libro nuevo en el #0 para que sus primeras ventas se cuenten,
 hasta el día siguiente.
 
+**¿Cómo sé cuándo pedir un libro nuevo?**
+Cuando a un libro activo le quedan sus últimos boletos (por defecto 5, ajustable
+en Configuración del negocio → Conteo de raspaditos), aparece en el Panel una
+tarjeta **Pedir libros de rascas** para los gerentes, que lista cada juego y
+libro y cuántos boletos quedan. Si ya tienes uno de repuesto en el almacén, toca
+**Tengo uno de repuesto** para apartar el recordatorio — vuelve por sí solo en
+cuanto empiezas el próximo libro.
+
 ---
 
 ## Privacidad — personal
