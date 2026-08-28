@@ -576,7 +576,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 {cashOn && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
                     <h3 className="font-semibold text-[14px] mb-2">{t("report.cash")}</h3>
-                    <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                       <Kpi label={t("report.cash_sales")} value={money(report.cash.sales)} />
                       <Kpi label={t("report.net_over_short")} value={`${report.cash.netDiff >= 0 ? "+" : ""}${money(report.cash.netDiff)}`}
                         tone={report.cash.netDiff < -0.005 ? "neg" : report.cash.netDiff > 0.005 ? "pos" : null} />
@@ -615,7 +615,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 {inventoryOn && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
                     <h3 className="font-semibold text-[14px] mb-2">{t("report.inventory")}</h3>
-                    <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                       <Kpi label={t("report.counts")} value={report.counts.inventory} />
                       <Kpi label={t("report.net_shrink")} value={`${report.inventory.netShrink} u`} tone={report.inventory.netShrink < 0 ? "neg" : null} />
                       <Kpi label={t("report.items")} value={report.inventory.byItem.length} />
@@ -641,7 +641,7 @@ export default function ReportModal({ locations = [], locName = () => "—", inc
                 {gamingOn && gaming && gaming.count > 0 && (
                   <section className="bg-panel border border-line rounded-xl p-3.5">
                     <h3 className="font-semibold text-[14px] mb-2">{t("report.gaming")}</h3>
-                    <div className="grid grid-cols-4 gap-2 mb-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                       <Kpi label={t("report.collection")} value={money(gaming.totals.collection)} />
                       <Kpi label={t("report.payout")} value={money(gaming.totals.payout)} />
                       <Kpi label={t("report.net")} value={money(gaming.totals.net)} tone={gaming.totals.net < 0 ? "neg" : null} />

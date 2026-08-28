@@ -490,10 +490,11 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
             </div>
           )}
 
-          {/* Export the portfolio for the record */}
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <button className="btn-ghost w-auto px-4 text-[13px]" onClick={downloadCsv}>⬇ Download CSV</button>
-            <button className="btn-ghost w-auto px-4 text-[13px]" disabled={pdfBusy} onClick={downloadPdf}>
+          {/* Export the portfolio for the record — an even 2-up on a phone,
+              a compact right-aligned pair from `sm` up. */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-end">
+            <button className="btn-ghost w-full sm:w-auto px-4 text-[13px]" onClick={downloadCsv}>⬇ Download CSV</button>
+            <button className="btn-ghost w-full sm:w-auto px-4 text-[13px]" disabled={pdfBusy} onClick={downloadPdf}>
               {pdfBusy ? "Building PDF…" : "📄 Download PDF"}
             </button>
           </div>

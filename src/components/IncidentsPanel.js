@@ -224,7 +224,7 @@ export default function IncidentsPanel({ incidents, locations, locName, onToast 
                 )}
               </div>
               {isManager && inc.status !== "closed" && (
-                <button className="btn-ghost text-[12px] px-2.5 py-1 flex-shrink-0" onClick={() => close(inc)}>{t("incidents.close")}</button>
+                <button className="btn-ghost text-[12px] px-3 min-h-[40px] flex-shrink-0" onClick={() => close(inc)}>{t("incidents.close")}</button>
               )}
             </div>
 

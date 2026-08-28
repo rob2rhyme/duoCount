@@ -594,7 +594,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
                           {r.fresh && <span className="ml-1.5 text-[9px] uppercase tracking-wide font-bold text-gold border border-brass/50 rounded px-1 py-px align-middle">{t("scratch.walk_new")}</span>}
                         </div>
                         <button type="button" onClick={() => settlePack(r)} disabled={r.settled} title={t("scratch.soldout_label")}
-                          className={`mt-0.5 text-[9px] uppercase tracking-wide font-bold rounded px-1.5 py-0.5 border transition ${r.settled ? "border-neg text-neg bg-neg/10" : "border-line text-muted hover:text-fg"}`}>
+                          className={`mt-0.5 text-[10px] uppercase tracking-wide font-bold rounded px-2 py-1 border transition ${r.settled ? "border-neg text-neg bg-neg/10" : "border-line text-muted hover:text-fg"}`}>
                           {r.settled ? "✓ " : ""}{t("scratch.walk_final")}
                         </button>
                       </div>
@@ -632,7 +632,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
                     </div>
                     <div className="text-[11px] text-muted font-mono">#{packDisplayParts(r.pack).bookNo}{Number(r.price) > 0 ? ` · ${money(Number(r.price))}` : ""}</div>
                     <button type="button" onClick={() => toggleSoldOut(i)} title={t("scratch.soldout_label")}
-                      className={`mt-1 text-[9px] uppercase tracking-wide font-bold rounded px-1.5 py-0.5 border transition ${r.soldOut ? "border-neg text-neg bg-neg/10" : "border-line text-muted hover:text-fg"}`}>
+                      className={`mt-1 text-[10px] uppercase tracking-wide font-bold rounded px-2 py-1 border transition ${r.soldOut ? "border-neg text-neg bg-neg/10" : "border-line text-muted hover:text-fg"}`}>
                       {r.soldOut ? "✓ " : ""}{t("scratch.walk_final")}
                     </button>
                   </div>
@@ -648,7 +648,7 @@ export default function ScratchForm({ onSaved, locations, locName, entries = [],
                       value={r.endno} placeholder="#" onChange={setWalkRow(i, "endno")} aria-label={t("scratch.endno")} />
                   </div>
                   <div className="w-8 flex-shrink-0 text-right font-mono font-bold text-[13px]">{ticketsSold(r.startno, r.endno)}</div>
-                  <button type="button" className="flex-shrink-0 text-muted hover:text-neg px-1" onClick={() => removeWalkRow(i)}
+                  <button type="button" className="flex-shrink-0 self-stretch flex items-center text-muted hover:text-neg px-2" onClick={() => removeWalkRow(i)}
                     aria-label={t("scratch.walk_remove")}><span aria-hidden="true">✕</span></button>
                 </div>
               ))}

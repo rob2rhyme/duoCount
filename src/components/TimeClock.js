@@ -297,10 +297,10 @@ function PayrollApproval({ locks, vendorId, actor, isOwner, onToast }) {
           <p className="text-[13px] text-muted mt-0.5">{t("time.payroll_sub")}</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label={t("common.prev_week")}
+          <button className="btn-ghost min-h-[40px] min-w-[40px] px-2 text-sm" aria-label={t("common.prev_week")}
             onClick={() => setWeekStart(addDays(weekStart, -7))}>‹</button>
           <span className="text-sm font-semibold min-w-[130px] text-center">{label}</span>
-          <button className="btn-ghost px-2.5 py-1 text-sm" aria-label={t("common.next_week")}
+          <button className="btn-ghost min-h-[40px] min-w-[40px] px-2 text-sm" aria-label={t("common.next_week")}
             onClick={() => setWeekStart(addDays(weekStart, 7))}>›</button>
         </div>
       </div>

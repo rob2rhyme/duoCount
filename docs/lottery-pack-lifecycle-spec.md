@@ -18,6 +18,20 @@ pattern alerts (`pack-gap`, `pack-mass-jump`, `count-off-shift`,
 (rules unchanged); the demo-data Clear still sweeps seeded ones. The spec
 below is kept for history.
 
+**Reorder reminder (added later).** The same signed counts also drive an
+inventory nudge, staying inside this shift-count scope (no revived lifecycle):
+when an active book's latest count is within its last few tickets
+(`remaining = perPack − endno`; owner threshold `vendor.scratch.reorderTickets`,
+default 5, `0` = off), the Dashboard **Order scratch books** card lists each game
+and book still selling with how many tickets remain. It's a pure derived alert
+(`src/lib/scratch-reorder.js`, `buildReorderAlerts` — newest count per
+`locationId|pack`, active books only, `perPack` from the count or the bundled
+catalog), the same shape as the Stock attention card. A manager with a spare in
+back stock taps **Have a spare** to park the reminder — a manager-writable
+`vendors/{v}/scratchReorderDismissals/{packId}` doc (doc id = pack id, so
+un-parking is a delete and a replacement book re-arms on its own). No money and
+no theft signal, so it's a client write, not an Admin-SDK ledger route.
+
 **Goal.** Track each scratch-off pack from the safe to the last ticket. Counts (tier zero) prove what sold *per shift*; the lifecycle proves what happened to the *whole pack* — the unit the state lottery bills you for, and the unit that walks away in the classic theft pattern (a pack activated off-book, tickets pocketed). This is the last column of the LottoShield comparison in the positioning one-pager.
 
 **Design principle: transitions are forward-only and nothing is deleted.** A pack moves `received → active → settled | returned` and never backward — the same append-only trust posture as entries, enforced in rules, not just UI. Managers run the lifecycle (like drawers and items); everyone can see it.
