@@ -404,10 +404,13 @@ registres.
 1. Toca la pestaña **Caja**.
 2. Elige tu **ubicación**, tu **caja** y si es un conteo de **apertura** o de
    **cierre**.
-3. Ingresa el **fondo inicial** — y, en un conteo de **cierre**, también las
-   **ventas** y los **pagos/retiros**. (Un conteo de apertura solo pide el
-   fondo inicial; las casillas de ventas y pagos se ocultan porque todavía no
-   hay.)
+3. Ingresa el **fondo inicial** y los **pagos/retiros** — el efectivo que ya
+   salió de la caja (un pago contra entrega a un proveedor, un premio de
+   lotería, un gasto de tu bolsillo). Ambos extremos piden los pagos, así que
+   una tienda que solo cuenta en un extremo igual puede registrarlos; deja la
+   casilla vacía si no salió nada. En un conteo de **cierre** también ingresas
+   las **ventas**. (La casilla de ventas se oculta en un conteo de apertura —
+   todavía no hay.)
 4. Cuenta la caja. Dos maneras:
    - Escribe el total **contado**, o
    - Activa el **conteo por denominación** e ingresa cuántos billetes de $100,
@@ -549,9 +552,10 @@ importantes.
   (sobra), **rojo** significa menos (falta), y cerca de cero es una caja
   cuadrada.
 - **Efectivo esperado** = fondo + ventas − pagos *(en un conteo de **cierre**)*.
-  En un conteo de **apertura**, lo esperado es solo el **fondo inicial** —
-  todavía no hay ventas ni pagos. **Existencia esperada** = inicial + recibido −
-  vendido − retirado. La app lo calcula por ti.
+  En un conteo de **apertura** es fondo − pagos: todavía no hay ventas, pero el
+  dinero que ya salió de la caja sí se descuenta.
+  **Existencia esperada** = inicial + recibido − vendido − retirado.
+  La app lo calcula por ti.
 - **Verificado** significa que un gerente lo revisó. **Marcado** significa que
   se desvió más del umbral de la tienda y necesita una razón. **En disputa**
   significa que alguien no estuvo de acuerdo, formalmente — y toda la

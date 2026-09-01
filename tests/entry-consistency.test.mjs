@@ -22,12 +22,39 @@ test("closing cash: expectedCash matches the rule's start + sales − paidout", 
   ]) assert.ok(near(expectedCash(f), ruleCash(f)), JSON.stringify(f));
 });
 
-test("opening cash stores sales/paidout as 0, so one rule formula covers it (expected == start)", () => {
+test("opening cash with nothing paid out is still just the starting drawer", () => {
   for (const start of [0, 100, 200.75]) {
     const stored = { shift: "open", start, sales: 0, paidout: 0 };
     assert.equal(expectedCash(stored), start);
     assert.ok(near(expectedCash(stored), ruleCash(stored)));
   }
+});
+
+test("opening cash subtracts a paid-out, and the rule's one formula still covers it", () => {
+  // Cash can leave the drawer before the shift opens (a vendor COD, an owner's
+  // out-of-pocket errand). The opening form records it, so `expected` has to
+  // drop by the same amount the rule derives from the stored components — or
+  // the rule would reject an honest count.
+  for (const f of [
+    { shift: "open", start: 200, sales: 0, paidout: 40 },
+    { shift: "open", start: 200.75, sales: 0, paidout: 0.75 },
+    { shift: "open", start: 0, sales: 0, paidout: 25 }, // can go negative
+  ]) {
+    assert.ok(near(expectedCash(f), ruleCash(f)), JSON.stringify(f));
+    assert.ok(near(expectedCash(f), f.start - f.paidout), JSON.stringify(f));
+  }
+});
+
+test("opening cash ignores a sales value the form never stores", () => {
+  // The form hides the sales box on an opening count and writes sales: 0, but
+  // the component keeps whatever was typed before the shift was switched. If
+  // expectedCash read that stale value, the client's `expected` would disagree
+  // with the one the rules re-derive from the STORED components and the write
+  // would be rejected. Opening = start − paidout, whatever `sales` holds.
+  const live = { shift: "open", start: 200, sales: 900, paidout: 40 };
+  const stored = { shift: "open", start: 200, sales: 0, paidout: 40 };
+  assert.equal(expectedCash(live), 160);
+  assert.ok(near(expectedCash(live), ruleCash(stored)));
 });
 
 test("inventory: expectedStock matches the rule's startQty + received − soldQty − removed", () => {

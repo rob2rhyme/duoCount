@@ -365,9 +365,12 @@ Type the **store code** your manager gave you and **your own PIN**, then
 1. Tap the **Cash** tab.
 2. Choose your **location**, **drawer**, and whether this is an **opening** or
    **closing** count.
-3. Enter the **starting cash** — and, on a **closing** count, the **sales** and
-   **paid-outs** too. (An opening count only asks for the starting cash; the
-   sales/paid-out boxes are hidden because there aren't any yet.)
+3. Enter the **starting cash** and any **paid-outs** — cash already handed out
+   of the drawer (a vendor COD, a lottery winner, an out-of-pocket errand). Both
+   ends ask for paid-outs, so a store that only counts at one end can still
+   record them; leave the box blank if nothing went out. On a **closing** count
+   you also enter the **sales**. (The sales box is hidden on an opening count —
+   there aren't any yet.)
 4. Count the drawer. Two ways:
    - Type the **counted** total, or
    - Turn on the **denomination counter** and enter how many $100s, $50s, $20s,
@@ -501,8 +504,9 @@ bin 4 running low." Managers can pin the important ones.
 - **Over/short** = counted − expected. **Green** means more than expected (over),
   **red** means less (short), and near-zero is a balanced drawer.
 - **Expected cash** = start + sales − paid-outs *(for a **closing** count)*. For
-  an **opening** count, the expected is just the **starting cash** — there are no
-  sales or paid-outs yet. **Expected stock** = start + received − sold − removed.
+  an **opening** count it's start − paid-outs — there are no sales yet, but money
+  already taken out of the drawer still comes off the top.
+  **Expected stock** = start + received − sold − removed.
   The app computes these for you.
 - **Verified** means a manager double-checked it. **Flagged** means it's off by
   more than the store's threshold and needs a reason. **Disputed** means someone

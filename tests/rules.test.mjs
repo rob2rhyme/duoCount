@@ -280,9 +280,17 @@ test("the stored expected must match its own components (no forged baseline)", a
   // the honest baseline (expected == start + sales − paidout) goes through
   await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/base1`),
     entry({ start: 100, sales: 50, paidout: 0, expected: 150, counted: 150, diff: 0 })));
-  // an opening count stores sales/paidout as 0, so one formula covers it (expected == start)
+  // an opening count stores sales as 0, so one formula covers it (expected == start)
   await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/base2`),
     entry({ shift: "open", start: 200, sales: 0, paidout: 0, expected: 200, counted: 200, diff: 0 })));
+  // an opening count MAY carry a paid-out (cash out of the drawer before the
+  // shift opened) — same formula, expected == start − paidout
+  await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/base2b`),
+    entry({ shift: "open", start: 200, sales: 0, paidout: 40, expected: 160, counted: 160, diff: 0 })));
+  // ...but it can't be pocketed silently: an opening paid-out that doesn't move
+  // the baseline is the same forged-expected exploit, and is still rejected
+  await assertFails(setDoc(doc(db("empA"), `vendors/${V}/entries/forge2`),
+    entry({ shift: "open", start: 200, sales: 0, paidout: 40, expected: 200, counted: 200, diff: 0 })));
   // a paid-out is subtracted from the baseline
   await assertSucceeds(setDoc(doc(db("empA"), `vendors/${V}/entries/base3`),
     entry({ start: 100, sales: 50, paidout: 20, expected: 130, counted: 130, diff: 0 })));

@@ -61,8 +61,11 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
   }, [f.locationId, drawers]); // eslint-disable-line
 
   const expected = expectedCash(f);
-  // An opening count has no sales or paid-outs yet — expected is just the
-  // starting drawer — so those two fields are hidden and stored as 0.
+  // An opening count has no SALES yet, so that field stays hidden and is stored
+  // as 0. Paid-outs are asked for at BOTH ends: cash can leave the drawer before
+  // the shift opens (a vendor COD, an owner's out-of-pocket errand), and a store
+  // that counts only at one end would otherwise have nowhere to record it — so
+  // an opening count's expected is the starting drawer minus what went out.
   const isOpen = f.shift === "open";
   // When the counter is on, the tallied denominations are the counted amount.
   const countedValue = useCounter ? denomTotal : (Number(f.counted) || 0);
@@ -89,7 +92,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
       locationId: f.locationId, locationName: locName(f.locationId),
       drawerId: drawer.id, drawerName: drawer.name,
       start: Number(f.start) || 0, sales: isOpen ? 0 : Number(f.sales) || 0,
-      paidout: isOpen ? 0 : Number(f.paidout) || 0, counted: countedValue,
+      paidout: Number(f.paidout) || 0, counted: countedValue,
       expected, diff, blind,
       flagged, varianceStatus: flagged ? "open" : "none",
       by: profile.name, byId: profile.id, byRole: profile.role,
@@ -147,9 +150,18 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
               {countedInput}
             </div>
           );
-          // Opening: just the starting drawer + the count (no sales/paid-outs yet).
+          const paidoutField = (
+            <Field label={t("cash.paidout")}><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></Field>
+          );
+          // Opening: the starting drawer, anything already paid out of it, then
+          // the count. (No sales box — an opening count has none yet.)
           if (isOpen)
-            return <div className="grid grid-cols-2 gap-3.5">{startField}{countedField}</div>;
+            return (
+              <div className="grid grid-cols-2 gap-3.5">
+                {startField}{paidoutField}
+                <div className="col-span-2">{countedField}</div>
+              </div>
+            );
           return (
             <>
               <div className="grid grid-cols-2 gap-3.5">
@@ -157,7 +169,7 @@ export default function CashForm({ onSaved, locations, drawers, locName }) {
                 <Field label={t("cash.sales")}><input type="number" inputMode="decimal" className="input" value={f.sales} onChange={set("sales")} placeholder="0.00" /></Field>
               </div>
               <div className="grid grid-cols-2 gap-3.5">
-                <Field label={t("cash.paidout")}><input type="number" inputMode="decimal" className="input" value={f.paidout} onChange={set("paidout")} placeholder="0.00" /></Field>
+                {paidoutField}
                 {countedField}
               </div>
             </>

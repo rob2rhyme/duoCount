@@ -24,9 +24,18 @@ export function openItemCounts(entries = []) {
   };
 }
 
+// What should be in the drawer. BOTH ends subtract paid-outs: cash handed out
+// of the drawer — a vendor COD, a lottery winner, an owner's out-of-pocket
+// errand — is gone whether it left before the opening count or during the
+// shift, so a store that counts only at open can still account for it.
+// An opening count keeps ignoring `sales` (there are none yet, and the form
+// stores 0): reading a stale typed value here would put this `expected` at odds
+// with the one firestore.rules re-derives from the STORED components and get
+// the honest count rejected. tests/entry-consistency.test.mjs pins the two
+// formulas together.
 export function expectedCash({ shift, start, sales, paidout }) {
   const s = Number(start) || 0, sa = Number(sales) || 0, p = Number(paidout) || 0;
-  return shift === "open" ? s : s + sa - p;
+  return shift === "open" ? s - p : s + sa - p;
 }
 
 export function ticketsSold(startno, endno) {

@@ -199,7 +199,8 @@ service cloud.firestore {
         // count *baseline* server-side too, so `expected` can't be fabricated
         // independent of the components on the same record. (Scratch has no
         // expected and is exempt. The components are still counter-entered — an
-        // opening count stores sales/paidout as 0, so one formula covers both.)
+        // opening count stores sales as 0 but may carry a real paid-out, so one
+        // formula covers both ends.)
         function expectedConsistent() {
           return !(request.resource.data.kind in ['cash', 'inventory'])
             || (request.resource.data.expected is number

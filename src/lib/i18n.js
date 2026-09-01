@@ -109,7 +109,7 @@ export const CATALOG = {
     "cash.blind": "Blind count",
     "cash.blind_hint": "Result shown after you save",
     "cash.expected": "Expected in drawer",
-    "cash.helper_open": "Expected = your starting drawer (an opening count has no sales or paid-outs yet).",
+    "cash.helper_open": "Expected = your starting drawer − paid out (an opening count has no sales yet).",
     "cash.helper_close": "Expected = start + sales − paid out.",
     "cash.helper_sig": "Your name, drawer, location, and time stamp attach automatically.",
 
@@ -2361,7 +2361,7 @@ export const CATALOG = {
     "cash.blind": "Conteo ciego",
     "cash.blind_hint": "El resultado se muestra al guardar",
     "cash.expected": "Esperado en caja",
-    "cash.helper_open": "Esperado = tu fondo inicial (un conteo de apertura aún no tiene ventas ni pagos).",
+    "cash.helper_open": "Esperado = tu fondo inicial − pagos (un conteo de apertura aún no tiene ventas).",
     "cash.helper_close": "Esperado = fondo + ventas − pagos.",
     "cash.helper_sig": "Tu nombre, caja, ubicación y hora se registran automáticamente.",
 
