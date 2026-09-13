@@ -56,7 +56,9 @@
     "test:i18n": "node --test tests/i18n.test.mjs",
     "test:contrast": "node --test tests/contrast.test.mjs",
     "test:platform": "node --test tests/platform-admins.test.mjs",
-    "check:contrast": "node scripts/contrast-check.mjs"
+    "check:contrast": "node scripts/contrast-check.mjs",
+    "scratch:export": "node scripts/export-scratch.mjs",
+    "scratch:import": "node scripts/import-scratch.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

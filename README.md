@@ -373,6 +373,64 @@ UI with no schema impact:
   inline SVG and the strings are in the en/es catalog like everything else — no
   new dependency, no third-party script, no analytics.
 
+## Troubleshooting a fresh deployment
+
+**"Signup failed." on the sign-up screen.** That is the catch-all 500 — every
+validation problem has its own message, so this one means the server threw.
+Almost always the Firebase Admin credentials. The real error is logged by the
+route (`console.error("signup error", e)`), so on Vercel it is one click into
+**Function Logs**. Since Sept 2026 the three config failures are typed and
+surface a readable message instead of the generic one:
+
+| What you see | Cause | Fix |
+|---|---|---|
+| "…no Firebase service-account key set" | `FIREBASE_SERVICE_ACCOUNT_KEY` is unset in that environment | Add it, then **redeploy** — env changes don't apply to an existing deployment |
+| "…isn't valid JSON" | The key got line-wrapped or truncated when pasted | Paste the whole file on one line, or base64-encode it and paste that |
+| "…is missing \"client_email\"" (or `project_id` / `private_key`) | Partial or wrong file | Re-download from Project settings → Service accounts |
+
+If the message is still the generic "Signup failed.", the throw is past config —
+check Function Logs for the real one. The usual culprits: **Firestore not
+created** in that Firebase project (Build → Firestore Database, production
+mode), or the service account belonging to a different project than the
+`NEXT_PUBLIC_FIREBASE_*` values.
+
+## Moving scratch-off data between deployments
+
+Two deployments of this codebase (say DuoCount and a scratch-only rebrand) use
+identical document shapes, so scratch history moves as data — no field mapping,
+and the signed timestamps survive.
+
+```bash
+# 1. From the SOURCE project — writes scratch-export.json
+GOOGLE_APPLICATION_CREDENTIALS=./source-key.json \
+  npm run scratch:export -- <sourceVendorId>
+
+# 2. Create the store in the TARGET app first, copy its vendor id from Admin.
+#    Dry run (writes nothing):
+GOOGLE_APPLICATION_CREDENTIALS=./target-key.json \
+  npm run scratch:import -- <targetVendorId>
+
+# 3. Same command with --commit once the dry run reads right.
+```
+
+What moves: locations, staff (names + roles), `kind:"scratch"` entries, shelf
+censuses, and the game catalog. What does not: cash and inventory counts, and
+**PIN hashes** — staff set a new PIN in the target's Admin, because copying
+credential material between deployments is not something a script should make
+easy.
+
+Each imported document is stamped `source:"migrated"` with its
+`sourceVendorId` and `migratedAt`. The trust model's premise is that a record
+says where it came from, so a relocated count must not read as one typed on this
+deployment. Entry ids are preserved, so re-running skips what is already there.
+Staff ids are remapped to the target's; a count signed by someone who wasn't
+migrated keeps the **name** (that is the record) with an empty `byId` rather
+than a dangling reference.
+
+Both scripts skip credentials when `FIRESTORE_EMULATOR_HOST` is set, so you can
+rehearse the whole thing against `firebase emulators:start` before pointing it
+at production.
+
 ## Security notes
 
 - PINs: salted scrypt hashes under `users/{id}/private/creds`, which no client
