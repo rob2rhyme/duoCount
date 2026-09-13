@@ -1,9 +1,17 @@
 Copyright (c) 2026 DuoCount. All rights reserved.
 
+"DuoCount" is a trading name. Before this software is sold, sublicensed, or
+otherwise distributed to a third party, the line above must name the legal
+entity or individual that owns the copyright.
+
 This software and its source code are proprietary and confidential. No license,
 right, or permission is granted to use, copy, modify, merge, publish, distribute,
 sublicense, or sell copies of this software, in whole or in part, except under a
 separate written agreement with the copyright holder.
+
+Access to a hosted deployment of this software is governed by the Terms of Use
+(docs/terms-of-use.md), not by this file. Nothing in those Terms grants any
+license to the source code.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
@@ -11,10 +19,3 @@ FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-----------------------------------------------------------------------------
-NOTE (remove before release): This is a conservative "all rights reserved"
-default so no rights are given away by accident. If you intend DuoCount to be a
-self-host / open-source template (see docs/distribution-analysis.md), replace
-this file with your chosen license — e.g. MIT or Apache-2.0 — and set the real
-copyright holder / legal entity name above. This choice is yours to make.

@@ -5,6 +5,15 @@ title: Distribution decision (2026)
 # DuoCount — Distribution Decision Document
 **Prepared 2026-07-28.** All external claims carry a source URL and a source date. Where the research could not verify something, it says so and says how to resolve it.
 
+> **Post-publication updates (Sept 2026).** This is a point-in-time record; the
+> risk register below quotes the repo as it stood in July. Since then: **#14 is
+> resolved** — `LICENSE` no longer carries the "remove before release" note, the
+> licence is settled as proprietary/all-rights-reserved, and it states that
+> "DuoCount" is a trading name that must be replaced with the real entity before
+> distribution. §2.3's request to revise `distribution-analysis.md` §4 is also
+> **done** — that section is now struck and marked superseded. Still open:
+> forming the legal entity, and publishing a privacy contact point.
+
 ---
 
 ## 1. Bottom line

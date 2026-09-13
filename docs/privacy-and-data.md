@@ -38,6 +38,11 @@ DuoCount only stores what the business and its staff enter to run shift counts:
   cause codes, disputes and their comment threads, and shift notes. These are an
   **append-only** log: entries are signed by the signed-in user and are not
   client-deletable, by design, so the record stays trustworthy.
+- **Reorder reminders** — when a manager parks a "book nearly empty" reminder
+  because a spare is already on hand, the app records which pack was parked, its
+  game, and who parked it. Unlike a count, this one **is** deletable: un-parking
+  removes the record entirely. It is working state for the reorder list, not part
+  of the audit trail.
 - **Employment records** — these deserve naming separately, because they are
   about people rather than about stock:
   - **Time-clock punches** — in/out times, signed and server-timestamped.
@@ -214,20 +219,24 @@ treat a points program as a **financial incentive** and require the business to
 describe its material terms before a customer opts in (the California
 Attorney General has actively enforced this against loyalty programs since
 2022). Adapt the following, print it or link it near the counter sign, and fill
-in your numbers from Admin → Reward settings:
+in your own numbers from Admin → Reward settings. The figures below are
+DuoCount's shipped defaults (1 point per $1, 100 points = $5, so 5% effective,
+expiry off unless you set it) and the store name is an example — replace both
+with yours, and re-check the percentage against the "effective giveback" figure
+Admin shows you, because tiers and VIP multipliers change it:
 
-> **[Store name] rewards — program terms.** When you join, we collect your
-> phone number (and, if you share it, your first name) to keep a points
-> balance for you. You earn **[X] point(s) per $1** of qualifying purchases
+> **Bramble Creek Market rewards — program terms.** When you join, we collect
+> your phone number (and, if you share it, your first name) to keep a points
+> balance for you. You earn **1 point per $1** of qualifying purchases
 > (tobacco, vape, alcohol, lottery, gift cards, and fuel are excluded by law),
-> and **[Y] points are worth [$Z]** in rewards. We estimate the value of your
-> participation to be roughly equal to the rewards you can earn — about
-> **[effective %]** of qualifying spending (shown as "effective giveback" in
-> our settings), which is what the program costs us to offer. We do not sell
-> your information or share it with other businesses, and we will not text or
-> email you. Joining is optional, and you can leave at any time by telling us
-> at the register — we will stop using your number and delete your record on
-> request.
+> and **100 points are worth $5** in rewards. We estimate the value of your
+> participation to be roughly equal to the rewards you can earn — about **5%**
+> of qualifying spending (shown as "effective giveback" in our settings), which
+> is what the program costs us to offer. Points expire after 12 months with no
+> earning visit. We do not sell your information or share it with other
+> businesses, and we will not text or email you. Joining is optional, and you
+> can leave at any time by telling us at the register — we will stop using your
+> number and delete your record on request.
 
 ## Retention & deletion
 

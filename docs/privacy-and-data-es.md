@@ -44,6 +44,12 @@ conteos de turno:
   comentarios, y notas de turno. Son un registro **solo de agregado**: cada
   entrada la firma la persona con sesión iniciada y no se puede borrar desde el
   cliente, por diseño, para que el historial siga siendo confiable.
+- **Recordatorios de reposición** — cuando un gerente aparca un recordatorio de
+  «libro casi vacío» porque ya tiene un repuesto a la mano, la app registra qué
+  paquete se aparcó, su juego y quién lo aparcó. A diferencia de un conteo, este
+  registro **sí** se puede borrar: quitar el aparcado lo elimina por completo. Es
+  estado de trabajo para la lista de reposición, no parte del historial de
+  auditoría.
 - **Registros laborales** — merecen nombrarse aparte, porque son sobre personas y
   no sobre mercancía:
   - **Marcas del reloj checador** — horas de entrada y salida, firmadas y con
@@ -234,21 +240,26 @@ exigen que el negocio describa sus términos materiales antes de que un cliente 
 inscriba (el Fiscal General de California ha aplicado esto activamente a
 programas de lealtad desde 2022). Adapta lo siguiente, imprímelo o enlázalo junto
 al cartel del mostrador, y completa tus números desde Admin → Configuración de
-recompensas:
+recompensas. Las cifras de abajo son los valores predeterminados de DuoCount
+(1 punto por $1, 100 puntos = $5, es decir 5% efectivo, y el vencimiento apagado
+salvo que lo configures) y el nombre de la tienda es un ejemplo — reemplaza
+ambos por los tuyos, y vuelve a revisar el porcentaje contra la cifra de
+«devolución efectiva» que te muestra Admin, porque los niveles y los
+multiplicadores VIP lo cambian:
 
-> **Recompensas de [nombre de la tienda] — términos del programa.** Al
+> **Recompensas de Bramble Creek Market — términos del programa.** Al
 > inscribirte recopilamos tu número de teléfono (y, si lo compartes, tu nombre de
-> pila) para llevarte un saldo de puntos. Acumulas **[X] punto(s) por cada $1**
-> de compras que califican (el tabaco, los vapeadores, el alcohol, la lotería,
-> las tarjetas de regalo y el combustible quedan excluidos por ley), y **[Y]
-> puntos valen [$Z]** en recompensas. Estimamos que el valor de tu participación
-> equivale aproximadamente a las recompensas que puedes ganar — cerca del
-> **[% efectivo]** de lo que gastas en compras que califican (mostrado como
-> «devolución efectiva» en nuestra configuración), que es lo que nos cuesta
-> ofrecer el programa. No vendemos tu información ni la compartimos con otros
-> negocios, y no te enviaremos textos ni correos. Inscribirte es opcional y
-> puedes salirte cuando quieras avisándonos en el mostrador — dejaremos de usar
-> tu número y borraremos tu registro si lo pides.
+> pila) para llevarte un saldo de puntos. Acumulas **1 punto por cada $1** de
+> compras que califican (el tabaco, los vapeadores, el alcohol, la lotería, las
+> tarjetas de regalo y el combustible quedan excluidos por ley), y **100 puntos
+> valen $5** en recompensas. Estimamos que el valor de tu participación equivale
+> aproximadamente a las recompensas que puedes ganar — cerca del **5%** de lo que
+> gastas en compras que califican (mostrado como «devolución efectiva» en nuestra
+> configuración), que es lo que nos cuesta ofrecer el programa. Los puntos vencen
+> tras 12 meses sin una visita en la que acumules. No vendemos tu información ni
+> la compartimos con otros negocios, y no te enviaremos textos ni correos.
+> Inscribirte es opcional y puedes salirte cuando quieras avisándonos en el
+> mostrador — dejaremos de usar tu número y borraremos tu registro si lo pides.
 
 ## Conservación y eliminación
 

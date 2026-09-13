@@ -553,10 +553,18 @@ what remains, ordered by priority:
 Everything left that needs the owner — a decision, a credential, or a live
 deployment — consolidated from the notes above. Nothing here is blocked on code.
 
-1. **Pick the license + legal identity.** `LICENSE` is a conservative
-   "all rights reserved" placeholder — choose the real license (keep proprietary,
-   or MIT/Apache-2.0 for a self-host template per `distribution-analysis.md` §4),
-   set the real copyright holder + contact, and delete the in-file NOTE.
+1. **Form the legal entity and name it on the copyright line.** *(License
+   settled Sept 2026: staying proprietary, all rights reserved. The self-host
+   /open-source template option is retired with the marketplace path — see
+   `distribution-decision-2026.md`. The in-file "remove before release" NOTE is
+   gone.)* What remains: "DuoCount" is a trading name, not a legal entity.
+   Before taking money from a store or distributing the source, form the entity
+   and put its name on the `LICENSE` copyright line, in the Terms as "the
+   operator", and in the privacy notice as the processor.
+1a. **Publish a privacy contact point.** `docs/privacy-and-data.md` and its
+   Spanish twin carry a deliberate, marked callout instead of an address. A
+   privacy notice with no working contact route fails the one thing it exists to
+   do — fill it before the notice is published to staff or customers.
 2. **Professional privacy review.** `docs/privacy-and-data.md` and
    `docs/legal-disclaimers.md` are accurate to the app but drafted by a
    non-lawyer; have them reviewed for your jurisdiction (GDPR/CCPA/etc.).

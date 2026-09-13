@@ -12,7 +12,7 @@ title: Términos de uso
 
 *Read this page in English → [Terms of Use](/docs/terms-of-use).*
 
-_Última actualización: julio de 2026_
+_Última actualización: septiembre de 2026_
 
 Estos términos son un acuerdo entre el negocio que crea una tienda en DuoCount
 (la **tienda**, «tú») y el operador de esta instalación de DuoCount (el
@@ -201,6 +201,14 @@ a disposición en la documentación de la app antes de que entre en vigor.
 
 ## 9. Ley aplicable
 
-*(Complétalo para tu instalación — por ejemplo: «Estos términos se rigen por las
-leyes del Estado Libre de Pensilvania, y las disputas se resolverán en los
-tribunales del condado de Lancaster, PA».)*
+Estos términos se rigen por las leyes del **Estado Libre de Pensilvania**
+(Commonwealth of Pennsylvania), sin considerar sus normas sobre conflicto de
+leyes. Cualquier disputa que surja de estos términos o del servicio, o que se
+relacione con ellos, se presentará exclusivamente ante los tribunales estatales
+o federales ubicados en Pensilvania, y ambas partes aceptan la jurisdicción
+personal de esos tribunales.
+
+Si operas esta instalación desde un lugar distinto de Pensilvania, cambia esta
+sección por tu propio estado antes de ofrecer el servicio — una cláusula de ley
+aplicable que nombra un estado con el que no tienes relación es peor que no
+tener ninguna.
