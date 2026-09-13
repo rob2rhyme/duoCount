@@ -1,6 +1,8 @@
 # DuoCount — Distribution & AI-Integration Analysis
 
-**Status:** analysis only — no code in this item. A decision aid for how DuoCount
+**Status:** analysis only — no code in this item. **Partly superseded (Sept 2026):**
+§4's marketplace recommendation is retired — see
+[Distribution decision (2026)](/docs/distribution-decision-2026). A decision aid for how DuoCount
 reaches more buyers (AI features, a static build, a WordPress path, other
 packagings), each with effort, trade-offs, and a recommendation.
 
@@ -151,14 +153,20 @@ Three distinct paths — don't conflate them:
 
 ## 4. Other packagings
 
-- **Self-host template (Envato/CodeCanyon).** DuoCount is already shaped like a
-  sellable Next.js + Firebase template — white-labelled, documented, secrets
-  externalized (the repo history shows prior marketplace-prep work). Packaging =
-  a clean README, an env template, a one-command setup, and the demo seed as the
-  "try it" path. **Low-medium effort, high leverage** — likely the strongest
-  distribution channel for this codebase. (Note most marketplaces disallow bundling
-  paid third-party keys, so any AI features ship **off by default**, bring-your-own
-  Anthropic key.)
+- **Self-host template (Envato/CodeCanyon).** ~~Likely the strongest distribution
+  channel for this codebase.~~ **SUPERSEDED — do not act on this bullet.** Envato
+  closed Code-category author intake and states it does not plan to reopen it, and
+  all authors moved to a flat 50% revenue share on 1 July 2026; separately, one
+  Extended License on a single-deployment multi-tenant product legally entitles the
+  buyer to run it as a competing paid SaaS. See
+  [Distribution decision (2026)](/docs/distribution-decision-2026) for the evidence
+  and the replacement recommendation, and
+  [Monetization paths (2026)](/docs/monetization-paths-2026) for why POS
+  marketplaces and a route-operator pivot were also rejected. The packaging
+  observations below still hold if the channel ever reopens: a clean README, an env
+  template, one-command setup, and the demo seed as the "try it" path. (Most
+  marketplaces disallow bundling paid third-party keys, so any AI features ship
+  **off by default**, bring-your-own Anthropic key.)
 - **Hosted multi-tenant SaaS.** The multi-tenant model already exists (vendors /
   locations / rules keyed on claims). Productizing hosting (billing, onboarding,
   a status page) is a **business** effort more than an engineering one — the app

@@ -11,7 +11,7 @@ title: Terms of Use
 
 *¿Prefieres leerlo en español? → [Términos de uso](/docs/terms-of-use-es).*
 
-_Last updated: July 2026_
+_Last updated: September 2026_
 
 These terms are an agreement between the business that creates a DuoCount store
 (the **store**, "you") and the operator of this DuoCount deployment (the
@@ -186,6 +186,12 @@ version available in the app's documentation before it takes effect.
 
 ## 9. Governing law
 
-*(Fill in for your deployment — e.g. "These terms are governed by the laws of
-the Commonwealth of Pennsylvania, and disputes will be resolved in the courts
-of Lancaster County, PA.")*
+These terms are governed by the laws of the **Commonwealth of Pennsylvania**,
+without regard to its conflict-of-laws rules. Any dispute arising out of or
+relating to these terms or the service will be brought exclusively in the state
+or federal courts located in Pennsylvania, and both parties consent to the
+personal jurisdiction of those courts.
+
+If you operate this deployment from somewhere other than Pennsylvania, change
+this section to your own state before offering the service — a governing-law
+clause naming a state you have no connection to is worse than none.
