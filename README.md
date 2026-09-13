@@ -345,6 +345,33 @@ UI with no schema impact:
   persisted in `localStorage`, separate from the owner's Admin → Business
   settings — the PWA install prompt, and **Sign out** (a power-off row), so the
   header stays one control.
+- **"Add to Home Screen" banner.** A one-time bottom sheet
+  (`src/components/InstallBanner.js`), driven by `useInstallPrompt`
+  (`src/lib/install.js` — the same module the Settings menu uses, so only one
+  listener ever consumes the one-shot `beforeinstallprompt`). Behaviour per
+  platform:
+  - **Android / any browser that fires `beforeinstallprompt`** — the event is
+    captured at module load and its default suppressed, so the browser's own
+    mini-infobar never appears; the banner offers a single **Install** button
+    that replays it. Hidden on `appinstalled`.
+  - **iOS Safari** — iOS has no programmatic install, so the banner shows the
+    two manual steps instead: Share → Add to Home Screen. Deliberately *not*
+    shown in Chrome/Firefox/Edge/Opera on iOS (`CriOS`/`FxiOS`/`EdgiOS`/`OPiOS`)
+    or in-app webviews (Facebook, Instagram, X, Line), because those cannot
+    install at all and the instructions would be a dead end. iPadOS 13+ reports
+    a Mac UA, so it is disambiguated by `maxTouchPoints`.
+  - **Anything else, or already installed** (`display-mode: standalone` /
+    `navigator.standalone`) — renders nothing.
+
+  It appears **once, and only after the first saved count** — arming is wired to
+  the shared `onSaved` path in `AppShell`, so opening the app or browsing a form
+  never triggers it. Dismissing the ✕, or installing, sets
+  `duocount-install-dismissed` and it never returns on that device
+  (`duocount-install-acted` records the save, alongside the existing
+  `duocount-theme` / `duocount-fab` / `duocount-lang` keys; every read and write
+  is try/caught so a private-mode failure can never break a count). Icons are
+  inline SVG and the strings are in the en/es catalog like everything else — no
+  new dependency, no third-party script, no analytics.
 
 ## Security notes
 

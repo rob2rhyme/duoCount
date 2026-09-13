@@ -1643,6 +1643,11 @@ export const CATALOG = {
     "prefs.fab_sub": "Floating shortcut back to the top",
     "prefs.fab_aria": "Toggle the scroll-to-top button",
     "prefs.install": "Install app",
+    "install.title": "Add to Home Screen for quick access",
+    "install.action": "Install",
+    "install.ios_step1": "Tap Share",
+    "install.ios_step2": "Add to Home Screen",
+    "install.dismiss": "Dismiss",
     "prefs.sign_out": "Sign out",
     "prefs.scroll_top": "Scroll to top",
 
@@ -3843,6 +3848,11 @@ export const CATALOG = {
     "prefs.fab_sub": "Atajo flotante para volver al inicio",
     "prefs.fab_aria": "Activar o desactivar el botón de volver arriba",
     "prefs.install": "Instalar la app",
+    "install.title": "Agrégala a la pantalla de inicio para abrirla rápido",
+    "install.action": "Instalar",
+    "install.ios_step1": "Toca Compartir",
+    "install.ios_step2": "Agregar a inicio",
+    "install.dismiss": "Descartar",
     "prefs.sign_out": "Cerrar sesión",
     "prefs.scroll_top": "Volver arriba",
 

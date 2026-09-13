@@ -19,6 +19,8 @@ import Logo from "./Logo";
 import PreferencesMenu from "./PreferencesMenu";
 import SetupChecklist from "./SetupChecklist";
 import BottomNav from "./BottomNav";
+import InstallBanner from "./InstallBanner";
+import { markInstallWorthy } from "@/lib/install";
 import TabIcon from "./TabIcon";
 import Splash from "./Splash";
 import EmptyState, { IconStore, IconReceipt, IconBox } from "./EmptyState";
@@ -209,6 +211,13 @@ export default function AppShell() {
     setToast(msg ? { msg, undo: undo || null } : "");
     toastTimer.current = setTimeout(() => setToast(""), undo ? 8000 : 2200);
   }
+  // The three count forms all report success through here. It is the app's only
+  // "the user got real value out of this" signal, which is what arms the
+  // one-time install banner — merely opening the app never does.
+  function onSaved(msg, undo) {
+    markInstallWorthy();
+    ping(msg, undo);
+  }
   async function runToastUndo() {
     const u = toast?.undo;
     if (!u) return;
@@ -391,7 +400,7 @@ export default function AppShell() {
             <EmptyState icon={<IconReceipt />} title={t("empty.no_drawer_title")} action={adminAction}
               subtitle={isOwner ? t("empty.cash_drawer_mgr") : t("empty.cash_drawer_emp")} />
           ) : (
-            <CashForm onSaved={ping} locations={activeLocations} drawers={drawers} locName={locName} />
+            <CashForm onSaved={onSaved} locations={activeLocations} drawers={drawers} locName={locName} />
           )
         )}
         {tab === "scratch" && (
@@ -399,7 +408,7 @@ export default function AppShell() {
             <EmptyState icon={<IconStore />} title={t("empty.no_location_title")} action={adminAction}
               subtitle={isOwner ? t("empty.scratch_loc_mgr") : t("empty.scratch_loc_emp")} />
           ) : (
-            <ScratchForm onSaved={ping} locations={activeLocations} locName={locName} entries={entries} catalog={scratchCatalog}
+            <ScratchForm onSaved={onSaved} locations={activeLocations} locName={locName} entries={entries} catalog={scratchCatalog}
               onSetup={isOwner ? () => goAdmin("modules") : undefined} />
           )
         )}
@@ -413,7 +422,7 @@ export default function AppShell() {
           ) : (
             <div className="space-y-4">
               <BackroomStock onToast={ping} items={items} locations={activeLocations} moves={stockMoves} locName={locName} />
-              <InventoryForm onSaved={ping} locations={activeLocations} items={items} entries={entries} locName={locName} />
+              <InventoryForm onSaved={onSaved} locations={activeLocations} items={items} entries={entries} locName={locName} />
             </div>
           )
         )}
@@ -493,6 +502,7 @@ export default function AppShell() {
       </footer>
 
       <BottomNav tabs={tabs} current={tab} onSelect={setTab} attention={tabAttention} />
+      <InstallBanner />
 
       {toast && (
         <div className="fixed bottom-24 sm:bottom-6 left-1/2 -translate-x-1/2 bg-ink text-paper px-4 py-2 rounded-full text-sm font-medium shadow-lg z-50 flex items-center gap-3 max-w-[92vw]">
