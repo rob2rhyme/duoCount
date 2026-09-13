@@ -37,6 +37,12 @@ No. It runs in the browser on the phone your staff already carry, and installs
 to the home screen like an app. The camera doubles as a barcode scanner — but
 every scan screen also lets you type the number by hand.
 
+**How do I put it on my home screen?**
+After your first saved count, a card slides up offering to add it — **Install**
+on Android, or the two Share-sheet steps on an iPhone. Dismiss it with the ✕ and
+it won't come back on that phone; you can still install any time from the header
+**gear (Settings)**.
+
 **Does it work offline?**
 Partly. The app shell is installable and survives a flaky connection, but saving
 a count needs a connection, because the timestamp on a count comes from the

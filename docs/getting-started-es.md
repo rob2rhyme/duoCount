@@ -581,6 +581,12 @@ importantes.
   conexión para lo básico. Reabre en la **pestaña que usaste por última vez** y
   muestra tus datos recientes de inmediato, así una recarga te deja donde
   estabas.
+  Después de guardar tu primer conteo, sube desde abajo una tarjeta pequeña que
+  ofrece agregarla — **Instalar** en Android, o los dos pasos del menú Compartir
+  en un iPhone. Toca la ✕ y no vuelve a aparecer en ese dispositivo; de todos
+  modos puedes instalarla cuando quieras desde el **engrane (Configuración)** del
+  encabezado. Espera a ese primer conteo a propósito: a nadie se le debería pedir
+  instalar una app que todavía no ha usado.
 - **Prefer English?** Toda la app habla inglés y español: elige el idioma en la
   pantalla de inicio de sesión (junto al sol/la luna) o en el **engrane
   (Configuración) → Idioma** del encabezado. Es una elección por dispositivo,

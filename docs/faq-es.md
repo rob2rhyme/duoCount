@@ -38,6 +38,12 @@ No. Funciona en el navegador del teléfono que tu personal ya trae, y se instala
 en la pantalla de inicio como una app. La cámara sirve de escáner de códigos de
 barras — pero toda pantalla con escaneo también deja escribir el número a mano.
 
+**¿Cómo la pongo en mi pantalla de inicio?**
+Después de tu primer conteo guardado, sube una tarjeta que ofrece agregarla —
+**Instalar** en Android, o los dos pasos del menú Compartir en un iPhone.
+Descártala con la ✕ y no vuelve a aparecer en ese teléfono; de todos modos puedes
+instalarla cuando quieras desde el **engrane (Configuración)** del encabezado.
+
 **¿Funciona sin conexión?**
 En parte. La app se instala y aguanta una conexión intermitente, pero guardar un
 conteo requiere conexión, porque la hora de un conteo la pone el servidor y no el

@@ -109,7 +109,10 @@ conteos de turno:
   **localmente en tu navegador** (localStorage) y nunca se envía a un servidor:
   tu tema claro/oscuro (`duocount-theme`), el botón de volver arriba
   (`duocount-fab`), tu idioma (`duocount-lang`), la pestaña en la que estabas
-  (`duocount-tab`) y qué secciones imprimes (`duocount-print-sections`). Ninguno
+  (`duocount-tab`), qué secciones imprimes (`duocount-print-sections`) y dos
+  marcas para el aviso único de «Agregar a la pantalla de inicio»: si ya
+  guardaste un conteo (`duocount-install-acted`) y si lo descartaste o lo
+  aceptaste (`duocount-install-dismissed`), para no mostrarlo dos veces. Ninguno
   te identifica; borrar los datos del navegador los elimina. DuoCount no usa
   cookies de publicidad ni de analítica. Iniciar sesión sí guarda una sesión de
   autenticación de Firebase en el dispositivo para que sigas dentro — cerrar

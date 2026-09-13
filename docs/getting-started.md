@@ -529,6 +529,11 @@ bin 4 running low." Managers can pin the important ones.
   Home Screen," and it opens full-screen and works offline for the basics. It
   reopens on the **tab you were last using** and shows your recent data right
   away, so a reload drops you back where you were.
+  After you save your first count, a small card slides up from the bottom
+  offering to add it — **Install** on Android, or the two Share-sheet steps on an
+  iPhone. Tap the ✕ and it never comes back on that device; you can still install
+  any time from the header **gear (Settings)**. It waits for that first count on
+  purpose: nobody should be asked to install an app they haven't used yet.
 - **¿Prefieres español?** The whole app speaks Spanish: pick **Español** from
   the language menu on the sign-in screen (next to the sun/moon) or in the
   header **gear (Settings) → Idioma**. Every screen switches — alerts, forms,

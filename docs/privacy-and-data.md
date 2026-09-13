@@ -101,7 +101,10 @@ DuoCount only stores what the business and its staff enter to run shift counts:
   your browser** (localStorage) and never sent to a server: your light/dark
   theme (`duocount-theme`), the scroll-to-top toggle (`duocount-fab`), your
   language choice (`duocount-lang`), the tab you were last on
-  (`duocount-tab`), and which sections you print (`duocount-print-sections`).
+  (`duocount-tab`), which sections you print (`duocount-print-sections`), and two
+  flags for the one-time "Add to Home Screen" banner — whether you have saved a
+  count yet (`duocount-install-acted`) and whether you dismissed or accepted it
+  (`duocount-install-dismissed`), so it is never shown twice.
   None identifies you; clearing your browser data removes them. DuoCount sets no
   advertising or analytics cookies. Signing in does store a Firebase
   authentication session on the device so you stay signed in — signing out
