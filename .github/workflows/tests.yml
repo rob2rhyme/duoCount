@@ -1,0 +1,101 @@
+# Runs what a contributor runs locally before pushing: lint, the pure test
+# suite, a production build, and the Firestore rules suite under the emulator.
+#
+# Why this exists: until now nothing re-ran the tests on a pull request. The
+# repo has a large pure suite and a rules suite that guards the trust spine
+# (append-only counts, per-tenant isolation, server-only collections), and both
+# were verified only by whoever happened to run them locally — so a green PR
+# meant "someone said so", not "the checks passed". The one other workflow here
+# deploys Firestore rules AFTER a merge to main; by then a broken rule is live.
+#
+# The rules suite is a separate job on purpose: it needs a JVM and the emulator
+# download, so a hiccup there shouldn't mask a plain unit-test failure, and the
+# two run in parallel rather than in series.
+
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: these jobs only read the repo.
+permissions:
+  contents: read
+
+# A new push supersedes the run in flight for that same branch.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint · unit tests · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # `next lint` fails on errors, not warnings — and the tree carries a few
+      # known warnings (next/image suggestions, two exhaustive-deps). Left as
+      # warnings deliberately: pinning --max-warnings 0 today would fail every
+      # PR for pre-existing reasons and teach people to ignore this job.
+      - name: Lint
+        run: npm run lint
+
+      # Every tests/*.test.mjs except the rules suite (see the other job).
+      - name: Unit tests
+        run: npm test
+
+      # A production build catches what neither lint nor the pure tests can:
+      # a bad import, a client/server boundary violation, a missing Suspense
+      # boundary around useSearchParams.
+      - name: Build
+        run: npm run build
+
+  rules:
+    name: Firestore rules (emulator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      # The Firestore emulator is a Java process. ubuntu-latest ships a JDK,
+      # but pinning one keeps this job from breaking the day the image changes.
+      # (v4, not v5: checkout/setup-node are on v5 because this repo's other
+      # workflow already proves those tags resolve. An action tag that doesn't
+      # exist fails the job instantly, so this one stays on the major known good.)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install
+        run: npm ci
+
+      # firebase-tools fetches the emulator jar on first use; keep it between
+      # runs. The key follows the lockfile, so a firebase-tools bump (which can
+      # change the emulator version) misses the cache and re-downloads.
+      - name: Cache the emulator
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
+
+      # Boots the emulator, runs tests/rules.test.mjs against it, tears it down.
+      # No credentials and no network project: the emulator is local to the job.
+      - name: Rules tests
+        run: npm run test:rules
