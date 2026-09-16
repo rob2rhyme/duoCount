@@ -279,10 +279,27 @@ Scanning is an input accelerator only: nothing saves until "Save & sign
 entry". The zxing decoder is dynamically imported and never ships in the
 initial bundle. Camera use requires HTTPS (or localhost) plus permission.
 
-## Testing the security rules
+## Tests and CI
+
+Every pull request (and every push to `main`) runs the whole check set through
+`.github/workflows/tests.yml` — lint, the pure suite, a production build, and
+the rules suite under the emulator. The same four commands are what to run
+locally before pushing:
+
+```bash
+npm run lint         # errors fail; a few known warnings are left as warnings
+npm test             # the pure suite — every tests/*.test.mjs but the rules one
+npm run build        # catches bad imports and client/server boundary mistakes
+npm run test:rules   # the rules suite, against the emulator (needs Java)
+```
+
+Individual suites have their own scripts too (`npm run test:patterns`,
+`test:recovery`, `test:timeclock`, … — see `package.json`).
+
+### The security rules
 
 The rules are the product's trust boundary, so they have an executable test
-suite (`tests/rules.test.mjs`, 90 tests): tenant isolation, per-location
+suite (`tests/rules.test.mjs`, 92 tests): tenant isolation, per-location
 visibility for entries/comments/notes, the five mutually exclusive entry
 update branches (verify / investigate / dispute-open / dispute-manage /
 comment bump), clean-create guards, the owner settings whitelist (incl. the
@@ -291,18 +308,8 @@ read-only rewards ledger (members read, no client writes), the incident lifecycl
 (subject-only visibility and acknowledgment, manager close, immutable text),
 and the workforce collections — append-only time-clock punches, the schedule
 roster, shift swaps, open-shift claims, staff availability, `schedulePublished`,
-and week templates.
-Run them against the local Firestore emulator (needs Java):
-
-```bash
-npm run test:rules
-```
-
-The pattern detectors are pure functions with their own suite (no emulator):
-
-```bash
-npm run test:patterns
-```
+and week templates — plus the server-only collections no client may touch at
+all (`recoveryTokens`, `adminAudit`, `platformAdmins`, `billing`).
 
 ## Scratch-off pack audit
 

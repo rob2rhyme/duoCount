@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --test $(ls tests/*.test.mjs | grep -v rules.test.mjs)",
     "test:rules": "firebase emulators:exec --only firestore --project duocount-rules-test \"npm run test:rules:run\"",
     "test:rules:run": "node --test tests/rules.test.mjs",
     "test:patterns": "node --test tests/patterns.test.mjs",
