@@ -33,8 +33,9 @@ export default function PinLogin() {
   const [bizName, setBizName] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [ownerName, setOwnerName] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
   const [newPin, setNewPin] = useState("");
-  const ids = { storeCode: useId(), pin: useId(), bizName: useId(), logoUrl: useId(), ownerName: useId(), newPin: useId() };
+  const ids = { storeCode: useId(), pin: useId(), bizName: useId(), logoUrl: useId(), ownerName: useId(), ownerEmail: useId(), newPin: useId() };
 
   // Live store-code availability while the owner types the business name — shows
   // the code they'll get and whether that exact code is free, so a duplicate name
@@ -65,7 +66,7 @@ export default function PinLogin() {
   async function doSignup() {
     setErr(null); setBusy(true);
     try {
-      const vendor = await signup({ businessName: bizName, logoUrl, ownerName, pin: newPin });
+      const vendor = await signup({ businessName: bizName, logoUrl, ownerName, ownerEmail, pin: newPin, lang });
       setCreatedSlug(vendor.slug);
     } catch (e) { setErr(e); }
     setBusy(false);
@@ -103,6 +104,15 @@ export default function PinLogin() {
             <button className="btn-primary mt-5" disabled={busy || pin.length < PIN_LENGTH || !storeCode.trim()} onClick={doLogin}>
               {busy ? t("login.checking") : t("login.sign_in")}
             </button>
+            {/* Recovery, right where a failed sign-in happens. "Forgot your PIN?"
+                is the self-serve path (a confirmed recovery email); "Can't sign
+                in?" is the page that covers everyone else — staff who should
+                just ask a manager, and the sole owner with no email on file. */}
+            <p className="text-center text-[13px] mt-4">
+              <Link href="/reset" className="text-muted underline underline-offset-2 hover:text-fg">{t("login.forgot")}</Link>
+              <span className="text-faint"> · </span>
+              <Link href="/help" className="text-muted underline underline-offset-2 hover:text-fg">{t("login.help_link")}</Link>
+            </p>
             <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
               onClick={() => { setMode("signup"); setErr(null); }}>
               {t("login.register_link")}
@@ -127,6 +137,13 @@ export default function PinLogin() {
             <input id={ids.logoUrl} className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
             <label htmlFor={ids.ownerName} className="label">{t("login.owner_name")}</label>
             <input id={ids.ownerName} className="input mb-4" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Jordan P." />
+            {/* Optional, but this is the difference between a one-minute reset
+                and a support ticket if this owner ever forgets their PIN — so
+                it's asked for here, where it costs nothing. */}
+            <label htmlFor={ids.ownerEmail} className="label">{t("login.owner_email")}</label>
+            <input id={ids.ownerEmail} className="input" type="email" inputMode="email" autoCapitalize="none"
+              autoComplete="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} placeholder="you@example.com" />
+            <p className="text-xs text-muted mt-1.5 mb-4 leading-relaxed">{t("login.owner_email_hint")}</p>
             <label htmlFor={ids.newPin} className="label">{t("login.choose_pin", { n: PIN_LENGTH })}</label>
             <input id={ids.newPin} className="input text-center text-xl tracking-[0.3em] font-mono"
               type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} value={newPin}

@@ -44,6 +44,7 @@ the code lives in the
 | Demo data seed (owner-only load/clear) | [demo-data-spec.md](demo-data-spec.md) |
 | Mobile-first PWA | [pwa-spec.md](pwa-spec.md) |
 | Time clock & scheduling — punches, hours, payroll CSV, weekly roster | [time-clock-spec.md](time-clock-spec.md) |
+| Account recovery — forgot-PIN, verified recovery email, operator reset | [account-recovery-spec.md](account-recovery-spec.md) |
 
 ## Analysis
 

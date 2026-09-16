@@ -152,6 +152,27 @@ disabled. The custom token it mints carries a `platformAdmin` claim and **no**
 cross-store support/billing views through the Admin SDK. There is also a
 lightweight `GET /api/health` liveness probe for uptime monitors.
 
+Set `DEV_ADMIN_TOTP_SECRET` (a base32 secret from any authenticator app) to
+require a 6-digit code after the password; leave it blank and the login behaves
+exactly as before, so turning it on can't lock you out by itself. That password
+has no reset flow on purpose — rotating it is an env change plus a redeploy, and
+the procedure (along with what to do when a store owner is locked out) is in
+`docs/credential-recovery-runbook.md`.
+
+## Account recovery
+
+Nobody is permanently locked out of a store, and the fast paths need nobody
+outside it: an owner or manager resets a staff PIN in Admin → Staff, anyone
+rotates their own PIN in Admin → My account, and an owner who has **confirmed** a
+recovery email resets it themselves from the sign-in screen. A sole owner with no
+confirmed email falls back to the signed-out form at `/help`, which support works
+from the `/dev` inbox. The reset request endpoint answers identically whatever it
+finds, so it can't be used to enumerate stores or staff, and support's own reset
+prefers emailing the owner a link over ever seeing a working credential. Full
+design: `docs/account-recovery-spec.md`. Needs `APP_URL` and the Resend vars
+below — without mail, self-serve recovery is off and every reset becomes a
+support ticket.
+
 ## Optional env vars at a glance
 
 Beyond the Firebase web config + `FIREBASE_SERVICE_ACCOUNT_KEY`, these unlock
@@ -159,7 +180,9 @@ optional features (all listed in `.env.local.example`):
 
 - **Email digest:** `RESEND_API_KEY`, `DIGEST_FROM`, `CRON_SECRET` (+ optional `APP_URL`).
 - **AI narrative:** `ANTHROPIC_API_KEY` (per-vendor opt-in via `vendor.digest.narrative`).
-- **Developer console:** `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD`.
+- **Developer console:** `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` (+ optional `DEV_ADMIN_TOTP_SECRET`).
+- **Account recovery:** `RESEND_API_KEY`, `DIGEST_FROM` and **`APP_URL`** (the
+  reset and confirmation links are built from it — set it in production).
 
 ## Tier one: trust features
 

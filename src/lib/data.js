@@ -217,12 +217,50 @@ export async function apiDev(payload) {
 }
 // Developer login — no Bearer token (this IS the login); returns { token } to
 // sign in with. The developer isn't a store member, so this is separate from the
-// PIN login.
-export async function apiDevLogin({ email, password }) {
+// PIN login. `code` is the authenticator code, only when the deployment asks
+// for one (apiDevNeedsCode reports that).
+export async function apiDevLogin({ email, password, code }) {
   return fetchJson("/api/auth/dev", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, code }),
+  });
+}
+export async function apiDevNeedsCode() {
+  return fetchJson("/api/auth/dev", { method: "GET" });
+}
+
+/* --------------------------- Account recovery ----------------------------- */
+// The signed-out half (no Bearer token — the whole point is being locked out).
+// The request endpoint always answers the same way; see /api/auth/reset.
+
+const post = (url, body) => fetchJson(url, {
+  method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+});
+
+export async function apiRequestReset({ storeCode, email, lang }) {
+  return post("/api/auth/reset", { storeCode, email, lang });
+}
+export async function apiCheckResetLink(token) {
+  return post("/api/auth/reset/confirm", { action: "check", token });
+}
+export async function apiConfirmReset({ token, pin, lang }) {
+  return post("/api/auth/reset/confirm", { action: "set", token, pin, lang });
+}
+export async function apiVerifyEmail(token) {
+  return post("/api/auth/verify-email", { token });
+}
+export async function apiPublicHelp(payload) {
+  return post("/api/support/public", payload);
+}
+
+// The signed-in half: my own PIN and my own recovery address. Scoped to the
+// caller's uid server-side — no userId crosses the wire.
+export async function apiAccount(payload) {
+  return fetchJson("/api/account", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await idToken()}` },
+    body: JSON.stringify(payload),
   });
 }
 

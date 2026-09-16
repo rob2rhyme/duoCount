@@ -577,6 +577,25 @@ test("adminAudit: no client — not even an owner — can read or write the admi
   await assertFails(updateDoc(doc(db("owner"), "adminAudit/e1"), { action: "restore" }));
 });
 
+test("recoveryTokens: no client can read or mint a PIN-reset link", async () => {
+  // Readable => you could see which accounts have a reset in flight. Writable
+  // => you could mint a link to anyone's account. Neither, for any role.
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const f = ctx.firestore();
+    await setDoc(doc(f, "recoveryTokens/tok1"), {
+      kind: "reset", vendorId: V, userId: "owner", secretHash: "salt:hash",
+      createdAt: new Date(), expiresAt: Date.now() + 60000, usedAt: null,
+    });
+  });
+  await assertFails(getDoc(doc(db("owner"), "recoveryTokens/tok1")));
+  await assertFails(getDoc(doc(db("mgr"), "recoveryTokens/tok1")));
+  await assertFails(getDoc(doc(db("empA"), "recoveryTokens/tok1")));
+  await assertFails(setDoc(doc(db("owner"), "recoveryTokens/tok2"), {
+    kind: "reset", vendorId: V, userId: "owner", secretHash: "x:y", expiresAt: Date.now() + 60000,
+  }));
+  await assertFails(updateDoc(doc(db("owner"), "recoveryTokens/tok1"), { usedAt: null }));
+});
+
 test("platformAdmins: no client can read or write the operator registry (no self-grant)", async () => {
   await env.withSecurityRulesDisabled(async (c) => {
     const f = c.firestore();

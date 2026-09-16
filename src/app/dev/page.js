@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { onAuthStateChanged, signOut, signInWithCustomToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { apiDev, apiDevLogin } from "@/lib/data";
+import { apiDev, apiDevLogin, apiDevNeedsCode } from "@/lib/data";
 import { downscaleImage } from "@/lib/image-downscale";
 import { compareTickets, toMs, ATTACH_MAX_PER_MSG } from "@/lib/support";
 import { BILLING_PLANS, BILLING_STATUSES, BILLING_CYCLES, buildBillingSummary, DEFAULT_BILLING } from "@/lib/billing";
@@ -10,6 +10,8 @@ import { money, csvCell, downloadCSV } from "@/lib/utils";
 import Link from "next/link";
 import { useLang } from "@/components/LangProvider";
 import ShowMore, { usePaged } from "@/components/ShowMore";
+import Field from "@/components/Field";
+import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 
 // Developer / platform-admin console. A standalone page (the app shell is
 // tenant-scoped; this spans every store), gated by /api/dev whoami against the
@@ -138,14 +140,24 @@ function Notice({ title, body, uid = "", t = null }) {
 function DevLogin({ t }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Ask the server whether this deployment has a second factor configured, so
+  // the field appears before the first attempt rather than after a rejection.
+  // The answer reveals only that — never a credential.
+  useEffect(() => {
+    let live = true;
+    apiDevNeedsCode().then((r) => { if (live) setNeedsCode(!!r.totp); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
   const errText = (e) => (e?.code && t(`autherr.${e.code}`) !== `autherr.${e.code}`
     ? t(`autherr.${e.code}`) : e?.message || t("autherr.login_failed"));
   async function submit() {
     setErr(""); setBusy(true);
     try {
-      const { token } = await apiDevLogin({ email, password });
+      const { token } = await apiDevLogin({ email, password, code });
       await signInWithCustomToken(auth, token); // parent's onAuthStateChanged takes it from here
     } catch (e) { setErr(errText(e)); setBusy(false); }
   }
@@ -160,6 +172,15 @@ function DevLogin({ t }) {
       <input className="input" type="password" autoComplete="current-password"
         value={password} onChange={(e) => setPassword(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && email && password && !busy && submit()} />
+      {needsCode && (
+        <>
+          <label className="label mt-3">{t("dev.login_code")}</label>
+          <input className="input text-center tracking-[0.3em] font-mono" inputMode="numeric" autoComplete="one-time-code"
+            maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            onKeyDown={(e) => e.key === "Enter" && email && password && !busy && submit()} />
+          <p className="text-[12px] text-muted mt-1.5">{t("dev.login_code_hint")}</p>
+        </>
+      )}
       {err && <p role="alert" className="text-[13px] text-neg mt-3">{err}</p>}
       <button className="btn-primary mt-5" disabled={busy || !email.trim() || !password} onClick={submit}>
         {busy ? t("dev.login_checking") : t("dev.login_button")}
@@ -179,6 +200,7 @@ function Inbox({ t, lang }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reply, setReply] = useState("");
+  const [notice, setNotice] = useState("");
   const [shots, setShots] = useState([]);
   const [reason, setReason] = useState("");
 
@@ -192,12 +214,16 @@ function Inbox({ t, lang }) {
   const fmt = (v) => { const ms = toMs(v); return ms ? new Date(ms).toLocaleString(lang === "es" ? "es" : "en") : ""; };
 
   async function act(payload, after) {
-    setBusy(true); setError("");
-    try { await apiDev(payload); await load(); after?.(); }
+    setBusy(true); setError(""); setNotice("");
+    try { const r = await apiDev(payload); await load(); after?.(r); }
     catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
     setBusy(false);
   }
-  const sendReply = () => act({ action: "ticketReply", ticketId: openId, text: reply, attachments: shots }, () => { setReply(""); setShots([]); });
+  const sendReply = () => act(
+    { action: "ticketReply", ticketId: openId, text: reply, attachments: shots },
+    // On a signed-out ticket the reply is emailed — the sender can't read the
+    // thread. Report whether that send worked instead of leaving it silent.
+    (r) => { setReply(""); setShots([]); setNotice(r?.emailed == null ? "" : t(r.emailed ? "dev.reply_emailed" : "dev.reply_not_emailed")); });
   const setStatus = (status) => act({ action: "ticketStatus", ticketId: openId, status, reason }, () => setReason(""));
 
   async function addShot(e) {
@@ -217,9 +243,19 @@ function Inbox({ t, lang }) {
           <div>
             <div className="font-semibold text-[15px] break-words">{open.subject}</div>
             <div className="text-[12px] text-muted mt-0.5">
-              <b>{open.storeName}</b> · {t(`sup.cat_${open.category}`)} · {t(`sup.pri_${open.priority}`)} · {t(`sup.status_${open.status}`)} · {fmt(open.createdAt)}
+              <b>{open.public ? t("dev.public_ticket") : open.storeName}</b> · {t(`sup.cat_${open.category}`)} · {t(`sup.pri_${open.priority}`)} · {t(`sup.status_${open.status}`)} · {fmt(open.createdAt)}
             </div>
           </div>
+          {/* A signed-out request: everything in it is what an anonymous visitor
+              typed, including the store code. Say so, and show where a reply
+              actually goes — the sender can't read this thread, that's why they
+              wrote in. */}
+          {open.public && (
+            <div className="border border-brass/40 bg-brass/5 rounded-xl p-3 text-[12px] leading-relaxed">
+              <p className="font-semibold text-gold">{t("dev.public_hint", { email: open.contactEmail || "—" })}</p>
+              {open.claimedSlug && <p className="text-muted mt-1 font-mono">{t("dev.claimed_store", { slug: open.claimedSlug })}</p>}
+            </div>
+          )}
           <div className="border border-line rounded-xl p-3 bg-panel">
             <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{open.createdByName || t("dev.owner")}</div>
             <p className="text-[13px] whitespace-pre-wrap break-words">{open.body}</p>
@@ -236,6 +272,7 @@ function Inbox({ t, lang }) {
           ))}
 
           {error && <p role="alert" className="text-[13px] text-neg">{error}</p>}
+          {notice && <p className="text-[13px] text-muted">{notice}</p>}
           <div className="border-t border-line pt-3 space-y-2.5">
             <textarea className="input min-h-[70px]" value={reply} onChange={(e) => setReply(e.target.value)} placeholder={t("dev.reply_ph")} />
             <div className="flex flex-wrap gap-2 items-center">
@@ -278,7 +315,9 @@ function Inbox({ t, lang }) {
             <button key={tk.id} onClick={() => setOpenId(tk.id)} className="w-full text-left px-3 py-2.5 flex items-center gap-3 hover:bg-subtle transition">
               <span className="min-w-0 flex-1">
                 <span className="block font-medium text-[14px] truncate">{tk.subject}</span>
-                <span className="block text-[12px] text-muted truncate"><b>{tk.storeName}</b> · {t(`sup.cat_${tk.category}`)} · {fmt(tk.lastActivityAt)}</span>
+                <span className="block text-[12px] text-muted truncate">
+                  <b>{tk.public ? t("dev.public_ticket") : tk.storeName}</b> · {t(`sup.cat_${tk.category}`)} · {fmt(tk.lastActivityAt)}
+                </span>
               </span>
               <span className="flex flex-col items-end gap-1 flex-shrink-0">
                 <span className={`text-[10px] uppercase tracking-wide font-bold border rounded px-1.5 py-0.5 ${tk.status === "resolved" ? "text-pos border-pos/50" : "text-gold border-brass/50"}`}>{t(`sup.status_${tk.status}`)}</span>
@@ -418,6 +457,11 @@ function Stores({ t, lang, me }) {
   const [busy, setBusy] = useState("");
   const [q, setQ] = useState("");
   const [editBill, setEditBill] = useState(null); // vendorId whose billing editor is open
+  const [resetFor, setResetFor] = useState(null);  // vendorId whose owner-recovery panel is open
+  const [resetReason, setResetReason] = useState("");
+  const [resetMode, setResetMode] = useState("link");
+  const [resetLang, setResetLang] = useState("en"); // the OWNER's language, not the operator's
+  const [resetResult, setResetResult] = useState(null);
   const [bill, setBill] = useState(DEFAULT_BILLING);
   const [toast, setToast] = useState(null);        // { msg, fn } — undo pill after a delete
   const toastTimer = useRef(null);
@@ -444,6 +488,31 @@ function Stores({ t, lang, me }) {
 
   const summary = useMemo(() => buildBillingSummary(stores || []), [stores]);
   const openBilling = (s) => { setBill({ ...DEFAULT_BILLING, ...(s.billing || {}), price: String(s.billing?.price ?? "") }); setEditBill(s.id); };
+
+  // Owner-lockout recovery (see the panel below the store row).
+  const openReset = (s) => {
+    setResetFor(s.id); setResetReason(""); setResetResult(null);
+    // Default to the link unless there's nowhere to send it.
+    setResetMode(s.ownerEmail ? "link" : "temp");
+    setResetLang(lang === "es" ? "es" : "en");
+  };
+  const closeReset = () => { setResetFor(null); setResetResult(null); };
+  async function doReset(s) {
+    setBusy(s.id); setError("");
+    try {
+      const r = await apiDev({
+        action: "storeAction", vendorId: s.id, op: "resetOwnerPin",
+        reason: resetReason.trim(), mode: resetMode, lang: resetLang,
+      });
+      setResetResult(r.mode === "temp"
+        ? { vendorId: s.id, msg: t("dev.reset_temp", { pin: r.pin }), tone: "pos" }
+        : { vendorId: s.id, tone: r.sent ? "pos" : "neg",
+            msg: r.sent ? t("dev.reset_sent", { email: r.email }) : t("dev.reset_unsent") });
+      setResetReason("");
+      await load();
+    } catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
+    setBusy("");
+  }
   // Show a store's plan in one line: "Pro · Active · $49/mo".
   const billLine = (b) => `${t(`dev.plan_${b.plan}`)} · ${t(`dev.bs_${b.status}`)} · ${money(b.price)}${b.cycle === "annual" ? t("dev.per_yr") : t("dev.per_mo")}`;
 
@@ -570,12 +639,51 @@ function Stores({ t, lang, me }) {
                 {can("stores") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
                   onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}>{t("dev.note")}</button>}
                 {can("pin") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => { const pin = window.prompt(t("dev.pin_prompt")); if (pin != null && pin.trim()) op(s.id, { op: "resetOwnerPin", pin: pin.trim() }, t("dev.confirm_pin", { name: s.name })); }}>{t("dev.reset_pin")}</button>}
+                  onClick={() => (resetFor === s.id ? closeReset() : openReset(s))}>{t("dev.reset_pin")}</button>}
                 {can("lifecycle") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto text-neg" disabled={busy === s.id}
                   onClick={() => deleteStore(s)}>{t("dev.delete")}</button>}
               </>
             )}
           </div>
+
+          {/* Owner-lockout recovery. The operator no longer picks the PIN: the
+              default mails the owner the same one-time link the self-serve flow
+              uses, so support never sees a working credential. The temporary-PIN
+              fallback exists only for an owner with no confirmed address, and
+              what it issues dies at that owner's next sign-in. Either way a
+              written reason lands in the audit log. */}
+          {resetFor === s.id && (
+            <div className="border-t border-line pt-3 mt-1 space-y-2.5">
+              <Field label={t("dev.reset_reason")}>
+                <input className="input" value={resetReason} onChange={(e) => setResetReason(e.target.value)} />
+              </Field>
+              <div className="space-y-1.5">
+                {[["link", t("dev.reset_mode_link")], ["temp", t("dev.reset_mode_temp")]].map(([val, label]) => (
+                  <label key={val} className="flex items-start gap-2 text-[13px]">
+                    <input type="radio" name={`resetmode-${s.id}`} className="mt-1" checked={resetMode === val}
+                      onChange={() => setResetMode(val)} />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-[12px] text-muted leading-relaxed">{t("dev.reset_mode_hint")}</p>
+              {resetMode === "link" && !s.ownerEmail && <p className="text-[12px] text-gold">{t("dev.reset_no_email")}</p>}
+              <div className="flex gap-2">
+                <select className="input w-auto" value={resetLang} onChange={(e) => setResetLang(e.target.value)}
+                  aria-label={t("lang.language")}>
+                  {LOCALES.map((l) => <option key={l} value={l}>{LOCALE_LABELS[l] || l}</option>)}
+                </select>
+                <button className="btn-primary flex-1" disabled={busy === s.id || resetReason.trim().length < 10}
+                  onClick={() => doReset(s)}>{t("dev.reset_send")}</button>
+                <button className="btn-ghost w-auto px-4" disabled={busy === s.id} onClick={closeReset}>{t("dev.cancel")}</button>
+              </div>
+              {/* Shown exactly once — it is never stored anywhere the console can
+                  read it back, which is the point of a one-trip credential. */}
+              {resetResult?.vendorId === s.id && (
+                <p className={`text-[13px] ${resetResult.tone === "neg" ? "text-neg" : "text-pos"} font-medium break-words`}>{resetResult.msg}</p>
+              )}
+            </div>
+          )}
 
           {editBill === s.id && (
             <div className="border-t border-line pt-3 mt-1 space-y-2.5">

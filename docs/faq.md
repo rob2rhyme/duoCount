@@ -242,6 +242,39 @@ stock levels, and rewards customers, with a row-by-row preview before anything i
 written. Re-running is safe; records already in your store are matched and updated,
 never duplicated.
 
+**What happens if I forget my PIN?**
+It depends on what you set up first. Staff just ask an owner or manager, who sets
+a new PIN in **Admin → Staff** — instant, nobody outside the store. An owner with
+a confirmed recovery email taps **Forgot your PIN?** on the sign-in screen and
+resets it themselves; a store with a second owner has that owner do it. A sole
+owner with no confirmed email has to go through **Can't sign in?**, where support
+verifies the store is theirs and issues a one-time PIN — the slow path, and the
+only one that involves anyone outside your store. Full details in the
+[user guide](/docs/getting-started#if-you-forget-your-pin).
+
+**How do I make sure that never happens?**
+Two minutes, once: add your email in **Admin → My account** and open the
+confirmation link, and make a second person an owner in **Admin → Staff**. Either
+one on its own turns a lockout into a one-minute fix.
+
+**Can I change my own PIN?**
+Yes — **Admin → My account**, with your current PIN. It's there rather than in
+the Staff list because the Staff list won't edit your own row. Everyone signs out
+afterwards and comes back with the new PIN.
+
+**If support resets my PIN, do they then know my PIN?**
+No. The usual path emails *you* a reset link, so support never sees a credential
+at all. Where there's no confirmed email to send to, they issue a one-time PIN —
+and the app won't open on it: it goes straight to "choose your own PIN" and stays
+there until you do. Every reset is recorded with the operator's name and their
+written reason.
+
+**Can someone take over my account by knowing my email?**
+No. An address has to be confirmed from that mailbox before it can reset
+anything, a reset link works once and expires in 30 minutes, and the reset form
+answers identically whether or not the store code and address match — so it can't
+be used to find out who works where either.
+
 **Can I rebrand it?**
 An owner can set the business name, logo, colour palette, font, and text size from
 Admin. Deeper white-labelling is a conversation with the operator.

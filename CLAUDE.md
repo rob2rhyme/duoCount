@@ -54,6 +54,34 @@ derived from that same-day `soldOut` marker (nothing new is persisted).
   always-excluded legal base (tobacco/vape/alcohol/lottery/gift-cards/fuel; no
   SMS in v1 per TCPA). Spec: `docs/rewards-program-spec.md`.
 
+## Account recovery (all three credential planes)
+
+Nobody is permanently locked out, and the design is in
+`docs/account-recovery-spec.md` (operator side: `credential-recovery-runbook.md`).
+Two rules that are easy to break by accident:
+
+- **Sign-in resolves identity BY PIN**, so every PIN write goes through
+  `src/lib/pin-store.js` (`pinTaken` + `setUserPin`) — it keeps PINs unique per
+  store, burns recovery links, and revokes sessions. Don't hand-roll a
+  `pinHash` write. A PIN collision is always reported generically ("pick a
+  different PIN"); naming the clash turns a form into a PIN oracle.
+- **`POST /api/auth/reset` answers with one frozen body** (`NEUTRAL_RESULT`)
+  whatever it finds — unknown store, unknown or unconfirmed address, suspended
+  store, failed send, internal error. Anything that makes those distinguishable
+  re-opens store/staff enumeration.
+
+- **A recovery-address change costs the current PIN**, same as a PIN change
+  (`/api/account` `setEmail`). It outlives every later PIN change, so without
+  that check a minute with a signed-in device becomes permanent takeover. The
+  address losing a confirmed claim gets a notice.
+
+An email only recovers an account once **confirmed** (`emailVerifiedAt`); policy
+is pure in `src/lib/recovery.js` (+ `tests/recovery.test.mjs`), I/O in
+`recovery-store.js`. Support's `/dev` reset prefers emailing the owner a link
+over issuing a credential; the temporary-PIN fallback is server-generated and
+always sets `mustChangePin`. `/api/support/public` is the app's only anonymous
+write — keep it that narrow.
+
 ## Repo / naming
 
 Repo was renamed `sh-stock-tracking` → `duoCount`. Brand is **DuoCount**

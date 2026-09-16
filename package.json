@@ -55,6 +55,8 @@
     "test:i18n": "node --test tests/i18n.test.mjs",
     "test:contrast": "node --test tests/contrast.test.mjs",
     "test:platform": "node --test tests/platform-admins.test.mjs",
+    "test:recovery": "node --test tests/recovery.test.mjs",
+    "test:totp": "node --test tests/totp.test.mjs",
     "check:contrast": "node scripts/contrast-check.mjs"
   },
   "dependencies": {

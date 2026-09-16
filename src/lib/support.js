@@ -146,3 +146,44 @@ export function toMs(v) {
   const d = new Date(v);
   return d && !Number.isNaN(d.getTime()) ? d.getTime() : null;
 }
+
+/* ------------------------- Signed-out help requests ------------------------- */
+// The support desk proper is owner-only (/api/support requires an owner token),
+// which left the people who most need it — a sole owner who forgot their PIN —
+// with no way to reach it at all. This is the one ticket shape an ANONYMOUS
+// visitor can create, so it is deliberately the narrowest:
+//   • no attachments (an unauthenticated upload surface earns nothing here);
+//   • a contact address is REQUIRED — a reply has to have somewhere to go;
+//   • the store code is whatever they typed and is never checked against the
+//     store list in the response, so this form can't be used to discover which
+//     stores exist;
+//   • vendorId stays null, so it belongs to no tenant and no owner's client
+//     query can read it (firestore.rules matches on vendorId).
+export const PUBLIC_MSG_MIN = 15;
+
+export function buildPublicTicket(body = {}) {
+  const email = String(body.email ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200)
+    return { error: "bad_email" };
+  const message = cleanMultiline(body.message, BODY_MAX);
+  if (message.length < PUBLIC_MSG_MIN) return { error: "short_message" };
+  const storeCode = clean(body.storeCode, 80).toLowerCase();
+  const name = clean(body.name, 80);
+  return {
+    fields: {
+      subject: storeCode ? `Can't sign in — ${storeCode}` : "Can't sign in",
+      body: message,
+      category: "account",
+      priority: "high",
+      attachments: [],
+      // Everything below is UNVERIFIED — it is what an anonymous visitor typed.
+      // The console labels it as such so an operator never reads it as proof of
+      // who they're talking to.
+      public: true,
+      vendorId: null,
+      claimedSlug: storeCode || null,
+      contactEmail: email,
+      contactName: name || null,
+    },
+  };
+}

@@ -93,7 +93,17 @@ export async function POST(req) {
     return NextResponse.json({
       token,
       vendor: { id: vendor.id, name: vendor.name, slug: vendor.slug, logoUrl: vendor.logoUrl || null, sharingMode: vendor.sharingMode || "all-locations" },
-      profile: { id: match.id, name: match.name, role: match.role, locationId: match.locationId ?? null },
+      // `mustChangePin` rides along so the shell can force a change screen the
+      // moment someone signs in with a PIN that SOMEBODY ELSE chose (an owner
+      // reset, or the /dev console's support reset). The live user-doc watch
+      // carries the same flag; this is just so the very first render has it.
+      profile: {
+        id: match.id, name: match.name, role: match.role,
+        locationId: match.locationId ?? null, mustChangePin: !!match.mustChangePin,
+        // Admin → My account reads these; without them the card shows a blank
+        // recovery address for one render on a store whose owner has one.
+        email: match.email ?? null, emailVerifiedAt: match.emailVerifiedAt ?? null,
+      },
     });
   } catch (e) {
     console.error("login error", e);

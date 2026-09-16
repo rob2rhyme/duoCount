@@ -8,7 +8,13 @@
 // follow-up; the record still fixes WHAT happened, to WHICH store, and WHEN).
 
 export const AUDIT_ACTIONS = [
-  "suspend", "activate", "delete", "restore", "rename", "note", "billing", "resetOwnerPin",
+  "suspend", "activate", "delete", "restore", "rename", "note", "billing",
+  // Two shapes of owner-lockout recovery, deliberately distinct in the log:
+  // `ownerResetLink` mailed the owner a one-time link and support learned
+  // nothing; `resetOwnerPin` issued a temporary PIN support could read out, so
+  // it's the one an auditor should look at twice. Both carry the operator's
+  // stated reason in `detail`.
+  "ownerResetLink", "resetOwnerPin",
 ];
 
 const clamp = (v, n) => String(v ?? "").slice(0, n);

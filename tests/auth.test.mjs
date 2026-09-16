@@ -3,7 +3,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { isValidNewPin, PIN_LENGTH, PIN_RE } from "../src/lib/pin.js";
-import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp } from "../src/lib/login-throttle.js";
+import {
+  throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp,
+  RESET_IP_LIMIT, RESET_STORE_LIMIT, RECOVERY_CONFIRM_LIMIT, PUBLIC_SUPPORT_LIMIT,
+} from "../src/lib/login-throttle.js";
 
 test("PIN policy: new pins must be exactly 6 digits", () => {
   assert.equal(PIN_LENGTH, 6);
@@ -86,4 +89,35 @@ test("clientIp uses the rightmost XFF hop, not the spoofable leftmost", () => {
 test("clientIp falls back to 'unknown' with no usable forwarding headers", () => {
   assert.equal(clientIp(() => null), "unknown");
   assert.equal(clientIp(hdr({ "x-forwarded-for": "  , ,  " })), "unknown");
+});
+
+/* ------------------------- account-recovery limits ------------------------- */
+
+test("asking for a reset link is capped far tighter than signing in — every request emails somebody", () => {
+  assert.ok(RESET_IP_LIMIT.maxFails < IP_LIMIT.maxFails);
+  assert.ok(RESET_STORE_LIMIT.maxFails < STORE_LIMIT.maxFails);
+  // Per-store is still looser than per-IP, so one shop's staff sharing a Wi-Fi
+  // IP can't be locked out by a per-store cap meant for a distributed attack.
+  assert.ok(RESET_STORE_LIMIT.maxFails > RESET_IP_LIMIT.maxFails);
+});
+
+test("the signed-out help form is the strictest limiter — it's the only anonymous write", () => {
+  assert.ok(PUBLIC_SUPPORT_LIMIT.maxFails <= RESET_IP_LIMIT.maxFails);
+  assert.ok(PUBLIC_SUPPORT_LIMIT.windowMs >= 60 * 60 * 1000); // an hour or more
+});
+
+test("every recovery window expires, so no limiter can lock someone out permanently", () => {
+  for (const limit of [RESET_IP_LIMIT, RESET_STORE_LIMIT, RECOVERY_CONFIRM_LIMIT, PUBLIC_SUPPORT_LIMIT]) {
+    assert.ok(limit.windowMs > 0 && limit.maxFails > 0);
+    const tripped = { count: limit.maxFails, windowStart: 0 };
+    assert.equal(throttleDecision(tripped, limit.windowMs - 1, limit).blocked, true);
+    assert.equal(throttleDecision(tripped, limit.windowMs, limit).blocked, false); // window rolled
+  }
+});
+
+test("recovery counters share the loginAttempts collection under distinct, sanitized keys", () => {
+  // The routes prefix their doc ids (reset_ip_…, reset_store_…, reset_confirm_…,
+  // verify_…, help_…) so a recovery burst can never eat a sign-in allowance.
+  assert.equal(`reset_ip_${attemptKey("203.0.113.9")}`, "reset_ip_203.0.113.9");
+  assert.equal(`reset_store_${attemptKey("acme market/../x")}`, "reset_store_acme_market_.._x");
 });

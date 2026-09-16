@@ -258,6 +258,41 @@ recompensas, con una vista previa fila por fila antes de escribir nada. Volver a
 correrla es seguro; los registros que ya están en tu tienda se emparejan y
 actualizan, nunca se duplican.
 
+**¿Qué pasa si olvido mi PIN?**
+Depende de lo que hayas dejado listo antes. El personal solo le pide a un dueño o
+gerente, que pone un PIN nuevo en **Admin → Personal** — al instante y sin nadie
+de fuera de la tienda. Un dueño con correo de recuperación confirmado toca
+**¿Olvidaste tu PIN?** en la pantalla de inicio de sesión y lo restablece solo;
+en una tienda con un segundo dueño, esa persona lo hace. Un único dueño sin
+correo confirmado tiene que pasar por **¿No puedes entrar?**, donde el soporte
+comprueba que la tienda es suya y entrega un PIN de un solo uso — el camino lento
+y el único que involucra a alguien fuera de tu tienda. Todos los detalles en la
+[guía de uso](/docs/getting-started-es#si-olvidas-tu-pin).
+
+**¿Cómo me aseguro de que eso nunca pase?**
+Dos minutos, una sola vez: agrega tu correo en **Admin → Mi cuenta** y abre el
+enlace de confirmación, y haz dueña a una segunda persona en **Admin → Personal**.
+Cualquiera de las dos, por sí sola, convierte un bloqueo en un arreglo de un
+minuto.
+
+**¿Puedo cambiar mi propio PIN?**
+Sí — en **Admin → Mi cuenta**, con tu PIN actual. Está ahí y no en la lista de
+Personal porque esa lista no edita tu propia fila. Después se cierra la sesión en
+todos lados y vuelves a entrar con el PIN nuevo.
+
+**Si el soporte restablece mi PIN, ¿entonces conoce mi PIN?**
+No. El camino normal te envía a *ti* un enlace por correo, así que el soporte
+nunca ve una credencial. Cuando no hay correo confirmado al cual escribir,
+entrega un PIN de un solo uso — y la app no se abre con él: va directo a "elige
+tu propio PIN" y se queda ahí hasta que lo hagas. Cada restablecimiento queda
+registrado con el nombre del operador y el motivo que escribió.
+
+**¿Alguien puede apoderarse de mi cuenta con solo saber mi correo?**
+No. Una dirección tiene que confirmarse desde ese buzón antes de poder
+restablecer nada, un enlace sirve una sola vez y vence en 30 minutos, y el
+formulario responde igual coincidan o no el código de tienda y la dirección — así
+que tampoco sirve para averiguar quién trabaja dónde.
+
 **¿Puedo ponerle mi marca?**
 El dueño puede fijar el nombre del negocio, el logo, la paleta de colores, la
 tipografía y el tamaño de texto desde Admin. Una personalización más profunda es

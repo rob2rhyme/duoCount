@@ -89,7 +89,13 @@ export default function SessionProvider({ children }) {
       (snap) => {
         if (!snap.exists()) return; // user deletion isn't a supported flow
         const d = snap.data();
-        if (d.active === false || d.role !== cRole) signOut(auth);
+        if (d.active === false || d.role !== cRole) { signOut(auth); return; }
+        // Otherwise keep our own profile live, the way the vendor watch does:
+        // confirming a recovery email or being handed a must-change PIN happens
+        // outside this tab (in a mailbox, or in the /dev console), and the
+        // screens that react to it would otherwise sit stale until the next
+        // sign-in. `claims` is token state, not doc state — preserve it.
+        setProfile((p) => (p ? { ...p, ...d, id: snap.id, claims: p.claims } : p));
       },
       () => {}, // transient listen errors: the next auth cycle re-checks
     );

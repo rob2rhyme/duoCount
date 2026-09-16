@@ -762,5 +762,17 @@ service cloud.firestore {
     match /billing/{vendorId} {
       allow read, write: if false;
     }
+
+    // ---- Account-recovery links (top-level, server-only) ----
+    // One doc per outstanding "reset your PIN" / "confirm your email" link,
+    // holding a SALTED HASH of the link's secret plus who it belongs to. Minted,
+    // spent and burned only by the Admin SDK (/api/auth/reset, /api/account,
+    // /api/auth/verify-email). A client that could read this collection could
+    // enumerate which accounts have a reset in flight; one that could write it
+    // could mint a link to any account. Neither is possible: no client reads or
+    // writes a single field here.
+    match /recoveryTokens/{tokenId} {
+      allow read, write: if false;
+    }
   }
 }

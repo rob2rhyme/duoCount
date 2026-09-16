@@ -3,16 +3,18 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { hashPin } from "@/lib/hash";
 import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
 import { requireOwner } from "@/lib/require-manager";
+import { pinTaken, setUserPin } from "@/lib/pin-store";
+import { cleanEmailInput, buildVerifyEmail, buildPinChangedEmail, verifyLink, hasRecoveryEmail } from "@/lib/recovery";
+import { mintToken, burnTokens, appUrlFrom, trySend } from "@/lib/recovery-store";
 
 export const runtime = "nodejs";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// "" clears the email; a non-empty value must look like an address.
+// "" clears the email; a non-empty value must look like an address. The rule
+// itself lives in recovery.js so this route, /api/account and sign-up can't
+// drift on what counts as an address.
 function cleanEmail(raw) {
-  const v = String(raw ?? "").trim();
-  if (v === "") return { email: null };
-  if (!EMAIL_RE.test(v) || v.length > 200) return { error: "Enter a valid email (or leave it blank)." };
-  return { email: v.toLowerCase() };
+  const r = cleanEmailInput(raw);
+  return r.error ? { error: "Enter a valid email (or leave it blank)." } : r;
 }
 
 // A client-supplied locationId is untrusted: verify it names a real, active
@@ -31,7 +33,7 @@ async function locationError(adminDb, vendorId, locationId) {
 export async function POST(req) {
   try {
     const claims = await requireOwner(req);
-    const { name, pin, role, locationId, email } = await req.json();
+    const { name, pin, role, locationId, email, lang } = await req.json();
     if (!name || name.trim().length < 2)
       return NextResponse.json({ error: "Enter a name." }, { status: 400 });
     if (!isValidNewPin(pin))
@@ -53,23 +55,19 @@ export async function POST(req) {
     }
 
     // PIN must be unique within this store so login can identify the person.
-    const users = await vendorRef.collection("users").get();
-    for (const u of users.docs) {
-      const creds = await u.ref.collection("private").doc("creds").get();
-      if (creds.exists) {
-        const { verifyPin } = await import("@/lib/hash");
-        if (verifyPin(pin, creds.data().pinHash))
-          return NextResponse.json({ error: "That PIN is already in use at this store." }, { status: 409 });
-      }
-    }
+    if (await pinTaken(adminDb, claims.vendorId, pin))
+      return NextResponse.json({ error: "That PIN is already in use at this store." }, { status: 409 });
 
     const ref = vendorRef.collection("users").doc();
     await ref.set({
       name: name.trim(), role: newRole,
       locationId: newRole === "employee" ? locationId : (locationId || null),
-      email: em.email, active: true, createdAt: new Date(),
+      // Unconfirmed until this person opens the link — an owner typing an
+      // address is not proof that its reader wants to recover this account.
+      email: em.email, emailVerifiedAt: null, active: true, createdAt: new Date(),
     });
     await ref.collection("private").doc("creds").set({ pinHash: hashPin(pin) });
+    if (em.email) await sendVerify(req, adminDb, { vendorId: claims.vendorId, userId: ref.id, name: name.trim(), email: em.email, lang });
     return NextResponse.json({ ok: true, id: ref.id });
   } catch (e) {
     if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
@@ -81,7 +79,7 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     const claims = await requireOwner(req);
-    const { userId, role, active, locationId, pin, email } = await req.json();
+    const { userId, role, active, locationId, pin, email, lang } = await req.json();
     if (!userId) return NextResponse.json({ error: "Missing userId." }, { status: 400 });
     if (userId === claims.userId)
       return NextResponse.json({ error: "You can't modify your own account here." }, { status: 400 });
@@ -112,10 +110,19 @@ export async function PATCH(req) {
       }
       patch.locationId = locationId || null;
     }
+    let verifyFor = null; // set below when a new address needs confirming
     if (email !== undefined) {
       const em = cleanEmail(email);
       if (em.error) return NextResponse.json({ error: em.error }, { status: 400 });
-      patch.email = em.email;
+      // Changing or clearing the address drops its confirmation and kills any
+      // outstanding link, so an address the owner just removed can't still
+      // recover the account from a mail someone already received.
+      if ((em.email || null) !== (target.email || null)) {
+        patch.email = em.email;
+        patch.emailVerifiedAt = null;
+        await burnTokens(adminDb, { kind: "verify", vendorId: claims.vendorId, userId });
+        verifyFor = em.email;
+      }
     }
 
     // A store must always keep at least one active owner. If this change would
@@ -160,21 +167,53 @@ export async function PATCH(req) {
       // A reset PIN must stay unique within the store (excluding this user).
       // Sign-in identifies a person by their PIN, so a collision would let login
       // resolve to the wrong identity — same check the create path enforces.
-      const vendorRef = adminDb.collection("vendors").doc(claims.vendorId);
-      const users = await vendorRef.collection("users").get();
-      const { verifyPin } = await import("@/lib/hash");
-      for (const u of users.docs) {
-        if (u.id === userId) continue;
-        const creds = await u.ref.collection("private").doc("creds").get();
-        if (creds.exists && verifyPin(pin, creds.data().pinHash))
-          return NextResponse.json({ error: "That PIN is already in use at this store." }, { status: 409 });
-      }
-      await ref.collection("private").doc("creds").set({ pinHash: hashPin(pin) });
+      if (await pinTaken(adminDb, claims.vendorId, pin, userId))
+        return NextResponse.json({ error: "That PIN is already in use at this store." }, { status: 409 });
+      // In-store reset: the owner hands the PIN over face to face, which is the
+      // documented model here, so no forced change. What DOES travel with it is
+      // the rest of the bookkeeping — any recovery link in flight dies and live
+      // sessions are dropped. (Support's cross-tenant reset in /api/dev is the
+      // one that forces a change; a developer must never keep a working
+      // credential for a store they don't work at.)
+      await setUserPin(adminDb, adminAuth, { vendorId: claims.vendorId, userId, pin, mustChangePin: false });
+      if (hasRecoveryEmail({ ...target, ...patch }))
+        await trySend({
+          to: patch.email !== undefined ? patch.email : target.email,
+          ...buildPinChangedEmail({ lang: lang === "es" ? "es" : "en", storeName: await storeNameOf(adminDb, claims.vendorId), name: target.name, by: "owner" }),
+        });
     }
+    if (verifyFor)
+      await sendVerify(req, adminDb, { vendorId: claims.vendorId, userId, name: target.name, email: verifyFor, lang });
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
     console.error("staff error", e);
     return NextResponse.json({ error: "Staff action failed." }, { status: 500 });
   }
+}
+
+// Mail a confirmation link for a staff address the OWNER typed. Best-effort:
+// the staff edit itself has already succeeded, and an unconfirmed address is
+// simply one that can't recover an account yet.
+async function sendVerify(req, adminDb, { vendorId, userId, name, email, lang }) {
+  try {
+    const { token } = await mintToken(adminDb, { kind: "verify", vendorId, userId });
+    await trySend({
+      to: email,
+      ...buildVerifyEmail({
+        lang: lang === "es" ? "es" : "en",
+        storeName: await storeNameOf(adminDb, vendorId), name,
+        link: verifyLink(appUrlFrom(req), token),
+      }),
+    });
+  } catch (e) {
+    console.error("staff verify email failed", e?.message || e);
+  }
+}
+
+async function storeNameOf(adminDb, vendorId) {
+  try {
+    const snap = await adminDb.collection("vendors").doc(vendorId).get();
+    return snap.exists ? (snap.data().name || "") : "";
+  } catch { return ""; }
 }

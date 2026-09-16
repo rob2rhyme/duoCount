@@ -58,8 +58,44 @@ If you work a shift and just need to log your counts, jump to
    under the sign-in button), then **Create business & sign in**.
 2. Enter your **business name**, **your name**, and a **6-digit PIN** you'll
    remember. (A logo URL is optional.)
-3. The app gives you a **store code** — write it down. This is what you and every
+3. Add **your email**. It's optional, but it's the only way to reset your own PIN
+   later without phoning support — see [If you forget your PIN](#if-you-forget-your-pin).
+   Open the confirmation email that arrives; until you do, the address can't
+   recover anything.
+4. The app gives you a **store code** — write it down. This is what you and every
    employee type to sign in. You are now the **owner**.
+
+### If you forget your PIN
+
+Nobody is ever permanently locked out, but how quickly you're back in depends on
+what you set up beforehand. In order of speed:
+
+- **Staff** — ask an owner or manager. In **Admin → Staff** they set you a new
+  PIN on the spot. Nobody outside the store is involved.
+- **You, with a confirmed email** — tap **Forgot your PIN?** on the sign-in
+  screen, enter your store code and that email, and you'll get a link to choose a
+  new PIN. The link works once and expires after 30 minutes.
+- **You, with a second owner** — that owner resets your PIN in **Admin → Staff**,
+  exactly like any staff PIN.
+- **Sole owner, no confirmed email** — tap **Can't sign in?** and send the form.
+  DuoCount support checks the store is yours, then issues a one-time PIN you'll
+  replace the moment you sign in. This is the slowest path, and it's the only one
+  that depends on someone outside your store.
+
+**Two minutes now saves that whole last row:**
+
+1. **Admin → My account** → add your email and open the confirmation link. The
+   badge turns to *Confirmed*.
+2. **Admin → Staff** → make a second person an **owner** (a partner, a spouse, a
+   long-serving manager).
+
+Either one on its own turns a lockout into a one-minute fix. You can also change
+your own PIN any time in **Admin → My account** — that's the place for it, since
+the Staff list deliberately won't edit your own row.
+
+> **A PIN you didn't choose only works once.** If support ever issues you a
+> temporary PIN, the app opens straight onto "choose your own PIN" and goes no
+> further until you do — so the person who gave it to you can't keep using it.
 
 ### 2. Set the store up (Admin tab)
 
@@ -355,6 +391,11 @@ off changes nothing about how DuoCount works.
 
 Type the **store code** your manager gave you and **your own PIN**, then
 **Sign in**. That's it — your name is attached to everything you log.
+
+> **Forgot your PIN?** Ask an owner or manager — in **Admin → Staff** they can
+> set you a new one right away. If you've added and confirmed your email in
+> **Admin → My account**, you can also tap **Forgot your PIN?** on the sign-in
+> screen and reset it yourself. You can change your own PIN there any time, too.
 
 > **See "Your manager is still setting up this store"?** That just means your
 > manager hasn't added a location, drawer, or the items yet — there's nothing
