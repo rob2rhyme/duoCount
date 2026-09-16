@@ -72,15 +72,17 @@ jobs:
           node-version: 20
           cache: npm
 
-      # The Firestore emulator is a Java process. ubuntu-latest ships a JDK,
-      # but pinning one keeps this job from breaking the day the image changes.
+      # The Firestore emulator is a Java process, and firebase-tools 15 refuses
+      # to start it on anything below JDK 21 ("no longer supports Java version
+      # before 21"). Don't lower this without checking that error first — 17
+      # looks reasonable and fails in one second.
       # (v4, not v5: checkout/setup-node are on v5 because this repo's other
       # workflow already proves those tags resolve. An action tag that doesn't
       # exist fails the job instantly, so this one stays on the major known good.)
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Install
         run: npm ci
