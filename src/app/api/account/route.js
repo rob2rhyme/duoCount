@@ -4,7 +4,10 @@ import { requireMember } from "@/lib/require-manager";
 import { verifyPin } from "@/lib/hash";
 import { isValidNewPin } from "@/lib/pin";
 import { pinTaken, setUserPin } from "@/lib/pin-store";
-import { cleanEmailInput, buildVerifyEmail, buildPinChangedEmail, verifyLink, verifyConflict, hasRecoveryEmail } from "@/lib/recovery";
+import {
+  cleanEmailInput, buildVerifyEmail, buildPinChangedEmail, buildRecoveryEmailChangedEmail,
+  verifyLink, verifyConflict, hasRecoveryEmail,
+} from "@/lib/recovery";
 import { mintToken, burnTokens, appUrlFrom, trySend } from "@/lib/recovery-store";
 
 export const runtime = "nodejs";
@@ -79,11 +82,34 @@ export async function POST(req) {
     if (action === "setEmail") {
       const em = cleanEmailInput(body.email);
       if (em.error) return err(400, "bad_email", "Enter a valid email (or leave it blank).");
+
+      // Setting the recovery address IS a credential change — arguably a bigger
+      // one than the PIN. It decides who can take this account over later, and
+      // unlike a PIN it OUTLIVES every later PIN change, so the rightful owner
+      // can't evict a hijacker by rotating their PIN. Without the current PIN
+      // here, a minute alone with a signed-in device (the exact threat the
+      // changePin branch above guards against) converts into permanent, silent
+      // account takeover: repoint the address, confirm it from your own inbox,
+      // walk away, and request a reset link from anywhere, forever.
+      const credsSnap = await userRef.collection("private").doc("creds").get();
+      const stored = credsSnap.exists ? credsSnap.data().pinHash : null;
+      if (!stored || !verifyPin(String(body.currentPin ?? "").trim(), stored))
+        return err(401, "bad_current_pin", "That's not your current PIN.");
+
+      // Whoever holds the address that's losing its claim is the one party who
+      // can spot a hijack and — by definition — isn't the attacker. Tell them,
+      // on a change and on a removal alike. Best-effort: never blocks the edit.
+      const losing = hasRecoveryEmail(me) && (me.email || null) !== (em.email || null) ? me.email : null;
+      const notifyLosing = (newEmail) => (losing
+        ? trySend({ to: losing, ...buildRecoveryEmailChangedEmail({ lang, storeName, name: me.name, newEmail }) })
+        : Promise.resolve(false));
+
       if (!em.email) {
         // Clearing the address also clears the confirmation and any link in
         // flight — otherwise a removed address could still recover the account.
         await userRef.update({ email: null, emailVerifiedAt: null });
         await burnTokens(adminDb, { kind: "verify", vendorId, userId });
+        await notifyLosing(null);
         return NextResponse.json({ ok: true, email: null, verified: false });
       }
       const users = (await adminDb.collection("vendors").doc(vendorId).collection("users").get())
@@ -96,6 +122,7 @@ export async function POST(req) {
       const link = verifyLink(appUrlFrom(req), token);
       const mail = buildVerifyEmail({ lang, storeName, name: me.name, link });
       const sent = await trySend({ to: em.email, ...mail });
+      await notifyLosing(em.email);
       return NextResponse.json({ ok: true, email: em.email, verified: false, sent });
     }
 

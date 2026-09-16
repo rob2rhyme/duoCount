@@ -27,6 +27,7 @@ shape everything below:
 |---|---|---|
 | Staff forgot their PIN | Owner/manager sets a new one in **Admin → Staff** | someone in the store |
 | Anyone wants to rotate their own PIN | **Admin → My account** (current PIN + new PIN) | nobody |
+| Anyone wants to add or change a recovery email | **Admin → My account** (current PIN + confirm from the inbox) | nobody |
 | Owner forgot their PIN, confirmed email on file | **Forgot your PIN?** → emailed link → choose a new PIN | nobody |
 | Owner forgot their PIN, second owner exists | The other owner resets it in **Admin → Staff** | the second owner |
 | Sole owner, no confirmed email | **Can't sign in?** → signed-out form → support verifies, then issues a one-time PIN | DuoCount support |
@@ -40,14 +41,25 @@ sign-in screen next to **Forgot your PIN?**.
 An address only becomes a recovery path once its holder opens a confirmation
 link, so a typo'd or someone-else's address can never take an account over.
 
+**Setting it costs the current PIN**, exactly like changing the PIN does. The
+recovery address is a credential — it decides who can reset this account later —
+and unlike a PIN it *outlives every later PIN change*, so a rightful owner
+couldn't evict a hijacker by rotating their PIN. Without that check, a minute
+alone with a signed-in device (a shared till tablet, a phone left on the counter)
+would convert into permanent silent takeover: repoint the address, confirm it
+from your own inbox, walk away, and request a reset link from anywhere,
+indefinitely. Changing or clearing a **confirmed** address also mails a notice to
+the address that is losing the claim — the one party who can spot a hijack and,
+by definition, isn't the attacker.
+
 - Asked for at **sign-up** (optional, one line of explanation about what skipping
   it costs) and editable in **Admin → My account**.
 - An owner may also put an address on a staff record in **Admin → Staff**; that
   address arrives *unconfirmed* and mails the staff member a confirmation link —
   an owner typing an address is not evidence that its reader wants it to recover
   anything.
-- Changing or clearing an address drops its confirmation **and** burns any link
-  already in flight.
+- Changing or clearing an address drops its confirmation, burns any link already
+  in flight, and notifies the address that is losing the claim.
 - The field stays dual-purpose (schedule emails also use it), so duplicates may
   exist. What can't be duplicated is the *recovery claim*: first to confirm wins,
   and the second is told plainly (`verifyConflict`).
@@ -102,6 +114,16 @@ written reason (≥10 chars, stored in `adminAudit`) and offers two shapes:
   `mustChangePin`. The app opens nothing but the replace-your-PIN screen
   until the owner picks their own, after which what support saw is worthless.
   Audited as `resetOwnerPin`.
+
+  To be precise about what `mustChangePin` is: a **client gate**
+  (`src/app/page.js`), not a server-side authorization boundary. Login mints an
+  ordinary token for a temporary PIN, because the person holding it is entitled
+  to use it — once — to reach the screen that replaces it. The only other holder
+  is the operator who issued it, who already has unrestricted cross-tenant Admin
+  SDK power and gains nothing by bypassing a screen. What makes the temporary PIN
+  safe is that it is server-generated, unique at that store, single-trip, audited
+  with a reason, and dead the moment the owner completes the change — not that
+  the gate is enforced server-side.
 
 Either way the owner is emailed a notice if an address is on file, live sessions
 are dropped, and any link already in flight dies.

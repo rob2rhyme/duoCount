@@ -44,7 +44,7 @@ export default function AccountCard({ onToast }) {
     });
   };
 
-  const saveEmail = () => run({ action: "setEmail", email }, (r) => {
+  const saveEmail = () => run({ action: "setEmail", email, currentPin: current }, (r) => {
     if (!r.email) return onToast?.(t("acct.email_cleared"));
     return onToast?.(r.sent ? t("acct.email_saved") : t("acct.email_unsent"));
   });
@@ -57,14 +57,19 @@ export default function AccountCard({ onToast }) {
       <h2 className="text-[15px] font-semibold">{t("acct.title")}</h2>
       <p className="text-[12px] text-muted mt-1 leading-relaxed">{t("acct.sub")}</p>
 
+      {/* One current-PIN field for the whole card: BOTH edits below are
+          credential changes — the recovery address decides who can reset this
+          account later and outlives any PIN change — so both are held to the
+          same bar, and the server re-checks each one. */}
+      <Field className="mt-4 max-w-[220px]" label={t("acct.current_pin")} hint={t("acct.identity_hint")}>
+        <input className="input text-center tracking-[0.3em] font-mono" type="password" inputMode="numeric"
+          autoComplete="current-password" maxLength={PIN_LENGTH} value={current} placeholder={PIN_PLACEHOLDER}
+          onChange={(e) => setCurrent(e.target.value.replace(/\D/g, ""))} />
+      </Field>
+
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div className="space-y-3">
           <h3 className="text-[13px] font-semibold">{t("acct.change_pin")}</h3>
-          <Field label={t("acct.current_pin")}>
-            <input className="input text-center tracking-[0.3em] font-mono" type="password" inputMode="numeric"
-              autoComplete="current-password" maxLength={PIN_LENGTH} value={current} placeholder={PIN_PLACEHOLDER}
-              onChange={(e) => setCurrent(e.target.value.replace(/\D/g, ""))} />
-          </Field>
           <Field label={t("acct.new_pin")}>
             <input className="input text-center tracking-[0.3em] font-mono" type="password" inputMode="numeric"
               autoComplete="new-password" maxLength={PIN_LENGTH} value={pin} placeholder={PIN_PLACEHOLDER}
@@ -95,7 +100,8 @@ export default function AccountCard({ onToast }) {
               value={email} placeholder="you@example.com" onChange={(e) => setEmail(e.target.value)} />
           </Field>
           <div className="flex gap-2">
-            <button className="btn-primary w-auto px-4" disabled={busy || email.trim() === onFile} onClick={saveEmail}>
+            <button className="btn-primary w-auto px-4"
+              disabled={busy || email.trim() === onFile || current.length < PIN_LENGTH} onClick={saveEmail}>
               {t("acct.email_save")}
             </button>
             {onFile && !verified && (

@@ -7,7 +7,7 @@ import {
   resetRecipients, resolveResetTarget, hasRecoveryEmail, verifyConflict,
   resetLink, verifyLink, recoveryLink,
   EMAIL_COPY, EMAIL_LOCALES, pickLang, line,
-  buildResetEmail, buildVerifyEmail, buildPinChangedEmail,
+  buildResetEmail, buildVerifyEmail, buildPinChangedEmail, buildRecoveryEmailChangedEmail,
   RESET_TTL_MIN, RESET_TTL_MS, VERIFY_TTL_DAYS, NEUTRAL_RESULT, CHANGED_BY,
 } from "../src/lib/recovery.js";
 
@@ -181,6 +181,28 @@ test("the PIN-changed notice names WHO changed it, in each supported flavour", (
   }
   // an unknown flavour degrades to "self" rather than rendering a raw key
   assert.match(buildPinChangedEmail({ lang: "en", storeName: "Acme", by: "hacker" }).text, want.self);
+});
+
+test("losing a recovery claim is reported to the address that is losing it", () => {
+  // The address being replaced is the only party who can spot a hijack and is,
+  // by definition, not the attacker — so the notice has to say what happened and
+  // what to do, in both directions (replaced, and removed outright).
+  const to = buildRecoveryEmailChangedEmail({ lang: "en", storeName: "Acme", name: "Jo", newEmail: "new@x.com" });
+  assert.match(to.subject, /recovery email/i);
+  assert.match(to.text, /changed to new@x\.com/);
+  assert.match(to.text, /no longer recover/i);
+  assert.match(to.text, /Change your PIN now/);
+
+  const cleared = buildRecoveryEmailChangedEmail({ lang: "en", storeName: "Acme", name: "Jo" });
+  assert.match(cleared.text, /was removed/);
+  assert.doesNotMatch(cleared.text, /changed to/);
+});
+
+test("the recovery-email notice is a real Spanish translation too", () => {
+  const m = buildRecoveryEmailChangedEmail({ lang: "es", storeName: "Acme", name: "Jo", newEmail: "new@x.com" });
+  assert.match(m.subject, /correo de recuperación/);
+  assert.match(m.text, /ya no puede recuperar/);
+  assert.doesNotMatch(m.text, /was changed/);
 });
 
 test("email bodies escape HTML so a store name can't inject markup", () => {

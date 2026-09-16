@@ -175,6 +175,12 @@ export const EMAIL_COPY = Object.freeze({
     changed_owner: "An owner at {store} just reset your PIN.",
     changed_support: "DuoCount support reset the owner PIN for {store} at your store's request. You'll be asked to choose your own new PIN the next time you sign in.",
     changed_warn: "Didn't do this? Reply to this email or contact DuoCount support right away.",
+    rechanged_subject: "The recovery email on your {store} account changed",
+    rechanged_head: "Recovery email changed",
+    rechanged_hi: "Hi {name},",
+    rechanged_to: "The address that can reset the PIN for your {store} account was changed to {email}. This address can no longer recover that account.",
+    rechanged_cleared: "The recovery email on your {store} account was removed. This address can no longer reset its PIN.",
+    rechanged_warn: "Didn't do this? Someone may have used your signed-in device. Change your PIN now and tell the store owner or DuoCount support.",
     support_subject: "DuoCount support — re: your message",
     support_head: "A reply from DuoCount support",
     support_intro: "You wrote to DuoCount support because you couldn't sign in. Here's the reply:",
@@ -204,6 +210,12 @@ export const EMAIL_COPY = Object.freeze({
     changed_owner: "Un dueño de {store} acaba de restablecer tu PIN.",
     changed_support: "El soporte de DuoCount restableció el PIN del dueño de {store} a pedido de tu tienda. Se te pedirá elegir tu propio PIN nuevo la próxima vez que inicies sesión.",
     changed_warn: "¿No fuiste tú? Responde a este correo o contacta al soporte de DuoCount de inmediato.",
+    rechanged_subject: "Cambió el correo de recuperación de tu cuenta de {store}",
+    rechanged_head: "Cambió el correo de recuperación",
+    rechanged_hi: "Hola {name}:",
+    rechanged_to: "La dirección que puede restablecer el PIN de tu cuenta en {store} se cambió a {email}. Esta dirección ya no puede recuperar esa cuenta.",
+    rechanged_cleared: "Se quitó el correo de recuperación de tu cuenta en {store}. Esta dirección ya no puede restablecer su PIN.",
+    rechanged_warn: "¿No fuiste tú? Puede que alguien haya usado tu dispositivo con la sesión abierta. Cambia tu PIN ahora y avisa al dueño de la tienda o al soporte de DuoCount.",
     support_subject: "Soporte de DuoCount — sobre tu mensaje",
     support_head: "Respuesta del soporte de DuoCount",
     support_intro: "Escribiste al soporte de DuoCount porque no podías iniciar sesión. Esta es la respuesta:",
@@ -284,6 +296,28 @@ export function buildPinChangedEmail({ lang, storeName, name, by = "self" } = {}
       head: line(l, "changed_head"),
       paras: [line(l, "changed_hi", { name: name || "" }), line(l, `changed_${which}`, { store })],
       note: line(l, "changed_warn"),
+    }),
+  };
+}
+
+/**
+ * Sent to the address that is LOSING its recovery claim, at the moment it loses
+ * it. Changing where a reset link goes decides who can take an account over
+ * later and outlives every PIN change, so the one party who can spot a hijack —
+ * and the one party who by definition isn't the attacker — has to hear about it.
+ * `newEmail` null means the address was removed rather than replaced.
+ */
+export function buildRecoveryEmailChangedEmail({ lang, storeName, name, newEmail = null } = {}) {
+  const l = pickLang(lang);
+  const store = storeName || "DuoCount";
+  return {
+    subject: line(l, "rechanged_subject", { store }),
+    ...renderEmail({
+      lang: l,
+      head: line(l, "rechanged_head"),
+      paras: [line(l, "rechanged_hi", { name: name || "" }),
+        newEmail ? line(l, "rechanged_to", { store, email: newEmail }) : line(l, "rechanged_cleared", { store })],
+      note: line(l, "rechanged_warn"),
     }),
   };
 }

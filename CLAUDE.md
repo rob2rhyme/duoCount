@@ -70,6 +70,11 @@ Two rules that are easy to break by accident:
   store, failed send, internal error. Anything that makes those distinguishable
   re-opens store/staff enumeration.
 
+- **A recovery-address change costs the current PIN**, same as a PIN change
+  (`/api/account` `setEmail`). It outlives every later PIN change, so without
+  that check a minute with a signed-in device becomes permanent takeover. The
+  address losing a confirmed claim gets a notice.
+
 An email only recovers an account once **confirmed** (`emailVerifiedAt`); policy
 is pure in `src/lib/recovery.js` (+ `tests/recovery.test.mjs`), I/O in
 `recovery-store.js`. Support's `/dev` reset prefers emailing the owner a link
