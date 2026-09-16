@@ -125,14 +125,31 @@ trail; `resetOwnerPin` is a latent, unlogged impersonation path.
 |---|---|---|---|---|
 | **Operator identity + RBAC** ✅ | Move from the env allowlist to `platformAdmins/{uid}` with `role`/`scopes` (support / finance / superadmin); check scope per action; mint per-operator tokens carrying a real uid+name | Gives every action an attributable actor (unlocks the audit log), shrinks a compromised seat's blast radius, and fixes revocation (delete a doc vs. redeploy) | M–L | Medium — the point is least-privilege; break-glass elevation JIT + logged |
 | **Admin-action audit log** ✅ | Append-only, tamper-evident `adminAudit` (default-deny, Admin-SDK-write-only); wrap **every** `storeAction`/`ticket*`/billing handler — actor, ts, tenant, action, before/after, reason; retrofit existing handlers | The one place the product fails its own standard; the safe foundation every cross-tenant feature depends on | M | Require a free-text reason on sensitive ops; no update/delete (match the count ledger) |
-| **Harden operator *authentication*** | Confirm `/api/auth/dev` throttling, add MFA/second factor, and a credential-rotation story | A single shared static password = full cross-tenant compromise. **Hardening the door outranks hardening any single action** | S–M | High if omitted |
+| **Harden operator *authentication*** ✅ | Confirm `/api/auth/dev` throttling, add MFA/second factor, and a credential-rotation story | A single shared static password = full cross-tenant compromise. **Hardening the door outranks hardening any single action** | S–M | High if omitted |
 | **Operator-writable entitlements** | An `entitlements` map on the vendor doc, resolved *under* owner `features` toggles, optionally defaulted from `billing.plan` | Plan gates nothing today; enables staged rollout + emergency kill-switch | **M–L** *(not S — it's a trust-spine refactor: touches every `featureEnabled` gate and must never drop already-signed count data)* | A kill-switch must never silently disable a theft detector without an audit entry |
-| **Harden (don't remove) `resetOwnerPin`** | Keep it (it's real lockout recovery), but **force a PIN change on next owner login, notify the owner, and audit loudly** | Removing it strands locked-out owners; the hole is that it's *unlogged/unconsented*, not that it exists | S | High if left as-is; the fix is the point |
+| **Harden (don't remove) `resetOwnerPin`** ✅ | Keep it (it's real lockout recovery), but **force a PIN change on next owner login, notify the owner, and audit loudly** | Removing it strands locked-out owners; the hole is that it's *unlogged/unconsented*, not that it exists | S | High if left as-is; the fix is the point |
 | **Backup / DR for the operator plane** | Export/backup of `billing`, `billing_events`, `supportTickets`, `adminAudit` | These are top-level, default-deny, single-owner-critical, and covered by **no** tenant export | M | Low to build, high to omit |
 | **Read-only, audited impersonation ("view as store")** | Short-lived (JIT), consent-gated where feasible; token stamped with the real `impersonator_id` + a **`readonly` claim**; persistent banner; every action audited under the operator's real id | Support can't see the owner's actual screens today | L | **Highest-risk.** *Correction:* "read-only" must be enforced in **Firestore rules** — a token stamped with `vendorId` to satisfy reads is, by those same rules, write-capable. Rules must **deny every write bearing the impersonator/readonly claim**. Never build write-impersonation — a writable session could forge a countersigned count |
 | **Global search — metadata only** | Universal bar over store / owner / plan / ticket | The #1 daily support action | M | Keep to **metadata**; any drill-in to signed counts/PII routes through impersonation + audit, never a raw query |
 | **GDPR export / erasure** | Full-tenant export; hard-delete customer PII (rewards) but **anonymize-don't-delete** the signed count ledger (tombstone the clerk id, keep the immutable count) | Legally required for rewards PII | M–L | Irreversible → reason-required, audited, ideally two-operator-approved |
 | **Guarded bulk actions** | Op on a filtered cohort with typed-count confirmation + per-row audit | Cohort action at fleet scale | S–M | Cap batch size; **never** bulk destructive/irreversible ops |
+
+> **✅ Shipped — the operator credential and `resetOwnerPin`.** The dev login now
+> takes an optional TOTP second factor (`DEV_ADMIN_TOTP_SECRET`; blank = off, so
+> deploying it can't lock the developer out), and the rotation story is written
+> down in `credential-recovery-runbook.md` — deliberately *not* an email-driven
+> password reset, which would make that mailbox the real credential. Rotation is
+> an env change plus a redeploy; a second registry operator and the existing
+> last-superadmin guard are what make a lost password an inconvenience.
+>
+> `resetOwnerPin` is hardened rather than removed, as the row below argued.
+> It now demands a written reason (audited), and defaults to **emailing the owner
+> the same one-time link the self-serve flow uses** — support triggers a reset
+> without ever seeing a credential. The temporary-PIN path survives only for an
+> owner with no confirmed address: the *server* generates it, it's shown once,
+> and it sets `mustChangePin`, so the app opens nothing but the replace-your-PIN
+> screen until the owner picks their own. Owners are emailed either way. Full
+> design: `account-recovery-spec.md`.
 
 **Not building:** write-impersonation, a device/heartbeat fleet registry (low value for a
 web app), rendering secret values, un-audited hard-deletes.

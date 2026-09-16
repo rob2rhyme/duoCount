@@ -3,8 +3,9 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { requireSignedIn, requirePlatformAdmin, resolvePlatformAdmin, assertScope } from "@/lib/require-manager";
 import { scopesForRole, ROLES, normalizeRole } from "@/lib/platform-admins";
 import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
-import { hashPin } from "@/lib/hash";
-import { isValidNewPin } from "@/lib/pin";
+import { hasRecoveryEmail, buildResetEmail, buildPinChangedEmail, buildSupportReplyEmail, resetLink } from "@/lib/recovery";
+import { mintToken, appUrlFrom, trySend } from "@/lib/recovery-store";
+import { issueTempPin } from "@/lib/pin-store";
 import { normalizeBilling } from "@/lib/billing";
 import { buildAuditEntry } from "@/lib/admin-audit";
 
@@ -108,7 +109,16 @@ export async function POST(req) {
         };
         if (roughSize({ ...t, ...next }) > DOC_BUDGET) return err(413, "attach_budget", "This ticket is full.");
         await ref.update(next);
-        return NextResponse.json({ ok: true, status: next.status || t.status });
+        // A signed-out help request came from someone who can't read the
+        // in-app thread — that's why they wrote. Mail them the reply, or the
+        // one channel built for locked-out people dead-ends.
+        let emailed = null;
+        if (t.public && t.contactEmail && built.message.text)
+          emailed = await trySend({
+            to: t.contactEmail,
+            ...buildSupportReplyEmail({ lang: t.lang === "es" ? "es" : "en", text: built.message.text }),
+          });
+        return NextResponse.json({ ok: true, status: next.status || t.status, emailed });
       }
 
       // ticketStatus — dev may set open/pending/resolved; resolving records a reason.
@@ -251,16 +261,40 @@ export async function POST(req) {
       }
       if (op === "resetOwnerPin") {
         assertScope(me, "pin");
-        const pin = String(body.pin ?? "").trim();
-        if (!isValidNewPin(pin)) return err(400, "bad_pin", "Enter a valid 6-digit PIN.");
+        // This is the most dangerous button in the console — it hands someone
+        // access to a store the operator doesn't work at — so it now costs a
+        // stated reason, and it never lets support keep a working credential.
+        const reason = String(body.reason ?? "").trim().slice(0, REASON_MAX);
+        if (reason.length < 10) return err(400, "need_reason", "Say why this reset is needed (at least 10 characters).");
         const users = await vref.collection("users").where("role", "==", "owner").where("active", "==", true).limit(1).get();
         if (users.empty) return err(404, "no_owner", "No active owner on that store.");
-        const ownerRef = users.docs[0].ref;
-        await ownerRef.collection("private").doc("creds").set({ pinHash: hashPin(pin) }, { merge: true });
-        // Force re-auth so any live session with the old PIN's token is dropped.
-        try { await adminAuth.revokeRefreshTokens(`${vref.id}_${ownerRef.id}`); } catch { /* not signed in */ }
-        await logAudit("resetOwnerPin");
-        return NextResponse.json({ ok: true });
+        const owner = { id: users.docs[0].id, ...users.docs[0].data() };
+        const lang = body.lang === "es" ? "es" : "en";
+
+        // Preferred path: mail the owner the same one-time link the self-serve
+        // flow uses. Support triggers the reset but never learns the PIN, and
+        // the owner proves they still hold the confirmed address.
+        if (body.mode !== "temp") {
+          if (!hasRecoveryEmail(owner))
+            return err(400, "no_recovery_email", "That owner has no confirmed recovery email — use a temporary PIN instead.");
+          const { token } = await mintToken(adminDb, { kind: "reset", vendorId: vref.id, userId: owner.id });
+          const mail = buildResetEmail({ lang, storeName: vname, name: owner.name, link: resetLink(appUrlFrom(req), token) });
+          const sent = await trySend({ to: owner.email, ...mail });
+          await logAudit("ownerResetLink", reason);
+          return NextResponse.json({ ok: true, mode: "link", sent, email: owner.email });
+        }
+
+        // Fallback for an owner with no confirmed address: a RANDOM one-time
+        // PIN, read out over the phone. `mustChangePin` makes it a single trip —
+        // the owner must choose their own PIN at the next sign-in, after which
+        // what support saw is worthless. The write also drops live sessions and
+        // kills any recovery link already in flight.
+        const pin = await issueTempPin(adminDb, adminAuth, { vendorId: vref.id, userId: owner.id });
+        if (!pin) return err(409, "pin_taken", "Couldn't find a free PIN for that store — try again.");
+        if (hasRecoveryEmail(owner))
+          await trySend({ to: owner.email, ...buildPinChangedEmail({ lang, storeName: vname, name: owner.name, by: "support" }) });
+        await logAudit("resetOwnerPin", reason);
+        return NextResponse.json({ ok: true, mode: "temp", pin });
       }
       return err(400, "bad_op", "Unknown store operation.");
     }

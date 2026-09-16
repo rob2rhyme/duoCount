@@ -4,6 +4,8 @@ import { hashPin } from "@/lib/hash";
 import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
 import { throttleDecision, attemptKey, clientIp } from "@/lib/login-throttle";
 import { slugify } from "@/lib/slug";
+import { cleanEmailInput, buildVerifyEmail, verifyLink } from "@/lib/recovery";
+import { mintToken, appUrlFrom, trySend } from "@/lib/recovery-store";
 
 export const runtime = "nodejs";
 
@@ -17,7 +19,7 @@ const ipOf = (req) => clientIp((n) => req.headers.get(n));
 
 export async function POST(req) {
   try {
-    const { businessName, logoUrl, ownerName, pin } = await req.json();
+    const { businessName, logoUrl, ownerName, pin, ownerEmail, lang } = await req.json();
     // Stable `code` beside the English prose, same contract as the login route
     // (client renders via the i18n autherr.* keys, prose is the fallback).
     if (!businessName || businessName.trim().length < 2)
@@ -26,6 +28,13 @@ export async function POST(req) {
       return NextResponse.json({ error: "Enter your name.", code: "missing_owner" }, { status: 400 });
     if (!isValidNewPin(pin))
       return NextResponse.json({ error: PIN_ERROR, code: "bad_new_pin" }, { status: 400 });
+    // Optional, but this is the ONLY thing standing between a sole owner and a
+    // permanent lockout: with no address on file the sole recovery path is a
+    // support ticket. Blank is still allowed — the sign-up screen says what it
+    // costs, and Admin can add one later.
+    const em = cleanEmailInput(ownerEmail);
+    if (em.error)
+      return NextResponse.json({ error: "Enter a valid email (or leave it blank).", code: "bad_email" }, { status: 400 });
 
     const { adminDb, adminAuth } = await getAdmin();
     const now = new Date();
@@ -72,9 +81,23 @@ export async function POST(req) {
       tx.set(d2, { name: "Lottery Cash Drawer", locationId: locRef.id, active: true, createdAt: now });
       tx.set(ownerRef, {
         name: ownerName.trim(), role: "owner", locationId: null, active: true, createdAt: now,
+        // Unconfirmed until the owner opens the link below — an address only
+        // becomes a recovery path once its owner proves they can read it.
+        email: em.email, emailVerifiedAt: null,
       });
       tx.set(ownerRef.collection("private").doc("creds"), { pinHash: hashPin(pin) });
     });
+
+    // Best-effort confirmation mail — a store is created either way.
+    if (em.email) {
+      const { token } = await mintToken(adminDb, { kind: "verify", vendorId: vendorRef.id, userId: ownerRef.id, now });
+      const mail = buildVerifyEmail({
+        lang: lang === "es" ? "es" : "en",
+        storeName: businessName.trim(), name: ownerName.trim(),
+        link: verifyLink(appUrlFrom(req), token),
+      });
+      await trySend({ to: em.email, ...mail });
+    }
 
     const claims = {
       vendorId: vendorRef.id, userId: ownerRef.id,
@@ -85,7 +108,10 @@ export async function POST(req) {
     return NextResponse.json({
       token,
       vendor: { id: vendorRef.id, name: businessName.trim(), slug, logoUrl: (logoUrl || "").trim() || null, sharingMode: "all-locations" },
-      profile: { id: ownerRef.id, name: ownerName.trim(), role: "owner", locationId: null },
+      profile: {
+        id: ownerRef.id, name: ownerName.trim(), role: "owner", locationId: null,
+        mustChangePin: false, email: em.email, emailVerifiedAt: null,
+      },
     });
   } catch (e) {
     console.error("signup error", e);

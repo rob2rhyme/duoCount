@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildTicket, buildMessage, sanitizeAttachments, validateAttachment, dataUriBytes,
   canTransition, ownerUnread, compareTickets, toMs, ATTACH_MAX_BYTES,
+  buildPublicTicket, PUBLIC_MSG_MIN, BODY_MAX,
 } from "../src/lib/support.js";
 
 // A tiny valid png data-uri (shape only — the helpers check the prefix + size).
@@ -101,4 +102,44 @@ test("compareTickets: open>pending>resolved, then priority, then recency", () =>
     sorted.map((r) => `${r.status}/${r.priority}/${r.lastActivityAt}`),
     ["open/urgent/200", "open/urgent/100", "open/low/100", "pending/high/100", "resolved/urgent/100"],
   );
+});
+
+/* ---------------------- signed-out ("can't sign in") tickets ---------------------- */
+
+test("a signed-out request needs a real reply-to address — there's no session to answer through", () => {
+  const msg = "I am the owner and I forgot my PIN, there is no second owner.";
+  assert.deepEqual(buildPublicTicket({ email: "", message: msg }), { error: "bad_email" });
+  assert.deepEqual(buildPublicTicket({ email: "nope", message: msg }), { error: "bad_email" });
+  assert.deepEqual(buildPublicTicket({ email: `${"a".repeat(200)}@x.com`, message: msg }), { error: "bad_email" });
+  assert.equal(buildPublicTicket({ email: "Owner@Store.COM", message: msg }).fields.contactEmail, "owner@store.com");
+});
+
+test("a signed-out request needs enough detail to act on", () => {
+  assert.deepEqual(buildPublicTicket({ email: "a@b.co", message: "help" }), { error: "short_message" });
+  assert.deepEqual(buildPublicTicket({ email: "a@b.co", message: "   " }), { error: "short_message" });
+  assert.ok(buildPublicTicket({ email: "a@b.co", message: "x".repeat(PUBLIC_MSG_MIN) }).fields);
+  assert.equal(buildPublicTicket({ email: "a@b.co", message: "y".repeat(BODY_MAX + 500) }).fields.body.length, BODY_MAX);
+});
+
+test("it belongs to NO tenant and carries no attachments — an anonymous write stays minimal", () => {
+  const { fields } = buildPublicTicket({
+    email: "a@b.co", name: "Jordan", storeCode: "ACME-Market",
+    message: "I am the sole owner and I can't sign in any more.",
+  });
+  assert.equal(fields.vendorId, null);      // no owner's client query can read it
+  assert.equal(fields.public, true);
+  assert.deepEqual(fields.attachments, []); // no anonymous upload surface
+  assert.equal(fields.category, "account");
+  assert.equal(fields.priority, "high");
+  assert.equal(fields.claimedSlug, "acme-market");
+  assert.match(fields.subject, /acme-market/);
+});
+
+test("the claimed store code is only ever a label — nothing here proves it exists", () => {
+  // The route never checks it against the store list, so the form can't be used
+  // to discover which stores exist; the console shows it as "claimed".
+  const { fields } = buildPublicTicket({ email: "a@b.co", message: "Locked out of the till app entirely." });
+  assert.equal(fields.claimedSlug, null);
+  assert.equal(fields.subject, "Can't sign in");
+  assert.equal(fields.contactName, null);
 });

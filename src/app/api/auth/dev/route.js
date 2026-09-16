@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { devCredentialsOk } from "@/lib/dev-auth";
+import { verifyTotp, totpConfigured } from "@/lib/totp";
 import { throttleDecision, attemptKey, IP_LIMIT, DEV_GLOBAL_LIMIT, clientIp } from "@/lib/login-throttle";
 
 export const runtime = "nodejs";
@@ -16,7 +17,8 @@ const ipOf = (req) => clientIp((n) => req.headers.get(n));
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const { email, password } = body;
     const { adminDb, adminAuth } = await getAdmin();
     const now = Date.now();
 
@@ -42,6 +44,20 @@ export async function POST(req) {
       return NextResponse.json({ error: "Wrong developer email or password.", code: "bad_dev_login" }, { status: 401 });
     }
 
+    // Optional second factor. This password is static, lives in a deploy
+    // dashboard, and unlocks every tenant through the Admin SDK — so when
+    // DEV_ADMIN_TOTP_SECRET is set, a correct password alone is not enough.
+    // Unset, nothing changes: deploying this can't lock the developer out of
+    // their own console. The code is checked only AFTER the password, so it
+    // never reveals whether a password was right on its own, and a wrong code
+    // counts as a failed attempt like any other.
+    if (totpConfigured()) {
+      if (!verifyTotp(process.env.DEV_ADMIN_TOTP_SECRET, body.code)) {
+        await onFail();
+        return NextResponse.json({ error: "Wrong or expired authenticator code.", code: "bad_dev_code" }, { status: 401 });
+      }
+    }
+
     // Success clears both counters.
     await Promise.all([
       ipSnap.exists ? ipRef.delete() : Promise.resolve(),
@@ -56,4 +72,12 @@ export async function POST(req) {
     if (e?.status) return NextResponse.json({ error: e.message, code: e.code || null }, { status: e.status });
     return NextResponse.json({ error: "Login failed.", code: "login_failed" }, { status: 500 });
   }
+}
+
+// Does this deployment demand an authenticator code? The /dev sign-in card asks
+// before showing the field, so the developer isn't left guessing. It reveals
+// only whether a second factor is configured — never a credential — and says
+// nothing about whether the login itself is set up.
+export async function GET() {
+  return NextResponse.json({ ok: true, totp: totpConfigured() });
 }

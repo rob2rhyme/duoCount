@@ -62,8 +62,45 @@ diagramas están en inglés.)*
    sesión**.
 2. Ingresa el **nombre del negocio**, **tu nombre** y un **PIN de 6 dígitos**
    que recuerdes. (La URL de un logo es opcional.)
-3. La app te da un **código de tienda** — anótalo. Es lo que tú y cada empleado
+3. Agrega **tu correo**. Es opcional, pero es la única forma de restablecer tu
+   propio PIN más adelante sin llamar al soporte — mira
+   [Si olvidas tu PIN](#si-olvidas-tu-pin). Abre el correo de confirmación que
+   llega; hasta que lo hagas, esa dirección no sirve para recuperar nada.
+4. La app te da un **código de tienda** — anótalo. Es lo que tú y cada empleado
    escriben para iniciar sesión. Ahora eres el **dueño**.
+
+### Si olvidas tu PIN
+
+Nadie queda bloqueado para siempre, pero qué tan rápido vuelves a entrar depende
+de lo que hayas dejado listo antes. De más rápido a más lento:
+
+- **Personal** — pídeselo a un dueño o gerente. En **Admin → Personal** te ponen
+  un PIN nuevo al instante. No participa nadie de fuera de la tienda.
+- **Tú, con un correo confirmado** — toca **¿Olvidaste tu PIN?** en la pantalla
+  de inicio de sesión, escribe tu código de tienda y ese correo, y recibirás un
+  enlace para elegir un PIN nuevo. Sirve una sola vez y vence a los 30 minutos.
+- **Tú, con un segundo dueño** — esa persona restablece tu PIN en
+  **Admin → Personal**, igual que con cualquier PIN del personal.
+- **Único dueño, sin correo confirmado** — toca **¿No puedes entrar?** y envía el
+  formulario. El soporte de DuoCount comprueba que la tienda es tuya y entrega un
+  PIN de un solo uso que reemplazarás al entrar. Es el camino más lento y el
+  único que depende de alguien fuera de tu tienda.
+
+**Dos minutos ahora te ahorran esa última fila:**
+
+1. **Admin → Mi cuenta** → agrega tu correo y abre el enlace de confirmación. La
+   etiqueta cambia a *Confirmado*.
+2. **Admin → Personal** → haz **dueña** a una segunda persona (un socio, tu
+   pareja, un gerente de confianza).
+
+Cualquiera de las dos, por sí sola, convierte un bloqueo en un arreglo de un
+minuto. También puedes cambiar tu propio PIN cuando quieras en
+**Admin → Mi cuenta** — ese es su lugar, porque la lista de Personal a propósito
+no edita tu propia fila.
+
+> **Un PIN que no elegiste tú sirve una sola vez.** Si el soporte alguna vez te
+> entrega un PIN temporal, la app abre directo en "elige tu propio PIN" y no pasa
+> de ahí hasta que lo hagas — así quien te lo dio no puede seguir usándolo.
 
 ### 2. Configura la tienda (pestaña Admin)
 
@@ -394,6 +431,12 @@ apagada no cambia nada de cómo funciona DuoCount.
 Escribe el **código de tienda** que te dio tu gerente y **tu propio PIN**, y
 toca **Iniciar sesión**. Eso es todo — tu nombre queda unido a todo lo que
 registres.
+
+> **¿Olvidaste tu PIN?** Pídeselo a un dueño o gerente — en **Admin → Personal**
+> te ponen uno nuevo enseguida. Si agregaste y confirmaste tu correo en
+> **Admin → Mi cuenta**, también puedes tocar **¿Olvidaste tu PIN?** en la
+> pantalla de inicio de sesión y restablecerlo tú mismo. Ahí mismo puedes cambiar
+> tu propio PIN cuando quieras.
 
 > **¿Ves "tu gerente todavía está configurando esta tienda"?** Solo significa
 > que tu gerente aún no agrega una ubicación, una caja o los artículos — no hay

@@ -29,6 +29,10 @@ const INTERNAL = new Set([
   "positioning-one-pager", "competitive-gap-analysis",
   "distribution-analysis", "distribution-decision-2026",
   "monetization-paths-2026", "dev-console-roadmap",
+  // Operator-side credential procedures (what to do when the developer login or
+  // a store owner is locked out). Store staff aren't the audience, and the page
+  // names the env vars the deployment is configured with.
+  "credential-recovery-runbook",
 ]);
 const publicSlugs = () => docSlugs().filter((s) => !INTERNAL.has(s));
 

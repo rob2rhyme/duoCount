@@ -27,6 +27,7 @@ import ScratchGamesCard from "./ScratchGamesCard";
 import MachineRegistryCard from "./MachineRegistryCard";
 import SupportCard from "./SupportCard";
 import Field from "./Field";
+import AccountCard from "./AccountCard";
 import ShowMore, { usePaged } from "./ShowMore";
 
 // Admin is grouped into a few tabs so it reads as a handful of short pages
@@ -589,6 +590,12 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
       </nav>
 
       {adminTab === "store" && (<>
+      {/* ---------------- my account ---------------- */}
+      {/* Deliberately ABOVE Staff: Staff can't touch your own row (the route
+          refuses a self-edit), so this is where your own PIN and the address
+          that recovers it live. */}
+      <AccountCard onToast={onToast} />
+
       {/* ---------------- staff ---------------- */}
       <div id="adm-staff" className="card overflow-hidden scroll-mt-[calc(max(0.75rem,env(safe-area-inset-top))+100px)]">
         <div className="px-4 py-3.5 border-b border-line">

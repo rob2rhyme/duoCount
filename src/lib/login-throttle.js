@@ -22,6 +22,20 @@ export const STORE_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 50 };
 // (and auto-expires with the window, like the others).
 export const DEV_GLOBAL_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 60 };
 
+// Account-recovery limits. These count EVERY attempt, not just failures: the
+// request endpoint answers the same way whether or not an address existed
+// (that's the point — no enumeration), so "failure" isn't observable to it.
+//   • RESET_IP / RESET_STORE — asking for a recovery link. Deliberately tight:
+//     a real person asks once or twice, and each request emails somebody.
+//   • RECOVERY_CONFIRM_LIMIT — submitting a link back. The secret is 32 random
+//     bytes, so this is a backstop against grinding, not the defence.
+//   • PUBLIC_SUPPORT_LIMIT — the signed-out "I can't get in" form, which is the
+//     one place an anonymous visitor can write anything at all.
+export const RESET_IP_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 5 };
+export const RESET_STORE_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 20 };
+export const RECOVERY_CONFIRM_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 15 };
+export const PUBLIC_SUPPORT_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 4 };
+
 export function throttleDecision(record, now, { windowMs, maxFails }) {
   const inWindow =
     !!record && Number.isFinite(record.windowStart) && now - record.windowStart < windowMs;
