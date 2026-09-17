@@ -182,7 +182,9 @@ optional features (all listed in `.env.local.example`):
 - **AI narrative:** `ANTHROPIC_API_KEY` (per-vendor opt-in via `vendor.digest.narrative`).
 - **Developer console:** `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` (+ optional `DEV_ADMIN_TOTP_SECRET`).
 - **Account recovery:** `RESEND_API_KEY`, `DIGEST_FROM` and **`APP_URL`** (the
-  reset and confirmation links are built from it — set it in production).
+  reset and confirmation links are built from it — set it in production), plus
+  optional `SUPPORT_REPLY_TO` (a mailbox a human reads; without it the emails
+  stop inviting replies rather than sending them nowhere).
 
 ## Tier one: trust features
 

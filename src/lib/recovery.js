@@ -132,6 +132,21 @@ export function hasRecoveryEmail(user) {
   return !!(user && normalizeEmail(user.email) && user.emailVerifiedAt);
 }
 
+/**
+ * The mailbox a human actually reads, or null. Recovery and support mail is sent
+ * FROM a no-reply address on the verified sending subdomain — whose MX points at
+ * the provider's bounce handler — so without this, a reply reaches nobody.
+ * Garbage in the env reads as unset, so a typo degrades to the honest wording
+ * rather than a Reply-To header pointing somewhere dead.
+ */
+export function supportReplyTo(env = process.env) {
+  return normalizeEmail(env.SUPPORT_REPLY_TO || "");
+}
+
+/** Is there somewhere for a reply to land? What the builders' `canReply` should
+ *  be set to. Named apart from that parameter so it can't shadow it. */
+export const supportReplyEnabled = (env = process.env) => !!supportReplyTo(env);
+
 /* --------------------------------- Links ---------------------------------- */
 
 export function recoveryLink(appUrl, path, token) {
@@ -144,7 +159,15 @@ export const verifyLink = (appUrl, token) => recoveryLink(appUrl, "/verify-email
 /* ------------------------------ Email copy -------------------------------- */
 // Recovery mail is security mail: the person must understand "someone asked to
 // reset your PIN" in their own language, so — unlike the digest — these are
-// bilingual. The catalog is local (it never belongs in a client bundle) and
+// bilingual.
+//
+// Lines that invite a REPLY come in pairs, `x` and `x_noreply`, chosen by the
+// caller's `canReply`. The sending address is a no-reply on a subdomain whose MX
+// points at the provider's bounce handler, so a reply only reaches a human when
+// SUPPORT_REPLY_TO is configured (recovery-store.supportReplyTo). `canReply`
+// defaults to FALSE everywhere: an email must never tell someone to reply into a
+// void — least of all the signed-out support reply, which goes to the one person
+// who cannot read the in-app thread. The catalog is local (it never belongs in a client bundle) and
 // tests/recovery.test.mjs enforces the same en/es key-parity rule the UI
 // catalog lives under.
 
@@ -175,6 +198,7 @@ export const EMAIL_COPY = Object.freeze({
     changed_owner: "An owner at {store} just reset your PIN.",
     changed_support: "DuoCount support reset the owner PIN for {store} at your store's request. You'll be asked to choose your own new PIN the next time you sign in.",
     changed_warn: "Didn't do this? Reply to this email or contact DuoCount support right away.",
+    changed_warn_noreply: "Didn't do this? Tell the store owner, or use the \"Can't sign in?\" link on the sign-in screen, right away.",
     rechanged_subject: "The recovery email on your {store} account changed",
     rechanged_head: "Recovery email changed",
     rechanged_hi: "Hi {name},",
@@ -185,6 +209,7 @@ export const EMAIL_COPY = Object.freeze({
     support_head: "A reply from DuoCount support",
     support_intro: "You wrote to DuoCount support because you couldn't sign in. Here's the reply:",
     support_outro: "Reply to this email to continue the conversation.",
+    support_outro_noreply: "Need to add something? Send another message from the \"Can't sign in?\" link on the sign-in screen.",
     footer: "DuoCount — all your counts. All in one place.",
   },
   es: {
@@ -210,6 +235,7 @@ export const EMAIL_COPY = Object.freeze({
     changed_owner: "Un dueño de {store} acaba de restablecer tu PIN.",
     changed_support: "El soporte de DuoCount restableció el PIN del dueño de {store} a pedido de tu tienda. Se te pedirá elegir tu propio PIN nuevo la próxima vez que inicies sesión.",
     changed_warn: "¿No fuiste tú? Responde a este correo o contacta al soporte de DuoCount de inmediato.",
+    changed_warn_noreply: "¿No fuiste tú? Avisa al dueño de la tienda, o usa el enlace \"¿No puedes entrar?\" de la pantalla de inicio de sesión, de inmediato.",
     rechanged_subject: "Cambió el correo de recuperación de tu cuenta de {store}",
     rechanged_head: "Cambió el correo de recuperación",
     rechanged_hi: "Hola {name}:",
@@ -220,6 +246,7 @@ export const EMAIL_COPY = Object.freeze({
     support_head: "Respuesta del soporte de DuoCount",
     support_intro: "Escribiste al soporte de DuoCount porque no podías iniciar sesión. Esta es la respuesta:",
     support_outro: "Responde a este correo para seguir la conversación.",
+    support_outro_noreply: "¿Necesitas agregar algo? Envía otro mensaje desde el enlace \"¿No puedes entrar?\" de la pantalla de inicio de sesión.",
     footer: "DuoCount — todos tus conteos. En un solo lugar.",
   },
 });
@@ -285,7 +312,7 @@ export function buildVerifyEmail({ lang, storeName, name, link, days = VERIFY_TT
 // recovery link, a store owner, or DuoCount support (the /dev console).
 export const CHANGED_BY = ["self", "reset", "owner", "support"];
 
-export function buildPinChangedEmail({ lang, storeName, name, by = "self" } = {}) {
+export function buildPinChangedEmail({ lang, storeName, name, by = "self", canReply = false } = {}) {
   const l = pickLang(lang);
   const store = storeName || "DuoCount";
   const which = CHANGED_BY.includes(by) ? by : "self";
@@ -295,7 +322,7 @@ export function buildPinChangedEmail({ lang, storeName, name, by = "self" } = {}
       lang: l,
       head: line(l, "changed_head"),
       paras: [line(l, "changed_hi", { name: name || "" }), line(l, `changed_${which}`, { store })],
-      note: line(l, "changed_warn"),
+      note: line(l, canReply ? "changed_warn" : "changed_warn_noreply"),
     }),
   };
 }
@@ -328,7 +355,7 @@ export function buildRecoveryEmailChangedEmail({ lang, storeName, name, newEmail
  * address they left — otherwise the one channel built for locked-out people
  * ends in a thread they'll never see.
  */
-export function buildSupportReplyEmail({ lang, text } = {}) {
+export function buildSupportReplyEmail({ lang, text, canReply = false } = {}) {
   const l = pickLang(lang);
   return {
     subject: line(l, "support_subject"),
@@ -336,7 +363,7 @@ export function buildSupportReplyEmail({ lang, text } = {}) {
       lang: l,
       head: line(l, "support_head"),
       paras: [line(l, "support_intro"), String(text ?? "")],
-      note: line(l, "support_outro"),
+      note: line(l, canReply ? "support_outro" : "support_outro_noreply"),
     }),
   };
 }

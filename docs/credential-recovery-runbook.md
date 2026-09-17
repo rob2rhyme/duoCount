@@ -10,6 +10,7 @@
 |---|---|
 | `APP_URL` | **Set it.** Recovery and confirmation links are built from it. Without it they're built from the `Host` header the request arrived with, which is one fabricated header away from pointing a reset link somewhere else. |
 | `RESEND_API_KEY`, `DIGEST_FROM` | No mail means no self-serve recovery for anyone — every reset falls back to a support ticket. A verified sender domain also keeps these out of spam, which matters more for a reset link than for a digest. |
+| `SUPPORT_REPLY_TO` | Optional, but set it if anyone reads support mail. The From address can't receive — its MX is the provider's bounce handler — so this is what makes "reply to this email" true. Unset, the emails point people at the **Can't sign in?** form instead. |
 | `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Both blank = the developer login is off. Use a long random password from a manager; it is a single static secret that unlocks every tenant. |
 | `DEV_ADMIN_TOTP_SECRET` | Optional second factor. Blank = off, and the login behaves exactly as before — deploying it can't lock you out by itself. |
 

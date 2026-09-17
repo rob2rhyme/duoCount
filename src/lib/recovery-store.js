@@ -11,7 +11,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import { hashPin, verifyPin } from "@/lib/hash";
 import { sendEmail } from "@/lib/digest";
 import {
-  joinToken, splitToken, tokenState, RESET_TTL_MS, VERIFY_TTL_DAYS_MS,
+  joinToken, splitToken, tokenState, supportReplyTo, RESET_TTL_MS, VERIFY_TTL_DAYS_MS,
 } from "@/lib/recovery";
 
 export const TOKENS = "recoveryTokens";
@@ -124,11 +124,14 @@ export function appUrlFrom(req) {
  * request endpoint returns the same neutral body whether the address existed,
  * whether Resend is configured, and whether delivery succeeded. Returns a
  * boolean purely so the caller can log.
+ *
+ * Every send from here carries Reply-To when one is configured — harmless on the
+ * mail that doesn't ask for a reply, and the whole point on the mail that does.
  */
 export async function trySend({ to, subject, text, html }) {
   if (!to) return false;
   try {
-    await sendEmail({ to, subject, text, html });
+    await sendEmail({ to, subject, text, html, replyTo: supportReplyTo() });
     return true;
   } catch (e) {
     console.error("recovery email failed", e?.message || e);

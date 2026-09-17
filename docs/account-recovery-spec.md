@@ -64,6 +64,23 @@ by definition, isn't the attacker.
   exist. What can't be duplicated is the *recovery claim*: first to confirm wins,
   and the second is told plainly (`verifyConflict`).
 
+## Mail that asks for a reply
+
+`DIGEST_FROM` sits on a verified sending subdomain whose MX points at the
+provider's bounce handler, so **a reply to the From address reaches nobody**.
+Two lines of copy invite one — the "didn't do this?" warning on every PIN-changed
+notice, and the closing line of the developer's reply to a signed-out help
+request. That second one goes to the person who, by definition, cannot read the
+in-app ticket thread; telling them to reply into a void closes the one channel
+built for them.
+
+So the invitation is conditional on `SUPPORT_REPLY_TO`. Set it and recovery mail
+carries a `Reply-To` pointing at a mailbox a human reads; leave it blank and the
+copy points at the **Can't sign in?** link instead. Both wordings are honest.
+`canReply` defaults to **false** in both builders, so a caller that forgets it
+cannot make a promise the deployment can't keep, and a typo'd address reads as
+unset rather than as a header pointing somewhere dead.
+
 ## Link mechanics
 
 One `recoveryTokens/{id}` doc per outstanding link, holding a **salted scrypt

@@ -3,7 +3,7 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { throttleDecision, attemptKey, clientIp, RECOVERY_CONFIRM_LIMIT } from "@/lib/login-throttle";
 import { isValidNewPin } from "@/lib/pin";
 import { pinTaken, setUserPin } from "@/lib/pin-store";
-import { hasRecoveryEmail, buildPinChangedEmail } from "@/lib/recovery";
+import { hasRecoveryEmail, buildPinChangedEmail, supportReplyEnabled } from "@/lib/recovery";
 import { peekToken, consumeToken, trySend } from "@/lib/recovery-store";
 
 export const runtime = "nodejs";
@@ -73,7 +73,7 @@ export async function POST(req) {
     if (hasRecoveryEmail(me)) {
       const mail = buildPinChangedEmail({
         lang: lang === "es" ? "es" : "en",
-        storeName: vendor.name || "", name: me.name, by: "reset",
+        storeName: vendor.name || "", name: me.name, by: "reset", canReply: supportReplyEnabled(),
       });
       await trySend({ to: me.email, ...mail });
     }

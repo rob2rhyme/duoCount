@@ -6,7 +6,7 @@ import { isValidNewPin } from "@/lib/pin";
 import { pinTaken, setUserPin } from "@/lib/pin-store";
 import {
   cleanEmailInput, buildVerifyEmail, buildPinChangedEmail, buildRecoveryEmailChangedEmail,
-  verifyLink, verifyConflict, hasRecoveryEmail,
+  verifyLink, verifyConflict, hasRecoveryEmail, supportReplyEnabled,
 } from "@/lib/recovery";
 import { mintToken, burnTokens, appUrlFrom, trySend } from "@/lib/recovery-store";
 
@@ -71,7 +71,7 @@ export async function POST(req) {
 
       await setUserPin(adminDb, adminAuth, { vendorId, userId, pin: next, mustChangePin: false });
       if (hasRecoveryEmail(me)) {
-        const mail = buildPinChangedEmail({ lang, storeName, name: me.name, by: "self" });
+        const mail = buildPinChangedEmail({ lang, storeName, name: me.name, by: "self", canReply: supportReplyEnabled() });
         await trySend({ to: me.email, ...mail });
       }
       // setUserPin revoked this session along with every other: the client signs
