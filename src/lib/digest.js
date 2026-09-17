@@ -183,15 +183,21 @@ function composeEmail(vendor, dateStr, s, appUrl, narrative = null) {
   return { subject, text, html };
 }
 
-/** Send via Resend's HTTP API. Throws on non-2xx. */
-export async function sendEmail({ to, subject, text, html }) {
+/** Send via Resend's HTTP API. Throws on non-2xx.
+ *
+ *  `replyTo` sets a Reply-To header. DIGEST_FROM lives on a verified sending
+ *  subdomain whose MX points at the provider's bounce handler, so replies to the
+ *  From address reach nobody. Recovery and support mail — which is the only mail
+ *  here that asks for a reply — routes them to SUPPORT_REPLY_TO instead. Omitted
+ *  when unset, so the header is never an empty promise. */
+export async function sendEmail({ to, subject, text, html, replyTo = null }) {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.DIGEST_FROM;
   if (!key || !from) throw new Error("RESEND_API_KEY / DIGEST_FROM not configured");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to, subject, text, html }),
+    body: JSON.stringify({ from, to, subject, text, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
   return res.json();

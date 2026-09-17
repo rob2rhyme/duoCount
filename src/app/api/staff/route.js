@@ -4,7 +4,7 @@ import { hashPin } from "@/lib/hash";
 import { isValidNewPin, PIN_ERROR } from "@/lib/pin";
 import { requireOwner } from "@/lib/require-manager";
 import { pinTaken, setUserPin } from "@/lib/pin-store";
-import { cleanEmailInput, buildVerifyEmail, buildPinChangedEmail, verifyLink, hasRecoveryEmail } from "@/lib/recovery";
+import { cleanEmailInput, buildVerifyEmail, buildPinChangedEmail, verifyLink, hasRecoveryEmail, supportReplyEnabled } from "@/lib/recovery";
 import { mintToken, burnTokens, appUrlFrom, trySend } from "@/lib/recovery-store";
 
 export const runtime = "nodejs";
@@ -179,7 +179,7 @@ export async function PATCH(req) {
       if (hasRecoveryEmail({ ...target, ...patch }))
         await trySend({
           to: patch.email !== undefined ? patch.email : target.email,
-          ...buildPinChangedEmail({ lang: lang === "es" ? "es" : "en", storeName: await storeNameOf(adminDb, claims.vendorId), name: target.name, by: "owner" }),
+          ...buildPinChangedEmail({ lang: lang === "es" ? "es" : "en", storeName: await storeNameOf(adminDb, claims.vendorId), name: target.name, by: "owner", canReply: supportReplyEnabled() }),
         });
     }
     if (verifyFor)

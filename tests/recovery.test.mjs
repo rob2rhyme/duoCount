@@ -5,9 +5,11 @@ import assert from "node:assert/strict";
 import {
   normalizeEmail, cleanEmailInput, joinToken, splitToken, tokenState,
   resetRecipients, resolveResetTarget, hasRecoveryEmail, verifyConflict,
+  supportReplyTo, supportReplyEnabled,
   resetLink, verifyLink, recoveryLink,
   EMAIL_COPY, EMAIL_LOCALES, pickLang, line,
   buildResetEmail, buildVerifyEmail, buildPinChangedEmail, buildRecoveryEmailChangedEmail,
+  buildSupportReplyEmail,
   RESET_TTL_MIN, RESET_TTL_MS, VERIFY_TTL_DAYS, NEUTRAL_RESULT, CHANGED_BY,
 } from "../src/lib/recovery.js";
 
@@ -181,6 +183,55 @@ test("the PIN-changed notice names WHO changed it, in each supported flavour", (
   }
   // an unknown flavour degrades to "self" rather than rendering a raw key
   assert.match(buildPinChangedEmail({ lang: "en", storeName: "Acme", by: "hacker" }).text, want.self);
+});
+
+/* ------------------- only promise a reply that can be read ------------------- */
+
+test("no email invites a reply unless a reply address is configured", () => {
+  // The From address is a no-reply on a subdomain whose MX is the provider's
+  // bounce handler, so "reply to this email" without SUPPORT_REPLY_TO sends
+  // someone into a void — and on the support reply, that someone is by
+  // definition locked out of the in-app thread.
+  for (const lang of ["en", "es"]) {
+    const changed = buildPinChangedEmail({ lang, storeName: "Acme", name: "Jo", by: "self" });
+    const support = buildSupportReplyEmail({ lang, text: "Here is how to get back in." });
+    for (const m of [changed, support]) {
+      assert.doesNotMatch(m.text, /Reply to this email|Responde a este correo/, lang);
+      assert.match(m.text, /Can't sign in\?|¿No puedes entrar\?/, lang);
+    }
+  }
+});
+
+test("with a reply address configured, both emails invite the reply", () => {
+  for (const lang of ["en", "es"]) {
+    const changed = buildPinChangedEmail({ lang, storeName: "Acme", name: "Jo", by: "self", canReply: true });
+    const support = buildSupportReplyEmail({ lang, text: "Here is how to get back in.", canReply: true });
+    for (const m of [changed, support])
+      assert.match(m.text, /Reply to this email|Responde a este correo/, lang);
+  }
+});
+
+test("supportReplyTo reads the env, and fails closed on anything that isn't an address", () => {
+  assert.equal(supportReplyTo({ SUPPORT_REPLY_TO: " Support@Shop.COM " }), "support@shop.com");
+  for (const bad of [undefined, "", "   ", "not-an-address", "a@b"])
+    assert.equal(supportReplyTo({ SUPPORT_REPLY_TO: bad }), null, String(bad));
+  assert.equal(supportReplyTo({}), null);
+});
+
+test("supportReplyEnabled follows it, so a typo'd env var yields honest copy rather than a dead header", () => {
+  assert.equal(supportReplyEnabled({ SUPPORT_REPLY_TO: "support@shop.com" }), true);
+  assert.equal(supportReplyEnabled({ SUPPORT_REPLY_TO: "typo-no-at-sign" }), false);
+  assert.equal(supportReplyEnabled({}), false);
+});
+
+test("canReply defaults to false — a caller that forgets it cannot make a false promise", () => {
+  // Fail closed: the honest wording is the one you get by omission.
+  assert.deepEqual(
+    buildPinChangedEmail({ lang: "en", storeName: "Acme", by: "self" }),
+    buildPinChangedEmail({ lang: "en", storeName: "Acme", by: "self", canReply: false }));
+  assert.deepEqual(
+    buildSupportReplyEmail({ lang: "en", text: "x" }),
+    buildSupportReplyEmail({ lang: "en", text: "x", canReply: false }));
 });
 
 test("losing a recovery claim is reported to the address that is losing it", () => {

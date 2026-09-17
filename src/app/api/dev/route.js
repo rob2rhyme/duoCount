@@ -3,7 +3,7 @@ import { getAdmin } from "@/lib/firebase-admin";
 import { requireSignedIn, requirePlatformAdmin, resolvePlatformAdmin, assertScope } from "@/lib/require-manager";
 import { scopesForRole, ROLES, normalizeRole } from "@/lib/platform-admins";
 import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
-import { hasRecoveryEmail, buildResetEmail, buildPinChangedEmail, buildSupportReplyEmail, resetLink } from "@/lib/recovery";
+import { hasRecoveryEmail, buildResetEmail, buildPinChangedEmail, buildSupportReplyEmail, resetLink, supportReplyEnabled } from "@/lib/recovery";
 import { mintToken, appUrlFrom, trySend } from "@/lib/recovery-store";
 import { issueTempPin } from "@/lib/pin-store";
 import { normalizeBilling } from "@/lib/billing";
@@ -116,7 +116,7 @@ export async function POST(req) {
         if (t.public && t.contactEmail && built.message.text)
           emailed = await trySend({
             to: t.contactEmail,
-            ...buildSupportReplyEmail({ lang: t.lang === "es" ? "es" : "en", text: built.message.text }),
+            ...buildSupportReplyEmail({ lang: t.lang === "es" ? "es" : "en", text: built.message.text, canReply: supportReplyEnabled() }),
           });
         return NextResponse.json({ ok: true, status: next.status || t.status, emailed });
       }
@@ -292,7 +292,7 @@ export async function POST(req) {
         const pin = await issueTempPin(adminDb, adminAuth, { vendorId: vref.id, userId: owner.id });
         if (!pin) return err(409, "pin_taken", "Couldn't find a free PIN for that store — try again.");
         if (hasRecoveryEmail(owner))
-          await trySend({ to: owner.email, ...buildPinChangedEmail({ lang, storeName: vname, name: owner.name, by: "support" }) });
+          await trySend({ to: owner.email, ...buildPinChangedEmail({ lang, storeName: vname, name: owner.name, by: "support", canReply: supportReplyEnabled() }) });
         await logAudit("resetOwnerPin", reason);
         return NextResponse.json({ ok: true, mode: "temp", pin });
       }
