@@ -113,3 +113,31 @@ Symptom: the reset screen says the link is on its way and nothing lands.
 
 While mail is down, recovery for everyone falls back to a second owner or to
 you, so treat it as a real outage rather than a cosmetic one.
+
+## 6. Dependabot alerts we knowingly leave open
+
+Three moderate advisories sit in `firebase-tools`' own transitive
+dependencies — `csv-parse` (prototype replacement via the `columns` path) and
+`stream-json` (O(depth²) parsing DoS). They are left open deliberately:
+
+- **They cannot reach production.** `firebase-tools` is a devDependency, and
+  nothing in `src/` imports it or those two packages, so they are never in a
+  serverless bundle. Our only use is `firebase emulators:exec` booting the
+  Firestore emulator for `npm run test:rules`, locally and in CI.
+- **Both advisories need attacker-controlled input fed to firebase-tools.** Ours
+  gets a local emulator config and our own rules file. There is no path from a
+  store, a clerk, or the public internet to either parser.
+- **The available "fix" is worse than the bug.** `npm audit fix --force` wants to
+  *downgrade* firebase-tools from 15.x to **10.1.1** — years of emulator and
+  rules-engine fixes, discarded, to patch a devDependency that can't be reached.
+  Pinning the transitives with npm `overrides` is the other option, but
+  firebase-tools declares `csv-parse: ^5.0.4` and `stream-json: ^1.7.3` while the
+  patched releases are **7.0.2** and **3.7.0** — two majors ahead of what it is
+  written against. That risks our rules-test infrastructure, which guards the
+  trust spine, for zero production benefit.
+
+They close on their own when firebase-tools updates its own dependencies. Until
+then, `npm audit` reporting "3 moderate" on a clean tree is expected — check that
+the count and the package names still match this list, and treat anything else as
+new. If the alerts need to be silenced in the GitHub UI, dismiss them as *"risk
+is tolerable"* with a pointer here, rather than forcing the downgrade.
