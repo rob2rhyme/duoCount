@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
-import { devCredentialsOk } from "@/lib/dev-auth";
+import { devCredentialsOk, devCredentialDiagnosis } from "@/lib/dev-auth";
 import { verifyTotp, totpConfigured } from "@/lib/totp";
 import { throttleDecision, attemptKey, IP_LIMIT, DEV_GLOBAL_LIMIT, clientIp } from "@/lib/login-throttle";
 
@@ -36,10 +36,22 @@ export async function POST(req) {
     // Login is OFF unless BOTH secrets are configured; treat that as a failed
     // attempt so it also throttles and can't be probed for free.
     if (!process.env.DEV_ADMIN_EMAIL || !process.env.DEV_ADMIN_PASSWORD) {
+      // Name the missing variable in the log — the client message deliberately
+      // doesn't, and "isn't set up yet" is ambiguous when one of the two is set.
+      console.warn("[dev-login] not configured —", JSON.stringify(devCredentialDiagnosis({ email, password })));
       await onFail();
       return NextResponse.json({ error: "Developer login isn't set up on the server yet.", code: "dev_unconfigured" }, { status: 403 });
     }
     if (!devCredentialsOk({ email, password })) {
+      // The RESPONSE stays one combined message — telling a caller which half
+      // they got is a free oracle. The operator's own function log gets the
+      // answer instead, because "wrong email or password" reads identically
+      // whether the password picked up a stray character or DEV_ADMIN_EMAIL
+      // still holds the example address, and those need opposite fixes.
+      // Passwords appear as LENGTHS only; see devCredentialDiagnosis. Failures
+      // are throttled, so this can't be used to flood the log either.
+      const d = devCredentialDiagnosis({ email, password });
+      console.warn("[dev-login] rejected —", JSON.stringify(d));
       await onFail();
       return NextResponse.json({ error: "Wrong developer email or password.", code: "bad_dev_login" }, { status: 401 });
     }

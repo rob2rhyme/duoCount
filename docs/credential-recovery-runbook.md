@@ -39,6 +39,30 @@ value and what you type are trimmed at the edges (`lib/dev-auth.js`), because a
 pasted secret picks up a trailing newline constantly and that mismatch is
 invisible. Interior spacing still counts.
 
+**Stop guessing — read the log.** Every rejected attempt writes one line to the
+deployment's function log (Vercel → the project → Logs, filter `dev-login`):
+
+```
+[dev-login] rejected — {"configured":true,"emailMatch":false,"passwordMatch":true,
+ "configuredEmail":"dev@duocount.app","submittedEmail":"you@gmail.com",
+ "configuredPasswordLength":24,"submittedPasswordLength":24}
+```
+
+Read it straight: `emailMatch:false` with those two addresses means
+`DEV_ADMIN_EMAIL` holds something other than what you type — the example
+address from the docs is the usual culprit. `passwordMatch:false` with differing
+lengths means the wrong password or a truncated paste; with *equal* lengths,
+a character differs. `configured:false` names the variable that is missing.
+
+The HTTP response deliberately stays one combined "wrong developer email or
+password" — saying which half failed would hand an attacker a free oracle. The
+log is operator-only, so it can be specific. **Passwords appear as lengths
+only** — never the value, a prefix, or a hash.
+
+If no `dev-login` line appears at all when you submit, the request isn't
+reaching this deployment: check you're on the production URL and that the
+deployment serving it is current.
+
 ## 2. You forgot the developer password
 
 There is **no reset flow, on purpose.** An email-driven path into the most

@@ -1,7 +1,7 @@
 // Developer login credential check — pure. Run: node --test tests/dev-auth.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { devCredentialsOk } from "../src/lib/dev-auth.js";
+import { devCredentialsOk, devCredentialDiagnosis } from "../src/lib/dev-auth.js";
 
 const ENV = { DEV_ADMIN_EMAIL: "dev@duocount.app", DEV_ADMIN_PASSWORD: "s3cret-passphrase" };
 
@@ -64,4 +64,71 @@ test("missing / malformed input → false, never throws", () => {
   assert.equal(devCredentialsOk(undefined, ENV), false);
   assert.equal(devCredentialsOk({}, ENV), false);
   assert.equal(devCredentialsOk({ email: null, password: null }, ENV), false);
+});
+
+/* ------------------------- operator-log diagnosis ------------------------- */
+// The client keeps one combined "wrong email or password" — saying which half
+// failed would be a free oracle. The operator's own function log gets the
+// answer, because that message reads identically whether the password has a
+// stray character or DEV_ADMIN_EMAIL still holds the example address.
+
+test("the diagnosis names WHICH side failed", () => {
+  const wrongPass = devCredentialDiagnosis({ email: "dev@duocount.app", password: "nope" }, ENV);
+  assert.equal(wrongPass.emailMatch, true);
+  assert.equal(wrongPass.passwordMatch, false);
+
+  const wrongEmail = devCredentialDiagnosis({ email: "someone@else.com", password: "s3cret-passphrase" }, ENV);
+  assert.equal(wrongEmail.emailMatch, false);
+  assert.equal(wrongEmail.passwordMatch, true);
+
+  const both = devCredentialDiagnosis({ email: "someone@else.com", password: "nope" }, ENV);
+  assert.equal(both.emailMatch, false);
+  assert.equal(both.passwordMatch, false);
+
+  const ok = devCredentialDiagnosis({ email: "dev@duocount.app", password: "s3cret-passphrase" }, ENV);
+  assert.equal(ok.emailMatch, true);
+  assert.equal(ok.passwordMatch, true);
+});
+
+test("it NEVER carries the password — lengths only, no value, prefix or hash", () => {
+  // The guard that matters: this object is written to a log.
+  const d = devCredentialDiagnosis({ email: "dev@duocount.app", password: "submitted-secret" }, ENV);
+  const dumped = JSON.stringify(d);
+  assert.doesNotMatch(dumped, /s3cret-passphrase/);  // the configured password
+  assert.doesNotMatch(dumped, /submitted-secret/);   // and the attempted one
+  assert.equal(d.configuredPasswordLength, "s3cret-passphrase".length);
+  assert.equal(d.submittedPasswordLength, "submitted-secret".length);
+  // No key may hold a password-shaped string.
+  for (const [k, v] of Object.entries(d))
+    assert.ok(typeof v !== "string" || !v.includes("passphrase"), k);
+});
+
+test("it reports both email addresses, which is how the example-address mistake gets spotted", () => {
+  const d = devCredentialDiagnosis({ email: "  Rob@Gmail.com ", password: "x" },
+    { ...ENV, DEV_ADMIN_EMAIL: "dev@duocount.app" });
+  assert.equal(d.configuredEmail, "dev@duocount.app");
+  assert.equal(d.submittedEmail, "rob@gmail.com"); // normalized the same way the compare is
+  assert.equal(d.emailMatch, false);
+});
+
+test("when the login is off, it names the missing variable", () => {
+  const noPass = devCredentialDiagnosis({ email: "a@b.co", password: "x" }, { DEV_ADMIN_EMAIL: "a@b.co" });
+  assert.equal(noPass.configured, false);
+  assert.deepEqual(noPass.missing, ["DEV_ADMIN_PASSWORD"]);
+
+  const neither = devCredentialDiagnosis({ email: "a@b.co", password: "x" }, {});
+  assert.deepEqual(neither.missing, ["DEV_ADMIN_EMAIL", "DEV_ADMIN_PASSWORD"]);
+});
+
+test("devCredentialsOk still agrees with the diagnosis it is now derived from", () => {
+  const cases = [
+    [{ email: "dev@duocount.app", password: "s3cret-passphrase" }, true],
+    [{ email: "dev@duocount.app", password: "nope" }, false],
+    [{ email: "someone@else.com", password: "s3cret-passphrase" }, false],
+  ];
+  for (const [input, want] of cases) {
+    const d = devCredentialDiagnosis(input, ENV);
+    assert.equal(devCredentialsOk(input, ENV), want);
+    assert.equal(d.configured && d.emailMatch && d.passwordMatch, want);
+  }
 });
