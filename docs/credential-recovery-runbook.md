@@ -14,6 +14,31 @@
 | `DEV_ADMIN_EMAIL`, `DEV_ADMIN_PASSWORD` | Both blank = the developer login is off. Use a long random password from a manager; it is a single static secret that unlocks every tenant. |
 | `DEV_ADMIN_TOTP_SECRET` | Optional second factor. Blank = off, and the login behaves exactly as before — deploying it can't lock you out by itself. |
 
+### "Wrong developer email or password" when you're sure it's right
+
+Read which of the two errors `/dev` gave you — they mean different things:
+
+- *"Developer login isn't set up on the server yet."* → one of `DEV_ADMIN_EMAIL` /
+  `DEV_ADMIN_PASSWORD` is empty in the environment the deployment is actually
+  running. Usually set on Preview instead of Production, or set and never
+  redeployed.
+- *"Wrong developer email or password."* → both are set; the values don't match.
+
+For the second, check in this order:
+
+1. **Did you redeploy** since the values last changed? Env only reaches running
+   functions at deploy time.
+2. **Is `DEV_ADMIN_EMAIL` the exact address you're typing?** Case and surrounding
+   spaces don't matter — anything else does.
+3. **Are you throttled?** 10 failures per IP per 15 minutes returns *"Too many
+   attempts"*, which reads like a different fault. Wait it out rather than
+   retrying.
+
+Surrounding whitespace on the password is *not* a cause: both the configured
+value and what you type are trimmed at the edges (`lib/dev-auth.js`), because a
+pasted secret picks up a trailing newline constantly and that mismatch is
+invisible. Interior spacing still counts.
+
 ## 2. You forgot the developer password
 
 There is **no reset flow, on purpose.** An email-driven path into the most
