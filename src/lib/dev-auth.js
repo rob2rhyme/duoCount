@@ -21,14 +21,27 @@ function safeEqual(a, b) {
  * Is the submitted developer credential valid against the configured env secret?
  * Both DEV_ADMIN_EMAIL and DEV_ADMIN_PASSWORD must be set (non-empty) — an unset
  * pair means the developer login is OFF and never matches, so a blank env can't
- * be bypassed with blank input. Email match is case-insensitive; password is exact.
+ * be bypassed with blank input. Email match is case-insensitive; the password
+ * stays case-SENSITIVE and is otherwise compared exactly.
+ *
+ * Surrounding whitespace is trimmed off BOTH sides of BOTH values. This is
+ * deliberate, and it is about the failure mode rather than the threat model:
+ * this is a break-glass credential set by pasting into a deploy dashboard, and a
+ * pasted value picks up a trailing newline constantly — from a terminal, a file,
+ * a password manager. Untrimmed, that mismatch is invisible (the dashboard shows
+ * the value looking perfectly correct) and indistinguishable from a wrong
+ * password, so the one credential that recovers cross-tenant access fails shut
+ * with no way to tell why. The cost is that "s3cret" and "s3cret " both work;
+ * for an operator-chosen random passphrase that is no meaningful loss of entropy,
+ * and far cheaper than a silent lockout during an incident. Interior whitespace
+ * is untouched — only the edges.
  */
 export function devCredentialsOk({ email, password } = {}, env = process.env) {
   const wantEmail = String(env.DEV_ADMIN_EMAIL || "").trim().toLowerCase();
-  const wantPass = String(env.DEV_ADMIN_PASSWORD || "");
+  const wantPass = String(env.DEV_ADMIN_PASSWORD || "").trim();
   if (!wantEmail || !wantPass) return false;
   const gotEmail = String(email ?? "").trim().toLowerCase();
-  const gotPass = String(password ?? "");
+  const gotPass = String(password ?? "").trim();
   // Evaluate both sides regardless (no short-circuit) to keep timing flat.
   const okEmail = safeEqual(gotEmail, wantEmail);
   const okPass = safeEqual(gotPass, wantPass);
