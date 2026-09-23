@@ -33,6 +33,11 @@ For the second, check in this order:
 3. **Are you throttled?** 10 failures per IP per 15 minutes returns *"Too many
    attempts"*, which reads like a different fault. Wait it out rather than
    retrying.
+4. **Tap the eye in the password box** and read back what you actually typed.
+   A masked field hides a dropped character or a half-selected paste, and those
+   look exactly like knowing the wrong password. It starts masked on every
+   visit and reveals nothing until you ask, so use it on a screen nobody is
+   reading over your shoulder.
 
 Surrounding whitespace on the password is *not* a cause: both the configured
 value and what you type are trimmed at the edges (`lib/dev-auth.js`), because a

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useLang } from "@/components/LangProvider";
 import ShowMore, { usePaged } from "@/components/ShowMore";
 import Field from "@/components/Field";
+import RevealInput from "@/components/RevealInput";
 import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 
 // Developer / platform-admin console. A standalone page (the app shell is
@@ -169,7 +170,7 @@ function DevLogin({ t }) {
       <input className="input" type="email" inputMode="email" autoComplete="username" autoCapitalize="none"
         value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dev@duocount.app" />
       <label className="label mt-3">{t("dev.login_password")}</label>
-      <input className="input" type="password" autoComplete="current-password"
+      <RevealInput autoComplete="current-password"
         value={password} onChange={(e) => setPassword(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && email && password && !busy && submit()} />
       {needsCode && (
