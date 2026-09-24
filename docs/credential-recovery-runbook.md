@@ -89,14 +89,33 @@ signs in with their ordinary store account. Which is the point of the next item.
   `superadmin`. The registry refuses to drop its last active superadmin
   (transactionally), and an operator can't edit their own row, so neither of you
   can accidentally lock the pair of you out.
-- **Turn on the second factor.** Generate a base32 secret, add it as
-  `DEV_ADMIN_TOTP_SECRET`, redeploy, scan it into your authenticator, and keep
-  the secret itself in your password manager as the recovery copy.
+- **Turn on the second factor.** `DEV_ADMIN_TOTP_SECRET` holds a base32 secret;
+  set it and the login additionally demands a 6-digit code. Blank, nothing
+  changes, so deploying it can't lock you out on its own.
   ```
-  node -e "console.log(require('crypto').randomBytes(20).toString('base64').replace(/[^A-Z2-7]/gi,'').toUpperCase().slice(0,32))"
+  npm run totp:secret                 # mint one, with setup instructions
+  npm run totp:secret -- <SECRET>     # what code should my app be showing?
   ```
-  Lost the authenticator? Blank `DEV_ADMIN_TOTP_SECRET` and redeploy — that's the
-  break-glass, and it's why the secret belongs in the password manager too.
+  **Check before you deploy, not after.** The setup key is another static string
+  you type once and trust forever, and it fails the same silent way the password
+  does — a mistyped key and a drifted phone clock both surface only as *"wrong or
+  expired authenticator code"*, after a redeploy, on the one login that recovers
+  everything else. Enter the secret in the app, run the second command, and
+  confirm the codes agree. The check runs the app's own `lib/totp.js`, so
+  agreeing with it is agreeing with the server.
+
+  If the app shows *none* of the three codes, it is holding a different secret —
+  re-enter it. If it shows the `-1` or `+1` neighbour, the phone's clock has
+  drifted; turn on automatic time. (The server accepts ±1 step, so a neighbour
+  still signs in — but drift grows.)
+
+  Keep the secret in your password manager. Lost the authenticator? Blank
+  `DEV_ADMIN_TOTP_SECRET` and redeploy — that's the break-glass, and it's why
+  the secret belongs in the manager too.
+
+  Order matters: get in with the password first, *then* add the second factor.
+  Turning it on while you are already locked out just adds a second thing that
+  can be wrong.
 - **Rotate the password** when someone with deploy access leaves, on any
   suspicion, and otherwise on whatever cadence you keep for shared secrets.
   Rotation is step 2 above; nothing else depends on the old value.
