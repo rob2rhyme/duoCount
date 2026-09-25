@@ -2,7 +2,8 @@
 // vectors. Run: npm run test:totp
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { base32Decode, hotp, totpCode, verifyTotp, totpConfigured, STEP_SECONDS } from "../src/lib/totp.js";
+import { randomBytes } from "node:crypto";
+import { base32Decode, base32Encode, hotp, totpCode, verifyTotp, totpConfigured, STEP_SECONDS } from "../src/lib/totp.js";
 
 // RFC 4226 / 6238 test key: the ASCII string "12345678901234567890".
 const KEY_ASCII = "12345678901234567890";
@@ -74,4 +75,43 @@ test("totpConfigured is off unless the env secret parses — a blank env never d
   assert.equal(totpConfigured({ DEV_ADMIN_TOTP_SECRET: "   " }), false);
   assert.equal(totpConfigured({ DEV_ADMIN_TOTP_SECRET: "nope!" }), false);
   assert.equal(totpConfigured({ DEV_ADMIN_TOTP_SECRET: KEY_B32 }), true);
+});
+
+/* --------------------------- base32Encode --------------------------------- */
+// The generator side. A secret is typed into an authenticator once and then
+// trusted forever, so "it round-trips through the verifier's own decoder" is
+// the property that matters — not the string's appearance.
+
+test("base32Encode matches RFC 4648's own vectors", () => {
+  const v = [["", ""], ["f", "MY"], ["fo", "MZXQ"], ["foo", "MZXW6"],
+             ["foob", "MZXW6YQ"], ["fooba", "MZXW6YTB"], ["foobar", "MZXW6YTBOI"]];
+  for (const [plain, encoded] of v) assert.equal(base32Encode(Buffer.from(plain, "utf8")), encoded, plain);
+});
+
+test("base32Encode round-trips through base32Decode for every length up to 40 bytes", () => {
+  for (let n = 1; n <= 40; n++) {
+    const bytes = Buffer.from(Array.from({ length: n }, (_, i) => (i * 37 + n * 11) & 0xff));
+    const decoded = base32Decode(base32Encode(bytes));
+    // A partial final group encodes trailing zero bits, so the decoder returns
+    // whole bytes only — the original is always a prefix of what comes back.
+    assert.ok(decoded.subarray(0, n).equals(bytes), `length ${n}`);
+  }
+});
+
+test("a 20-byte secret encodes to exactly 32 characters, every time", () => {
+  // The property the old base64-filtering one-liner did NOT have: it produced
+  // 22-26 characters at random, so the secret's entropy varied per run.
+  for (let i = 0; i < 200; i++) {
+    const out = base32Encode(randomBytes(20));
+    assert.equal(out.length, 32);
+    assert.match(out, /^[A-Z2-7]{32}$/);
+  }
+});
+
+test("a generated secret drives a code the verifier accepts", () => {
+  const secret = base32Encode(randomBytes(20));
+  const now = Date.now();
+  assert.equal(verifyTotp(secret, totpCode(secret, now), { now }), true);
+  // ...and the app would demand it.
+  assert.equal(totpConfigured({ DEV_ADMIN_TOTP_SECRET: secret }), true);
 });

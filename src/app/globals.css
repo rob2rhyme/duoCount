@@ -122,6 +122,13 @@ html { font-size: calc(16px * var(--font-scale, 1)); }
 select.input { text-overflow: ellipsis; }
 .input::placeholder { color: var(--faint); }
 .input:focus { @apply ring-2 ring-brass/20; border-color: rgb(var(--brass)); }
+/* A field carrying RevealInput's eye button: the text has to stop short of it.
+   Written as real rules rather than a `pr-10` utility on the element, because
+   `.input`'s own px-3 is emitted AFTER @tailwind utilities and beats a utility
+   of equal specificity. The second rule keeps a centred field (the PIN boxes)
+   centred by padding both edges, and wins on specificity without !important. */
+.input-reveal { padding-right: 2.5rem; }
+.input-reveal.text-center { padding-left: 2.5rem; }
 /* The search boxes render their own magnifier + clear (×) button; WebKit's
    native search-cancel/decoration pseudo-elements would double them up. */
 input[type="search"]::-webkit-search-decoration,

@@ -48,6 +48,36 @@ export function base32Decode(input) {
   return bytes.length ? Buffer.from(bytes) : null;
 }
 
+/**
+ * Encode bytes as base32 (RFC 4648, unpadded upper-case) — the inverse of
+ * base32Decode, and the form every authenticator app accepts as a "setup key".
+ *
+ * Here so that generating a secret goes through the SAME alphabet the verifier
+ * decodes with, and can be asserted to round-trip. The obvious shell one-liner
+ * (base64, then strip anything outside A-Z2-7) is not base32: it discards
+ * characters and folds case, so it yields a variable-length string carrying
+ * noticeably less entropy than the bytes it started from. 20 random bytes
+ * encoded properly are exactly 32 characters and exactly 160 bits, every time.
+ */
+export function base32Encode(bytes) {
+  const buf = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes || []);
+  let out = "";
+  let bits = 0;
+  let value = 0;
+  for (const b of buf) {
+    // `bits` is drained below 5 each pass, so `value` never holds more than 12
+    // bits before this shift — no 32-bit overflow however long the input is.
+    value = (value << 8) | b;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      out += B32[(value >>> bits) & 31];
+    }
+  }
+  if (bits > 0) out += B32[(value << (5 - bits)) & 31];
+  return out;
+}
+
 /** RFC 4226 HOTP: HMAC-SHA1 of the 8-byte counter, dynamically truncated. */
 export function hotp(key, counter, digits = DIGITS) {
   const buf = Buffer.alloc(8);

@@ -58,7 +58,8 @@
     "test:platform": "node --test tests/platform-admins.test.mjs",
     "test:recovery": "node --test tests/recovery.test.mjs",
     "test:totp": "node --test tests/totp.test.mjs",
-    "check:contrast": "node scripts/contrast-check.mjs"
+    "check:contrast": "node scripts/contrast-check.mjs",
+    "totp:secret": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/totp-secret.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Field from "./Field";
 import { useLang } from "./LangProvider";
+import RevealInput from "./RevealInput";
 import { useSession } from "./SessionProvider";
 import { CATALOG } from "@/lib/i18n";
 import { PIN_LENGTH, PIN_PLACEHOLDER, isValidNewPin } from "@/lib/pin";
@@ -62,7 +63,7 @@ export default function AccountCard({ onToast }) {
           account later and outlives any PIN change — so both are held to the
           same bar, and the server re-checks each one. */}
       <Field className="mt-4 max-w-[220px]" label={t("acct.current_pin")} hint={t("acct.identity_hint")}>
-        <input className="input text-center tracking-[0.3em] font-mono" type="password" inputMode="numeric"
+        <RevealInput className="input text-center tracking-[0.3em] font-mono" inputMode="numeric"
           autoComplete="current-password" maxLength={PIN_LENGTH} value={current} placeholder={PIN_PLACEHOLDER}
           onChange={(e) => setCurrent(e.target.value.replace(/\D/g, ""))} />
       </Field>
@@ -71,12 +72,12 @@ export default function AccountCard({ onToast }) {
         <div className="space-y-3">
           <h3 className="text-[13px] font-semibold">{t("acct.change_pin")}</h3>
           <Field label={t("acct.new_pin")}>
-            <input className="input text-center tracking-[0.3em] font-mono" type="password" inputMode="numeric"
+            <RevealInput className="input text-center tracking-[0.3em] font-mono" inputMode="numeric"
               autoComplete="new-password" maxLength={PIN_LENGTH} value={pin} placeholder={PIN_PLACEHOLDER}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
           </Field>
           <Field label={t("acct.confirm_pin")}>
-            <input className="input text-center tracking-[0.3em] font-mono" type="password" inputMode="numeric"
+            <RevealInput className="input text-center tracking-[0.3em] font-mono" inputMode="numeric"
               autoComplete="new-password" maxLength={PIN_LENGTH} value={pin2} placeholder={PIN_PLACEHOLDER}
               onChange={(e) => setPin2(e.target.value.replace(/\D/g, ""))} />
           </Field>

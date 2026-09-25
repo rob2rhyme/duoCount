@@ -86,6 +86,8 @@ export const CATALOG = {
     "common.retry": "Retry",
     "common.retrying": "Retrying…",
     "common.show_more": "Show {n} more",
+    "common.show_secret": "Show what you typed",
+    "common.hide_secret": "Hide what you typed",
 
     // cash count
     "cash.title": "New drawer count",
@@ -2460,6 +2462,8 @@ export const CATALOG = {
     "common.retry": "Reintentar",
     "common.retrying": "Reintentando…",
     "common.show_more": "Mostrar {n} más",
+    "common.show_secret": "Mostrar lo que escribiste",
+    "common.hide_secret": "Ocultar lo que escribiste",
 
     "cash.title": "Nuevo conteo de caja",
     "cash.drawer": "Caja registradora",
