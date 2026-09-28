@@ -63,41 +63,55 @@ comment justified this by shared shop Wi-Fi — but that rationale is about the
 ### Fix
 
 1. **The store counter survives a success.** Only the IP counter is cleared, so
-   the shared-Wi-Fi behaviour the comment actually describes is preserved.
+   the shared-Wi-Fi behaviour the original comment actually describes is
+   preserved, without handing an attacker a refill on every honest login.
 2. **The store window escalates.** Each consecutive trip of the cap multiplies
    the next window (×4, capped at 1 hour), with strikes decaying after a quiet
-   day so a key is never permanently degraded. A sustained grind drops from 50
-   guesses per 15 minutes to 50 per hour.
-3. `retryAfterMs` is returned with a `Retry-After` header, and the user-facing
+   day so a key is never permanently degraded.
+3. **The cap came down from 50 to 20**, so each of those windows buys less.
+4. `retryAfterMs` is returned with a `Retry-After` header, and the user-facing
    string no longer promises "a few minutes" (en/es updated in lockstep).
 
-```
-after the first escalation: 50 × 24 × 365   = 438,000 guesses/year
-expected breaks per year, S = 6             ≈ 2.6      (was 10.5)
-P(at least one within 30 days)              ≈ 19%      (was 58%)
-```
+Compounding:
+
+| Configuration | Guesses/year | Expected breaks/year (S=6) | Chance within 30 days |
+| --- | ---: | ---: | ---: |
+| 50 per 15 min, flat *(original)* | 1,752,000 | ~10.5 | **58%** |
+| 50 per hour, escalated | 438,000 | ~2.6 | 19% |
+| **20 per hour, escalated** *(shipped)* | **175,200** | **~1.05** | **8%** |
+
+### Why 20 does not lock out real staff
+
+Because the store cap is not what bounds them. A shop's staff share one public
+IP, so their typos land on a single `ip_` key and hit `IP_LIMIT` (10) long before
+the store-wide count matters — and a successful sign-in **clears that IP
+counter**, so a fumbled shift change resets the moment anyone gets in. Reaching
+20 store-wide requires failures from many different addresses, which is the
+distributed attack this cap exists for, not a busy Tuesday. A test asserts the
+per-IP cap bites first over the same window, so tuning either number can't
+silently invert that.
 
 ### Residual risk, stated plainly
 
-19% over 30 days is better, not good. The remaining exposure is inherent to a
-6-digit secret shared across a staff list, and closing it further is a product
-decision rather than a bug fix:
+8% over 30 days is a real improvement and still not zero. What is left is
+inherent to a 6-digit secret matched against a whole staff list:
 
-- **Lower `STORE_LIMIT.maxFails`.** 50 was chosen as "well above honest typos";
-  20 would still be 4× a busy store's realistic rate and cuts the budget 2.5×.
-- **Raise `maxWindowMs`** from 1 hour to 4. Cuts the budget 4× more — at the
-  cost of a longer self-inflicted lockout (below).
-- **Lengthen the PIN.** 8 digits is 100× the space and closes this outright.
-  Costs a migration and daily keying effort for staff.
+- **Lengthen the PIN.** 8 digits is 100× the space and closes this outright. It
+  is the only remaining change that does, and it costs a migration plus daily
+  keying effort for staff — a product decision, not a bug fix.
+- **Raise `maxWindowMs`** from 1 hour to 4. Cuts the budget 4× more, at the cost
+  of a 4-hour self-inflicted lockout (below).
 - **Per-user lockout** is not directly available: sign-in resolves identity *by*
   PIN, so there is no known user to lock until after a match.
 
 ### The tradeoff this fix accepts
 
-Escalation lengthens a self-inflicted lockout. Anyone willing to burn 50
-failures could already close a store's sign-in for 15 minutes; they can now
-close it for an hour. The cap is deliberately 1 hour, not a day, so a store can
-get its staff in within a shift. Already-signed-in staff are unaffected either
+Escalation lengthens a self-inflicted lockout, and the lower cap makes it
+cheaper to trigger: closing a store's new sign-ins used to take 50 failures for
+15 minutes, and now takes 20 for an hour. That is the deliberate trade — the
+same property that makes the cap bind an attacker makes it reachable by one.
+Bounded at an hour rather than a day so a store can get its staff in within a
+shift. Already-signed-in staff are unaffected either
 way — only new sign-ins wait. A CAPTCHA would be the usual escape hatch and is
 ruled out by the project's no-third-party-scripts rule.
 
@@ -213,5 +227,5 @@ inbound reference if that is the preference.
 
 ## Verification
 
-`npm run lint` 0 errors (6 pre-existing warnings) · `npm test` 822 unit tests
-(8 new) · `npm run test:rules` 92 rules tests · `npm run build` compiles.
+`npm run lint` 0 errors (6 pre-existing warnings) · `npm test` 823 unit tests
+(9 new) · `npm run test:rules` 92 rules tests · `npm run build` compiles.

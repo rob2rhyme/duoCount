@@ -14,22 +14,36 @@
 // per-store cap is set well above what a busy store's honest typos could reach,
 // so real staff aren't locked out; it only bites during an actual attack.
 export const IP_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 10 };
-// The per-store backstop also ESCALATES. A flat 50-per-15-minutes is 1.75M
-// guesses a year against a 6-digit PIN, and login matches the PIN against every
-// active user, so any one of S staff PINs wins: at S=6 that is ~10 expected
-// breaks a year. Each consecutive trip of the cap lengthens the NEXT window
-// (x4, capped at an hour), so a sustained grind can't keep buying 50 guesses
-// every quarter hour. Strikes decay after a quiet day, so one bad afternoon
-// doesn't punish a store forever.
+// The per-store backstop is a DISTRIBUTED-attack bound, and it escalates.
 //
-// The cost is a longer self-inflicted lockout: anyone willing to burn 50
-// failures could already close a store's sign-in for 15 minutes, and this
-// extends that to an hour. Bounded deliberately — a store must be able to get
-// its staff in within a shift. Already-signed-in staff are unaffected either
-// way; only new sign-ins wait. See docs/security-audit-2026.md for the math and
-// the stronger knobs (a lower cap, a longer PIN) and why they are product calls.
+// Why it matters: the PIN is 6 digits and login matches it against every active
+// user, so any one of S staff PINs wins. A flat 50-per-15-minutes was 1,752,000
+// guesses a year — at S=6, ~10 expected breaks a year and a ~58% chance of one
+// within 30 days.
+//
+// Two changes close most of that. Each consecutive trip of the cap lengthens the
+// NEXT window (x4, capped at an hour), so a sustained grind can't keep buying a
+// fresh batch every quarter hour; and the cap itself is 20, not 50:
+//
+//   50 / 15 min flat       1,752,000 guesses/yr   ~10.5 breaks/yr   ~58% in 30d
+//   50 / 1 h escalated       438,000              ~2.6             ~19%
+//   20 / 1 h escalated       175,200              ~1.05             ~8%
+//
+// 20 is safe for honest stores because it is not what bounds them. Staff share
+// the shop Wi-Fi, so their typos land on ONE ip_ key and hit IP_LIMIT (10) long
+// before the store-wide count matters — and a successful sign-in clears that IP
+// counter, so a fumbled morning resets the moment anyone gets in. Reaching 20
+// store-wide takes failures from MANY different addresses, which is the
+// distributed attack this cap exists for and not a busy Tuesday.
+//
+// Strikes decay after a quiet day, so nothing is punished forever. The cost is a
+// longer self-inflicted lockout: burning the cap once closed new sign-ins for 15
+// minutes and now closes them for an hour. Bounded deliberately — a store must
+// get its staff in within a shift — and already-signed-in staff are unaffected
+// either way. See ops/security-audit-2026.md for the derivation and the
+// remaining knobs (a longer PIN is the one that closes this outright).
 export const STORE_LIMIT = {
-  windowMs: 15 * 60 * 1000, maxFails: 50,
+  windowMs: 15 * 60 * 1000, maxFails: 20,
   backoffFactor: 4, maxWindowMs: 60 * 60 * 1000, strikeDecayMs: 24 * 60 * 60 * 1000,
 };
 

@@ -50,9 +50,26 @@ test("throttle: an expired window resets — never a permanent lock", () => {
 
 test("throttle: per-store cap is higher than per-IP (distributed-attack backstop, not everyday typos)", () => {
   assert.ok(STORE_LIMIT.maxFails > IP_LIMIT.maxFails);
-  // 20 store-wide fails is under the store cap but over the per-IP cap
-  assert.equal(throttleDecision({ count: 20, windowStart: T0 }, T0 + 1, STORE_LIMIT).blocked, false);
-  assert.equal(throttleDecision({ count: 20, windowStart: T0 }, T0 + 1, IP_LIMIT).blocked, true);
+  // Derived rather than hard-coded, so tuning either cap can't silently make
+  // this assert nothing (a literal 20 stopped meaning "between" when the store
+  // cap came down from 50).
+  const between = Math.floor((IP_LIMIT.maxFails + STORE_LIMIT.maxFails) / 2);
+  assert.ok(between > IP_LIMIT.maxFails && between < STORE_LIMIT.maxFails, "caps must leave a gap");
+  assert.equal(throttleDecision({ count: between, windowStart: T0 }, T0 + 1, STORE_LIMIT).blocked, false);
+  assert.equal(throttleDecision({ count: between, windowStart: T0 }, T0 + 1, IP_LIMIT).blocked, true);
+});
+
+test("honest shared-Wi-Fi typos hit the per-IP cap long before the store cap", () => {
+  // This is what makes a store cap of 20 safe: a shop's staff share one public
+  // IP, so their failures land on ONE ip_ key. The per-IP cap has to bite first
+  // within the same window, or the distributed-attack backstop would be locking
+  // out real staff — and a successful sign-in clears the IP counter, so a
+  // fumbled morning resets as soon as anyone gets in.
+  assert.ok(IP_LIMIT.windowMs <= STORE_LIMIT.windowMs, "compare over the same window");
+  assert.ok(IP_LIMIT.maxFails < STORE_LIMIT.maxFails);
+  const atIpCap = { count: IP_LIMIT.maxFails, windowStart: T0 };
+  assert.equal(throttleDecision(atIpCap, T0 + 1, IP_LIMIT).blocked, true, "the shop's IP is stopped");
+  assert.equal(throttleDecision(atIpCap, T0 + 1, STORE_LIMIT).blocked, false, "the store is not");
 });
 
 test("throttle: malformed records don't block and start a clean window", () => {
@@ -96,7 +113,12 @@ test("clientIp falls back to 'unknown' with no usable forwarding headers", () =>
 
 test("asking for a reset link is capped far tighter than signing in — every request emails somebody", () => {
   assert.ok(RESET_IP_LIMIT.maxFails < IP_LIMIT.maxFails);
-  assert.ok(RESET_STORE_LIMIT.maxFails < STORE_LIMIT.maxFails);
+  // Compared as a RATE, not a raw count: the reset limiter runs an hour-long
+  // window against sign-in's quarter hour, so equal counts are four times
+  // tighter. Comparing counts only worked while the windows happened to match.
+  const rate = (L) => L.maxFails / L.windowMs;
+  assert.ok(rate(RESET_STORE_LIMIT) < rate(STORE_LIMIT),
+    `reset ${rate(RESET_STORE_LIMIT)}/ms must be tighter than login ${rate(STORE_LIMIT)}/ms`);
   // Per-store is still looser than per-IP, so one shop's staff sharing a Wi-Fi
   // IP can't be locked out by a per-store cap meant for a distributed attack.
   assert.ok(RESET_STORE_LIMIT.maxFails > RESET_IP_LIMIT.maxFails);
