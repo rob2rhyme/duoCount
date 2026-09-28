@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 import { requireSignedIn, requirePlatformAdmin, resolvePlatformAdmin, assertScope } from "@/lib/require-manager";
+import { indexStaffByVendor, NO_STAFF } from "@/lib/dev-stores";
 import { scopesForRole, ROLES, normalizeRole } from "@/lib/platform-admins";
 import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
 import { hasRecoveryEmail, buildResetEmail, buildPinChangedEmail, buildSupportReplyEmail, resetLink, supportReplyEnabled } from "@/lib/recovery";
@@ -10,6 +11,54 @@ import { normalizeBilling } from "@/lib/billing";
 import { buildAuditEntry } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
+
+/**
+ * Active staff for every vendor on the page, indexed by vendor id.
+ *
+ * Fast path: ONE collection-group query over `users`. The previous code ran one
+ * subcollection query per vendor inside a Promise.all — up to 500 concurrent
+ * reads for a single Stores load.
+ *
+ * Fallback: that same per-vendor fan-out. It is kept deliberately. A
+ * collection-group query needs its own index (firestore.indexes.json,
+ * fieldOverrides for users.active at COLLECTION_GROUP scope), and an index is
+ * not instant — it has to deploy and then finish building. Until it does, the
+ * query throws FAILED_PRECONDITION. Falling back means a deploy that lands
+ * ahead of its index is merely as slow as before rather than a broken Stores
+ * tab, and it heals itself once the index is live. The Firestore emulator does
+ * not enforce index requirements, so this is exactly the failure no test here
+ * can catch.
+ *
+ * Both paths fold through indexStaffByVendor, so the result is identical.
+ */
+// One user doc -> the four fields the rollup needs, with the vendor taken from
+// the document's PATH (vendors/{vendorId}/users/{userId} — .parent is `users`,
+// its .parent is the vendor doc), never from its contents. Spreading the data
+// instead would let a `vendorId` field inside a user document override the real
+// parent and attribute staff to the wrong store; no user doc carries one today,
+// which is exactly why a future one could add it unnoticed.
+const staffRow = (u, vendorId = u.ref.parent.parent?.id) => {
+  const d = u.data() || {};
+  return { vendorId, role: d.role, name: d.name, email: d.email };
+};
+
+async function staffByVendor(adminDb, vendorDocs) {
+  try {
+    const snap = await adminDb.collectionGroup("users").where("active", "==", true).get();
+    // Arrow-wrapped, NOT `.map(staffRow)`: map passes the index as the second
+    // argument, which would land in `vendorId` and silently zero every count.
+    return indexStaffByVendor(snap.docs.map((u) => staffRow(u)));
+  } catch (e) {
+    console.warn("[listStores] collection-group users query failed, falling back to per-vendor reads —", e?.message || e);
+    const perVendor = await Promise.all(vendorDocs.map(async (d) => {
+      // A single vendor's failure costs that store its count, as before — not
+      // the whole page.
+      const users = await d.ref.collection("users").where("active", "==", true).get().catch(() => null);
+      return users ? users.docs.map((u) => staffRow(u, d.id)) : [];
+    }));
+    return indexStaffByVendor(perVendor.flat());
+  }
+}
 
 // Developer / platform-admin console. Cross-tenant by nature: the store data is
 // isolated per vendor, so every read/write here goes through the Admin SDK
@@ -152,24 +201,30 @@ export async function POST(req) {
         : [];
       const billingById = {};
       for (const b of billingSnaps) if (b.exists) billingById[b.id] = b.data();
-      // Staff counts per vendor (bounded fan-out; store scale).
-      const stores = await Promise.all(vSnap.docs.map(async (d) => {
+      // Staff counts per vendor. This used to fan out one subcollection query
+      // PER VENDOR — up to 500 concurrent reads on a single Stores load, and
+      // the read every new per-store signal would have to queue behind. One
+      // collection-group query replaces the lot; staffByVendor keeps the old
+      // fan-out as a fallback, because this is the repo's first collection-group
+      // query and its index has to exist (and finish building) in the live
+      // project before the fast path can work.
+      const staff = await staffByVendor(adminDb, vSnap.docs);
+      const stores = vSnap.docs.map((d) => {
         const v = d.data();
-        const users = await d.ref.collection("users").where("active", "==", true).get().catch(() => ({ size: 0 }));
-        const owner = users.docs?.find?.((u) => u.data().role === "owner");
+        const { staffCount, owner } = staff.get(d.id) || NO_STAFF;
         const bill = billingById[d.id];
         return {
           id: d.id, name: v.name || "", slug: v.slug || "",
           status: v.status || "active", createdAt: v.createdAt || null,
           deletedAt: v.deletedAt || null, deletedBy: v.deletedBy || null,
           rewardsOn: v.rewards?.enabled === true,
-          ownerName: owner ? owner.data().name : (v.ownerName || ""),
-          ownerEmail: owner ? (owner.data().email || null) : null,
-          staffCount: users.size || 0, openTickets: openByVendor[d.id] || 0,
+          ownerName: owner ? owner.name : (v.ownerName || ""),
+          ownerEmail: owner ? owner.email : null,
+          staffCount, openTickets: openByVendor[d.id] || 0,
           note: v.devNote || null,
           billing: bill ? { plan: bill.plan, status: bill.status, cycle: bill.cycle, price: bill.price, note: bill.note || null } : null,
         };
-      }));
+      });
       return NextResponse.json({ ok: true, stores });
     }
 
