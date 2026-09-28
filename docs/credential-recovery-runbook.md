@@ -74,11 +74,39 @@ There is **no reset flow, on purpose.** An email-driven path into the most
 privileged credential in the system would be a net loss — that mailbox becomes
 the real credential, and it's outside the product's control.
 
-1. Set a new `DEV_ADMIN_PASSWORD` in the Vercel project (Settings → Environment
-   Variables → Production).
-2. **Redeploy** — env changes don't reach running functions until then.
-3. Sign in at `/dev` and confirm the Stores tab loads.
-4. Store the new value in your password manager before you close the tab.
+```
+npm run dev:password            # 24 characters, 120 bits
+npm run dev:password -- 32      # longer, if you prefer
+```
+
+1. **Edit the existing `DEV_ADMIN_PASSWORD` row** in the Vercel project
+   (Settings → Environment Variables) — don't add a second one — and check the
+   row is scoped to **Production**. An edit that lands on Preview only leaves
+   Production stale, which looks exactly like nothing changed.
+2. **While you're in there, reveal `DEV_ADMIN_EMAIL`** and confirm it is the
+   address you actually type. One message covers both halves, and the email is
+   the half people forget they ever set.
+3. **Redeploy** — env changes don't reach running functions until then.
+4. Sign in at `/dev`, **paste** the value rather than retyping it, and tap the
+   eye in the field to confirm what landed. Confirm the Stores tab loads.
+5. Store the new value in your password manager before you close the tab.
+
+**Why a generator and not a password you invent.** The alphabet is `A-Z` and
+`2-9` with `I`, `O`, `0` and `1` removed, and no punctuation at all. The
+failure this credential actually has is a character that *looked* right — `I`
+for `l`, `O` for `0`, an en-dash pasted where a hyphen belongs, a smart quote
+from an editor that substituted one, a non-breaking space out of a web page.
+Only the *edges* are trimmed (`lib/dev-auth.js`), so anything in the middle
+counts, and a secret that reads identically on screen but differs by one byte
+is indistinguishable from not knowing it. Removing the confusable glyphs and
+all punctuation removes the class, and nothing in the output needs escaping in
+a shell or a dashboard form.
+
+The reduction is uniform because 32 divides 256 exactly; `lib/secret-gen.js`
+refuses any alphabet that doesn't, because a 33-character one would make the
+first 25 symbols likelier and lose entropy with nothing about the output
+looking wrong — the same silent-entropy shape as the base32 generator this
+runbook used to recommend.
 
 The console is not your only way back in: an **active `platformAdmins` operator**
 signs in with their ordinary store account. Which is the point of the next item.

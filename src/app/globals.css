@@ -138,6 +138,15 @@ input[type="search"]::-webkit-search-results-decoration { -webkit-appearance: no
 .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold transition active:scale-[.98]; }
 .btn-primary { @apply btn w-full; background: var(--btn-bg); color: var(--btn-fg); }
 .btn-ghost { @apply btn border; background: var(--subtle); color: var(--fg); border-color: var(--line); }
+/* A colour utility on .btn-ghost silently loses: the `color: var(--fg)` above
+   is a plain declaration of the same specificity, emitted AFTER @tailwind
+   utilities, so it wins on source order. Every destructive ghost button in the
+   app carries `text-neg` and has been rendering in ordinary text colour —
+   "Delete store" and "Void shift" looked exactly like "Rename". Re-assert the
+   two that are actually used at (0,2,0), which wins without !important. The
+   same ordering trap governs .input above; see .input-reveal. */
+.btn-ghost.text-neg { color: var(--neg); }
+.btn-ghost.text-muted { color: var(--muted); }
 /* Disabled controls: WCAG exempts them from contrast, but they must still be
    perceivably inactive. The custom var(--field) background overrides the
    browser's default graying, so make the state explicit. */

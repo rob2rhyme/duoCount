@@ -12,6 +12,7 @@ import { useLang } from "@/components/LangProvider";
 import ShowMore, { usePaged } from "@/components/ShowMore";
 import Field from "@/components/Field";
 import RevealInput from "@/components/RevealInput";
+import ActionIcon from "@/components/ActionIcon";
 import { LOCALES, LOCALE_LABELS } from "@/lib/i18n";
 
 // Developer / platform-admin console. A standalone page (the app shell is
@@ -594,7 +595,7 @@ function Stores({ t, lang, me }) {
             {label} <span className="tabular-nums opacity-70">{n}</span>
           </button>
         ))}
-        <button type="button" className="btn-ghost text-[13px] px-3 py-1.5 w-auto ml-auto" disabled={!shown.length} onClick={exportStores}>⬇ {t("dev.export_stores")}</button>
+        <button type="button" className="btn-ghost text-[13px] px-3 py-1.5 w-auto ml-auto" disabled={!shown.length} onClick={exportStores}><ActionIcon name="download" />{t("dev.export_stores")}</button>
       </div>
 
       <p className="text-[12px] text-muted">{t("dev.store_count", { n: shown.length })}</p>
@@ -625,24 +626,24 @@ function Stores({ t, lang, me }) {
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             {s.status === "deleted" ? (
-              can("lifecycle") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "restore" })}>{t("dev.restore")}</button>
+              can("lifecycle") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "restore" })}><ActionIcon name="restore" />{t("dev.restore")}</button>
             ) : (
               <>
                 {can("lifecycle") && (s.status === "suspended" ? (
-                  <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "activate" })}>{t("dev.reactivate")}</button>
+                  <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "activate" })}><ActionIcon name="reactivate" />{t("dev.reactivate")}</button>
                 ) : (
-                  <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "suspend" }, t("dev.confirm_suspend", { name: s.name }))}>{t("dev.suspend")}</button>
+                  <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id} onClick={() => op(s.id, { op: "suspend" }, t("dev.confirm_suspend", { name: s.name }))}><ActionIcon name="suspend" />{t("dev.suspend")}</button>
                 ))}
                 {can("billing") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => (editBill === s.id ? setEditBill(null) : openBilling(s))}>{t("dev.edit_billing")}</button>}
+                  onClick={() => (editBill === s.id ? setEditBill(null) : openBilling(s))}><ActionIcon name="billing" />{t("dev.edit_billing")}</button>}
                 {can("stores") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}>{t("dev.rename")}</button>}
+                  onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}><ActionIcon name="rename" />{t("dev.rename")}</button>}
                 {can("stores") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}>{t("dev.note")}</button>}
+                  onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}><ActionIcon name="note" />{t("dev.note")}</button>}
                 {can("pin") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
-                  onClick={() => (resetFor === s.id ? closeReset() : openReset(s))}>{t("dev.reset_pin")}</button>}
+                  onClick={() => (resetFor === s.id ? closeReset() : openReset(s))}><ActionIcon name="pin" />{t("dev.reset_pin")}</button>}
                 {can("lifecycle") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto text-neg" disabled={busy === s.id}
-                  onClick={() => deleteStore(s)}>{t("dev.delete")}</button>}
+                  onClick={() => deleteStore(s)}><ActionIcon name="delete" />{t("dev.delete")}</button>}
               </>
             )}
           </div>
