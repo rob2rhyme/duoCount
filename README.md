@@ -157,7 +157,7 @@ require a 6-digit code after the password; leave it blank and the login behaves
 exactly as before, so turning it on can't lock you out by itself. That password
 has no reset flow on purpose — rotating it is an env change plus a redeploy, and
 the procedure (along with what to do when a store owner is locked out) is in
-`docs/credential-recovery-runbook.md`.
+`ops/credential-recovery-runbook.md` (kept out of `docs/`, which is served publicly).
 
 ## Account recovery
 

@@ -29,11 +29,14 @@ const INTERNAL = new Set([
   "positioning-one-pager", "competitive-gap-analysis",
   "distribution-analysis", "distribution-decision-2026",
   "monetization-paths-2026", "dev-console-roadmap",
-  // Operator-side credential procedures (what to do when the developer login or
-  // a store owner is locked out). Store staff aren't the audience, and the page
-  // names the env vars the deployment is configured with.
-  "credential-recovery-runbook",
 ]);
+
+// NOTE: unlisting is NOT access control. Everything left in docs/ is built as a
+// public static page at /docs/<slug> — INTERNAL only keeps it off the index and
+// out of search. The operator credential runbook used to sit here and was
+// therefore world-readable at a guessable URL; it now lives in ops/, which this
+// module never reads. Anything naming env vars, defence thresholds, or
+// procedures belongs there, not here. See ops/security-audit-2026.md.
 const publicSlugs = () => docSlugs().filter((s) => !INTERNAL.has(s));
 
 export function docSlugs() {

@@ -6,6 +6,7 @@ import { isValidNewPin, PIN_LENGTH, PIN_RE } from "../src/lib/pin.js";
 import {
   throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp,
   RESET_IP_LIMIT, RESET_STORE_LIMIT, RECOVERY_CONFIRM_LIMIT, PUBLIC_SUPPORT_LIMIT,
+  SLUG_CHECK_LIMIT, BALANCE_STORE_LIMIT,
 } from "../src/lib/login-throttle.js";
 
 test("PIN policy: new pins must be exactly 6 digits", () => {
@@ -120,4 +121,87 @@ test("recovery counters share the loginAttempts collection under distinct, sanit
   // verify_…, help_…) so a recovery burst can never eat a sign-in allowance.
   assert.equal(`reset_ip_${attemptKey("203.0.113.9")}`, "reset_ip_203.0.113.9");
   assert.equal(`reset_store_${attemptKey("acme market/../x")}`, "reset_store_acme_market_.._x");
+});
+
+/* ------------------- escalating store backoff (security audit) ------------- */
+// A flat 50-per-15-minutes is ~1.75M guesses a year against a 6-digit PIN that
+// login matches against EVERY active user, so any of S staff PINs wins. These
+// assert the escalation that cuts that budget, and the recovery that keeps it
+// from becoming a permanent lock.
+
+const S = STORE_LIMIT;
+const capped = (n) => Math.min(S.windowMs * S.backoffFactor ** n, S.maxWindowMs);
+
+test("store limiter escalates: tripping the cap lengthens the NEXT window", () => {
+  assert.ok(S.backoffFactor > 1 && S.maxWindowMs > S.windowMs, "escalation must be configured");
+
+  // The failure that reaches the cap banks exactly one strike...
+  const trip = throttleDecision({ count: S.maxFails - 1, windowStart: T0 }, T0 + 1, S);
+  assert.equal(trip.blocked, false, "the capping failure is still allowed through");
+  assert.equal(trip.nextOnFail.strikes, 1);
+
+  // ...and further failures in the same window do NOT keep banking strikes.
+  const after = throttleDecision({ count: S.maxFails + 5, windowStart: T0, strikes: 1, strikeAt: T0 }, T0 + 2, S);
+  assert.equal(after.blocked, true);
+  assert.equal(after.nextOnFail.strikes, 1, "one strike per window, not per failure");
+});
+
+test("store limiter: a struck key stays blocked past the base window", () => {
+  const rec = { count: S.maxFails, windowStart: T0, strikes: 1, strikeAt: T0 };
+  // Just past the ORIGINAL 15-minute window the flat limiter would have reopened.
+  assert.equal(throttleDecision(rec, T0 + S.windowMs + 1, S).blocked, true,
+    "escalated window is still live — this is the whole point of the fix");
+  // Past the escalated window it reopens.
+  assert.equal(throttleDecision(rec, T0 + capped(1) + 1, S).blocked, false);
+});
+
+test("store limiter: the wait is reported, and is never unbounded", () => {
+  const rec = { count: S.maxFails, windowStart: T0, strikes: 99, strikeAt: T0 };
+  const d = throttleDecision(rec, T0 + 1000, S);
+  assert.equal(d.blocked, true);
+  assert.ok(d.retryAfterMs > 0 && d.retryAfterMs <= S.maxWindowMs,
+    `retryAfterMs ${d.retryAfterMs} must be positive and capped at ${S.maxWindowMs}`);
+  // A huge strike count must not overflow the window to Infinity.
+  assert.ok(Number.isFinite(d.retryAfterMs));
+});
+
+test("store limiter: strikes decay after a quiet period — never a permanent lock", () => {
+  const rec = { count: S.maxFails, windowStart: T0, strikes: 4, strikeAt: T0 };
+  const quiet = T0 + S.strikeDecayMs + 1;
+  const d = throttleDecision(rec, quiet, S);
+  assert.equal(d.blocked, false, "a quiet day clears the escalation");
+  assert.equal(d.nextOnFail.strikes, 0);
+  assert.equal(d.nextOnFail.count, 1, "and a fresh window opens");
+});
+
+test("store limiter: malformed strike fields are treated as no strikes", () => {
+  for (const bad of [{ strikes: "x" }, { strikes: -5 }, { strikes: null }, { strikeAt: "nope" }]) {
+    const d = throttleDecision({ count: 1, windowStart: T0, ...bad }, T0 + 1, S);
+    assert.equal(d.blocked, false);
+    assert.ok(d.nextOnFail.strikes >= 0 && Number.isFinite(d.nextOnFail.strikes));
+  }
+});
+
+test("non-escalating limiters keep their exact record shape (no strike fields)", () => {
+  // Guards the blast radius: the fix must not change what any other limiter writes.
+  for (const L of [IP_LIMIT, RESET_IP_LIMIT, RESET_STORE_LIMIT, RECOVERY_CONFIRM_LIMIT, PUBLIC_SUPPORT_LIMIT, SLUG_CHECK_LIMIT, BALANCE_STORE_LIMIT]) {
+    assert.deepEqual(Object.keys(throttleDecision(null, T0, L).nextOnFail).sort(), ["count", "windowStart"]);
+  }
+});
+
+test("slug-availability limiter exists and is tighter than the login IP cap is loose", () => {
+  // /api/auth/check-slug is unauthenticated and counts EVERY request, so the cap
+  // is a request budget for a real signup, not a failure budget.
+  assert.ok(SLUG_CHECK_LIMIT.maxFails > 0 && SLUG_CHECK_LIMIT.windowMs > 0);
+  assert.equal(throttleDecision({ count: SLUG_CHECK_LIMIT.maxFails, windowStart: T0 }, T0 + 1, SLUG_CHECK_LIMIT).blocked, true);
+});
+
+test("the rewards balance check does NOT inherit the login escalation", () => {
+  // It counts EVERY request, so a busy store's real customers can reach the cap
+  // at a rush. Escalating them to an hour would be an outage, not a defence.
+  assert.ok(!(BALANCE_STORE_LIMIT.backoffFactor > 1), "must not escalate");
+  const rec = { count: BALANCE_STORE_LIMIT.maxFails, windowStart: T0 };
+  assert.equal(throttleDecision(rec, T0 + 1, BALANCE_STORE_LIMIT).blocked, true);
+  assert.equal(throttleDecision(rec, T0 + BALANCE_STORE_LIMIT.windowMs + 1, BALANCE_STORE_LIMIT).blocked, false,
+    "and it always reopens on the base window");
 });

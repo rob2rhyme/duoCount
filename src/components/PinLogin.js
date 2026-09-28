@@ -45,7 +45,10 @@ export default function PinLogin() {
   useEffect(() => {
     if (mode !== "signup") { setSlug(null); return undefined; }
     const name = bizName.trim();
-    if (name.length < 2) { setSlug(null); setSlugBusy(false); return undefined; }
+    // 3 characters, matching the server's MIN_BASE: below it /api/auth/check-slug
+    // won't range over the vendor list (a 1-2 char prefix would return most of
+    // it), so asking would only spend a throttle slot for no answer.
+    if (name.length < 3) { setSlug(null); setSlugBusy(false); return undefined; }
     setSlugBusy(true);
     const h = setTimeout(() => {
       apiCheckSlug(name)
@@ -126,12 +129,14 @@ export default function PinLogin() {
             <label htmlFor={ids.bizName} className="label">{t("login.biz_name")}</label>
             <input id={ids.bizName} className="input" value={bizName} onChange={(e) => setBizName(e.target.value)} placeholder="Acme Market" />
             <p className="text-xs mt-1.5 mb-4 leading-relaxed min-h-[1.1rem]" aria-live="polite">
-              {bizName.trim().length < 2 ? <span className="text-muted">{t("login.slug_prompt")}</span>
+              {bizName.trim().length < 3 ? <span className="text-muted">{t("login.slug_prompt")}</span>
                 : slugBusy ? <span className="text-muted">{t("login.slug_checking")}</span>
-                : slug ? (slug.available
+                : /* available === null means the server declined to range on too
+                     short a base — that is not "taken", so keep the prompt. */
+                  slug && slug.available != null ? (slug.available
                     ? <span className="text-pos">{t("login.slug_ok", { slug: slug.slug })}</span>
                     : <span className="text-gold">{t("login.slug_taken", { base: slug.base, slug: slug.slug })}</span>)
-                : <span className="text-muted"> </span>}
+                : <span className="text-muted">{t("login.slug_prompt")}</span>}
             </p>
             <label htmlFor={ids.logoUrl} className="label">{t("login.logo_url")}</label>
             <input id={ids.logoUrl} className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />

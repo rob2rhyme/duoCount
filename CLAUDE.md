@@ -57,7 +57,7 @@ derived from that same-day `soldOut` marker (nothing new is persisted).
 ## Account recovery (all three credential planes)
 
 Nobody is permanently locked out, and the design is in
-`docs/account-recovery-spec.md` (operator side: `credential-recovery-runbook.md`).
+`docs/account-recovery-spec.md` (operator side: `ops/credential-recovery-runbook.md`, deliberately outside the publicly-served `docs/` tree).
 Two rules that are easy to break by accident:
 
 - **Sign-in resolves identity BY PIN**, so every PIN write goes through

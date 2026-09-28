@@ -14,7 +14,38 @@
 // per-store cap is set well above what a busy store's honest typos could reach,
 // so real staff aren't locked out; it only bites during an actual attack.
 export const IP_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 10 };
-export const STORE_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 50 };
+// The per-store backstop also ESCALATES. A flat 50-per-15-minutes is 1.75M
+// guesses a year against a 6-digit PIN, and login matches the PIN against every
+// active user, so any one of S staff PINs wins: at S=6 that is ~10 expected
+// breaks a year. Each consecutive trip of the cap lengthens the NEXT window
+// (x4, capped at an hour), so a sustained grind can't keep buying 50 guesses
+// every quarter hour. Strikes decay after a quiet day, so one bad afternoon
+// doesn't punish a store forever.
+//
+// The cost is a longer self-inflicted lockout: anyone willing to burn 50
+// failures could already close a store's sign-in for 15 minutes, and this
+// extends that to an hour. Bounded deliberately — a store must be able to get
+// its staff in within a shift. Already-signed-in staff are unaffected either
+// way; only new sign-ins wait. See docs/security-audit-2026.md for the math and
+// the stronger knobs (a lower cap, a longer PIN) and why they are product calls.
+export const STORE_LIMIT = {
+  windowMs: 15 * 60 * 1000, maxFails: 50,
+  backoffFactor: 4, maxWindowMs: 60 * 60 * 1000, strikeDecayMs: 24 * 60 * 60 * 1000,
+};
+
+// The public rewards-balance check shares the login cap's SHAPE but must not
+// inherit its escalation. That surface counts EVERY request, not just failures,
+// so a busy store's genuine customers can legitimately reach the cap at a rush —
+// escalating them to an hour-long block would be an outage, not a defence.
+// Brute force isn't the threat there either: the secret is a phone number the
+// customer already knows, and the response carries no name. Same numbers as
+// before this split, so rewards behaviour is unchanged.
+export const BALANCE_STORE_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 50 };
+
+// Store-code availability during signup. Unauthenticated and therefore a tenant
+// enumeration surface, so it counts EVERY request, not just failures — a real
+// signup tries a handful of names; a scraper walking prefixes hits the wall.
+export const SLUG_CHECK_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 30 };
 // Developer login has a single credential and no store, so the per-IP cap alone
 // lets an IP-rotating attacker get a fresh allowance per address. A global
 // backstop bounds TOTAL dev-login failures per window across all IPs — well
@@ -36,17 +67,45 @@ export const RESET_STORE_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 20 };
 export const RECOVERY_CONFIRM_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 15 };
 export const PUBLIC_SUPPORT_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 4 };
 
-export function throttleDecision(record, now, { windowMs, maxFails }) {
+export function throttleDecision(record, now, limit) {
+  const { windowMs, maxFails, backoffFactor = 1, maxWindowMs = 0, strikeDecayMs = 0 } = limit;
+  // Strikes only exist for limiters that opt into escalation. They decay after a
+  // quiet period so a key is never permanently degraded, and they are read
+  // defensively: a malformed or absent value is simply no strikes.
+  const escalates = backoffFactor > 1;
+  const recorded = Math.max(0, Math.trunc(Number(record?.strikes)) || 0);
+  const strikeAt = Number(record?.strikeAt);
+  const decayed = escalates && strikeDecayMs && Number.isFinite(strikeAt) && now - strikeAt > strikeDecayMs;
+  const strikes = escalates && !decayed ? recorded : 0;
+  // Each strike multiplies the window, capped so a key always recovers. Math.pow
+  // of a bounded-but-large strike count could overflow to Infinity, which the
+  // cap absorbs — but clamp the exponent anyway so the arithmetic stays sane.
+  const grown = windowMs * Math.pow(backoffFactor, Math.min(strikes, 32));
+  const effWindowMs = escalates ? Math.min(grown, maxWindowMs || windowMs) : windowMs;
+
   const inWindow =
-    !!record && Number.isFinite(record.windowStart) && now - record.windowStart < windowMs;
+    !!record && Number.isFinite(record.windowStart) && now - record.windowStart < effWindowMs;
   const count = inWindow ? Number(record.count) || 0 : 0;
+  const nextCount = inWindow ? count + 1 : 1;
+  // This failure is the one that trips the cap — bank a strike exactly once per
+  // window, not on every failure after the cap.
+  const trips = escalates && count < maxFails && nextCount >= maxFails;
+
   return {
     blocked: inWindow && count >= maxFails,
+    // How long until this key is usable again; 0 when it isn't blocked. Lets a
+    // caller say "wait N minutes" instead of a bare "too many attempts".
+    retryAfterMs: inWindow && count >= maxFails
+      ? Math.max(0, record.windowStart + effWindowMs - now)
+      : 0,
     // What to persist when this attempt fails: increment within a live window,
-    // otherwise start a fresh window at `now`.
-    nextOnFail: inWindow
-      ? { count: count + 1, windowStart: record.windowStart }
-      : { count: 1, windowStart: now },
+    // otherwise start a fresh window at `now`. Strike fields are added ONLY for
+    // escalating limiters, so every other limiter's record shape is unchanged.
+    nextOnFail: {
+      count: nextCount,
+      windowStart: inWindow ? record.windowStart : now,
+      ...(escalates ? { strikes: trips ? strikes + 1 : strikes, strikeAt: now } : {}),
+    },
   };
 }
 

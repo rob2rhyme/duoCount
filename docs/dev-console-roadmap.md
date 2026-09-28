@@ -137,7 +137,7 @@ trail; `resetOwnerPin` is a latent, unlogged impersonation path.
 > **✅ Shipped — the operator credential and `resetOwnerPin`.** The dev login now
 > takes an optional TOTP second factor (`DEV_ADMIN_TOTP_SECRET`; blank = off, so
 > deploying it can't lock the developer out), and the rotation story is written
-> down in `credential-recovery-runbook.md` — deliberately *not* an email-driven
+> down in `ops/credential-recovery-runbook.md` — deliberately *not* an email-driven
 > password reset, which would make that mailbox the real credential. Rotation is
 > an env change plus a redeploy; a second registry operator and the existing
 > last-superadmin guard are what make a lost password an inconvenience.
