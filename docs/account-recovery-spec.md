@@ -3,7 +3,7 @@
 > Status: **shipped.** Covers every credential in the product: staff PINs, owner
 > PINs, and the developer's platform login. The operator-side runbook (rotating
 > the developer credential, what support may and may not do) lives in
-> `credential-recovery-runbook.md`.
+> `ops/credential-recovery-runbook.md` (outside the served docs tree).
 
 ## Why this is not a stock password reset
 

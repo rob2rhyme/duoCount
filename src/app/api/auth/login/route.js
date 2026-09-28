@@ -32,9 +32,14 @@ export async function POST(req) {
     const [ipSnap, storeSnap] = await Promise.all([ipRef.get(), storeRef.get()]);
     const ipDec = throttleDecision(ipSnap.exists ? ipSnap.data() : null, now, IP_LIMIT);
     const storeDec = throttleDecision(storeSnap.exists ? storeSnap.data() : null, now, STORE_LIMIT);
-    if (ipDec.blocked || storeDec.blocked)
+    if (ipDec.blocked || storeDec.blocked) {
+      // The store window escalates, so the wait is no longer always "a few
+      // minutes" — say how long, and set the standard header with it.
+      const waitMs = Math.max(ipDec.retryAfterMs, storeDec.retryAfterMs);
       return NextResponse.json(
-        { error: "Too many attempts — wait a few minutes and try again.", code: "throttled" }, { status: 429 });
+        { error: "Too many attempts — try again later.", code: "throttled", retryAfterMs: waitMs },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(waitMs / 1000)) } });
+    }
     const recordFail = () =>
       Promise.all([ipRef.set(ipDec.nextOnFail), storeRef.set(storeDec.nextOnFail)]);
 
@@ -78,11 +83,15 @@ export async function POST(req) {
     const match = matches[0];
 
     // A store's staff share the shop Wi-Fi IP — one person's typos shouldn't
-    // lock out the shift once somebody signs in fine. Clear both counters.
-    await Promise.all([
-      ipSnap.exists ? ipRef.delete() : Promise.resolve(),
-      storeSnap.exists ? storeRef.delete() : Promise.resolve(),
-    ]);
+    // lock out the shift once somebody signs in fine. That rationale is about
+    // the IP counter, so only the IP counter is cleared.
+    //
+    // The STORE counter deliberately survives a success. Clearing it handed an
+    // attacker a free refill: every honest sign-in during a shift reset the
+    // store-wide budget to zero, so the 50-per-window cap was never a real
+    // ceiling. It decays on its own with the window instead, and reaching it
+    // takes 50 failures in 15 minutes — far past a busy store's honest typos.
+    await (ipSnap.exists ? ipRef.delete() : Promise.resolve());
 
     const claims = {
       vendorId: vendor.id, userId: match.id,

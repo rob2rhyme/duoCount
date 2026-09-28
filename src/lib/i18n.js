@@ -571,7 +571,7 @@ export const CATALOG = {
     // auth errors (server-authored login()/signup() prose, resolved by code —
     // the English here is byte-equal to what the API routes send)
     "autherr.missing_fields": "Enter your store code and PIN.",
-    "autherr.throttled": "Too many attempts — wait a few minutes and try again.",
+    "autherr.throttled": "Too many attempts — try again later.",
     "autherr.no_store": "No store found for that code.",
     "autherr.bad_pin": "PIN not recognized for this store.",
     "autherr.store_suspended": "This store is suspended. Contact DuoCount support.",
@@ -2932,7 +2932,7 @@ export const CATALOG = {
     "common.next_week": "Semana siguiente",
 
     "autherr.missing_fields": "Ingresa tu código de tienda y tu PIN.",
-    "autherr.throttled": "Demasiados intentos — espera unos minutos e inténtalo de nuevo.",
+    "autherr.throttled": "Demasiados intentos — inténtalo de nuevo más tarde.",
     "autherr.no_store": "No se encontró ninguna tienda con ese código.",
     "autherr.bad_pin": "PIN no reconocido para esta tienda.",
     "autherr.store_suspended": "Esta tienda está suspendida. Contacta al soporte de DuoCount.",

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
-import { throttleDecision, attemptKey, IP_LIMIT, STORE_LIMIT, clientIp } from "@/lib/login-throttle";
+import { throttleDecision, attemptKey, IP_LIMIT, BALANCE_STORE_LIMIT, clientIp } from "@/lib/login-throttle";
 import { resolveRewards, rewardTiers, tierDollarValue, canRedeem, normalizePhone, pointsExpiry, effectiveBalance } from "@/lib/rewards";
 
 export const runtime = "nodejs";
@@ -31,7 +31,7 @@ export async function POST(req) {
     const storeRef = attempts.doc(`rwb_store_${attemptKey(slug)}`);
     const [ipSnap, storeSnap] = await Promise.all([ipRef.get(), storeRef.get()]);
     const ipDec = throttleDecision(ipSnap.exists ? ipSnap.data() : null, now, IP_LIMIT);
-    const storeDec = throttleDecision(storeSnap.exists ? storeSnap.data() : null, now, STORE_LIMIT);
+    const storeDec = throttleDecision(storeSnap.exists ? storeSnap.data() : null, now, BALANCE_STORE_LIMIT);
     if (ipDec.blocked || storeDec.blocked)
       return err(429, "throttled", "Too many attempts — wait a few minutes and try again.");
     await Promise.all([ipRef.set(ipDec.nextOnFail), storeRef.set(storeDec.nextOnFail)]);
