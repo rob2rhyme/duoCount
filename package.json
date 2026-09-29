@@ -62,7 +62,9 @@
     "totp:secret": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/totp-secret.mjs",
     "test:secret-gen": "node --test tests/secret-gen.test.mjs",
     "dev:password": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/dev-password.mjs",
-    "test:dev-stores": "node --test tests/dev-stores.test.mjs"
+    "test:dev-stores": "node --test tests/dev-stores.test.mjs",
+    "check:css": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/css-conflicts.mjs",
+    "test:css-conflicts": "node --test tests/css-conflicts.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
