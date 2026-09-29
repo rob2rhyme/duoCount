@@ -77,7 +77,8 @@ test("outstandingLiability: linear at the store's settings; negatives clamped; e
   assert.equal(l.dollars, 10);
   const custom = outstandingLiability(customers, { redeemPoints: 50, redeemValue: 2 });
   assert.equal(custom.dollars, 8);
-  assert.deepEqual(outstandingLiability([]), { points: 0, dollars: 0 });
+  // Punch-card obligations joined this figure; an empty store zeroes all of it.
+  assert.deepEqual(outstandingLiability([]), { points: 0, dollars: 0, stamps: 0, stampRewards: 0 });
 });
 
 test("outstandingLiability excludes points already lapsed under the inactivity policy", () => {
@@ -184,4 +185,114 @@ test("friend-credit lines (no referredCustomerId) and reversed referrals don't c
 test("a lone occasional referral raises nothing", () => {
   const { alerts } = buildRewardAudit([referral()], [], { now: NOW });
   assert.equal(alerts.some((x) => x.kind?.startsWith("reward-referral")), false);
+});
+
+/* ------------------ clerk affinity + punch-card coverage ------------------ */
+// The patient skim: a clerk attaching their own account to OTHER people's real
+// purchases. OUTPACED SALES is blind to it by construction (the points ARE
+// supported by the cash denominator) and two earns a day never trips
+// MULTI-EARN. Who rang them is the only signal left.
+
+import { binomialTail, clerkAffinity } from "../src/lib/reward-audit.js";
+
+const atDay = (n) => new Date(Date.UTC(2026, 0, n)).toISOString();
+const earnBy = (customerId, byId, n, by = byId) =>
+  ({ kind: "earn", customerId, byId, by, points: 10, ts: atDay(n) });
+
+test("binomialTail: a single-clerk store can never look suspicious", () => {
+  // p = 1 means that clerk rings everything anyway; the tail is 1, so no alert.
+  assert.equal(binomialTail(5, 5, 1), 1);
+  assert.equal(binomialTail(40, 40, 1), 1);
+});
+
+test("binomialTail matches the exact binomial", () => {
+  // P(X>=5 | n=5, p=0.7) = 0.7^5
+  assert.ok(Math.abs(binomialTail(5, 5, 0.7) - 0.7 ** 5) < 1e-12);
+  // P(X>=1 | n=3, p=0.5) = 1 - 0.5^3
+  assert.ok(Math.abs(binomialTail(1, 3, 0.5) - (1 - 0.5 ** 3)) < 1e-12);
+  assert.equal(binomialTail(0, 5, 0.5), 1, "k=0 is certain");
+  assert.equal(binomialTail(6, 5, 0.5), 0, "more than every trial is impossible");
+});
+
+test("affinity flags an account rung almost only by one otherwise-quiet clerk", () => {
+  // Clerk B rings a small share of the window, but all 6 of victim account X.
+  const lines = [
+    ...Array.from({ length: 6 }, (_, i) => earnBy("X", "B", i + 1)),
+    ...Array.from({ length: 30 }, (_, i) => earnBy(`c${i}`, "A", (i % 14) + 1)),
+  ];
+  const hits = clerkAffinity(lines);
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].customerId, "X");
+  assert.equal(hits[0].byId, "B");
+  assert.ok(hits[0].p < 0.001, `p was ${hits[0].p}`);
+});
+
+test("affinity does NOT flag a regular in a store where one clerk works most shifts", () => {
+  // The false positive that would make this unusable. Clerk A rings ~70% of
+  // everything, so ringing 5 of one customer's 7 visits is unremarkable.
+  const others = [];
+  for (let i = 0; i < 40; i++) others.push(earnBy(`c${i}`, i % 10 < 7 ? "A" : "B", (i % 14) + 1));
+  const lines = [
+    ...others,
+    ...Array.from({ length: 5 }, (_, i) => earnBy("R", "A", i + 1)),
+    earnBy("R", "B", 6), earnBy("R", "B", 7),
+  ];
+  assert.deepEqual(clerkAffinity(lines).filter((h) => h.customerId === "R"), []);
+});
+
+test("affinity ignores accounts with too few visits to mean anything", () => {
+  const lines = [
+    earnBy("X", "B", 1), earnBy("X", "B", 2),
+    ...Array.from({ length: 30 }, (_, i) => earnBy(`c${i}`, "A", (i % 14) + 1)),
+  ];
+  assert.deepEqual(clerkAffinity(lines), [], "2 visits is not evidence");
+});
+
+test("affinity's baseline excludes the account under test", () => {
+  // Otherwise a dominant account inflates the very rate it is measured against
+  // and hides itself. B rings ONLY account X, 8 times, out of a 40-line window.
+  const lines = [
+    ...Array.from({ length: 8 }, (_, i) => earnBy("X", "B", i + 1)),
+    ...Array.from({ length: 32 }, (_, i) => earnBy(`c${i}`, "A", (i % 14) + 1)),
+  ];
+  const hit = clerkAffinity(lines).find((h) => h.customerId === "X");
+  assert.ok(hit, "must be flagged");
+  assert.equal(hit.baseline, 0, "B rang nothing else, so the baseline is 0");
+});
+
+test("reversed lines never count toward affinity", () => {
+  const lines = Array.from({ length: 8 }, (_, i) => ({ ...earnBy("X", "B", i + 1), reversedBy: "u1" }));
+  assert.deepEqual(clerkAffinity([...lines, ...Array.from({ length: 30 }, (_, i) => earnBy(`c${i}`, "A", 1))]), []);
+});
+
+test("the audit surfaces affinity and punch-card alerts", () => {
+  const events = [
+    // 6 earns on X, all by the otherwise-quiet clerk B
+    ...Array.from({ length: 6 }, (_, i) => earnBy("X", "B", i + 1)),
+    ...Array.from({ length: 30 }, (_, i) => earnBy(`c${i}`, "A", (i % 14) + 1)),
+    // and one card stamped 4 times in a day
+    ...Array.from({ length: 4 }, () => ({ kind: "stamp", customerId: "Y", cardId: "c1", byId: "A", by: "A", points: 0, ts: atDay(3) })),
+  ];
+  const { alerts } = buildRewardAudit(events, [], {
+    rules: { enabled: true }, customers: [{ id: "X", phone: "5551234567" }, { id: "Y", phone: "5557654321" }],
+    windowDays: 60, now: new Date(Date.UTC(2026, 0, 20)),
+  });
+  const codes = alerts.map((a) => a.code);
+  assert.ok(codes.includes("reward-clerk-affinity"), `got ${codes.join(", ")}`);
+  assert.ok(codes.includes("reward-multi-stamp"), `got ${codes.join(", ")}`);
+  for (const a of alerts) {
+    assert.ok(a.title && !a.title.includes("{"), `unrendered title: ${a.title}`);
+    assert.ok(a.detail && !a.detail.includes("{"), `unrendered detail: ${a.detail}`);
+  }
+});
+
+test("punch-card obligations appear in the liability, as counts not invented dollars", () => {
+  const rules = { enabled: true, stamps: [{ id: "c1", name: "Coffee", goal: 10, reward: "Free coffee" }] };
+  const out = outstandingLiability([
+    { id: "a", pointsBalance: 250, stamps: { c1: 12 } },
+    { id: "b", pointsBalance: 40, stamps: { c1: 7 } },
+  ], rules);
+  assert.equal(out.stamps, 19);
+  assert.equal(out.stampRewards, 1, "12 stamps on a goal of 10 is one card owed");
+  assert.ok(typeof out.dollars === "number", "points still costed");
 });

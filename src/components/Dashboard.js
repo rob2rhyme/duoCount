@@ -406,12 +406,22 @@ export default function Dashboard({ entries, locations = [], locName = () => "�
 
       {/* Rewards at a glance — issued/redeemed over the alert window, and the
           outstanding liability at the store's own settings (what the points
-          would cost if every one were redeemed today). */}
+          would cost if every one were redeemed today).
+
+          Punch cards are an obligation too — a filled card owes a physical item
+          — so they get a stat of their own when the store runs any, in COUNTS
+          rather than dollars: a card's reward is free text with no price
+          anywhere, and costing it would mean inventing a number. The column
+          count follows so a fourth tile doesn't orphan itself on its own row. */}
       {isManager && rewardsOn && (customers.length > 0 || rewardAudit.totals.earns > 0) && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className={`grid gap-3 ${liability.stamps > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
           <Stat label={t("dash.rw_earned", { days: resolvePatternRules(vendor?.patternRules).windowDays })} value={rewardAudit.totals.earned} />
           <Stat label={t("dash.rw_redeemed", { days: resolvePatternRules(vendor?.patternRules).windowDays })} value={rewardAudit.totals.redeemed} />
           <Stat label={t("dash.rw_liability")} value={`${liability.points} ≈ ${money(liability.dollars)}`} />
+          {liability.stamps > 0 && (
+            <Stat label={t("dash.rw_stamp_liability")}
+              value={t("dash.rw_stamps_ready", { stamps: liability.stamps, cards: liability.stampRewards })} />
+          )}
         </div>
       )}
 
