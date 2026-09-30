@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:emulator": "firebase emulators:exec --only firestore,auth --project duocount-emulator \"NEXT_PUBLIC_FIREBASE_EMULATOR=1 NEXT_PUBLIC_FIREBASE_PROJECT_ID=duocount-emulator NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 next dev\"",
+    "build:emulator": "NEXT_PUBLIC_FIREBASE_EMULATOR=1 NEXT_PUBLIC_FIREBASE_PROJECT_ID=duocount-emulator NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 next build",
+    "start:emulator": "firebase emulators:exec --only firestore,auth --project duocount-emulator \"NEXT_PUBLIC_FIREBASE_EMULATOR=1 NEXT_PUBLIC_FIREBASE_PROJECT_ID=duocount-emulator NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 next start\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -64,7 +67,8 @@
     "dev:password": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/dev-password.mjs",
     "test:dev-stores": "node --test tests/dev-stores.test.mjs",
     "check:css": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/css-conflicts.mjs",
-    "test:css-conflicts": "node --test tests/css-conflicts.test.mjs"
+    "test:css-conflicts": "node --test tests/css-conflicts.test.mjs",
+    "test:emulator": "node --test tests/emulator.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",
