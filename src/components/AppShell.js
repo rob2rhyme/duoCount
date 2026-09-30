@@ -485,8 +485,8 @@ export default function AppShell() {
               📖 {t("login.user_guide")}
             </a>
           </p>
-          <p className="text-center text-[11px] text-faint mt-3">{t("shell.built_for")}</p>
-          <p className="hidden sm:block text-center text-[11px] text-faint mt-1.5">
+          <p className="text-center text-[11px] text-muted mt-3">{t("shell.built_for")}</p>
+          <p className="hidden sm:block text-center text-[11px] text-muted mt-1.5">
             {t("shell.press_help_pre")} <Kbd>?</Kbd> {t("shell.press_help_post")}
           </p>
         </div>

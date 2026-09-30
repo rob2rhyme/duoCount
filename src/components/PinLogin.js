@@ -116,7 +116,10 @@ export default function PinLogin() {
               <span className="text-faint"> · </span>
               <Link href="/help" className="text-muted underline underline-offset-2 hover:text-fg">{t("login.help_link")}</Link>
             </p>
-            <button className="w-full text-sm text-muted underline underline-offset-2 mt-4"
+            {/* A real secondary button, not underlined body text: this is the
+                only route to creating an account, and at 20px tall it read as
+                fine print next to the primary action. */}
+            <button className="btn-ghost w-full text-sm text-balance min-h-[44px] mt-4"
               onClick={() => { setMode("signup"); setErr(null); }}>
               {t("login.register_link")}
             </button>
@@ -180,12 +183,17 @@ export default function PinLogin() {
             {t("login.created_pre")} <b className="font-mono">{createdSlug}</b> {t("login.created_post")}
           </div>
         )}
+        {/* prefetch={false}: these sit in the viewport on every sign-in, and
+            Next would otherwise fetch the full /guide and /docs RSC payloads
+            (~310KB together) for people who only came here to sign in. The
+            recovery links above keep their prefetch — they are small, and a
+            failed sign-in is exactly when they get used. */}
         <p className="text-center text-[11px] text-muted mt-5 pt-4 border-t border-line">
-          <Link href="/guide" className="underline underline-offset-2 hover:text-fg">{t("login.user_guide")}</Link>
+          <Link href="/guide" prefetch={false} className="underline underline-offset-2 hover:text-fg">{t("login.user_guide")}</Link>
           {" · "}
-          <Link href="/docs" className="underline underline-offset-2 hover:text-fg">{t("login.documentation")}</Link>
+          <Link href="/docs" prefetch={false} className="underline underline-offset-2 hover:text-fg">{t("login.documentation")}</Link>
           {" · "}
-          <Link href="/dev" className="underline underline-offset-2 hover:text-fg">{t("login.developer")}</Link>
+          <Link href="/dev" prefetch={false} className="underline underline-offset-2 hover:text-fg">{t("login.developer")}</Link>
         </p>
       </div>
     </div>

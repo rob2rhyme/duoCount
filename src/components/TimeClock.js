@@ -324,7 +324,7 @@ function PayrollApproval({ locks, vendorId, actor, isOwner, onToast }) {
               title={finished ? undefined : t("time.week_not_over")} onClick={approve}>
               {busy ? t("common.saving") : info.state === "released" ? t("time.reapprove") : t("time.approve_week")}
             </button>
-            {!finished && <span className="text-[12px] text-faint">{t("time.avail_after_end")}</span>}
+            {!finished && <span className="text-[12px] text-muted">{t("time.avail_after_end")}</span>}
           </>
         )}
       </div>

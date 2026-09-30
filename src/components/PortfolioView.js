@@ -391,7 +391,7 @@ export default function PortfolioView({ locations = [], locName = () => "—", i
                         <button type="button" className="text-left hover:underline" onClick={(e) => { e.stopPropagation(); setDrill(r.locId); }}>
                           {r.locName}
                         </button>
-                        {r.total === 0 && <span className="ml-1.5 text-[11px] text-faint font-normal">idle</span>}
+                        {r.total === 0 && <span className="ml-1.5 text-[11px] text-muted font-normal">idle</span>}
                       </td>
                       {columns.map((c) => {
                         const { cn, node } = c.cell(r);

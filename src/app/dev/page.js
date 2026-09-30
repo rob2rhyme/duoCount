@@ -167,21 +167,24 @@ function DevLogin({ t }) {
     <div className="card p-6 max-w-sm mx-auto">
       <p className="font-semibold text-[15px]">{t("dev.login_title")}</p>
       <p className="text-[13px] text-muted mt-1.5 leading-relaxed">{t("dev.login_body")}</p>
-      <label className="label mt-4">{t("dev.login_email")}</label>
-      <input className="input" type="email" inputMode="email" autoComplete="username" autoCapitalize="none"
-        value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dev@duocount.app" />
-      <label className="label mt-3">{t("dev.login_password")}</label>
-      <RevealInput autoComplete="current-password"
-        value={password} onChange={(e) => setPassword(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && email && password && !busy && submit()} />
+      {/* <Field> rather than a bare <label>: it clones the control to wire
+          htmlFor/id, so the caption actually names the input. Hand-rolled
+          labels here left both fields unlabelled to a screen reader. */}
+      <Field className="mt-4" label={t("dev.login_email")}>
+        <input className="input" type="email" inputMode="email" autoComplete="username" autoCapitalize="none"
+          value={email} onChange={(e) => setEmail(e.target.value)} placeholder="dev@duocount.app" />
+      </Field>
+      <Field className="mt-3" label={t("dev.login_password")}>
+        <RevealInput autoComplete="current-password"
+          value={password} onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && email && password && !busy && submit()} />
+      </Field>
       {needsCode && (
-        <>
-          <label className="label mt-3">{t("dev.login_code")}</label>
+        <Field className="mt-3" label={t("dev.login_code")} hint={t("dev.login_code_hint")}>
           <input className="input text-center tracking-[0.3em] font-mono" inputMode="numeric" autoComplete="one-time-code"
             maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && email && password && !busy && submit()} />
-          <p className="text-[12px] text-muted mt-1.5">{t("dev.login_code_hint")}</p>
-        </>
+        </Field>
       )}
       {err && <p role="alert" className="text-[13px] text-neg mt-3">{err}</p>}
       <button className="btn-primary mt-5" disabled={busy || !email.trim() || !password} onClick={submit}>

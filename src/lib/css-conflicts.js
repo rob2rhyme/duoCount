@@ -32,7 +32,9 @@ const DISPLAY = new Set(["block", "inline", "inline-block", "flex", "inline-flex
 const WEIGHTS = new Set(["thin", "extralight", "light", "normal", "medium", "semibold", "bold", "extrabold", "black"]);
 const SIZES = new Set(["xs", "sm", "base", "lg", "xl", "2xl", "3xl", "4xl", "5xl"]);
 // Colour tokens from tailwind.config.js plus the built-ins actually used here.
-// A `text-<token>` sets colour; anything else after `text-` is a size or align.
+// A `text-<token>` sets colour; anything else after `text-` is a size, an
+// alignment, or a wrap/overflow keyword — all of which are checked first, so
+// only genuine colour tokens reach the fallback.
 const COLORS = new Set(["surface", "panel", "subtle", "field", "line", "highlight", "fg", "muted",
   "faint", "gold", "pos", "neg", "brass", "alert", "ink", "paper", "white", "black", "transparent", "current"]);
 
@@ -68,6 +70,8 @@ export function utilityFamily(cls) {
   if (head === "font") return WEIGHTS.has(tail) ? "font-weight" : "font-family";
   if (head === "text") {
     if (/^(left|center|right|justify|start|end)$/.test(tail)) return "text-align";
+    if (/^(wrap|nowrap|balance|pretty)$/.test(tail)) return "text-wrap";
+    if (/^(ellipsis|clip)$/.test(tail)) return "text-overflow";
     if (SIZES.has(tail) || tail.startsWith("[")) return "font-size";
     return "color"; // text-<token>, including ones not in COLORS
   }
