@@ -88,7 +88,7 @@ export default function BalanceCheck() {
               </p>
               {result.ready && <p className="text-[13px] font-semibold mt-1.5">{t("rwb.ready_hint")}</p>}
               {result.expiryMonths > 0 && result.expiresAt && result.points > 0 && (
-                <p className="text-[11px] text-faint mt-2">{t("rwb.expiry_note", { date: result.expiresAt })}</p>
+                <p className="text-[11px] text-muted mt-2">{t("rwb.expiry_note", { date: result.expiresAt })}</p>
               )}
               {result.customerId && (
                 <div className="mt-4 pt-4 border-t border-line flex flex-col items-center">
@@ -97,7 +97,7 @@ export default function BalanceCheck() {
                   <Qr value={customerToken(store, result.customerId)} size={168} title={t("rwb.qr_alt")}
                     className="bg-white p-2.5 rounded-lg inline-block" />
                   <p className="text-[12px] text-muted mt-2.5 leading-snug">{t("rwb.qr_hint")}</p>
-                  <p className="text-[11px] text-faint font-mono tracking-wider mt-1">{result.customerId}</p>
+                  <p className="text-[11px] text-muted font-mono tracking-wider mt-1">{result.customerId}</p>
                 </div>
               )}
             </div>
@@ -105,7 +105,7 @@ export default function BalanceCheck() {
         </div>
 
         <p className="text-center text-[12px] text-muted mt-5">{t("rwb.foot")}</p>
-        <p className="text-center text-[12px] text-faint mt-1.5">
+        <p className="text-center text-[12px] text-muted mt-1.5">
           <Link href="/" className="underline underline-offset-2 hover:text-fg">{t("guide.back_app")}</Link>
         </p>
       </div>

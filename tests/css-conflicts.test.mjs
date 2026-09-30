@@ -21,6 +21,12 @@ test("utilityFamily maps the utilities that can actually collide", () => {
     border: "border-width", "border-2": "border-width", "border-line": "border-color",
     "font-bold": "font-weight", "font-mono": "font-family",
     "text-neg": "color", "text-xs": "font-size", "text-[13px]": "font-size", "text-center": "text-align",
+    // text-* is the one prefix that spans several families, and everything the
+    // branches miss falls through to "color". Without these, `text-balance`
+    // beside .btn-ghost (which sets color) reads as a dead colour utility and
+    // the ratchet rejects a change that is actually fine.
+    "text-balance": "text-wrap", "text-pretty": "text-wrap", "text-nowrap": "text-wrap",
+    "text-wrap": "text-wrap", "text-ellipsis": "text-overflow", "text-clip": "text-overflow",
   };
   for (const [cls, want] of Object.entries(cases)) {
     assert.equal(utilityFamily(cls), want, cls);

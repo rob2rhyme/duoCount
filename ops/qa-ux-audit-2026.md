@@ -3,6 +3,10 @@
 Date: 2026-09-30 · Commit audited: `5c75490` · Build: `next start` (production build) on localhost
 Tooling: Playwright (Chromium 1194) driving the real app, axe-core 4.13.0, Resource Timing API.
 
+> **Status — the four "Fix now" items are resolved.** B1, B4, B5 and B8 were fixed and
+> re-verified against a production build; the measured results are in each row's Resolution
+> line. Everything under "Fix soon" and "Nice to have" is still open.
+
 ---
 
 ## 0. What was and was not tested (read this first)
@@ -36,7 +40,7 @@ instrumentation, the console is clean on all 10 routes.
 | **B1** | High | `/dev` — `input[type=email]` and the `RevealInput` password (`src/app/dev/page.js:170-176`) | Load `/dev`, run axe, or focus either field with a screen reader | Each input is programmatically tied to its visible label | Both inputs have **no** `id`/`htmlFor`/`aria-label`; labels are bare `<label className="label">`. axe reports `label` **critical**. `/dev` is the only route of 10 with unlabelled inputs | Use the existing `<Field>` component (`src/components/Field.js`), already used in 10+ components and which wires `id` + `aria-describedby`. Also covers the conditional TOTP code input on line 181 |
 | **B2** | Medium | Every route — `<html lang>` (`src/app/layout.js:45`) | Switch to Español on `/guide`, then visit `/`, `/help`, `/rewards`, `/reset` | `lang` becomes `es` when the UI is Spanish | `lang="en"` on all 5 routes while the body renders Spanish. WCAG 3.1.1 (A) failure — screen readers read Spanish with an English voice | Have `LangProvider` set `document.documentElement.lang` on change, mirroring how the theme is applied |
 | **B3** | Medium | `/`, `/help`, `/reset`, `/guide` — product tagline (`src/lib/store.js:5`) | Switch to Español, look at the header | Whole screen in Spanish | `PRODUCT.tagline` is a hardcoded English string with **no key in `src/lib/i18n.js`**. In Spanish mode `/` reads "…All your counts. All in one place. … CÓDIGO DE TIENDA … Iniciar sesión" — a mixed-language screen, which `CLAUDE.md` explicitly forbids | Move the tagline into `i18n.js` as `product.tagline` (en + es) and resolve via `t()`. Used in 7 places incl. `AppShell.js:461`, so this also affects signed-in screens (code-read, not executed) |
-| **B4** | Medium | `/rewards` — `<a href="/">Back to the app</a>` | Load `/rewards` in **light** mode, run axe | ≥ 4.5:1 contrast | **3.86:1** (`#787b7d` on `#f1f5ef`, 12px). WCAG 1.4.3 AA failure. Dark mode is clean on all 10 routes | Darken the muted token for this link, or bump to 14px (large-text threshold still would not pass at 3.86 — darkening is the real fix) |
+| **B4** | Medium | `/rewards` — `<a href="/">Back to the app</a>` | Load `/rewards` in **light** mode, run axe | ≥ 4.5:1 contrast | **3.86:1**, 12px. The colour is inherited from the wrapping `<p class="text-faint">`, so the failing token is **`--faint` (`#787b7d`)**, not `--muted` (`#64686a`, which passes at 5.10:1) | Not a token change: `--faint` is documented as the placeholder/tertiary token and is correct for that. The defect is `text-faint` used for body text — those usages move to `text-muted` |
 | **B5** | Medium | `/` — footer links (`src/components/PinLogin.js:184,186`) | Load `/`, inspect Resource Timing | Login screen loads login code | `/` transfers **854KB**, of which **318KB is `fetch` prefetch of `/guide` (168KB) and `/docs` (142KB)** RSC payloads, because both are Next `<Link>`s in the viewport. Most people signing in never open either | `prefetch={false}` on those two `<Link>`s, or make them plain `<a>` like the Terms/Privacy links two lines above already are |
 | **B6** | Medium | `/`, `/help`, `/reset`, `/rewards`, `/verify-email`, 404 — page structure | Run axe on each | One `<main>` landmark per page | **6 of 10 routes have zero `<main>`**. axe: `landmark-one-main` 6 nodes, `region` 48 nodes. Present correctly on `/dev`, `/docs`, `/docs/[slug]`, `/guide` | Wrap the page body in `<main>` in the shared shells used by those 6 routes |
 | **B7** | Medium | `/guide`, `/docs/[slug]` — "ON THIS PAGE" chip nav + language toggle | Measure control heights at 375px | ≥ 44px touch targets | All chips are **28px tall** (10 standalone controls on `/guide`, 8 on `/docs/getting-started`); language buttons 81×28. Below WCAG 2.5.5 / Apple HIG 44px. *(The other 15–17 sub-44px elements per page are inline links inside prose, which WCAG 2.5.8 exempts — not counted as defects)* | Raise chip padding to `py-2.5` (→ ~44px) or add an invisible expanded hit area |
@@ -106,7 +110,7 @@ is the same instinct, done well.
 | P2 | Chip nav height | 28px chips read as tags, not controls; they are the primary in-page nav (B7) |
 | P3 | Focus ring split | Custom 2px ring on inputs, browser default on links/buttons (B13) |
 | P4 | Disabled-button treatment | `opacity: 0.5` on a saturated green reads as "loading", not "not yet" — prefer a flat muted fill |
-| P5 | Muted text token | `#787b7d` on `#f1f5ef` is the app's muted pair and is already failing AA at 12px (B4) — it is one token, so fixing it fixes every 12px muted string at once |
+| P5 | `text-faint` on body text | `--faint` (`#787b7d`) is the placeholder/tertiary token and fails AA at 12px. It is correct for placeholders and "no value" em-dashes; the defect is the 7 places that used it for real prose (B4) |
 | P6 | 404 is vertically centred | On a tall viewport the card floats mid-screen with a large empty header area; no chrome (B16) |
 | P7 | `/rewards` vs `/` button states | Same component, same green, opposite disabled semantics — visually identical, behaviourally different (B9) |
 | P8 | Language control is two different widgets | A `<select>` on `/`, `/help`, `/reset`; segmented buttons on `/guide`, `/rewards`. Pick one |
@@ -144,12 +148,22 @@ is the same instinct, done well.
 
 ## 6. Priority roadmap
 
-### Fix now
-- **B1** — `/dev` unlabelled inputs. Critical axe failure, and the fix is to use the `<Field>`
-  component the rest of the codebase already uses.
-- **B5** — 318KB prefetch on the login screen. One-line change, 37% byte reduction.
-- **B8** — promote the signup CTA. The acquisition path should not be fine print.
-- **B4** — muted-token contrast. One token, fixes every 12px muted string app-wide.
+### Fix now — **done**
+- **B1** — `/dev` now wraps all three controls in `<Field>`. axe on `/dev`: **zero violations**
+  (was 1 critical); both inputs report `via <label for>`. Rendering is pixel-identical.
+- **B5** — `prefetch={false}` on the three footer links. Login page **854KB → 541KB (−313KB,
+  −37%)**; prefetch traffic 318KB → 4KB. `/reset` and `/help` keep their prefetch on purpose.
+- **B8** — the CTA is a `btn-ghost` secondary button, **≥44px at every width** (62px at phone
+  width where the label wraps, 44px at 430px), `text-balance` so it breaks after the question
+  rather than orphaning "store". Signup still opens correctly.
+- **B4** — the 7 real-prose `text-faint` usages moved to `text-muted`; decorative separators and
+  "no value" em-dashes keep `text-faint`. axe `color-contrast` across all 10 routes in both
+  schemes: **zero violations**.
+
+Fixing B4 surfaced a latent bug in the `check:css` ratchet from #256: `utilityFamily` classified
+every unrecognised `text-*` utility as a colour, so `text-balance` beside `.btn-ghost` read as a
+dead colour utility. Added the `text-wrap` and `text-overflow` families plus a test; the dead-
+utility baseline is unchanged at 292 across 37 files, confirming nothing else was being masked.
 
 ### Fix soon
 - **B2** / **B3** — `lang` attribute and the untranslated tagline. B3 also violates the project's own
