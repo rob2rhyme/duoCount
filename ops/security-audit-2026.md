@@ -213,19 +213,111 @@ inbound reference if that is the preference.
 
 ---
 
+## R1–R3 — Rewards insider abuse *(follow-up review)*
+
+The first pass checked the rewards routes for **authorization** only and said so.
+This is the economic-abuse pass: not "can someone break in" but "what can an
+authorized clerk extract".
+
+### The enforcement holds
+
+Client rules deny *every* write to `customers` and `rewardEvents`, so
+`/api/rewards` is the only path. Inside it: points are server-computed from
+`saleDollars` (the client cannot name its own number), redeem tiers resolve
+server-side from owner settings, every mutation is transactional and idempotent,
+and expiry is applied *inside* the transaction so a redeem cannot spend lapsed
+points. `undo` is bounded to 15 minutes, single-use, author-or-owner, and cannot
+undo an undo — and undoing an earn deflates `lifetimePoints` with a comment
+saying why: otherwise VIP status could be farmed with earn+undo loops.
+
+Nothing here needed fixing. Everything below is **detection**.
+
+### R1 — the patient skim was invisible — **FIXED**
+
+**Severity: High.** The canonical loyalty fraud is a clerk attaching their own
+account to *other people's* purchases. Three detectors existed and none could
+see it:
+
+| detector | keyed on | why it missed this |
+| --- | --- | --- |
+| `reward-multi-earn` | customer **per day**, ≥3 | two earns a day never trips it; reads as a loyal regular |
+| `reward-clerk-redemptions` | clerk per day, ≥3 | one redemption a day never bursts |
+| `reward-outpaced-sales` | store-wide points vs signed cash | **blind by construction** |
+
+That last row is the important one. The clerk attaches their number to *real*
+sales, so the points issued are exactly what the cash denominator supports — no
+excess, no alert. This steals the customer's points, not the store's cash, and
+arithmetic cannot find it. The only remaining signal is **who rang them**.
+
+**Fix:** `reward-clerk-affinity`. A real regular is served by whoever is on
+shift, so their earns spread across clerks; a self-dealing account is lopsided
+toward one. Judged by an exact **binomial tail** — the probability that clerk
+rang at least this many of that account's visits by chance, given their share of
+everything else in the window — rather than a share threshold, so it adapts to
+the rota instead of needing a number per store. Below 1-in-100 it asks a
+question; below 1-in-1000 it is high severity.
+
+Two boundaries fall out of the maths rather than needing special cases: a
+**single-clerk store** has p = 1, so the tail is 1 and it can never fire; and the
+baseline **excludes the account under test**, so a dominant account cannot
+inflate the very rate it is then measured against.
+
+Calibration, measured:
+
+| situation | p | fires? |
+| --- | ---: | --- |
+| clerk rings 70% of everything, 5 of 5 for one account | 0.168 | no — too small a sample |
+| clerk rings 70% of everything, 7 of 10 | 0.650 | no — exactly as expected |
+| clerk rings 20% of everything, 5 of 5 for one account | 0.0003 | **yes, high** |
+| single-clerk store, 40 of 40 | 1.000 | never |
+
+A test pins the false positive that would make this unusable: a regular in a
+store where one clerk works most shifts is **not** flagged.
+
+### R2 — punch cards had no coverage at all — **FIXED**
+
+**Severity: Medium.** The only match for "stamp" in `reward-audit.js` was the
+word inside *"Timestamp"*. Four detectors watched points; none watched
+`stamp`/`stampRedeem`. Any member can stamp, `stampRedeem` hands over a physical
+reward, and a stamp line carries no dollar figure — so no outpaced-sales
+equivalent is even possible. Accrued stamps were also absent from
+`outstandingLiability`, so the owner's obligation figure understated what the
+store owed.
+
+**Fix:** `reward-stamp-affinity` (the same binomial test — the only handle that
+exists when there is no sale total to reconcile against) and
+`reward-multi-stamp` (one card stamped several times in a day, when the model is
+one stamp per visit). `outstandingLiability` now reports `stamps` and
+`stampRewards`, surfaced on the Dashboard for stores that run any card. Reported
+as **counts, never dollars**: a card's reward is free text with no price
+anywhere, and costing it would mean inventing a number.
+
+### R3 — the detection floor, unchanged and deliberate
+
+`OUTPACE_SLACK` 10% plus `OUTPACE_FLOOR` 20 points, store-wide over the window:
+at $1 = 1 point, roughly $20 of invented sales per fortnight before it can fire.
+Correct as designed — and precisely the band R1 now covers, since R1 does not
+depend on the excess existing at all.
+
+### Still not covered
+
+The **gaming** revenue split (`lib/gaming.js`, `computeSplit`) was not reviewed
+for economic abuse. Nothing here says anything about it.
+
+---
+
 ## Coverage — what this audit did not do
 
 - No live testing against the production deployment; everything here is from
   source, the built output, and a local production build.
 - No exhaustive per-route input-validation pass across all 25 routes; the
   review covered authorization, the anonymous surfaces, and injection classes.
-- The rewards and gaming **business-logic** fraud paths were checked for
-  authorization only, not for economic abuse (points self-dealing, split
-  manipulation). The clerk-fraud detectors in `src/lib/rewards.js` are the
-  intended control there and were not evaluated.
+- The **gaming** revenue split was checked for authorization only, not for
+  economic abuse (split manipulation). The rewards side of that gap is now
+  closed — see R1–R3 above.
 - No dependency supply-chain review beyond `npm audit`.
 
 ## Verification
 
-`npm run lint` 0 errors (6 pre-existing warnings) · `npm test` 823 unit tests
-(9 new) · `npm run test:rules` 92 rules tests · `npm run build` compiles.
+`npm run lint` 0 errors (6 pre-existing warnings) · `npm test` 848 unit tests ·
+`npm run test:rules` 92 rules tests · `npm run build` compiles.
