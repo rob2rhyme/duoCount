@@ -27,6 +27,16 @@ const nextConfig = {
   // runs). Next 15 already externalizes it by default; this is an explicit
   // safety net that also covers Turbopack and nested-install edge cases.
   serverExternalPackages: ["firebase-admin"],
+  // Give the emulator switch a definition at build time even when it is unset.
+  // Next's DefinePlugin only substitutes NEXT_PUBLIC_* vars that exist in the
+  // environment, so without this the flag survives as a runtime lookup against
+  // a `process` shim: harmless (it reads undefined, and the branch never runs)
+  // but it keeps the emulator connect code in the shipped bundle. Pinning it to
+  // "" lets the minifier fold `"1" === ""` to false and drop the branch
+  // outright, so a production build cannot be talked into emulator mode at all.
+  env: {
+    NEXT_PUBLIC_FIREBASE_EMULATOR: process.env.NEXT_PUBLIC_FIREBASE_EMULATOR ?? "",
+  },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },

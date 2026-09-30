@@ -6,6 +6,12 @@ Tooling: Playwright (Chromium 1194) driving the real app, axe-core 4.13.0, Resou
 > **Status — the four "Fix now" items are resolved.** B1, B4, B5 and B8 were fixed and
 > re-verified against a production build; the measured results are in each row's Resolution
 > line. Everything under "Fix soon" and "Nice to have" is still open.
+>
+> **The biggest gap in this audit is now closeable.** Emulator wiring has since landed, so
+> the signed-in screens this audit could not reach can be driven locally with
+> `npm run dev:emulator`. A second pass over them is the obvious follow-up — B3's
+> untranslated tagline, for one, is visible on every authenticated screen via
+> `AppShell.js:461` and was only ever code-read here.
 
 ---
 
@@ -17,7 +23,7 @@ numbers are measured, not estimated. The limits are equally concrete:
 | Area | Status | Why |
 | --- | --- | --- |
 | Public routes (10) | **Executed** — 6 viewports, light + dark, axe, forms driven | — |
-| Authenticated screens (Dashboard, AppShell, Admin, ScratchForm, Inventory, Rewards register) | **NOT executed** | `src/lib/firebase.js` has no emulator wiring and `getAdmin()` calls `cert(credentials())` before any emulator routing, so reaching a signed-in screen requires patching product source. Not done. |
+| Authenticated screens (Dashboard, AppShell, Admin, ScratchForm, Inventory, Rewards register) | **NOT executed at the time of this audit** | Then: `src/lib/firebase.js` had no emulator wiring and `getAdmin()` called `cert(credentials())` before any emulator routing, so a signed-in screen could not be reached without patching product source. **Since fixed** — `npm run dev:emulator` now boots firestore + auth and the whole signed-in half runs locally. The screens are reachable; they have not yet been audited. |
 | Cross-browser | **NOT executed** | Chromium only. No Firefox, Safari/WebKit or Edge in this container. |
 | Lighthouse | **NOT executed** | Not available. axe-core used for accessibility instead. |
 | Real-network performance | **NOT executed** | Localhost has no latency. Timings below are a **floor**, not field data. |

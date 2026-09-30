@@ -132,6 +132,50 @@ with no special cases.
 On signup the app creates your store code (shown in Admin), a "Main Location",
 and two starter drawers: POS Cash Drawer and Lottery Cash Drawer.
 
+## Running against the emulators
+
+Steps 1–6 above need a real Firebase project. To work on the signed-in half of
+the app — counts, countersign, Admin, rewards — without one, run against the
+local emulators instead:
+
+```
+npm run dev:emulator      # boots firestore + auth, then next dev
+npm run start:emulator    # same, against a production build
+```
+
+Both boot `firebase emulators:exec --only firestore,auth` and run the app with
+the emulator switch on. No `.env.local`, no service-account key, and nothing
+you do reaches a real project. The store is empty on every boot, so register
+one through the normal "New business? Register your store" flow — signup, PIN
+sign-in and the four tabs all work as they do in production.
+
+The switch is `NEXT_PUBLIC_FIREBASE_EMULATOR=1`, and the scripts set it for
+you. Two things keep it from ever being live in a deployment:
+
+- **Loopback only.** `src/lib/emulator.js` refuses a non-loopback emulator
+  host. An "emulator" pointed at a remote address is the one configuration
+  where this mode could touch something real, so it is rejected outright.
+- **Never on Vercel.** Server-side the flag throws whenever `VERCEL` is set.
+  There is no emulator on a deployment, so the flag there is always a mistake
+  and should be loud rather than silently pointing the app at a dead port.
+
+A third protection comes from the build: `next.config.mjs` pins
+`NEXT_PUBLIC_FIREBASE_EMULATOR` to `""` when it is unset, which lets the
+minifier fold the check away and drop the emulator branch from the client
+bundle entirely — so a production build cannot be talked into emulator mode at
+all. The pin is load-bearing: Next's DefinePlugin only substitutes
+`NEXT_PUBLIC_*` vars that exist at build time, and without it the flag survives
+as a runtime lookup and the branch ships (inert, but present). Checked with
+`grep -rl "emulator mode: firestore" .next/static/` — 0 files without the flag,
+1 with it.
+
+In emulator mode the Admin SDK initialises with **no credential** — against an
+emulator there is nothing to authenticate to, and passing a real service
+account there would be the one way this mode could reach a real project.
+Firestore's IndexedDB cache is also skipped, because the emulator starts empty
+on every boot and a surviving cache would serve documents the backend no
+longer has.
+
 ## Deploying
 
 Standard Next.js on Vercel — the app is at the repo root, so a default
