@@ -15,7 +15,7 @@ test("counts staff per vendor and never bleeds across tenants", () => {
   ]);
   assert.equal(by.get("a").staffCount, 2);
   assert.equal(by.get("b").staffCount, 3);
-  assert.deepEqual(by.get("a").owner, { name: "Ann", email: "ann@x.com" });
+  assert.deepEqual(by.get("a").owner, { name: "Ann", email: "ann@x.com", emailVerifiedAt: null });
 });
 
 test("a vendor with no owner row reports none, so the caller can fall back", () => {
@@ -26,7 +26,7 @@ test("a vendor with no owner row reports none, so the caller can fall back", () 
 
 test("an owner with no email reads as null, not undefined", () => {
   const by = indexStaffByVendor([row("a", "owner", "Ann")]);
-  assert.deepEqual(by.get("a").owner, { name: "Ann", email: null });
+  assert.deepEqual(by.get("a").owner, { name: "Ann", email: null, emailVerifiedAt: null });
 });
 
 test("rows with no vendorId are dropped rather than bucketed under undefined", () => {
@@ -58,4 +58,25 @@ test("both read strategies fold to the identical result", () => {
   const groupOrder = [row("a", "staff", "Al"), row("b", "owner", "Bo"), row("a", "owner", "Ann")];
   const fanOutOrder = [row("a", "staff", "Al"), row("a", "owner", "Ann"), row("b", "owner", "Bo")];
   assert.deepEqual([...indexStaffByVendor(groupOrder)].sort(), [...indexStaffByVendor(fanOutOrder)].sort());
+});
+
+test("the owner's email-confirmed state survives indexing", () => {
+  // Dropped here, the Stores list would report every owner unreachable and
+  // support would fall back to in-app for tenants it could have emailed.
+  const at = new Date("2026-10-01T00:00:00Z");
+  const idx = indexStaffByVendor([
+    { vendorId: "v1", role: "owner", name: "Moon", email: "m@e.com", emailVerifiedAt: at },
+    { vendorId: "v2", role: "owner", name: "Pat", email: "p@e.com" },
+  ]);
+  assert.equal(idx.get("v1").owner.emailVerifiedAt, at);
+  assert.equal(idx.get("v2").owner.emailVerifiedAt, null, "unconfirmed must read null, not undefined");
+  assert.equal(idx.get("v1").owner.email, "m@e.com");
+});
+
+test("a store with no owner row still has a usable shape", () => {
+  // hasRecoveryEmail(null) must be reachable without a crash — a store whose
+  // owner was disabled still renders in the console.
+  const idx = indexStaffByVendor([{ vendorId: "v3", role: "employee", name: "Sam", email: "s@e.com" }]);
+  assert.equal(idx.get("v3").owner, null);
+  assert.equal(idx.get("v3").staffCount, 1);
 });

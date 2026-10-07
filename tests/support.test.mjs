@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildTicket, buildMessage, sanitizeAttachments, validateAttachment, dataUriBytes,
-  canTransition, ownerUnread, compareTickets, toMs, ATTACH_MAX_BYTES,
+  canTransition, ownerUnread, countOwnerUnread, compareTickets, toMs, ATTACH_MAX_BYTES,
   buildPublicTicket, PUBLIC_MSG_MIN, BODY_MAX,
 } from "../src/lib/support.js";
 
@@ -142,4 +142,26 @@ test("the claimed store code is only ever a label — nothing here proves it exi
   assert.equal(fields.claimedSlug, null);
   assert.equal(fields.subject, "Can't sign in");
   assert.equal(fields.contactName, null);
+});
+
+test("countOwnerUnread counts the threads waiting on the owner", () => {
+  // Drives the Admin nav badge. An operator-OPENED thread is the case that
+  // matters: nobody is watching for it, so if it does not count it is invisible.
+  const opened = { lastActorRole: "dev", lastActivityAt: 1000, ownerSeenAt: null, origin: "dev" };
+  const seen = { lastActorRole: "dev", lastActivityAt: 1000, ownerSeenAt: 2000 };
+  const ownerWrote = { lastActorRole: "owner", lastActivityAt: 3000, ownerSeenAt: null };
+
+  assert.equal(countOwnerUnread([opened]), 1, "an operator-opened thread must count");
+  assert.equal(countOwnerUnread([opened, seen, ownerWrote]), 1);
+  assert.equal(countOwnerUnread([seen, ownerWrote]), 0);
+});
+
+test("countOwnerUnread is total, not per-store, and survives junk", () => {
+  // It feeds a badge on every render, so it must never be the thing that throws.
+  assert.equal(countOwnerUnread([]), 0);
+  assert.equal(countOwnerUnread(null), 0);
+  assert.equal(countOwnerUnread(undefined), 0);
+  assert.equal(countOwnerUnread([null, undefined, {}]), 0);
+  const many = Array.from({ length: 3 }, () => ({ lastActorRole: "dev", lastActivityAt: 10, ownerSeenAt: 0 }));
+  assert.equal(countOwnerUnread(many), 3);
 });

@@ -467,6 +467,12 @@ function Stores({ t, lang, me }) {
   const [resetMode, setResetMode] = useState("link");
   const [resetLang, setResetLang] = useState("en"); // the OWNER's language, not the operator's
   const [resetResult, setResetResult] = useState(null);
+  // Outbound message to a tenant (billing, policy, product notices).
+  const [msgFor, setMsgFor] = useState(null);     // vendorId whose compose panel is open
+  const [msgSubject, setMsgSubject] = useState("");
+  const [msgBody, setMsgBody] = useState("");
+  const [msgLang, setMsgLang] = useState("en");   // the OWNER's language, not the operator's
+  const [msgResult, setMsgResult] = useState(null);
   const [bill, setBill] = useState(DEFAULT_BILLING);
   const [toast, setToast] = useState(null);        // { msg, fn } — undo pill after a delete
   const toastTimer = useRef(null);
@@ -518,6 +524,34 @@ function Stores({ t, lang, me }) {
     } catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
     setBusy("");
   }
+  // Open a thread WITH a tenant — the only outbound channel. The in-app
+  // thread is the record; email is a notification and only goes to a confirmed
+  // address, so the panel says up front which of the two this store will get.
+  const openMsg = (s) => {
+    setMsgFor(s.id); setMsgSubject(""); setMsgBody(""); setMsgResult(null);
+    setMsgLang(lang === "es" ? "es" : "en");
+  };
+  const closeMsg = () => { setMsgFor(null); setMsgResult(null); };
+  async function doMsg(s) {
+    setBusy(s.id); setError("");
+    try {
+      const r = await apiDev({
+        action: "ticketOpen", vendorId: s.id,
+        subject: msgSubject.trim(), text: msgBody.trim(), lang: msgLang,
+      });
+      setMsgResult({
+        vendorId: s.id, tone: "pos",
+        // Three outcomes worth telling apart: mailed, deliberately not mailed
+        // (no confirmed address), and tried-and-failed.
+        msg: r.emailed ? t("dev.msg_sent_email", { email: s.ownerEmail })
+          : r.reachable ? t("dev.msg_sent_mail_failed") : t("dev.msg_sent_inapp"),
+      });
+      setMsgSubject(""); setMsgBody("");
+      await load();
+    } catch (e) { setError(e?.code ? t(`sup.err_${e.code}`) : (e?.message || "failed")); }
+    setBusy("");
+  }
+
   // Show a store's plan in one line: "Pro · Active · $49/mo".
   const billLine = (b) => `${t(`dev.plan_${b.plan}`)} · ${t(`dev.bs_${b.status}`)} · ${money(b.price)}${b.cycle === "annual" ? t("dev.per_yr") : t("dev.per_mo")}`;
 
@@ -618,7 +652,8 @@ function Stores({ t, lang, me }) {
                 {s.openTickets > 0 && <span className="text-[10px] uppercase tracking-wide font-bold text-gold border border-brass/50 rounded px-1.5 py-0.5">{t("dev.open_tix", { n: s.openTickets })}</span>}
               </div>
               <div className="text-[12px] text-muted font-mono">/{s.slug}</div>
-              <div className="text-[12px] text-muted">{t("dev.owner")}: {s.ownerName || "—"}{s.ownerEmail ? ` · ${s.ownerEmail}` : ""} · {t("dev.staff_n", { n: s.staffCount })} · {fmt(s.createdAt)}</div>
+              <div className="text-[12px] text-muted">{t("dev.owner")}: {s.ownerName || "—"}{s.ownerEmail ? ` · ${s.ownerEmail}` : ""}{s.ownerEmail && !s.ownerEmailVerified
+                  ? <span className="text-gold"> · {t("dev.email_unconfirmed")}</span> : null} · {t("dev.staff_n", { n: s.staffCount })} · {fmt(s.createdAt)}</div>
               {s.status === "deleted" && <div className="text-[12px] text-neg mt-0.5">{t("dev.deleted_at", { date: fmt(s.deletedAt) || "—", by: s.deletedBy || "—" })}</div>}
               <div className="text-[12px] mt-1">
                 <span className="text-muted">{t("dev.billing")}: </span>
@@ -643,6 +678,8 @@ function Stores({ t, lang, me }) {
                   onClick={() => { const name = window.prompt(t("dev.rename_prompt"), s.name); if (name != null && name.trim()) op(s.id, { op: "rename", name: name.trim() }); }}><ActionIcon name="rename" />{t("dev.rename")}</button>}
                 {can("stores") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
                   onClick={() => { const note = window.prompt(t("dev.note_prompt"), s.note || ""); if (note != null) op(s.id, { op: "note", note }); }}><ActionIcon name="note" />{t("dev.note")}</button>}
+                {can("tickets") && <button className="btn-ghost text-[13px] w-auto" disabled={busy === s.id}
+                  onClick={() => (msgFor === s.id ? closeMsg() : openMsg(s))}><ActionIcon name="message" />{t("dev.message_owner")}</button>}
                 {can("pin") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto" disabled={busy === s.id}
                   onClick={() => (resetFor === s.id ? closeReset() : openReset(s))}><ActionIcon name="pin" />{t("dev.reset_pin")}</button>}
                 {can("lifecycle") && <button className="btn-ghost text-[13px] px-3 py-1.5 w-auto text-neg" disabled={busy === s.id}
@@ -657,6 +694,36 @@ function Stores({ t, lang, me }) {
               fallback exists only for an owner with no confirmed address, and
               what it issues dies at that owner's next sign-in. Either way a
               written reason lands in the audit log. */}
+          {msgFor === s.id && (
+            <div className="border-t border-line pt-3 mt-1 space-y-2.5">
+              <Field label={t("dev.msg_subject")}>
+                <input className="input" value={msgSubject} maxLength={120}
+                  onChange={(e) => setMsgSubject(e.target.value)} placeholder={t("dev.msg_subject_ph")} />
+              </Field>
+              <Field label={t("dev.msg_body")}>
+                <textarea className="input min-h-[96px]" value={msgBody} maxLength={4000}
+                  onChange={(e) => setMsgBody(e.target.value)} placeholder={t("dev.msg_body_ph")} />
+              </Field>
+              {/* Say which channels this store will actually get BEFORE sending,
+                  so "they were told" is never an assumption. */}
+              <p className="text-[12px] text-muted leading-relaxed">
+                {s.ownerEmailVerified ? t("dev.msg_will_email", { email: s.ownerEmail }) : t("dev.msg_inapp_only")}
+              </p>
+              <div className="flex gap-2">
+                <select className="input" value={msgLang} onChange={(e) => setMsgLang(e.target.value)}
+                  aria-label={t("lang.language")}>
+                  {LOCALES.map((l) => <option key={l} value={l}>{LOCALE_LABELS[l] || l}</option>)}
+                </select>
+                <button className="btn-primary flex-1" disabled={busy === s.id || msgSubject.trim().length < 3 || !msgBody.trim()}
+                  onClick={() => doMsg(s)}>{t("dev.msg_send")}</button>
+                <button className="btn-ghost w-auto" disabled={busy === s.id} onClick={closeMsg}>{t("dev.cancel")}</button>
+              </div>
+              {msgResult?.vendorId === s.id && (
+                <p className="text-[13px] text-pos font-medium break-words">{msgResult.msg}</p>
+              )}
+            </div>
+          )}
+
           {resetFor === s.id && (
             <div className="border-t border-line pt-3 mt-1 space-y-2.5">
               <Field label={t("dev.reset_reason")}>

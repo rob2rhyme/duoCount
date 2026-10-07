@@ -7,11 +7,11 @@ Tooling: Playwright (Chromium 1194) driving the real app, axe-core 4.13.0, Resou
 > re-verified against a production build; the measured results are in each row's Resolution
 > line. Everything under "Fix soon" and "Nice to have" is still open.
 >
-> **The biggest gap in this audit is now closeable.** Emulator wiring has since landed, so
-> the signed-in screens this audit could not reach can be driven locally with
-> `npm run dev:emulator`. A second pass over them is the obvious follow-up — B3's
-> untranslated tagline, for one, is visible on every authenticated screen via
-> `AppShell.js:461` and was only ever code-read here.
+> **The gap is now closed.** Emulator wiring landed in #259 and the signed-in screens have
+> since been audited — see `ops/qa-ux-audit-signed-in-2026.md` (12 screens, seeded store).
+> Two things there bear on this document: B3's untranslated tagline is **confirmed** on the
+> authenticated side (filed there as S9), no longer just code-read; and those screens carry
+> exactly one `<main>` each, so the shell they use is the fix to copy for B6.
 
 ---
 

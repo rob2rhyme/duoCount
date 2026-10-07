@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections, watchPunches, watchReorderDismissals } from "@/lib/data";
+import { watchEntries, watchLocations, watchDrawers, watchItems, watchNotes, watchIncidents, watchSwapBoard, watchRewardEvents, watchCustomers, watchScratchCatalog, watchStockMoves, watchTimeOff, watchMachines, watchGamingCollections, watchPunches, watchReorderDismissals, watchSupportTickets } from "@/lib/data";
+import { countOwnerUnread } from "@/lib/support";
 import { buildStockAlerts } from "@/lib/stock-alerts";
 import { featureEnabled, resolveFeatures } from "@/lib/features";
 import { useModalA11y } from "@/lib/use-modal-a11y";
@@ -265,6 +266,17 @@ export default function AppShell() {
   // Stock notifications for the owner/managers: items past the low-stock or
   // expiry bars badge the Backroom tab, so a live pull that crosses the line
   // is impossible to miss.
+  // Support threads waiting on this owner. Owner-only on purpose: the rules
+  // let ONLY an owner read supportTickets, so subscribing as staff would be a
+  // guaranteed permission error. Support can now OPEN a thread (billing,
+  // policy notices) and SupportCard lives inside Admin, so without this the
+  // first a tenant hears of one is whenever they next wander into that tab.
+  const [supportUnread, setSupportUnread] = useState(0);
+  useEffect(() => {
+    if (!isOwner || !vendor?.id) { setSupportUnread(0); return undefined; }
+    return watchSupportTickets(vendor.id, (tks) => setSupportUnread(countOwnerUnread(tks)));
+  }, [isOwner, vendor?.id]);
+
   const stockAttention = useMemo(() => {
     if (!isManager) return 0;
     const a = buildStockAlerts(items, { rules: vendor?.stockAlerts });
@@ -273,6 +285,7 @@ export default function AppShell() {
   const tabAttention = {
     ...(att ? { log: att.log, incidents: att.incidents, time: att.time } : {}),
     ...(stockAttention > 0 ? { inventory: stockAttention } : {}),
+    ...(supportUnread > 0 ? { admin: supportUnread } : {}),
   };
 
   // The mobile bottom nav lives at the foot of the viewport; flag the body so

@@ -575,9 +575,15 @@ export default function AdminPanel({ onToast, locations, drawers, items = [], en
         ))}
       </div>
 
-      {/* Grouped tabs — one short page per tab instead of one long scroll. */}
+      {/* Grouped tabs — one short page per tab instead of one long scroll.
+          Wraps rather than scrolls horizontally: the row needs 469px at a
+          390px viewport, so `overflow-x-auto` put "More" off-screen on every
+          common phone width (and "Rewards" too below 375px) with nothing to
+          hint it was there. Support threads live behind "More", so a tab the
+          owner cannot see is a message they never read. Wrapping costs a
+          second row on a phone and none at >=520px, where it already fits. */}
       <nav aria-label={t("admin.nav_aria")} role="tablist"
-        className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+45px)] z-10 -mx-4 px-4 py-2 bg-[var(--bg)]/95 backdrop-blur-sm flex gap-1.5 overflow-x-auto">
+        className="sticky top-[calc(max(0.75rem,env(safe-area-inset-top))+45px)] z-10 -mx-4 px-4 py-2 bg-[var(--bg)]/95 backdrop-blur-sm flex flex-wrap gap-1.5">
         {adminTabs.map((tb) => {
           const active = adminTab === tb.id;
           return (

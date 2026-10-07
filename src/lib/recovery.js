@@ -210,6 +210,15 @@ export const EMAIL_COPY = Object.freeze({
     support_intro: "You wrote to DuoCount support because you couldn't sign in. Here's the reply:",
     support_outro: "Reply to this email to continue the conversation.",
     support_outro_noreply: "Need to add something? Send another message from the \"Can't sign in?\" link on the sign-in screen.",
+    // An operator-STARTED thread (billing, policy, product notices). Unlike
+    // support_*, the owner did not write first — so the copy has to say who is
+    // contacting them and why, and point at the in-app thread that holds the
+    // durable record. Only ever sent to a CONFIRMED address (hasRecoveryEmail).
+    owner_msg_subject: "DuoCount — a message about {store}",
+    owner_msg_head: "A message from DuoCount",
+    owner_msg_intro: "This is DuoCount support writing to you about {store}:",
+    owner_msg_outro: "The full message is in DuoCount under Admin → Support, where you can reply. You can also reply to this email.",
+    owner_msg_outro_noreply: "The full message is in DuoCount under Admin → Support — open it there to reply.",
     footer: "DuoCount — all your counts. All in one place.",
   },
   es: {
@@ -247,6 +256,11 @@ export const EMAIL_COPY = Object.freeze({
     support_intro: "Escribiste al soporte de DuoCount porque no podías iniciar sesión. Esta es la respuesta:",
     support_outro: "Responde a este correo para seguir la conversación.",
     support_outro_noreply: "¿Necesitas agregar algo? Envía otro mensaje desde el enlace \"¿No puedes entrar?\" de la pantalla de inicio de sesión.",
+    owner_msg_subject: "DuoCount — un mensaje sobre {store}",
+    owner_msg_head: "Un mensaje de DuoCount",
+    owner_msg_intro: "El soporte de DuoCount te escribe sobre {store}:",
+    owner_msg_outro: "El mensaje completo está en DuoCount, en Admin → Soporte, donde puedes responder. También puedes responder a este correo.",
+    owner_msg_outro_noreply: "El mensaje completo está en DuoCount, en Admin → Soporte — ábrelo ahí para responder.",
     footer: "DuoCount — todos tus conteos. En un solo lugar.",
   },
 });
@@ -355,6 +369,31 @@ export function buildRecoveryEmailChangedEmail({ lang, storeName, name, newEmail
  * address they left — otherwise the one channel built for locked-out people
  * ends in a thread they'll never see.
  */
+/**
+ * An operator-STARTED message to a store owner (billing, policy, product
+ * notices). The in-app ticket thread is the record; this email only carries
+ * the owner far enough to go read it, because an owner who never opens Admin
+ * would otherwise never learn of a billing obligation.
+ *
+ * Callers must gate on `hasRecoveryEmail(owner)` — an unconfirmed address may
+ * be a typo, and mailing it would both miss the owner and tell a stranger the
+ * store exists, which is the same enumeration leak the reset route's frozen
+ * NEUTRAL_RESULT exists to prevent.
+ */
+export function buildOwnerMessageEmail({ lang, storeName, text, canReply = false } = {}) {
+  const l = pickLang(lang);
+  const store = storeName || "DuoCount";
+  return {
+    subject: line(l, "owner_msg_subject", { store }),
+    ...renderEmail({
+      lang: l,
+      head: line(l, "owner_msg_head"),
+      paras: [line(l, "owner_msg_intro", { store }), String(text ?? "")],
+      note: line(l, canReply ? "owner_msg_outro" : "owner_msg_outro_noreply"),
+    }),
+  };
+}
+
 export function buildSupportReplyEmail({ lang, text, canReply = false } = {}) {
   const l = pickLang(lang);
   return {

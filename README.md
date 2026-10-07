@@ -140,8 +140,14 @@ local emulators instead:
 
 ```
 npm run dev:emulator      # boots firestore + auth, then next dev
-npm run start:emulator    # same, against a production build
+npm run start:emulator    # rebuilds with the flag, then serves that build
 ```
+
+`start:emulator` rebuilds on purpose. The flag is pinned at build time (see
+below), so a build made without it bakes the emulator branch out of the server
+bundle as well as the client one — and no runtime environment variable can
+switch it back on. Chaining the build is what stops the two scripts disagreeing
+about a constant that is fixed when the bundle is written.
 
 Both boot `firebase emulators:exec --only firestore,auth` and run the app with
 the emulator switch on. No `.env.local`, no service-account key, and nothing

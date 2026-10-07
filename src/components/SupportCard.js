@@ -142,12 +142,18 @@ export default function SupportCard() {
             </div>
           </div>
 
-          {/* opening message */}
-          <div className="border border-line rounded-xl p-3 bg-panel">
-            <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("sup.you")}</div>
-            <p className="text-[13px] whitespace-pre-wrap break-words">{open.body}</p>
-            <Thumbs attachments={open.attachments} />
-          </div>
+          {/* The owner's opening message — skipped entirely when there is
+              none. A thread SUPPORT opened (a billing or policy notice) has no
+              owner `body`, and rendering the block anyway drew an empty "You"
+              bubble above the notice, as though the owner had sent a blank
+              message. */}
+          {(open.body || (open.attachments || []).length > 0) && (
+            <div className="border border-line rounded-xl p-3 bg-panel">
+              <div className="text-[11px] uppercase tracking-wide text-muted font-semibold mb-1">{t("sup.you")}</div>
+              {open.body && <p className="text-[13px] whitespace-pre-wrap break-words">{open.body}</p>}
+              <Thumbs attachments={open.attachments} />
+            </div>
+          )}
 
           {/* thread */}
           {(open.messages || []).map((m, i) => (

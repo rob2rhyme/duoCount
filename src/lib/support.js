@@ -105,6 +105,22 @@ export function canTransition(from, to, actor) {
 // Unread badge: from the owner's side, a ticket is "unread" when its last
 // activity came from the dev after the owner last opened it. `seenAt` is the
 // owner's last-viewed time (ms), `lastActorRole`/`lastActivityAt` on the ticket.
+/**
+ * How many of this store's threads are waiting on the owner.
+ *
+ * Exists because support can now OPEN a thread (billing, policy notices), and
+ * SupportCard lives inside Admin — so without a count on the nav an owner has
+ * no way to learn a message arrived short of wandering into the right sub-tab.
+ * Each ticket carries its own ownerSeenAt, so the caller passes no clock.
+ */
+export function countOwnerUnread(tickets) {
+  // `tk &&` is load-bearing: ownerUnread's `= {}` default only fires on
+  // undefined, so a null row would throw — and this number renders on every
+  // screen, so it must never be the thing that breaks the shell.
+  return (tickets || []).reduce(
+    (n, tk) => n + (tk && ownerUnread(tk, toMs(tk.ownerSeenAt)) ? 1 : 0), 0);
+}
+
 export function ownerUnread(ticket = {}, seenMs = 0) {
   if (ticket.lastActorRole !== "dev") return false;
   const last = toMs(ticket.lastActivityAt);

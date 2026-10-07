@@ -15,6 +15,10 @@ export const AUDIT_ACTIONS = [
   // it's the one an auditor should look at twice. Both carry the operator's
   // stated reason in `detail`.
   "ownerResetLink", "resetOwnerPin",
+  // The one OUTBOUND action: support opened a thread with a tenant. Logged
+  // because "who did we contact, about what, and when" is exactly the question
+  // a billing or policy dispute turns on.
+  "ticketOpen",
 ];
 
 const clamp = (v, n) => String(v ?? "").slice(0, n);
