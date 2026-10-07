@@ -4,7 +4,7 @@ import { requireSignedIn, requirePlatformAdmin, resolvePlatformAdmin, assertScop
 import { indexStaffByVendor, NO_STAFF } from "@/lib/dev-stores";
 import { scopesForRole, ROLES, normalizeRole } from "@/lib/platform-admins";
 import { buildMessage, canTransition, REASON_MAX } from "@/lib/support";
-import { hasRecoveryEmail, buildResetEmail, buildPinChangedEmail, buildSupportReplyEmail, resetLink, supportReplyEnabled } from "@/lib/recovery";
+import { hasRecoveryEmail, buildResetEmail, buildPinChangedEmail, buildSupportReplyEmail, buildOwnerMessageEmail, resetLink, supportReplyEnabled } from "@/lib/recovery";
 import { mintToken, appUrlFrom, trySend } from "@/lib/recovery-store";
 import { issueTempPin } from "@/lib/pin-store";
 import { normalizeBilling } from "@/lib/billing";
@@ -39,7 +39,9 @@ export const runtime = "nodejs";
 // which is exactly why a future one could add it unnoticed.
 const staffRow = (u, vendorId = u.ref.parent.parent?.id) => {
   const d = u.data() || {};
-  return { vendorId, role: d.role, name: d.name, email: d.email };
+  // emailVerifiedAt rides along so the console can tell a CONFIRMED owner
+  // address (one support can actually mail) from one that may be a typo.
+  return { vendorId, role: d.role, name: d.name, email: d.email, emailVerifiedAt: d.emailVerifiedAt ?? null };
 };
 
 async function staffByVendor(adminDb, vendorDocs) {
@@ -186,6 +188,74 @@ export async function POST(req) {
       return NextResponse.json({ ok: true, status: to });
     }
 
+    // Open a NEW thread with a store — the one outbound channel. Every other
+    // ticket begins with the owner writing in, which left no way to tell a
+    // tenant about billing or a policy change.
+    //
+    // Deliberately the existing supportTickets collection rather than a new
+    // one: the rules already let an owner read any ticket for their vendorId
+    // and let no client write at all, so this needs no rules change and adds
+    // no anonymous surface. /api/support/public stays exactly as narrow.
+    if (action === "ticketOpen") {
+      assertScope(me, "tickets");
+      const vendorId = String(body.vendorId || "");
+      if (!vendorId) return err(400, "bad_vendor", "Pick a store.");
+      const vref = adminDb.collection("vendors").doc(vendorId);
+      const vsnap = await vref.get();
+      if (!vsnap.exists) return err(404, "not_found", "That store doesn't exist.");
+      const v = vsnap.data() || {};
+
+      const subject = String(body.subject ?? "").trim().slice(0, 120);
+      if (subject.length < 3) return err(400, "need_subject", "Give the message a subject.");
+      const built = buildMessage(body);
+      if (built.error) return err(400, built.error, "Write a message or attach a screenshot.");
+
+      const users = await vref.collection("users").where("role", "==", "owner").where("active", "==", true).limit(1).get();
+      const owner = users.empty ? null : { id: users.docs[0].id, ...users.docs[0].data() };
+
+      const doc = {
+        vendorId, storeName: v.name || "", storeSlug: v.slug || "",
+        subject, category: "account", priority: String(body.priority || "normal"),
+        status: "open",
+        // `origin` distinguishes an operator-started thread from the owner's
+        // own request. The owner-side unread signal needs no new field:
+        // ownerUnread() already keys on lastActorRole === "dev".
+        origin: "dev",
+        createdByName: me.name || devName, createdById: me.id,
+        createdAt: now, lastActivityAt: now, lastActorRole: "dev",
+        ownerSeenAt: null, devSeenAt: now,
+        messages: [{ by: "dev", byName: devName, ...built.message, ts: now, system: false }],
+      };
+      if (roughSize(doc) > DOC_BUDGET) return err(413, "attach_budget", "Those screenshots are too large together.");
+      const ref = await adminDb.collection("supportTickets").add(doc);
+
+      // Email is a NOTIFICATION, not the channel — the thread above is the
+      // record. Gated on a CONFIRMED address: an unconfirmed one may be a typo,
+      // and mailing it would both miss the owner and tell a stranger the store
+      // exists. `emailed: null` with reachable:false is how the console shows
+      // the operator that in-app is the only way to this tenant.
+      let emailed = null;
+      const reachable = hasRecoveryEmail(owner);
+      if (reachable && built.message.text) {
+        const lang = body.lang === "es" ? "es" : "en";
+        emailed = await trySend({
+          to: owner.email,
+          ...buildOwnerMessageEmail({
+            lang, storeName: v.name || "", text: built.message.text,
+            canReply: supportReplyEnabled(),
+          }),
+        });
+      }
+
+      await adminDb.collection("adminAudit").add(buildAuditEntry({
+        actor: me.name || devName, actorId: me.id,
+        action: "ticketOpen", vendorId, vendorName: v.name || "",
+        detail: subject, ts: now,
+      })).catch((e) => console.error("audit write failed", e));
+
+      return NextResponse.json({ ok: true, id: ref.id, emailed, reachable });
+    }
+
     if (action === "listStores") {
       assertScope(me, "read");
       const [vSnap, tSnap] = await Promise.all([
@@ -220,6 +290,10 @@ export async function POST(req) {
           rewardsOn: v.rewards?.enabled === true,
           ownerName: owner ? owner.name : (v.ownerName || ""),
           ownerEmail: owner ? owner.email : null,
+          // Whether that address is CONFIRMED. Without this the console shows
+          // an email it may not be able to use, and the operator can't tell a
+          // reachable tenant from one where in-app is the only way through.
+          ownerEmailVerified: hasRecoveryEmail(owner),
           staffCount, openTickets: openByVendor[d.id] || 0,
           note: v.devNote || null,
           billing: bill ? { plan: bill.plan, status: bill.status, cycle: bill.cycle, price: bill.price, note: bill.note || null } : null,

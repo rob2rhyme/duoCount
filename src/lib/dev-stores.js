@@ -26,7 +26,11 @@ export function indexStaffByVendor(rows) {
     let e = byVendor.get(id);
     if (!e) { e = { staffCount: 0, owner: null }; byVendor.set(id, e); }
     e.staffCount += 1;
-    if (!e.owner && r.role === "owner") e.owner = { name: r.name || "", email: r.email || null };
+    if (!e.owner && r.role === "owner") {
+      // emailVerifiedAt is carried, not dropped: the Stores list uses it to
+      // show whether support can reach this owner by email at all.
+      e.owner = { name: r.name || "", email: r.email || null, emailVerifiedAt: r.emailVerifiedAt ?? null };
+    }
   }
   return byVendor;
 }

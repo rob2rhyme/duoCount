@@ -9,7 +9,7 @@ import {
   resetLink, verifyLink, recoveryLink,
   EMAIL_COPY, EMAIL_LOCALES, pickLang, line,
   buildResetEmail, buildVerifyEmail, buildPinChangedEmail, buildRecoveryEmailChangedEmail,
-  buildSupportReplyEmail,
+  buildSupportReplyEmail, buildOwnerMessageEmail,
   RESET_TTL_MIN, RESET_TTL_MS, VERIFY_TTL_DAYS, NEUTRAL_RESULT, CHANGED_BY,
 } from "../src/lib/recovery.js";
 
@@ -264,4 +264,48 @@ test("email bodies escape HTML so a store name can't inject markup", () => {
 
 test("RESET_TTL_MS agrees with the minutes the email promises", () => {
   assert.equal(RESET_TTL_MS, RESET_TTL_MIN * 60 * 1000);
+});
+
+test("buildOwnerMessageEmail carries the operator's text and names the store", () => {
+  // An operator-STARTED thread: the owner did not write first, so the copy has
+  // to say who is contacting them and point at the in-app thread.
+  const m = buildOwnerMessageEmail({
+    lang: "en", storeName: "Van Buren Food Express",
+    text: "Your plan needs billing details by Oct 31.", canReply: true,
+  });
+  assert.match(m.subject, /Van Buren Food Express/);
+  assert.match(m.text, /Your plan needs billing details by Oct 31\./);
+  assert.match(m.text, /Admin/);              // tells them where the record is
+  assert.match(m.html, /Van Buren Food Express/);
+});
+
+test("buildOwnerMessageEmail is fully translated and escapes the body", () => {
+  const es = buildOwnerMessageEmail({ lang: "es", storeName: "Tienda", text: "Hola" });
+  assert.match(es.subject, /mensaje sobre Tienda/);
+  assert.ok(!/a message about/i.test(es.subject), "subject fell back to English");
+  assert.match(es.text, /soporte de DuoCount/i);
+
+  // Operator text reaches an HTML email, so it must be escaped, not injected.
+  const x = buildOwnerMessageEmail({ lang: "en", storeName: "S", text: "<script>alert(1)</script>" });
+  assert.ok(!x.html.includes("<script>"), "operator text injected raw into the HTML body");
+  assert.match(x.html, /&lt;script&gt;/);
+});
+
+test("buildOwnerMessageEmail switches the reply instruction on canReply", () => {
+  const withReply = buildOwnerMessageEmail({ lang: "en", storeName: "S", text: "t", canReply: true });
+  const noReply = buildOwnerMessageEmail({ lang: "en", storeName: "S", text: "t", canReply: false });
+  assert.match(withReply.text, /reply to this email/i);
+  assert.ok(!/reply to this email/i.test(noReply.text),
+    "promised an email reply with no reply-to configured");
+});
+
+test("hasRecoveryEmail is the gate for operator mail, and it is strict", () => {
+  // Reused deliberately: one definition of "a confirmed address for this
+  // person". An unconfirmed address may be a typo, and mailing it would tell
+  // a stranger the store exists.
+  assert.equal(hasRecoveryEmail({ email: "a@b.com", emailVerifiedAt: new Date() }), true);
+  assert.equal(hasRecoveryEmail({ email: "a@b.com" }), false);          // never confirmed
+  assert.equal(hasRecoveryEmail({ email: "", emailVerifiedAt: new Date() }), false);
+  assert.equal(hasRecoveryEmail({ emailVerifiedAt: new Date() }), false);
+  assert.equal(hasRecoveryEmail(null), false);
 });
