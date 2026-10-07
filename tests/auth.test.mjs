@@ -227,3 +227,32 @@ test("the rewards balance check does NOT inherit the login escalation", () => {
   assert.equal(throttleDecision(rec, T0 + BALANCE_STORE_LIMIT.windowMs + 1, BALANCE_STORE_LIMIT).blocked, false,
     "and it always reopens on the base window");
 });
+
+test("the email-confirm limits are per-user and tight enough to matter", async () => {
+  const { VERIFY_SEND_LIMIT, VERIFY_TRY_LIMIT } = await import("../src/lib/login-throttle.js");
+  const { MAX_ATTEMPTS } = await import("../src/lib/verify-code.js");
+
+  // Sending puts mail on the wire at an address nobody has proved they own
+  // yet, and the button is right in front of a gated owner — so this is the
+  // one that must not be generous.
+  assert.ok(VERIFY_SEND_LIMIT.maxFails <= 5, "resend allowance is an email cannon");
+  assert.equal(VERIFY_SEND_LIMIT.windowMs, 60 * 60 * 1000);
+
+  // Guessing must be bounded ACROSS codes, or asking for a fresh one buys
+  // another MAX_ATTEMPTS forever. Compared as a rate so the assertion survives
+  // someone retuning either window.
+  const triesPerHour = VERIFY_TRY_LIMIT.maxFails * (3600000 / VERIFY_TRY_LIMIT.windowMs);
+  assert.ok(triesPerHour < 1000, `${triesPerHour} guesses/hour against a 6-digit code is too many`);
+  assert.ok(VERIFY_TRY_LIMIT.maxFails > MAX_ATTEMPTS,
+    "the across-code ceiling must leave room for at least one full code");
+});
+
+test("a blocked verify limiter reports how long to wait, and clears", async () => {
+  const { throttleDecision, VERIFY_SEND_LIMIT } = await import("../src/lib/login-throttle.js");
+  const now = 1_000_000;
+  const spent = { windowStart: now, count: VERIFY_SEND_LIMIT.maxFails };
+  const d = throttleDecision(spent, now + 1000, VERIFY_SEND_LIMIT);
+  assert.equal(d.blocked, true);
+  assert.ok(d.retryAfterMs > 0, "a blocked send gave no retry hint");
+  assert.equal(throttleDecision(spent, now + VERIFY_SEND_LIMIT.windowMs + 1, VERIFY_SEND_LIMIT).blocked, false);
+});

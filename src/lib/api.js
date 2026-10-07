@@ -53,6 +53,12 @@ export async function fetchJson(url, options) {
   if (!res.ok) {
     const err = new Error((data && data.error) || `Request failed (HTTP ${res.status}).`);
     if (data && typeof data.code === "string") err.code = data.code;
+    // The whole parsed body rides along, so a route can return a detail the UI
+    // needs alongside the message — "3 tries left" on a wrong confirmation
+    // code, for one — without every such field needing its own hoist here.
+    // Additive: existing callers read .message and .code exactly as before.
+    if (data) err.data = data;
+    err.status = res.status;
     throw err;
   }
   return data || {};

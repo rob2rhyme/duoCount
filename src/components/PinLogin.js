@@ -10,6 +10,11 @@ import { PIN_LENGTH, PIN_PLACEHOLDER, isValidNewPin } from "@/lib/pin";
 import Logo from "./Logo";
 import ThemeToggle from "./ThemeToggle";
 
+// Shape only — enough to keep the button from submitting an obvious non-address.
+// The server re-validates with cleanEmailInput and is the authority; this just
+// avoids a round trip to be told about a missing "@".
+const looksLikeEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v ?? "").trim());
+
 export default function PinLogin() {
   const { login, signup } = useSession();
   const { lang, setLang, t } = useLang();
@@ -145,11 +150,14 @@ export default function PinLogin() {
             <input id={ids.logoUrl} className="input mb-4" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://…/logo.svg" />
             <label htmlFor={ids.ownerName} className="label">{t("login.owner_name")}</label>
             <input id={ids.ownerName} className="input mb-4" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Jordan P." />
-            {/* Optional, but this is the difference between a one-minute reset
-                and a support ticket if this owner ever forgets their PIN — so
-                it's asked for here, where it costs nothing. */}
+            {/* Required. This is the difference between a one-minute reset and a
+                support ticket if the owner forgets their PIN — and it is the
+                only way anyone can reach the store afterwards. A code sent here
+                has to be entered before the app opens, so it has to be an
+                address they can actually read. */}
             <label htmlFor={ids.ownerEmail} className="label">{t("login.owner_email")}</label>
             <input id={ids.ownerEmail} className="input" type="email" inputMode="email" autoCapitalize="none"
+              required aria-required="true"
               autoComplete="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} placeholder="you@example.com" />
             <p className="text-xs text-muted mt-1.5 mb-4 leading-relaxed">{t("login.owner_email_hint")}</p>
             <label htmlFor={ids.newPin} className="label">{t("login.choose_pin", { n: PIN_LENGTH })}</label>
@@ -157,7 +165,7 @@ export default function PinLogin() {
               type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="off" maxLength={PIN_LENGTH} value={newPin}
               onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} placeholder="123456" />
             {err && <p className="text-sm text-neg mt-3">{errText(err)}</p>}
-            <button className="btn-primary mt-5" disabled={busy || !isValidNewPin(newPin)} onClick={doSignup}>
+            <button className="btn-primary mt-5" disabled={busy || !isValidNewPin(newPin) || !looksLikeEmail(ownerEmail)} onClick={doSignup}>
               {busy ? t("login.creating") : t("login.create")}
             </button>
             {/* Clickwrap: creating the store is the acceptance action; the

@@ -13,6 +13,7 @@ import { sendEmail } from "@/lib/digest";
 import {
   joinToken, splitToken, tokenState, supportReplyTo, RESET_TTL_MS, VERIFY_TTL_DAYS_MS,
 } from "@/lib/recovery";
+import { randomCode, normalizeCode, isCodeShaped, codeState, attemptsLeft, MAX_ATTEMPTS } from "@/lib/verify-code";
 
 export const TOKENS = "recoveryTokens";
 
@@ -26,18 +27,68 @@ export const ttlFor = (kind) => (kind === "verify" ? VERIFY_TTL_DAYS_MS : RESET_
  * burns that user's other outstanding links of the same kind, so asking twice
  * doesn't leave two live doors open (the newest link wins).
  */
-export async function mintToken(adminDb, { kind, vendorId, userId, now = new Date() } = {}) {
+export async function mintToken(adminDb, { kind, vendorId, userId, now = new Date(), withCode = false } = {}) {
   await burnTokens(adminDb, { kind, vendorId, userId });
   const id = b64url(randomBytes(9));          // 12 chars, collision-free in practice
   const secret = b64url(randomBytes(32));     // 43 chars of entropy
+  // The typed code is a SECOND secret on the SAME document, not a second
+  // token: it inherits this one's TTL, its single-use burn and the burn above,
+  // so the link and the code can never disagree about whether an address is
+  // confirmed. Stored hashed like the secret, so a leaked row replays neither.
+  const code = withCode ? randomCode(undefined, randomBytes) : null;
   await adminDb.collection(TOKENS).doc(id).set({
     kind, vendorId, userId,
     secretHash: hashPin(secret),
+    ...(code ? { codeHash: hashPin(code), codeAttempts: 0 } : {}),
     createdAt: now,
     expiresAt: now.getTime() + ttlFor(kind),
     usedAt: null,
   });
-  return { token: joinToken(id, secret), id };
+  return { token: joinToken(id, secret), id, code };
+}
+
+/**
+ * Check a typed code against the caller's OWN outstanding token and burn it on
+ * success. Callers pass vendorId/userId from verified claims, never from the
+ * request body — so a code can only ever be tried against the account already
+ * signed in, which is what keeps this off the anonymous surface and makes
+ * enumeration meaningless.
+ *
+ * Returns { state } where state is "ok" | "missing" | "used" | "expired" |
+ * "locked" | "bad_code", plus `left` (guesses remaining) on a wrong guess.
+ * A wrong guess costs an attempt; every other outcome does not, so a stale
+ * token can't burn down the allowance for the fresh one that replaces it.
+ */
+export async function consumeCode(adminDb, { kind, vendorId, userId, code, now = Date.now() } = {}) {
+  if (!vendorId || !userId) return { state: "missing" };
+  if (!isCodeShaped(code)) return { state: "bad_code", left: null };
+  const snap = await adminDb.collection(TOKENS)
+    .where("vendorId", "==", vendorId).where("userId", "==", userId)
+    .where("kind", "==", kind).limit(5).get();
+  if (snap.empty) return { state: "missing" };
+
+  // mintToken burns the rest, so in practice there is one; pick the live one
+  // defensively rather than assuming which document comes back first.
+  const usable = snap.docs.find((d) => codeState(d.data(), now) === "ok") || snap.docs[0];
+  const ref = usable.ref;
+  const typed = normalizeCode(code);
+
+  return adminDb.runTransaction(async (tx) => {
+    const fresh = await tx.get(ref);
+    const doc = fresh.exists ? fresh.data() : null;
+    const state = codeState(doc, now);
+    if (state !== "ok") return { state };
+    if (!verifyPin(typed, doc.codeHash)) {
+      const codeAttempts = (Number(doc.codeAttempts) || 0) + 1;
+      tx.update(ref, { codeAttempts });
+      return {
+        state: codeAttempts >= MAX_ATTEMPTS ? "locked" : "bad_code",
+        left: attemptsLeft({ codeAttempts }),
+      };
+    }
+    tx.update(ref, { usedAt: new Date(now) });
+    return { state: "ok", doc };
+  });
 }
 
 /**
