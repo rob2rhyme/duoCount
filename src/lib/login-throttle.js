@@ -81,6 +81,19 @@ export const RESET_STORE_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 20 };
 export const RECOVERY_CONFIRM_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 15 };
 export const PUBLIC_SUPPORT_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 4 };
 
+// Confirming an owner's email address. Both are per USER, not per IP: the
+// caller is already signed in, so the account is the thing worth limiting and
+// a shared office address can't throttle a colleague.
+//
+// Sends put mail on the wire at an address nobody has proved they own yet, so
+// the button in front of a gated owner must not be an email cannon. Five an
+// hour is plenty for "it didn't arrive, try again" and useless for flooding.
+export const VERIFY_SEND_LIMIT = { windowMs: 60 * 60 * 1000, maxFails: 5 };
+// Typed codes. Each code already dies after MAX_ATTEMPTS wrong guesses; this
+// is the ceiling ACROSS codes, so asking for a fresh one can't buy an
+// unlimited supply of guesses at six digits.
+export const VERIFY_TRY_LIMIT = { windowMs: 15 * 60 * 1000, maxFails: 20 };
+
 export function throttleDecision(record, now, limit) {
   const { windowMs, maxFails, backoffFactor = 1, maxWindowMs = 0, strikeDecayMs = 0 } = limit;
   // Strikes only exist for limiters that opt into escalation. They decay after a

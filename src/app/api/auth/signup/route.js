@@ -28,13 +28,15 @@ export async function POST(req) {
       return NextResponse.json({ error: "Enter your name.", code: "missing_owner" }, { status: 400 });
     if (!isValidNewPin(pin))
       return NextResponse.json({ error: PIN_ERROR, code: "bad_new_pin" }, { status: 400 });
-    // Optional, but this is the ONLY thing standing between a sole owner and a
-    // permanent lockout: with no address on file the sole recovery path is a
-    // support ticket. Blank is still allowed — the sign-up screen says what it
-    // costs, and Admin can add one later.
+    // REQUIRED. It was optional, and the result was stores nobody could reach:
+    // no address means the only recovery path is a support ticket, and nothing
+    // — a billing notice, a policy change — can be sent to the owner at all.
+    // The address is confirmed by a code before the app is usable (see
+    // needsEmailConfirm), so "required" here means required and real, not just
+    // a non-empty box.
     const em = cleanEmailInput(ownerEmail);
-    if (em.error)
-      return NextResponse.json({ error: "Enter a valid email (or leave it blank).", code: "bad_email" }, { status: 400 });
+    if (em.error || !em.email)
+      return NextResponse.json({ error: "Enter a valid email address.", code: "bad_email" }, { status: 400 });
 
     const { adminDb, adminAuth } = await getAdmin();
     const now = new Date();
@@ -88,13 +90,18 @@ export async function POST(req) {
       tx.set(ownerRef.collection("private").doc("creds"), { pinHash: hashPin(pin) });
     });
 
-    // Best-effort confirmation mail — a store is created either way.
-    if (em.email) {
-      const { token } = await mintToken(adminDb, { kind: "verify", vendorId: vendorRef.id, userId: ownerRef.id, now });
+    // Best-effort confirmation mail — the store is still created if the send
+    // fails, because the owner is about to be held at the confirm gate anyway
+    // and can resend from there. Failing the signup on a flaky mail provider
+    // would lose the account for a problem a retry fixes.
+    {
+      const { token, code } = await mintToken(adminDb, {
+        kind: "verify", vendorId: vendorRef.id, userId: ownerRef.id, now, withCode: true,
+      });
       const mail = buildVerifyEmail({
         lang: lang === "es" ? "es" : "en",
         storeName: businessName.trim(), name: ownerName.trim(),
-        link: verifyLink(appUrlFrom(req), token),
+        link: verifyLink(appUrlFrom(req), token), code,
       });
       await trySend({ to: em.email, ...mail });
     }

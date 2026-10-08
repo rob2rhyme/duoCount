@@ -8,7 +8,8 @@ import {
   cleanEmailInput, buildVerifyEmail, buildPinChangedEmail, buildRecoveryEmailChangedEmail,
   verifyLink, verifyConflict, hasRecoveryEmail, supportReplyEnabled,
 } from "@/lib/recovery";
-import { mintToken, burnTokens, appUrlFrom, trySend } from "@/lib/recovery-store";
+import { mintToken, burnTokens, consumeCode, appUrlFrom, trySend } from "@/lib/recovery-store";
+import { throttleDecision, VERIFY_SEND_LIMIT, VERIFY_TRY_LIMIT } from "@/lib/login-throttle";
 
 export const runtime = "nodejs";
 
@@ -25,7 +26,8 @@ export const runtime = "nodejs";
 // Every action is scoped to the caller's own uid from the verified token — no
 // userId is read from the body — so this route can't touch anyone else.
 
-const err = (status, code, message) => NextResponse.json({ error: message, code }, { status });
+const err = (status, code, message, extra = null) =>
+  NextResponse.json({ error: message, code, ...(extra || {}) }, { status });
 
 export async function POST(req) {
   try {
@@ -118,9 +120,9 @@ export async function POST(req) {
         return err(409, "email_claimed", "Another person at this store already recovers with that address.");
       // A changed address is unconfirmed until its owner proves they read it.
       await userRef.update({ email: em.email, emailVerifiedAt: null });
-      const { token } = await mintToken(adminDb, { kind: "verify", vendorId, userId });
+      const { token, code } = await mintToken(adminDb, { kind: "verify", vendorId, userId, withCode: true });
       const link = verifyLink(appUrlFrom(req), token);
-      const mail = buildVerifyEmail({ lang, storeName, name: me.name, link });
+      const mail = buildVerifyEmail({ lang, storeName, name: me.name, link, code });
       const sent = await trySend({ to: em.email, ...mail });
       await notifyLosing(em.email);
       return NextResponse.json({ ok: true, email: em.email, verified: false, sent });
@@ -130,11 +132,45 @@ export async function POST(req) {
       const email = me.email || null;
       if (!email) return err(400, "no_email", "Add an email first.");
       if (me.emailVerifiedAt) return NextResponse.json({ ok: true, verified: true, sent: false });
-      const { token } = await mintToken(adminDb, { kind: "verify", vendorId, userId });
+      // Throttled per user: the owner is held at the confirm gate, so the
+      // resend button is right in front of them, and every press puts mail on
+      // the wire at an address they do not have to prove they own yet.
+      const rRef = adminDb.collection("verifyAttempts").doc(`send_${vendorId}_${userId}`);
+      const rSnap = await rRef.get();
+      const rDec = throttleDecision(rSnap.exists ? rSnap.data() : null, Date.now(), VERIFY_SEND_LIMIT);
+      if (rDec.blocked) return err(429, "too_many_sends", "Wait a little before asking for another code.");
+      await rRef.set(rDec.nextOnFail, { merge: true }); // every send counts, not just failures
+
+      const { token, code } = await mintToken(adminDb, { kind: "verify", vendorId, userId, withCode: true });
       const link = verifyLink(appUrlFrom(req), token);
-      const mail = buildVerifyEmail({ lang, storeName, name: me.name, link });
+      const mail = buildVerifyEmail({ lang, storeName, name: me.name, link, code });
       const sent = await trySend({ to: email, ...mail });
       return NextResponse.json({ ok: true, verified: false, sent });
+    }
+
+    // Confirm the address by typing the code from the email. Authenticated and
+    // scoped to the caller's own account — vendorId/userId come from verified
+    // claims, never the body — so this adds nothing to the anonymous surface
+    // and a code can only ever be tried against the account already signed in.
+    if (action === "verifyCode") {
+      if (me.emailVerifiedAt) return NextResponse.json({ ok: true, verified: true });
+      if (!me.email) return err(400, "no_email", "Add an email first.");
+      const tRef = adminDb.collection("verifyAttempts").doc(`try_${vendorId}_${userId}`);
+      const tSnap = await tRef.get();
+      const tDec = throttleDecision(tSnap.exists ? tSnap.data() : null, Date.now(), VERIFY_TRY_LIMIT);
+      if (tDec.blocked) return err(429, "too_many_tries", "Too many tries. Ask for a new code.");
+
+      const r = await consumeCode(adminDb, { kind: "verify", vendorId, userId, code: body.code });
+      if (r.state !== "ok") {
+        // Only a WRONG guess costs an attempt here; a stale or already-used
+        // token is the owner's bad luck, not a guess, and must not burn down
+        // the allowance for the fresh code they are about to ask for.
+        if (r.state === "bad_code" || r.state === "locked") await tRef.set(tDec.nextOnFail, { merge: true });
+        return err(400, `verify_${r.state}`, "That code didn't work.", { left: r.left ?? null });
+      }
+      await userRef.update({ emailVerifiedAt: new Date() });
+      await burnTokens(adminDb, { kind: "verify", vendorId, userId });
+      return NextResponse.json({ ok: true, verified: true });
     }
 
     return err(400, "bad_action", "Unknown account action.");

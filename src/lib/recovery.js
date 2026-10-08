@@ -188,6 +188,10 @@ export const EMAIL_COPY = Object.freeze({
     verify_hi: "Hi {name},",
     verify_body: "Confirm this address so it can be used to reset your {store} PIN if you're ever locked out. Until you confirm, it can't recover your account.",
     verify_cta: "Confirm this address",
+    // The code is for people reading this on a phone: typing six digits back
+    // into the screen already asking for them beats leaving the app for a link
+    // and finding your way back. Both open the same token.
+    verify_code: "Or type this code into DuoCount: {code}",
     verify_expiry: "This link works once and expires in {days} days.",
     verify_ignore: "Didn't ask for this? Ignore this email — nothing will change.",
     changed_subject: "Your {store} PIN was changed",
@@ -234,6 +238,7 @@ export const EMAIL_COPY = Object.freeze({
     verify_hi: "Hola {name}:",
     verify_body: "Confirma esta dirección para poder restablecer tu PIN de {store} si alguna vez no puedes entrar. Hasta que la confirmes, no sirve para recuperar la cuenta.",
     verify_cta: "Confirmar esta dirección",
+    verify_code: "O escribe este código en DuoCount: {code}",
     verify_expiry: "Este enlace sirve una sola vez y vence en {days} días.",
     verify_ignore: "¿No lo pediste? Ignora este correo — no cambiará nada.",
     changed_subject: "Tu PIN de {store} cambió",
@@ -306,7 +311,7 @@ export function buildResetEmail({ lang, storeName, name, link, minutes = RESET_T
   };
 }
 
-export function buildVerifyEmail({ lang, storeName, name, link, days = VERIFY_TTL_DAYS } = {}) {
+export function buildVerifyEmail({ lang, storeName, name, link, code = null, days = VERIFY_TTL_DAYS } = {}) {
   const l = pickLang(lang);
   const store = storeName || "DuoCount";
   return {
@@ -314,7 +319,11 @@ export function buildVerifyEmail({ lang, storeName, name, link, days = VERIFY_TT
     ...renderEmail({
       lang: l,
       head: line(l, "verify_head"),
+      // The code sits ABOVE the expiry line so it is in the preview pane of a
+      // phone's mail app without opening anything. Omitted entirely when the
+      // caller minted a link-only token, rather than printing a blank line.
       paras: [line(l, "verify_hi", { name: name || "" }), line(l, "verify_body", { store }),
+        ...(code ? [line(l, "verify_code", { code })] : []),
         line(l, "verify_expiry", { days })],
       cta: link, ctaLabel: line(l, "verify_cta"),
       note: line(l, "verify_ignore"),
