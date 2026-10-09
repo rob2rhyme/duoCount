@@ -5,6 +5,7 @@ import {
   Tooltip, CartesianGrid, Cell,
 } from "recharts";
 import { money, toDate, isUnresolved, printCloseHtml } from "@/lib/utils";
+import { statValueClass } from "@/lib/stat-size";
 import { useModalA11y } from "@/lib/use-modal-a11y";
 import { detectPatterns, resolvePatternRules } from "@/lib/patterns";
 import { buildRewardAudit, outstandingLiability } from "@/lib/reward-audit";
@@ -36,9 +37,13 @@ const CHART = {
 
 function Stat({ label, value, tone }) {
   const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : "text-fg";
+  // Size from the value's length, not a fixed step: a six-figure currency
+  // value overflowed the tile and the Dashboard rendered "$93,607.0". Which
+  // tile holds a long value depends on the store's data, so it cannot be
+  // decided at the call site. See statValueClass for the measurements.
   return (
     <div className="card p-4">
-      <div className={`text-2xl font-bold font-mono ${color}`}>{value}</div>
+      <div className={`${statValueClass(value)} font-bold font-mono ${color}`}>{value}</div>
       <div className="text-[11px] text-muted uppercase tracking-wide font-semibold mt-1">{label}</div>
     </div>
   );

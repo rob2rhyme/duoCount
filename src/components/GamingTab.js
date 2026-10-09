@@ -5,6 +5,7 @@ import { useLang } from "./LangProvider";
 import { useTheme } from "./ThemeProvider";
 import { useSession } from "./SessionProvider";
 import { apiGaming } from "@/lib/data";
+import { statValueClass } from "@/lib/stat-size";
 import { buildGamingSummary } from "@/lib/gaming";
 import { chartBar } from "@/lib/branding";
 import { money, csvCell, downloadCSV } from "@/lib/utils";
@@ -34,7 +35,9 @@ function Stat({ label, value, tone }) {
   const color = tone === "neg" ? "text-neg" : tone === "pos" ? "text-pos" : "text-fg";
   return (
     <div className="card p-3.5">
-      <div className={`text-xl font-bold font-mono ${color}`}>{value}</div>
+      {/* Same overflow as the Dashboard's tile — money in a 2-column cell —
+          capped at text-xl so this screen keeps its own type scale. */}
+      <div className={`${statValueClass(value, { max: "text-xl" })} font-bold font-mono ${color}`}>{value}</div>
       <div className="text-[11px] text-muted uppercase tracking-wide font-semibold mt-1">{label}</div>
     </div>
   );
